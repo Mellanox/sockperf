@@ -1,0 +1,23 @@
+#!/bin/bash
+
+#export VMA_IGMP=0 LD_PRELOAD=libvma.so
+
+#BASE_ARG="-c -t 10 -m 12 -i 224.99.200.8"
+BASE_ARG="-c -t 10 -m 12 -F e -f conf/conf25.inp"
+
+while true
+do 
+	CMD="udp_lat  "; ARG=${BASE_ARG}5; sleep 1
+	echo -n "$CMD : ";VMA_IGMP=0 LD_PRELOAD=libvma.so $CMD $ARG 2> /dev/null | grep "Summary: Latency is " | awk '{print $5}'
+
+        #CMD="udp_lat  "; ARG=${BASE_ARG}5; sleep 1
+        #echo -n "$CMD : ";VMA_IGMP=0 LD_PRELOAD=libvma.so $CMD $ARG 2> /dev/null | grep "Summary: Latency is " | awk '{print $5}'
+
+        CMD="./sockperf  "; ARG="${BASE_ARG}4 --ping-pong"; sleep 1
+	echo -n "$CMD : ";VMA_IGMP=0 LD_PRELOAD=libvma.so $CMD $ARG 2> /dev/null | grep "Summary: Latency is " | awk '{print $5}'
+
+	#CMD="././sockperf"; ARG="${BASE_ARG}4 --reply-every=1"; sleep 1
+        #echo -n "$CMD : ";VMA_IGMP=0 LD_PRELOAD=libvma.so $CMD $ARG 2> /dev/null | grep "Summary: Latency is " | awk '{print $5}'
+
+	echo ---
+done
