@@ -36,13 +36,10 @@
 //==============================================================================
 class ClientBase {
 public:
-	ClientBase();
-	virtual ~ClientBase();
 	virtual void client_receiver_thread() = 0;
 protected:
-
-	Message * m_pMsgReply;
-	Message * m_pMsgRequest;
+	ClientBase();
+	virtual ~ClientBase();
 };
 
 //==============================================================================
@@ -58,7 +55,6 @@ private:
 	SwitchCycleDuration m_switchCycleDuration;
 	SwitchMsgSize       m_switchMsgSize;
 	PongModeCare        m_pongModeCare; // has msg_sendto() method and can be one of: PongModeNormal, PongModeAlways, PongModeNever
-
 public:
 	Client(int _fd_min, int _fd_max, int _fd_num);
 	virtual ~Client();
@@ -66,7 +62,7 @@ public:
 	void client_receiver_thread();
 
 private:
-	int initBeforeLoop();
+	void initBeforeLoop();
 	void doSendThenReceiveLoop();
 	void doSendLoop();
 	void doPlayback();
@@ -75,128 +71,57 @@ private:
 	//------------------------------------------------------------------------------
 	inline void client_send_packet(int ifd)
 	{
-		int ret = 0;
+		g_pMessage->incSequenceCounter();
 
-		m_pMsgRequest->incSequenceCounter();
-
-		ret = m_pongModeCare.msg_sendto(ifd);
-		if (ret == 0) {
-			if (g_fds_array[ifd]->sock_type == SOCK_STREAM) {
-				log_err("A connection was forcibly closed by a peer");
-				exit_with_log(SOCKPERF_ERR_SOCKET);
-			}
-		}
+		m_pongModeCare.msg_sendto(ifd);
 	}
 
 	//------------------------------------------------------------------------------
 	inline unsigned int client_receive_from_selected(int ifd)
 	{
 		static const int SERVER_NO = 0;
-		int ret = 0;
+
 		int nbytes = 0;
 		struct sockaddr_in recvfrom_addr;
-		int receiveCount = 0;
 
 		TicksTime rxTime;
 
-		ret = msg_recvfrom(ifd,
-				           g_fds_array[ifd]->recv.cur_addr + g_fds_array[ifd]->recv.cur_offset,
-				           g_fds_array[ifd]->recv.cur_size,
-				           &recvfrom_addr);
-		if (ret == 0) {
-			if (g_fds_array[ifd]->sock_type == SOCK_STREAM) {
-				log_err("A connection was forcibly closed by a peer");
-				exit_with_log(SOCKPERF_ERR_SOCKET);
-			}
-		}
-		if (ret < 0) return 0;
-
-		nbytes = ret;
-		while (nbytes) {
-
-			/* 1: message header is not received yet */
-			if ((g_fds_array[ifd]->recv.cur_offset + nbytes) < MsgHeader::EFFECTIVE_SIZE) {
-				g_fds_array[ifd]->recv.cur_size -= nbytes;
-				g_fds_array[ifd]->recv.cur_offset += nbytes;
-
-				/* 4: set current buffer size to size of remained part of message header to
-				 *    guarantee getting full message header on next iteration
-				 */
-				if (g_fds_array[ifd]->recv.cur_size < MsgHeader::EFFECTIVE_SIZE) {
-					g_fds_array[ifd]->recv.cur_size = MsgHeader::EFFECTIVE_SIZE - g_fds_array[ifd]->recv.cur_offset;
-				}
-				return (receiveCount);
-			}
-
-			/* 2: message header is got, match message to cycle buffer */
-			m_pMsgReply->setBuf(g_fds_array[ifd]->recv.cur_addr);
-
-			/* 3: message is not complete */
-			if ((g_fds_array[ifd]->recv.cur_offset + nbytes) < m_pMsgReply->getLength()) {
-				g_fds_array[ifd]->recv.cur_size -= nbytes;
-				g_fds_array[ifd]->recv.cur_offset += nbytes;
-
-				/* 4: set current buffer size to size of remained part of message to
-				 *    guarantee getting full message on next iteration (using extended reserved memory)
-				 *    and shift to start of cycle buffer
-				 */
-				if (g_fds_array[ifd]->recv.cur_size < (int)m_pMsgReply->getMaxSize()) {
-					g_fds_array[ifd]->recv.cur_size = m_pMsgReply->getLength() - g_fds_array[ifd]->recv.cur_offset;
-				}
-				return (receiveCount);
-			}
-
-			/* 5: message is complete shift to process next one */
-			nbytes -= m_pMsgReply->getLength() - g_fds_array[ifd]->recv.cur_offset;
-			g_fds_array[ifd]->recv.cur_addr += m_pMsgReply->getLength();
-			g_fds_array[ifd]->recv.cur_size -= m_pMsgReply->getLength() - g_fds_array[ifd]->recv.cur_offset;
-			g_fds_array[ifd]->recv.cur_offset = 0;
-
-#if defined(LOG_TRACE_MSG_IN) && (LOG_TRACE_MSG_IN==TRUE)
-			printf(">>> ");
-			hexdump(m_pMsgReply->getBuf(), MsgHeader::EFFECTIVE_SIZE);
-#endif /* LOG_TRACE_MSG_IN */
-
+		do {
 			if (g_b_exit) return 0;
-			if (m_pMsgReply->isClient()) {
-				assert(!(g_fds_array[ifd]->is_multicast && g_pApp->m_const_params.mc_loop_disable));
-				continue;
+			nbytes = ::msg_recvfrom(ifd, &recvfrom_addr);
+
+			if (g_pReply->isClient()) {
+				#ifdef DEBUG
+				if (g_pApp->m_const_params.mc_loop_disable)
+					log_err("got client packet");
+				#endif
+				return 0; // got 0 valid packets
 			}
 
-			receiveCount++;
 			rxTime.setNow();
 
-			#if 0 //should be part of check-data-integrity
+			#ifdef DEBUG //should be part of check-data-integrity
 			if (g_pApp->m_const_params.msg_size_range == 0) { //ABH: added 'if', otherwise, size check will not suit latency-under-load
-				if (nbytes != g_msg_size && errno != EINTR) {
+				if (nbytes != g_msg_size) {
 					log_msg("received message size test failed (sent:%d received:%d)", g_msg_size, nbytes);
-					exit_with_log(SOCKPERF_ERR_FATAL);
+					exit_with_log(16);
 				}
 			}
 			#endif
 
 			#ifdef DEBUG //should not occur in real test
-			if (m_pMsgReply->getSequenceCounter() % g_pApp->m_const_params.reply_every) {
-				log_err("skipping unexpected received packet: seqNo=%" PRIu64 " mask=0x%x",
-						m_pMsgReply->getSequenceCounter(), m_pMsgReply->getFlags());
-				continue;
+			if (g_pReply->getSequenceCounter() % g_pApp->m_const_params.reply_every) {
+				log_err("skipping unexpected received packet: seqNo=%" PRIu64 " mask=0x%x", g_pReply->getSequenceCounter(), g_pReply->getFlags());
+				return 0; // got 0 valid packets
 			}
 			#endif
 
-			g_pPacketTimes->setRxTime(m_pMsgReply->getSequenceCounter(), rxTime, SERVER_NO);
-			m_switchDataIntegrity.execute(m_pMsgRequest, m_pMsgReply);
-		}
+			break;
+		} while (true);
 
-		/* 6: shift to start of cycle buffer in case receiving buffer is empty and
-		 * there is no uncompleted message
-		 */
-		if (!nbytes) {
-			g_fds_array[ifd]->recv.cur_addr = g_fds_array[ifd]->recv.buf;
-			g_fds_array[ifd]->recv.cur_size = g_fds_array[ifd]->recv.max_size;
-			g_fds_array[ifd]->recv.cur_offset = 0;
-		}
-
-		return (receiveCount);
+		g_pPacketTimes->setRxTime(g_pReply->getSequenceCounter(), rxTime, SERVER_NO);
+		m_switchDataIntegrity.execute();
+		return 1; // got 1 valid packet
 	}
 
 	//------------------------------------------------------------------------------
@@ -204,7 +129,7 @@ private:
 	{
 		int numReady = 0;
 		int actual_fd = 0;
-		unsigned int recieved_packets_num = 0;
+		unsigned int recived_packets_num = 0;
 
 		do {
 			// wait for arrival
@@ -214,7 +139,7 @@ private:
 			if (g_b_exit) break;
 			if (numReady < 0) {
 				log_err("%s() failed", g_fds_handle_desc[g_pApp->m_const_params.fd_handler_type]);
-				exit_with_log(SOCKPERF_ERR_FATAL);
+				exit_with_log(1);
 			}
 			if (numReady == 0) {
 				//if (!g_pApp->m_const_params.select_timeout) - ABH: who cares?
@@ -226,20 +151,20 @@ private:
 			for (int _fd = m_ioHandler.get_look_start(); (_fd < m_ioHandler.get_look_end()); _fd++) {
 				actual_fd = m_ioHandler.analyzeArrival(_fd);
 				if (actual_fd){
-					recieved_packets_num += client_receive_from_selected(actual_fd/*, packet_cnt_index*/);
+					recived_packets_num += client_receive_from_selected(actual_fd/*, packet_cnt_index*/);
 				}
 			}
 
 		} while (numReady <= 0);
 
-		return recieved_packets_num;
+		return recived_packets_num;
 	}
 
 	//------------------------------------------------------------------------------
 	inline void client_send_burst(int ifd)
 	{
 		//init
-		m_switchMsgSize.execute(m_pMsgRequest);
+		m_switchMsgSize.execute();
 
 		//idle
 		m_switchCycleDuration.execute();
@@ -249,7 +174,7 @@ private:
 			client_send_packet(ifd);
 		}
 
-		m_switchActivityInfo.execute(m_pMsgRequest->getSequenceCounter());
+		m_switchActivityInfo.execute(g_pMessage->getSequenceCounter());
 	}
 
 	//------------------------------------------------------------------------------

@@ -74,7 +74,7 @@ AC_PROG_CXX
 #AC_PROG_LIBTOOL
 
 
-CXXFLAGS="-Werror -Winline -Wall  --param inline-unit-growth=200"
+CXXFLAGS="-Werror -Winline -Wall --param inline-unit-growth=200"
 CXXFLAGS="$CXXFLAGS  -D__LINUX__  -DVERSION=$VERSION"
 
 
@@ -127,7 +127,7 @@ if test x$enable_debug = xyes; then
     CXXFLAGS="$CXXFLAGS -g -D_DEBUG -DDEBUG"
 else
     TARGET_BUILD=rls
-    CXXFLAGS="$CXXFLAGS -O3 -DNDEBUG"
+    CXXFLAGS="$CXXFLAGS -O3"
 fi
 
 

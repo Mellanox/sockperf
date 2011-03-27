@@ -45,8 +45,6 @@ public:
 	inline void execute(int, uint64_t) {}
 	inline void execute(TicksTime & _ticks) {}
 	inline void execute(struct sockaddr_in *clt_addr, uint64_t seq_num, bool is_warmup) {}
-	inline void execute(Message *pMsgRequest, Message * pMsgReply) {}
-	inline void execute(Message *pMsgRequest) {}
 
 /*
 	inline void execute2() {}
@@ -58,25 +56,12 @@ public:
 //------------------------------------------------------------------------------
 class SwitchOnMsgSize {
 public:
-	SwitchOnMsgSize() {
-		assert(g_pApp);
-
-	    m_min_msg_size = max(MIN_PAYLOAD_SIZE,
-	    		g_pApp->m_const_params.msg_size - g_pApp->m_const_params.msg_size_range);
-	    m_range_msg_size = min(MAX_PAYLOAD_SIZE,
-	    		g_pApp->m_const_params.msg_size + g_pApp->m_const_params.msg_size_range) -
-	    		m_min_msg_size + 1;
-	}
-	inline void execute(Message *pMsgRequest) {client_update_msg_size(pMsgRequest);}
+	inline void execute() {client_update_msg_size();}
 
 private:
-	inline void client_update_msg_size(Message *pMsgRequest) {
-	    int m_msg_size = min(MAX_PAYLOAD_SIZE, (m_min_msg_size + (int)(rand() % m_range_msg_size)));
-	    pMsgRequest->setLength(m_msg_size);
+	inline void client_update_msg_size() {
+		g_msg_size = min(MAX_PAYLOAD_SIZE, (g_min_msg_size + (int)(rand() % (g_pApp->m_const_params.msg_size_range))));
 	}
-	int m_min_msg_size;
-	int m_range_msg_size;
-
 };
 
 //==============================================================================
@@ -99,64 +84,43 @@ public:
 //==============================================================================
 class PongModeNormal { // indicate that pong-request bit is set for part of the packets
 public:
-	PongModeNormal(){ assert(0); /* do not call this constructor */ }
-	PongModeNormal(Message *pMsgRequest){
-		m_pMsgRequest = pMsgRequest;
-		m_pMsgRequest->getHeader()->resetPongRequest();
-	}
+	PongModeNormal(){ g_pMessage->getHeader()->resetPongRequest(); }
 
 	inline int msg_sendto(int ifd)
 	{
-		if (m_pMsgRequest->getSequenceCounter() % g_pApp->m_const_params.reply_every == 0) {
-			m_pMsgRequest->getHeader()->setPongRequest();
-			g_pPacketTimes->setTxTime(m_pMsgRequest->getSequenceCounter());
-			int ret = ::msg_sendto(ifd, m_pMsgRequest->getBuf(), m_pMsgRequest->getLength(), &(g_fds_array[ifd]->addr));
-			m_pMsgRequest->getHeader()->resetPongRequest();
+		if (g_pMessage->getSequenceCounter() % g_pApp->m_const_params.reply_every == 0) {
+			g_pMessage->getHeader()->setPongRequest();
+			g_pPacketTimes->setTxTime(g_pMessage->getSequenceCounter());
+			int ret = ::msg_sendto(ifd, g_pMessage->getData(), g_msg_size, &(g_fds_array[ifd]->addr));
+			g_pMessage->getHeader()->resetPongRequest();
 			return ret;
 		}
 		else
 		{
-			return ::msg_sendto(ifd, m_pMsgRequest->getBuf(), m_pMsgRequest->getLength(), &(g_fds_array[ifd]->addr));
+			return ::msg_sendto(ifd, g_pMessage->getData(), g_msg_size, &(g_fds_array[ifd]->addr));
 		}
 	}
-
-private:
-	Message *m_pMsgRequest;
 };
 
 //==============================================================================
 class PongModeAlways { // indicate that pong-request bit is always on
 public:
-	PongModeAlways(){ assert(0); /* do not call this constructor */ }
-	PongModeAlways(Message *pMsgRequest){
-		m_pMsgRequest = pMsgRequest;
-		m_pMsgRequest->getHeader()->setPongRequest();
-	}
+	PongModeAlways(){ g_pMessage->getHeader()->setPongRequest(); }
 
 	inline int msg_sendto(int ifd) {
-		g_pPacketTimes->setTxTime(m_pMsgRequest->getSequenceCounter());
-		return ::msg_sendto(ifd, m_pMsgRequest->getBuf(), m_pMsgRequest->getLength(), &(g_fds_array[ifd]->addr));
+		g_pPacketTimes->setTxTime(g_pMessage->getSequenceCounter());
+		return ::msg_sendto(ifd, g_pMessage->getData(), g_msg_size, &(g_fds_array[ifd]->addr));
 	}
-
-private:
-	Message *m_pMsgRequest;
 };
 
 //==============================================================================
 class PongModeNever { // indicate that pong-request bit is never on (no need to take tXtime)
 public:
-	PongModeNever(){ assert(0); /* do not call this constructor */ }
-	PongModeNever(Message *pMsgRequest){
-		m_pMsgRequest = pMsgRequest;
-		m_pMsgRequest->getHeader()->resetPongRequest();
-	}
+	PongModeNever(){ g_pMessage->getHeader()->resetPongRequest(); }
 
 	inline int msg_sendto(int ifd) {
-		return ::msg_sendto(ifd, m_pMsgRequest->getBuf(), m_pMsgRequest->getLength(), &(g_fds_array[ifd]->addr));
+		return ::msg_sendto(ifd, g_pMessage->getData(), g_msg_size, &(g_fds_array[ifd]->addr));
 	}
-
-private:
-	Message *m_pMsgRequest;
 };
 
 //*/
@@ -192,20 +156,18 @@ public:
 class SwitchOnDataIntegrity {
 public:
 	//----------------------
-	inline void execute(Message *pMsgSend, Message * pMsgReply) {
-		if (!check_data_integrity(pMsgSend, pMsgReply)) {
+	inline void execute() {
+		if (!check_data_integrity(g_pMessage->getData(), g_msg_size)) {
 			g_data_integrity_failed = 1;
 			log_msg("data integrity test failed");
-			exit_with_log(SOCKPERF_ERR_INCORRECT);
+			exit_with_log(16);
 		}
 	}
 private:
 	//----------------------
 	/* returns 1 if buffers are identical */
-	inline int check_data_integrity(Message *pMsgSend, Message * pMsgReply)
+	inline int check_data_integrity(uint8_t *message_buf, size_t buf_size)
 	{
-		uint8_t *message_buf = pMsgSend->getBuf();
-		size_t buf_size = pMsgSend->getLength();
 		/*static int to_print = 1;
 		if (to_print == 1) {
 			printf("%s\n", rcvd_buf);
@@ -235,8 +197,8 @@ private:
 	#endif
 
 		//TODO: this is bug in orig udp_lat's code, in case USING_VMA_EXTRA_API and ! g_dgram we should compare to g_dgram_buf
-		pMsgReply->setClient();
-		return !memcmp(pMsgReply->getBuf(), message_buf, buf_size);
+		g_pReply->setClient();
+		return !memcmp(g_pReply->getData(), message_buf, buf_size);
 
 	}
 };

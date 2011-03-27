@@ -26,15 +26,13 @@ NF < 5 {error = 1; exit 1} # too few fields
 
 # this will be executed for any input line
 {
-	runtime = 0; startTime = $1; duration = $2; startPPS=$3; endPPS=$4; msgSize=$5
+	startTime = $1; duration = $2; startPPS=$3; endPPS=$4; msgSize=$5
 	if (startTime < t) { error = 1; exit 2} # file is un-ordered
 	if (duration <= 0 || startPPS <= 0 || endPPS <= 0 || msgSize < 12 || msgSize > 65000) { error = 1; exit 3}
 	
 	ppsGradient = (endPPS - startPPS) / duration
 	#pps = startPPS
 	#runtime += 1/pps
-	
-	printf ("#startTime=%f; duration=%f; startPPS=%f; endPPS=%f; msgSize=%d; ppsGradient=%f\n", startTime, duration, startPPS, endPPS, msgSize, ppsGradient)
 	print("#txTime, msgSize")      # print header
 	while (runtime <= duration) {
 		t = startTime + runtime

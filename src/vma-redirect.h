@@ -95,17 +95,13 @@ typedef int (*socket_fptr_t)      (int __domain, int __type, int __protocol);
 typedef int (*close_fptr_t)       (int __fd);
 typedef int (*shutdown_fptr_t)    (int __fd, int __how);
 
-typedef int (*accept_fptr_t)      (int __fd, struct sockaddr *__addr, socklen_t *__addrlen);
 typedef int (*bind_fptr_t)        (int __fd, const struct sockaddr *__addr, socklen_t __addrlen);
 typedef int (*connect_fptr_t)     (int __fd, const struct sockaddr *__to, socklen_t __tolen);
-typedef int (*listen_fptr_t)      (int __fd, int __backlog);
-
 typedef int (*setsockopt_fptr_t)  (int __fd, int __level, int __optname, __const void *__optval, socklen_t __optlen);
 typedef int (*getsockopt_fptr_t)  (int __fd, int __level, int __optname, void *__optval, socklen_t *__optlen);
 typedef int (*fcntl_fptr_t)       (int __fd, int __cmd, ...);
 typedef int (*ioctl_fptr_t)       (int __fd, int __request, ...);
 typedef int (*getsockname_fptr_t) (int __fd, struct sockaddr *__name,socklen_t *__namelen);
-typedef int (*getpeername_fptr_t) (int __fd, struct sockaddr *__name,socklen_t *__namelen);
 
 typedef ssize_t (*read_fptr_t)    (int __fd, void *__buf, size_t __nbytes);
 typedef ssize_t (*readv_fptr_t)   (int __fd, const struct iovec *iov, int iovcnt);
@@ -146,17 +142,13 @@ typedef int (*sigaction_fptr_t)   (int signum, const struct sigaction *act, stru
 extern socket_fptr_t        fn_socket;
 extern close_fptr_t         fn_close;
 extern shutdown_fptr_t      fn_shutdown;
-extern accept_fptr_t        fn_accept;
 extern bind_fptr_t          fn_bind;
 extern connect_fptr_t       fn_connect;
-extern listen_fptr_t        fn_listen;
-
 extern setsockopt_fptr_t    fn_setsockopt;
 extern getsockopt_fptr_t    fn_getsockopt;
 extern fcntl_fptr_t         fn_fcntl;
 extern ioctl_fptr_t         fn_ioctl;
 extern getsockname_fptr_t   fn_getsockname;
-extern getpeername_fptr_t   fn_getpeername;
 extern read_fptr_t          fn_read;
 extern readv_fptr_t         fn_readv;
 extern recv_fptr_t          fn_recv;
@@ -192,17 +184,13 @@ extern sigaction_fptr_t     fn_sigaction;
 #define close(...)        fn_close (__VA_ARGS__)
 #define shutdown(...)     fn_shutdown (__VA_ARGS__)
 
-#define accept(...)       fn_accept (__VA_ARGS__)
 #define bind(...)         fn_bind (__VA_ARGS__)
 #define connect(...)      fn_connect (__VA_ARGS__)
-#define listen(...)       fn_listen (__VA_ARGS__)
-
 #define setsockopt(...)   fn_setsockopt (__VA_ARGS__)
 #define getsockopt(...)   fn_getsockopt (__VA_ARGS__)
 #define fcntl(...)        fn_fcntl (__VA_ARGS__)
 #define ioctl(...)        fn_ioctl (__VA_ARGS__)
 #define getsockname(...)  fn_getsockname (__VA_ARGS__)
-#define getpeername(...)  fn_getpeername (__VA_ARGS__)
 
 #define read(...)         fn_read (__VA_ARGS__)
 #define readv(...)        fn_readv (__VA_ARGS__)

@@ -19,11 +19,13 @@ BW=10G
 OUTPUT_FILES_PATH="./"
 INTERFACE="ib0"
 OVER_VMA="yes" #[yes | not]
-SOCKPERF_TC1_PPS_ARRAY=(100 1000 10000 50000 100000 500000)                                                   # Packet per second
-SOCKPERF_MSG_SIZE=(12 32 64 128 192 256 512 768 1024 1472 2048 4096 8192 16384 32768 65500)                   # Bytes
-IPERF_MSG_SIZE=(12 32 64 128 192 256 512 768 1024 1472 2048 4096 8192 16384 32768 65500)                   # Bytes
-SOCKPERF_BURST_SIZE=(2 5 10 25 50 100 250 500 1000 2500 5000 10000 16000 25000 50000 100000 250000 500000)    # Message
-MC_GROUP_SIZES=(1 10 20 30 50 60 64 65 70 80 90 100 150 200 500)                                           # Number of sockets with unique MC groupa in iomux
+SOCKPERF_TC1_PPS_ARRAY=(100 1000 10000 50000 100000 500000)
+SOCKPERF_TC1_MSG_ARRAY=(12 32 64 128 256 512 1024 1472 2048 4096 8192 16384 32768 65500)
+
+SOCKPERF_MSG_SIZE=(20 60 100 200 400 800 1470 2000 3000 4000 8000 16000 32000 65000)                        #Bytes
+SOCKPERF_BURST_SIZE=(2 5 10 25 50 100 250 500 1000 2500 5000 10000 16000 25000 50000 100000 250000 500000)      #Bytes
+IPERF_MSG_SIZE=(12 20 60 100 200 400 800 1470 2000 3000 4000 8000 16000 32000 65000)                            #Bytes
+MC_GROUP_SIZES=(1 10 20 30 50 60 64 65 70 80 90 100 150 200)
 
 #path
 #----------------------------------------------------
@@ -66,7 +68,6 @@ VMA_IOMUX_SELECT_SKIP_OS=$DEFAULT_VMA_SELECT_SKIP_OS		#500
 VMA_IOMUX_HUGETLB=$DEFAULT_VMA_HUGETLB				#1
 MAX_SOCKPERF_MSG_SIZE=65000
 ACTIVITY=100000
-RX_ADAPTIVE=off
 RX_FRAMES_4_SOCKPERF=1
 RX_FRAMES_4_IPERF=16
 RX_USEC_4_LAT_TEST=0
@@ -139,7 +140,7 @@ function run_sockperf_tc1
 	append_tmp_file_and_delete "$TMP_DIR/$log_file.prep" "$log_file"
 	print_message "===========================>SOCKPERF TC1<==========================" "$log_file"    
         
-	local size_arr_len=${#SOCKPERF_MSG_SIZE[*]}
+	local size_arr_len=${#SOCKPERF_TC1_MSG_ARRAY[*]}
 	local pps_arr_len=${#SOCKPERF_TC1_PPS_ARRAY[*]}
         sockperf_command_line_srv=${PREFIX}"${SOCKPERF_APP} server -i $MC_GROUP -p $PORT -m $MAX_SOCKPERF_MSG_SIZE"
         (echo ${SRV_CMMND_LINE_PREF}$sockperf_command_line_srv | tee -a $log_file) >& /dev/null
@@ -149,7 +150,7 @@ function run_sockperf_tc1
 	do
 	    for((j=0; $j < $pps_arr_len; j=$((j=$j+1))))
 	    do
-            curr_msg_size=${SOCKPERF_MSG_SIZE[$i]}
+            curr_msg_size=${SOCKPERF_TC1_MSG_ARRAY[$i]}
 		    curr_pps_value=${SOCKPERF_TC1_PPS_ARRAY[$j]}
 		    sockperf_tc1_cycle under-load ${curr_msg_size} ${curr_pps_value}
 		    sleep 5
@@ -169,7 +170,7 @@ function run_sockperf_tc9
 	append_tmp_file_and_delete "$TMP_DIR/$log_file.prep" "$log_file"
 	print_message "===========================>SOCKPERF TC9<==========================" "$log_file"    
         
-	local size_arr_len=${#SOCKPERF_MSG_SIZE[*]}
+	local size_arr_len=${#SOCKPERF_TC1_MSG_ARRAY[*]}
 	local pps_arr_len=${#SOCKPERF_TC1_PPS_ARRAY[*]}
         sockperf_command_line_srv=${PREFIX}"${SOCKPERF_APP} server -i $MC_GROUP -p $PORT -m $MAX_SOCKPERF_MSG_SIZE"
         (echo ${SRV_CMMND_LINE_PREF}$sockperf_command_line_srv | tee -a $log_file) >& /dev/null
@@ -179,7 +180,7 @@ function run_sockperf_tc9
 	do
 	    for((j=0; $j < $pps_arr_len; j=$((j=$j+1))))
 	    do
-            curr_msg_size=${SOCKPERF_MSG_SIZE[$i]}
+            curr_msg_size=${SOCKPERF_TC1_MSG_ARRAY[$i]}
 		    curr_pps_value=${SOCKPERF_TC1_PPS_ARRAY[$j]}
 		    sockperf_tc1_cycle ping-pong ${curr_msg_size} ${curr_pps_value}
 		    sleep 5
@@ -322,10 +323,10 @@ function recreate_mem_prop
 {
 	echo "" >> "$TMP_DIR/$log_file.post"
         echo "================>Recreate number of huge pages <==============" >> "$TMP_DIR/$log_file.post"
-        command="sudo echo $save_local_hugetlb > /proc/sys/kernel/shmmax;sudo echo $save_local_shmax > /proc/sys/vm/nr_hugepages"
+        command="echo $save_local_hugetlb > /proc/sys/kernel/shmmax;echo $save_local_shmax > /proc/sys/vm/nr_hugepages"
         (echo "${SRV_CMMND_LINE_PREF} $command" | tee -a "$TMP_DIR/$log_file.post") >& /dev/null
         eval "$command 2>&1 | tee >> $TMP_DIR/$log_file.post"
-	command="sudo echo $save_remote_hugetlb > /proc/sys/kernel/shmmax;sudo echo $save_remote_shmax > /proc/sys/vm/nr_hugepages"
+	command="echo $save_remote_hugetlb > /proc/sys/kernel/shmmax;echo $save_remote_shmax > /proc/sys/vm/nr_hugepages"
         (echo "${CLT_CMMND_LINE_PREF} $command" | tee -a "$TMP_DIR/$log_file.post") >& /dev/null
         eval "ssh  $REM_HOST_IP "$command" 2>&1 | tee >>  $TMP_DIR/$log_file.post"
         print_huge_tlb_info "${TMP_DIR}/${log_file}.post"
@@ -350,7 +351,7 @@ function increase_number_of_hugetlb
 	print_huge_tlb_info "${TMP_DIR}/${log_file}.prep"
 	echo "" >> "$TMP_DIR/$log_file.prep"
 	echo "================>Update number of huge pages <================" >> "$TMP_DIR/$log_file.prep"
-	command="sudo echo 1000000000 > /proc/sys/kernel/shmmax;sudo echo 400 > /proc/sys/vm/nr_hugepages;cat /proc/meminfo |  grep -i HugePage"
+	command="echo 1000000000 > /proc/sys/kernel/shmmax;echo 400 > /proc/sys/vm/nr_hugepages;cat /proc/meminfo |  grep -i HugePage"
 	(echo "${SRV_CMMND_LINE_PREF} $command" | tee -a "$TMP_DIR/$log_file.prep") >& /dev/null
  	eval "$command 2>&1 | tee >> $TMP_DIR/$log_file.prep"	
 	(echo "${CLT_CMMND_LINE_PREF} $command" | tee -a "$TMP_DIR/$log_file.prep") >& /dev/null
@@ -560,25 +561,21 @@ function parse_sockperf_tc1_test_results
   
               total=`ssh $REM_HOST_IP cat $TMP_FILE |tr A-Z a-z|grep total|tr [="="=] " " |tr -s " "|tr " " "\n"|head -3|tail -1`
               avg_latency=`ssh $REM_HOST_IP cat $TMP_FILE |tr A-Z a-z|grep latency|tr [="="=] " " |tr -s " "|tr " " "\n"|tail -2|head -1`
-              stddev_latency=`ssh $REM_HOST_IP cat $TMP_FILE |tr A-Z a-z|grep avg-lat|tr [="="=] " " |tr -s " "|tr " " "\n"|tr [=")"=] " "|tail -1`
               max_latency=`ssh $REM_HOST_IP cat $TMP_FILE |tr A-Z a-z|grep '<max>'|tr [="="=] " " |tr -s " "|tr " " "\n"|tail -1`
               min_latency=`ssh $REM_HOST_IP cat $TMP_FILE |tr A-Z a-z|grep '<min>'|tr [="="=] " " |tr -s " "|tr " " "\n"|tail -1`
               percentile_99=`ssh $REM_HOST_IP cat $TMP_FILE |tr A-Z a-z|grep '99.00'|tr [="="=] " " |tr -s " "|tr " " "\n"|tail -1`
-              percentile_99_9=`ssh $REM_HOST_IP cat $TMP_FILE |tr A-Z a-z|grep '99.90'|tr [="="=] " " |tr -s " "|tr " " "\n"|tail -1`
               percentile_50=`ssh $REM_HOST_IP cat $TMP_FILE |tr A-Z a-z|grep '50.00'|tr [="="=] " " |tr -s " "|tr " " "\n"|tail -1`
 
               echo "#total $total observations"
               echo "#average latency is $avg_latency usec"
-              echo "#std-dev latency is $stddev_latency usec"
-              echo "#min latency is $min_latency usec"
               echo "#max latency is $max_latency usec"
-              echo "#50.0% percentille is $percentile_50 usec"
-              echo "#99.0% percentille is $percentile_99 usec"
-              echo "#99.9% percentille is $percentile_99_9 usec"
-              echo $1,$2,$avg_latency,$stddev_latency,$min_latency,$max_latency,$percentile_50,$percentile_99,$percentile_99_9,$total >> $res_file           		
+              echo "#min latency is $min_latency usec"
+              echo "#99% percentille is $percentile_99 usec"
+              echo "#50% percentille is $percentile_50 usec"
+              echo $1,$2,$avg_latency,$max_latency,$min_latency,$percentile_99,$percentile_50,$total >> $res_file           		
 	else
               echo "#$ERROR_MESSAGE"
-              echo "$1,$2,${ERROR_RESULT},${ERROR_RESULT},${ERROR_RESULT},${ERROR_RESULT},${ERROR_RESULT},${ERROR_RESULT},${ERROR_RESULT},${ERROR_RESULT}" >> $res_file    	    		
+              echo "$1,$2,${ERROR_RESULT},${ERROR_RESULT},${ERROR_RESULT},${ERROR_RESULT},${ERROR_RESULT},${ERROR_RESULT}" >> $res_file    	    		
 	fi
 
 	ssh $REM_HOST_IP "cat $TMP_FILE" | tee -a "$TMP_DIR/$log_file.tmp" >& /dev/null 		
@@ -840,14 +837,14 @@ function remove_ifaces
 
 	for iface in $iface_arr_local 
 	do
-		command="sudo route del -net $DST_NET netmask $DST_MASK dev $iface"
+		command="route del -net $DST_NET netmask $DST_MASK dev $iface"
 		(echo "${SRV_CMMND_LINE_PREF} $command" | tee -a $TMP_DIR/$log_file.prep) >& /dev/null
 		eval "$command 2>&1 | tee >> $TMP_DIR/$log_file.prep"	
 	done	
 
 	for iface in $iface_arr_remote 
 	do
-		command="sudo route del -net $DST_NET netmask $DST_MASK dev $iface" 
+		command="route del -net $DST_NET netmask $DST_MASK dev $iface" 
 		(echo "${CLT_CMMND_LINE_PREF} $command" | tee -a "$TMP_DIR/$log_file.prep") >& /dev/null
 		eval "ssh  $REM_HOST_IP "$command" 2>&1 | tee >>  $TMP_DIR/$log_file.prep" 
 	done	
@@ -866,7 +863,7 @@ function recreate_route_table
 {
 	echo "" >> "$TMP_DIR/$log_file.post"
 	echo "===================>Recreate route table <====================" >> "$TMP_DIR/$log_file.post"
-	command="sudo route del -net $DST_NET netmask $DST_MASK dev $INTERFACE"
+	command="route del -net $DST_NET netmask $DST_MASK dev $INTERFACE"
 	(echo "${SRV_CMMND_LINE_PREF} $command" | tee -a "$TMP_DIR/$log_file.post") >& /dev/null
 	eval "$command 2>&1 | tee >> $TMP_DIR/$log_file.post"
 	(echo "${CLT_CMMND_LINE_PREF} $command" | tee -a "$TMP_DIR/$log_file.post") >& /dev/null
@@ -874,14 +871,14 @@ function recreate_route_table
 		
 	for iface in $iface_arr_local 
 	do
-		command="sudo route add -net $DST_NET netmask $DST_MASK dev $iface"
+		command="route add -net $DST_NET netmask $DST_MASK dev $iface"
 		(echo "${SRV_CMMND_LINE_PREF} $command" | tee -a "$TMP_DIR/$log_file.post") >& /dev/null
 		eval "$command 2>&1 | tee >> $TMP_DIR/$log_file.post"	
 	done
 
 	for iface in $iface_arr_remote 
 	do
-		command="sudo route add -net $DST_NET netmask $DST_MASK dev $iface"
+		command="route add -net $DST_NET netmask $DST_MASK dev $iface"
  		(echo "${CLT_CMMND_LINE_PREF} $command" | tee -a "$TMP_DIR/$log_file.post") >& /dev/null
 		(eval "ssh  $REM_HOST_IP "$command" 2>&1 | tee >>  $TMP_DIR/$log_file.post") >& /dev/null 
 	done
@@ -896,7 +893,7 @@ function prepare_route_table
 	remove_ifaces
 	echo "" >> "$TMP_DIR/$log_file.prep"
 	echo "============>Add work interface to route table <==============" >> "$TMP_DIR/$log_file.prep"
-	command="sudo route add -net $DST_NET netmask $DST_MASK dev $INTERFACE"
+	command="route add -net $DST_NET netmask $DST_MASK dev $INTERFACE"
 	(echo "${SRV_CMMND_LINE_PREF} $command" | tee -a "$TMP_DIR/$log_file.prep") >& /dev/null
 	eval "$command 2>&1 | tee >> $TMP_DIR/$log_file.prep"
 	(echo "${CLT_CMMND_LINE_PREF} $command" | tee -a "$TMP_DIR/$log_file.prep") >& /dev/null
@@ -909,7 +906,7 @@ function save_coalesce_params
 {
 	local_coalesce_params_saved=$TRUE
 	remote_coalesce_params_saved=$TRUE
-	command1="sudo ethtool -c $INTERFACE"
+	command1="ethtool -c $INTERFACE"
 	
 	echo "" >> "$TMP_DIR/$log_file.prep"
 	echo "===================>Coalesce params info<=====================" >> "$TMP_DIR/$log_file.prep"
@@ -962,7 +959,7 @@ function update_coalesce_4_sockperf
 	remote_coalesce_params_changed=$FALSE
 	echo "" >> "$TMP_DIR/$log_file.prep"
 	echo "============>Prepare coalesce params for sockperf<=============" >> "$TMP_DIR/$log_file.prep"
-	update_coalesce_params $RX_FRAMES_4_SOCKPERF $RX_USEC_4_LAT_TEST $RX_ADAPTIVE	
+	update_coalesce_params $RX_FRAMES_4_SOCKPERF $RX_USEC_4_LAT_TEST	
 }
 
 function update_coalesce_4_tr_test
@@ -971,25 +968,23 @@ function update_coalesce_4_tr_test
 	remote_coalesce_params_changed=$FALSE
 	echo "" >> "$TMP_DIR/$log_file.prep"
 	echo "========>Prepare coalesce params for throughput test<=========" >> "$TMP_DIR/$log_file.prep"
-	update_coalesce_params $RX_FRAMES_4_IPERF $RX_USEC_4_BW_TEST $RX_ADAPTIVE
+	update_coalesce_params $RX_FRAMES_4_IPERF $RX_USEC_4_BW_TEST
 }
 
 function update_coalesce_params
 {
 	local rx_frames_val=$1
 	local rx_usecs_val=$2
-	local rx_adaptive_val=$3
 
 	update_coalesce_param rx-frames $rx_frames_val
 	update_coalesce_param rx-usecs $rx_usecs_val
-	update_coalesce_param adaptive-rx $rx_adaptive_val
 }
 
 function update_coalesce_param
 {
 	local param_name=$1
 	local param_val=$2
-	command="sudo ethtool -C $INTERFACE $param_name $param_val"
+	command="ethtool -C $INTERFACE $param_name $param_val"
 
 	if [[ $local_coalesce_params_saved -eq $TRUE ]]; then
 		if [[ $initial_rx_frames_local -ne $1 ]]; then
@@ -1046,7 +1041,7 @@ function recreate_coalesce_params
 
 function recreate_local_coalesce_params
 {
-	local command="sudo ethtool -C $INTERFACE adaptive-rx $initial_adaptive-rx_local rx-frames $initial_rx_frames_local rx-usecs $initial_rx_usecs_local"
+	local command="ethtool -C $INTERFACE rx-frames $initial_rx_frames_local rx-usecs $initial_rx_usecs_local"
 
 	(echo "${SRV_CMMND_LINE_PREF} $command" | tee -a "$TMP_DIR/$log_file.post") >& /dev/null
 	eval $command >& /dev/null	
@@ -1054,7 +1049,7 @@ function recreate_local_coalesce_params
 
 function recreate_remote_coalesce_params
 {
-	local command="sudo ethtool -C $INTERFACE adaptive-rx $initial_adaptive-rx_remote rx-frames $initial_rx_frames_remote rx-usecs $initial_rx_usecs_remote"
+	local command="ethtool -C $INTERFACE rx-frames $initial_rx_frames_remote rx-usecs $initial_rx_usecs_remote"
 
 	(echo "${CLT_CMMND_LINE_PREF} $command" | tee -a "$TMP_DIR/$log_file.post") >& /dev/null
 	ssh  $REM_HOST_IP "$command" >& /dev/null

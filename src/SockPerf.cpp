@@ -34,7 +34,7 @@
 /*
  * Still to do:
  *
- * V 2. stream mode should support respect --pps
+ * V 2. stream mode should respect --pps
  * *  playback file
  * * * finalize playback (possible conflicts with other cmd-args, including disclaimer, print info before looping)
  * * * support factor 2x, 4x, etc in playback
@@ -73,13 +73,11 @@
 
 #define __STDC_LIMIT_MACROS // for UINT32_MAX in C++
 #include <stdint.h>
-#include <stdlib.h>
 #include "common.h"
 #include "Message.h"
 #include "PacketTimes.h"
 #include "Switches.h"
 #include "aopt.h"
-#include <dlfcn.h>
 
 // forward declarations from Client.cpp & Server.cpp
 void client_sig_handler(int signum);
@@ -97,11 +95,10 @@ static struct mutable_params_t s_mutable_params;
 static void set_select_timeout(int time_out_msec);
 static int set_mcgroups_fromfile(const char *mcg_filename);
 #ifdef ST_TEST
-int prepare_socket(struct fds_data *p_data, int fd, bool stTest = false);
+static int prepare_socket(struct sockaddr_in* p_addr, bool stTest = false);
 #else
-int prepare_socket(struct fds_data *p_data, int fd);
+static int prepare_socket(struct sockaddr_in* p_addr);
 #endif
-void cleanup();
 
 #ifndef VERSION
 #define VERSION	unknown
@@ -147,8 +144,8 @@ static const AOPT_DESC  common_opt_desc[] =
              "Show the help message and exit."
 	},
 	{
-		OPT_TCP, AOPT_NOARG, aopt_set_literal( 0 ), aopt_set_string( "tcp" ),
-             "Use TCP protocol (default UDP)."
+		'd', AOPT_NOARG, aopt_set_literal( 'd' ),	aopt_set_string( "debug" ),
+             "Print extra debug information."
 	},
 	{
 		'i', AOPT_ARG, aopt_set_literal( 'i' ), aopt_set_string( "ip" ),
@@ -167,12 +164,8 @@ static const AOPT_DESC  common_opt_desc[] =
              "Tread multiple ip+port combinations from file <file> (server uses select)."
 	},
 	{
-		'F', AOPT_ARG, aopt_set_literal( 'F' ), aopt_set_string( "iomux-type" ),
+		'F', AOPT_ARG, aopt_set_literal( 'F' ), aopt_set_string( "io-hanlder-type" ),
              "Type of multiple file descriptors handle [s|select|p|poll|e|epoll](default select)."
-	},
-	{
-		OPT_SELECT_TIMEOUT, AOPT_ARG, aopt_set_literal( 0 ), aopt_set_string( "timeout" ),
-             "Set select/poll/epoll timeout to <msec>, -1 for infinite (default is 10 msec)."
 	},
 	{
 		'a', AOPT_ARG, aopt_set_literal( 'a' ), aopt_set_string( "activity" ),
@@ -183,24 +176,20 @@ static const AOPT_DESC  common_opt_desc[] =
              "Measure activity by printing the duration for last <N> packets processed."
 	},
 	{
-		OPT_TCP_NODELAY_OFF, AOPT_NOARG, aopt_set_literal( 0 ), aopt_set_string( "tcp-avoid-nodelay" ),
-             "tcp-nodelay uses for delivering TCP Messages Immediately (default ON)."
-	},
-	{
-		OPT_RX_MC_IF, AOPT_ARG, aopt_set_literal( 0 ), aopt_set_string( "mc-rx-if" ),
+		OPT_RX_MC_IF, AOPT_ARG, aopt_set_literal( 0 ), aopt_set_string( "rx-mc-if" ),
              "<ip> address of interface on which to receive mulitcast packets (can be other then route table)."
 	},
 	{
-		OPT_TX_MC_IF, AOPT_ARG, aopt_set_literal( 0 ), aopt_set_string( "mc-tx-if" ),
+		OPT_TX_MC_IF, AOPT_ARG, aopt_set_literal( 0 ), aopt_set_string( "tx-mc-if" ),
              "<ip> address of interface on which to transmit mulitcast packets (can be other then route table)."
+	},
+	{
+		OPT_SELECT_TIMEOUT, AOPT_ARG, aopt_set_literal( 0 ), aopt_set_string( "timeout" ),
+             "Set select/poll/epoll timeout to <msec>, -1 for infinite (default is 10 msec)."
 	},
 	{
 		OPT_MC_LOOPBACK_ENABLE, AOPT_NOARG, aopt_set_literal( 0 ), aopt_set_string( "mc-loopback-enable" ),
              "Enables mc loopback (default disabled)."
-	},
-	{
-		OPT_IP_MULTICAST_TTL, AOPT_ARG, aopt_set_literal( 0 ), aopt_set_string( "mc-ttl" ),
-             "Limit the lifetime of the packet  (default 2)."
 	},
 	{
 		OPT_UDP_BUFFER_SIZE, AOPT_ARG, aopt_set_literal( 0 ), aopt_set_string( "udp-buffer-size" ),
@@ -227,20 +216,8 @@ static const AOPT_DESC  common_opt_desc[] =
              "Time to wait before sending warm up packets (seconds)."
 	},
 	{
-		OPT_NO_RDTSC, AOPT_NOARG,	aopt_set_literal( 0 ),	aopt_set_string( "no-rdtsc" ),
-             "Don't use register when taking time; instead use monotonic clock."
-	},
-	{
 		OPT_SOCK_ACCL, AOPT_NOARG,	aopt_set_literal( 0 ),	aopt_set_string( "set-sock-accl" ),
-             "set socket accleration before run (available for some of Mellanox systems)"
-	},
-	{
-		OPT_LOAD_VMA, AOPT_ARG,	aopt_set_literal( 0 ),	aopt_set_string( "load-vma" ),
-             "Load VMA dynamically even when LD_PRELOAD was not used."
-	},
-	{
-		'd', AOPT_NOARG, aopt_set_literal( 'd' ),	aopt_set_string( "debug" ),
-             "Print extra debug information."
+             "set sock_accl before run (available for some of Mellanox systems)"
 	},
 	{ 0, AOPT_NOARG, aopt_set_literal( 0 ), aopt_set_string( NULL ), NULL }
 };
@@ -285,6 +262,14 @@ static const AOPT_DESC  client_opt_desc[] =
 	{
 		OPT_FULL_LOG, AOPT_ARG,	aopt_set_literal( 0 ),	aopt_set_string( "full-log" ),
              "Dump full log of all packets send/receive time to the given file in CSV format."
+	},
+	{
+		OPT_NO_RDTSC, AOPT_NOARG,	aopt_set_literal( 0 ),	aopt_set_string( "no-rdtsc" ),
+             "Don't use register when taking time; instead use monotonic clock."
+	},
+	{
+		OPT_LOAD_VMA, AOPT_NOARG,	aopt_set_literal( 0 ),	aopt_set_string( "load-vma" ),
+             "Load VMA dynamically even when LD_PRELOAD was not used."
 	},
 	{ 0, AOPT_NOARG, aopt_set_literal( 0 ), aopt_set_string( NULL ), NULL }
 };
@@ -332,7 +317,7 @@ static int proc_mode_version( int id, int argc, const char **argv )
 //------------------------------------------------------------------------------
 static int proc_mode_under_load( int id, int argc, const char **argv )
 {
-	int rc = SOCKPERF_ERR_NONE;
+	int rc = 0;
 	const AOPT_OBJECT *common_obj = NULL;
 	const AOPT_OBJECT *client_obj = NULL;
 	const AOPT_OBJECT *self_obj = NULL;
@@ -364,7 +349,7 @@ static int proc_mode_under_load( int id, int argc, const char **argv )
 		self_obj = aopt_init(&temp_argc, (const char **)argv, self_opt_desc);
 		valid_argc += temp_argc;
 		if (valid_argc < (argc - 1)) {
-			rc = SOCKPERF_ERR_BAD_ARGUMENT;
+			rc = 1;
 		}
 	}
 
@@ -389,14 +374,14 @@ static int proc_mode_under_load( int id, int argc, const char **argv )
 
 	/* Set command line specific values */
 	if (!rc && self_obj) {
-		if ( !rc && aopt_check(self_obj, OPT_REPLY_EVERY) ) {
-			const char* optarg = aopt_value(self_obj, OPT_REPLY_EVERY);
+		if ( !rc && aopt_check(client_obj, OPT_REPLY_EVERY) ) {
+			const char* optarg = aopt_value(client_obj, OPT_REPLY_EVERY);
 			if (optarg) {
 				errno = 0;
 				long long temp = strtol(optarg, NULL, 0);
 				if (errno != 0  || temp <= 0 || temp > 1<<30 ) {
 					log_msg("Invalid %d val: %s", OPT_REPLY_EVERY, optarg);
-					rc = SOCKPERF_ERR_BAD_ARGUMENT;
+					rc = 1;
 				}
 				else {
 					s_user_params.reply_every = (uint32_t)temp;
@@ -404,7 +389,7 @@ static int proc_mode_under_load( int id, int argc, const char **argv )
 			}
 			else {
 				log_msg("'-%d' Invalid value", OPT_REPLY_EVERY);
-				rc = SOCKPERF_ERR_BAD_ARGUMENT;
+				rc = 1;
 			}
 		}
 	}
@@ -453,7 +438,7 @@ static int proc_mode_under_load( int id, int argc, const char **argv )
 //------------------------------------------------------------------------------
 static int proc_mode_ping_pong( int id, int argc, const char **argv )
 {
-	int rc = SOCKPERF_ERR_NONE;
+	int rc = 0;
 	const AOPT_OBJECT *common_obj = NULL;
 	const AOPT_OBJECT *client_obj = NULL;
 
@@ -469,7 +454,7 @@ static int proc_mode_ping_pong( int id, int argc, const char **argv )
 		client_obj = aopt_init(&temp_argc, (const char **)argv, client_opt_desc);
 		valid_argc += temp_argc;
 		if (valid_argc < (argc - 1)) {
-			rc = SOCKPERF_ERR_BAD_ARGUMENT;
+			rc = 1;
 		}
 	}
 
@@ -523,19 +508,13 @@ static int proc_mode_ping_pong( int id, int argc, const char **argv )
 	aopt_exit((AOPT_OBJECT*)common_obj);
 	aopt_exit((AOPT_OBJECT*)client_obj);
 
-
-	if (s_user_params.pps == UINT32_MAX) { // MAX PPS mode
-		PPS_MAX = PPS_MAX_PP;
-	}
-
-
 	return rc;
 }
 
 //------------------------------------------------------------------------------
 static int proc_mode_throughput( int id, int argc, const char **argv )
 {
-	int rc = SOCKPERF_ERR_NONE;
+	int rc = 0;
 	const AOPT_OBJECT *common_obj = NULL;
 	const AOPT_OBJECT *client_obj = NULL;
 
@@ -551,7 +530,7 @@ static int proc_mode_throughput( int id, int argc, const char **argv )
 		client_obj = aopt_init(&temp_argc, (const char **)argv, client_opt_desc);
 		valid_argc += temp_argc;
 		if (valid_argc < (argc - 1)) {
-			rc = SOCKPERF_ERR_BAD_ARGUMENT;
+			rc = 1;
 		}
 	}
 
@@ -611,7 +590,7 @@ static int proc_mode_throughput( int id, int argc, const char **argv )
 //------------------------------------------------------------------------------
 static int proc_mode_playback( int id, int argc, const char **argv )
 {
-	int rc = SOCKPERF_ERR_NONE;
+	int rc = 0;
 	const AOPT_OBJECT *common_obj = NULL;
 	const AOPT_OBJECT *client_obj = NULL;
 	const AOPT_OBJECT *self_obj = NULL;
@@ -647,7 +626,7 @@ static int proc_mode_playback( int id, int argc, const char **argv )
 		self_obj = aopt_init(&temp_argc, (const char **)argv, self_opt_desc);
 		valid_argc += temp_argc;
 		if (valid_argc < (argc - 1)) {
-			rc = SOCKPERF_ERR_BAD_ARGUMENT;
+			rc = 1;
 		}
 	}
 
@@ -672,14 +651,14 @@ static int proc_mode_playback( int id, int argc, const char **argv )
 
 	/* Set command line specific values */
 	if (!rc && self_obj) {
-		if ( !rc && aopt_check(self_obj, OPT_REPLY_EVERY) ) {
-			const char* optarg = aopt_value(self_obj, OPT_REPLY_EVERY);
+		if ( !rc && aopt_check(client_obj, OPT_REPLY_EVERY) ) {
+			const char* optarg = aopt_value(client_obj, OPT_REPLY_EVERY);
 			if (optarg) {
 				errno = 0;
 				long long temp = strtol(optarg, NULL, 0);
 				if (errno != 0  || temp <= 0 || temp > 1<<30 ) {
 					log_msg("Invalid %d val: %s", OPT_REPLY_EVERY, optarg);
-					rc = SOCKPERF_ERR_BAD_ARGUMENT;
+					rc = 1;
 				}
 				else {
 					s_user_params.reply_every = (uint32_t)temp;
@@ -687,12 +666,12 @@ static int proc_mode_playback( int id, int argc, const char **argv )
 			}
 			else {
 				log_msg("'-%d' Invalid value", OPT_REPLY_EVERY);
-				rc = SOCKPERF_ERR_BAD_ARGUMENT;
+				rc = 1;
 			}
 		}
 
-		if ( !rc && aopt_check(self_obj, OPT_PLAYBACK_DATA) ) {
-			const char * optarg = aopt_value(self_obj, OPT_PLAYBACK_DATA);
+		if ( !rc && aopt_check(client_obj, OPT_PLAYBACK_DATA) ) {
+			const char * optarg = aopt_value(client_obj, OPT_PLAYBACK_DATA);
 			if (optarg) {
 				static PlaybackVector pv;
 				loadPlaybackData(pv, optarg);
@@ -700,7 +679,7 @@ static int proc_mode_playback( int id, int argc, const char **argv )
 			}
 			else {
 				log_msg("'-%d' Invalid value", OPT_PLAYBACK_DATA);
-				rc = SOCKPERF_ERR_BAD_ARGUMENT;
+				rc = 1;
 			}
 		}
 	}
@@ -749,7 +728,7 @@ static int proc_mode_playback( int id, int argc, const char **argv )
 //------------------------------------------------------------------------------
 static int proc_mode_server( int id, int argc, const char **argv )
 {
-	int rc = SOCKPERF_ERR_NONE;
+	int rc = 0;
 	const AOPT_OBJECT *common_obj = NULL;
 	const AOPT_OBJECT *server_obj = NULL;
 
@@ -793,7 +772,7 @@ static int proc_mode_server( int id, int argc, const char **argv )
 		server_obj = aopt_init(&temp_argc, (const char **)argv, server_opt_desc);
 		valid_argc += temp_argc;
 		if (valid_argc < (argc - 1)) {
-			rc = SOCKPERF_ERR_BAD_ARGUMENT;
+			rc = 1;
 		}
 	}
 
@@ -805,7 +784,7 @@ static int proc_mode_server( int id, int argc, const char **argv )
 	s_user_params.mode = MODE_SERVER;
 	s_user_params.pps = PPS_DEFAULT;
 	/* set message size by default; it can be redefined by option --msg_size or -m */
-	s_user_params.msg_size = MAX_PAYLOAD_SIZE;
+	g_msg_size = MAX_PAYLOAD_SIZE;
 
 	/* Set command line common options */
 	if (!rc && common_obj) {
@@ -819,6 +798,7 @@ static int proc_mode_server( int id, int argc, const char **argv )
 		if ( !rc && aopt_check(server_obj, 'B') ) {
 			log_msg("update to bridge mode");
 			s_user_params.mode = MODE_BRIDGE;
+			g_msg_size = MAX_PAYLOAD_SIZE;
 			p_addr->sin_port = htons(5001); /*iperf's default port*/
 		}
 
@@ -829,31 +809,22 @@ static int proc_mode_server( int id, int argc, const char **argv )
 					s_user_params.mthread_server = 1;
 					errno = 0;
 					int threads_num = strtol(optarg, NULL, 0);
-					if (errno != 0  || threads_num <= 0) {
+					if (errno != 0  || threads_num < 0) {
 						log_msg("-%c' Invalid threads number: %s", OPT_MULTI_THREADED_SERVER, optarg);
-						rc = SOCKPERF_ERR_BAD_ARGUMENT;
+						rc = 1;
 					}
 					else {
 						s_user_params.threads_num = threads_num;
-
-						g_pid_arr = (int*)MALLOC(sizeof(int)*(s_user_params.threads_num + 1));
-						if(!g_pid_arr) {
-							log_err("Failed to allocate memory for pid array");
-							rc = SOCKPERF_ERR_NO_MEMORY;
-						}
-						else {
-							log_msg("Running %d threads to manage %d sockets",s_user_params.threads_num,g_sockets_num);
-						}
 					}
 				}
 				else {
 					log_msg("'-%d' Invalid value", OPT_MULTI_THREADED_SERVER);
-					rc = SOCKPERF_ERR_BAD_ARGUMENT;
+					rc = 1;
 				}
 			}
 			else {
 				log_msg("--threads-num must be used with feed file (option '-f')");
-				rc = SOCKPERF_ERR_BAD_ARGUMENT;
+				rc = 1;
 			}
 		}
 
@@ -907,7 +878,7 @@ static int proc_mode_server( int id, int argc, const char **argv )
 //------------------------------------------------------------------------------
 static int parse_common_opt( const AOPT_OBJECT *common_obj )
 {
-	int rc = SOCKPERF_ERR_NONE;
+	int rc = 0;
 
 	if (common_obj) {
 		struct sockaddr_in *p_addr = &s_user_params.addr;
@@ -920,20 +891,9 @@ static int parse_common_opt( const AOPT_OBJECT *common_obj )
 
 		if ( !rc && aopt_check(common_obj, 'i') ) {
 			const char* optarg = aopt_value(common_obj, 'i');
-			if (!optarg) {	/* already in network byte order*/
+			if (!optarg || !inet_aton(optarg, &p_addr->sin_addr)) {	/* already in network byte order*/
 				log_msg("'-%c' Invalid address: %s", 'i', optarg);
-				rc = SOCKPERF_ERR_BAD_ARGUMENT;
-			}
-			else if (!inet_aton(optarg, &p_addr->sin_addr)) {
-				struct hostent *hostip = gethostbyname(optarg);
-				if(hostip) {
-					memcpy(&p_addr->sin_addr, hostip->h_addr_list[0], hostip->h_length);
-					s_user_params.fd_handler_type = RECVFROM;
-				}
-				else {
-					log_msg("'-%c' Invalid address: %s", 'i', optarg);
-					rc = SOCKPERF_ERR_BAD_ARGUMENT;
-				}
+				rc = 1;
 			}
 			else {
 				s_user_params.fd_handler_type = RECVFROM;
@@ -948,7 +908,7 @@ static int parse_common_opt( const AOPT_OBJECT *common_obj )
 				/* strtol() returns 0 if there were no digits at all */
 				if (errno != 0) {
 					log_msg("'-%c' Invalid port: %d", 'p', (int)mc_dest_port);
-					rc = SOCKPERF_ERR_BAD_ARGUMENT;
+					rc = 1;
 				}
 				else {
 					p_addr->sin_port = htons((uint16_t)mc_dest_port);
@@ -957,22 +917,22 @@ static int parse_common_opt( const AOPT_OBJECT *common_obj )
 			}
 			else {
 				log_msg("'-%c' Invalid value", 'p');
-				rc = SOCKPERF_ERR_BAD_ARGUMENT;
+				rc = 1;
 			}
 		}
 
 		if ( !rc && aopt_check(common_obj, 'm') ) {
 			const char* optarg = aopt_value(common_obj, 'm');
 			if (optarg) {
-				s_user_params.msg_size = strtol(optarg, NULL, 0);
-				if (s_user_params.msg_size < MIN_PAYLOAD_SIZE) {
-					log_msg("'-%c' Invalid message size: %d (min: %d)", 'm', s_user_params.msg_size, MIN_PAYLOAD_SIZE);
-					rc = SOCKPERF_ERR_BAD_ARGUMENT;
+				g_msg_size = strtol(optarg, NULL, 0);
+				if (g_msg_size < MIN_PAYLOAD_SIZE) {
+					log_msg("'-%c' Invalid message size: %d (min: %d)", 'm', g_msg_size, MIN_PAYLOAD_SIZE);
+					rc = 1;
 				}
 			}
 			else {
 				log_msg("'-%c' Invalid value", 'm');
-				rc = SOCKPERF_ERR_BAD_ARGUMENT;
+				rc = 1;
 			}
 		}
 
@@ -983,15 +943,15 @@ static int parse_common_opt( const AOPT_OBJECT *common_obj )
 					strncpy(mcg_filename, optarg, MAX_ARGV_SIZE);
 					mcg_filename[MAX_PATH_LENGTH - 1] = '\0';
 					s_user_params.fd_handler_type = SELECT;
-				}
+					}
 				else {
 					log_msg("'-%c' Invalid value", 'f');
-					rc = SOCKPERF_ERR_BAD_ARGUMENT;
+					rc = 1;
 				}
 			}
 			else {
 				log_msg("-f conflicts with -i,-p options");
-				rc = SOCKPERF_ERR_BAD_ARGUMENT;
+				rc = 1;
 			}
 		}
 
@@ -1014,17 +974,17 @@ static int parse_common_opt( const AOPT_OBJECT *common_obj )
 					}
 					else {
 						log_msg("'-%c' Invalid muliply io hanlde type: %s", 'F', optarg);
-						rc = SOCKPERF_ERR_BAD_ARGUMENT;
+						rc = 1;
 					}
 				}
 				else {
 					log_msg("'-%c' Invalid value", 'F');
-					rc = SOCKPERF_ERR_BAD_ARGUMENT;
+					rc = 1;
 				}
 			}
 			else {
 				log_msg("-F must be used with feed file (option '-f')");
-				rc = SOCKPERF_ERR_BAD_ARGUMENT;
+				rc = 1;
 			}
 		}
 
@@ -1036,12 +996,12 @@ static int parse_common_opt( const AOPT_OBJECT *common_obj )
 				s_user_params.packetrate_stats_print_details = false;
 				if (errno != 0) {
 					log_msg("'-%c' Invalid packet rate stats print value: %d", 'a', s_user_params.packetrate_stats_print_ratio);
-					rc = SOCKPERF_ERR_BAD_ARGUMENT;
+					rc = 1;
 				}
 			}
 			else {
 				log_msg("'-%c' Invalid value", 'a');
-				rc = SOCKPERF_ERR_BAD_ARGUMENT;
+				rc = 1;
 			}
 		}
 
@@ -1053,12 +1013,12 @@ static int parse_common_opt( const AOPT_OBJECT *common_obj )
 				s_user_params.packetrate_stats_print_details = true;
 				if (errno != 0) {
 					log_msg("'-%c' Invalid packet rate stats print value: %d", 'A', s_user_params.packetrate_stats_print_ratio);
-					rc = SOCKPERF_ERR_BAD_ARGUMENT;
+					rc = 1;
 				}
 			}
 			else {
 				log_msg("'-%c' Invalid value", 'A');
-				rc = SOCKPERF_ERR_BAD_ARGUMENT;
+				rc = 1;
 			}
 		}
 
@@ -1067,7 +1027,7 @@ static int parse_common_opt( const AOPT_OBJECT *common_obj )
 			if (!optarg ||
 				((s_user_params.rx_mc_if_addr.s_addr = inet_addr(optarg)) == INADDR_NONE)) {	/* already in network byte order*/
 				log_msg("'-%c' Invalid address: %s", OPT_RX_MC_IF, optarg);
-				rc = SOCKPERF_ERR_BAD_ARGUMENT;
+				rc = 1;
 			}
 		}
 
@@ -1076,7 +1036,7 @@ static int parse_common_opt( const AOPT_OBJECT *common_obj )
 			if (!optarg ||
 				((s_user_params.rx_mc_if_addr.s_addr = inet_addr(optarg)) == INADDR_NONE)) {	/* already in network byte order*/
 				log_msg("'-%c' Invalid address: %s", OPT_TX_MC_IF, optarg);
-				rc = SOCKPERF_ERR_BAD_ARGUMENT;
+				rc = 1;
 			}
 		}
 
@@ -1087,7 +1047,7 @@ static int parse_common_opt( const AOPT_OBJECT *common_obj )
 				int timeout = strtol(optarg, NULL, 0);
 				if (errno != 0  || timeout < -1) {
 					log_msg("'-%c' Invalid select/poll/epoll timeout val: %s", OPT_SELECT_TIMEOUT, optarg);
-					rc = SOCKPERF_ERR_BAD_ARGUMENT;
+					rc = 1;
 				}
 				else {
 					set_select_timeout(timeout);
@@ -1095,7 +1055,7 @@ static int parse_common_opt( const AOPT_OBJECT *common_obj )
 			}
 			else {
 				log_msg("'-%d' Invalid value", OPT_SELECT_TIMEOUT);
-				rc = SOCKPERF_ERR_BAD_ARGUMENT;
+				rc = 1;
 			}
 		}
 
@@ -1110,7 +1070,7 @@ static int parse_common_opt( const AOPT_OBJECT *common_obj )
 				int udp_buff_size = strtol(optarg, NULL, 0);
 				if (errno != 0 || udp_buff_size <= 0) {
 					log_msg("'-%c' Invalid udp buffer size: %s", OPT_UDP_BUFFER_SIZE, optarg);
-					rc = SOCKPERF_ERR_BAD_ARGUMENT;
+					rc = 1;
 				}
 				else {
 					s_user_params.udp_buff_size = udp_buff_size;
@@ -1118,7 +1078,7 @@ static int parse_common_opt( const AOPT_OBJECT *common_obj )
 			}
 			else {
 				log_msg("'-%d' Invalid value", OPT_UDP_BUFFER_SIZE);
-				rc = SOCKPERF_ERR_BAD_ARGUMENT;
+				rc = 1;
 			}
 		}
 
@@ -1145,7 +1105,7 @@ static int parse_common_opt( const AOPT_OBJECT *common_obj )
 				int pre_warmup_wait = strtol(optarg, NULL, 0);
 				if (errno != 0 || pre_warmup_wait <= 0) {
 					log_msg("'-%c' Invalid pre warmup wait: %s", OPT_PREWARMUPWAIT, optarg);
-					rc = SOCKPERF_ERR_BAD_ARGUMENT;
+					rc = 1;
 				}
 				else {
 					s_user_params.pre_warmup_wait = pre_warmup_wait;
@@ -1153,62 +1113,13 @@ static int parse_common_opt( const AOPT_OBJECT *common_obj )
 			}
 			else {
 				log_msg("'-%d' Invalid value", OPT_PREWARMUPWAIT);
-				rc = SOCKPERF_ERR_BAD_ARGUMENT;
+				rc = 1;
 			}
 		}
-
-		if ( !rc && aopt_check(common_obj, OPT_NO_RDTSC) ) {
-			s_user_params.b_no_rdtsc = true;
-		}
-
 		if ( !rc && aopt_check(common_obj, OPT_SOCK_ACCL) ) {
 			s_user_params.withsock_accl = true;
 		}
 
-		if ( !rc && aopt_check(common_obj, OPT_LOAD_VMA) ) {
-			const char* optarg = aopt_value(common_obj, OPT_LOAD_VMA);
-			//s_user_params.b_load_vma = true;
-			if (!optarg || !*optarg) optarg = (char*)"libvma.so"; //default value
-			bool success = vma_set_func_pointers(optarg);
-			if (!success) {
-				log_err("Invalid --load-vma value: %s: failed to set function pointers using the given libvma.so path:", optarg);
-				log_err("dlerror() says: %s:", dlerror());
-				rc = SOCKPERF_ERR_BAD_ARGUMENT;
-			}
-		}
-
-		if ( !rc && aopt_check(common_obj, OPT_TCP) ) {
-			if (!aopt_check(common_obj, 'f')) {
-				s_user_params.sock_type = SOCK_STREAM;
-			}
-			else {
-				log_msg("--tcp conflicts with -f option");
-				rc = SOCKPERF_ERR_BAD_ARGUMENT;
-			}
-		}
-
-		if ( !rc && aopt_check(common_obj, OPT_TCP_NODELAY_OFF) ) {
-			s_user_params.tcp_nodelay = false;
-		}
-
-		if ( !rc && aopt_check(common_obj, OPT_IP_MULTICAST_TTL) ) {
-			const char* optarg = aopt_value(common_obj, OPT_IP_MULTICAST_TTL);
-			if (optarg) {
-				errno = 0;
-				int value = strtol(optarg, NULL, 0);
-				if (errno != 0  || value < 0 || value > 255) {
-					log_msg("'-%c' Invalid value: %s", OPT_IP_MULTICAST_TTL, optarg);
-					rc = SOCKPERF_ERR_BAD_ARGUMENT;
-				}
-				else {
-					s_user_params.mc_ttl = value;
-				}
-			}
-			else {
-				log_msg("'-%d' Invalid value", OPT_IP_MULTICAST_TTL);
-				rc = SOCKPERF_ERR_BAD_ARGUMENT;
-			}
-		}
 	}
 
 	return rc;
@@ -1217,7 +1128,7 @@ static int parse_common_opt( const AOPT_OBJECT *common_obj )
 //------------------------------------------------------------------------------
 static int parse_client_opt( const AOPT_OBJECT *client_obj )
 {
-	int rc = SOCKPERF_ERR_NONE;
+	int rc = 0;
 
 	s_user_params.mode = MODE_CLIENT;
 
@@ -1228,12 +1139,12 @@ static int parse_client_opt( const AOPT_OBJECT *client_obj )
 				s_user_params.sec_test_duration = strtol(optarg, NULL, 0);
 				if (s_user_params.sec_test_duration <= 0 || s_user_params.sec_test_duration > MAX_DURATION) {
 					log_msg("'-%c' Invalid duration: %d", 't', s_user_params.sec_test_duration);
-					rc = SOCKPERF_ERR_BAD_ARGUMENT;
+					rc = 1;
 				}
 			}
 			else {
 				log_msg("'-%c' Invalid value", 't');
-				rc = SOCKPERF_ERR_BAD_ARGUMENT;
+				rc = 1;
 			}
 		}
 
@@ -1244,7 +1155,7 @@ static int parse_client_opt( const AOPT_OBJECT *client_obj )
 				int burst_size = strtol(optarg, NULL, 0);
 				if (errno != 0 || burst_size < 1) {
 					log_msg("'-%c' Invalid burst size: %s", 'b', optarg);
-					rc = SOCKPERF_ERR_BAD_ARGUMENT;
+					rc = 1;
 				}
 				else {
 					s_user_params.burst_size = burst_size;
@@ -1252,7 +1163,7 @@ static int parse_client_opt( const AOPT_OBJECT *client_obj )
 			}
 			else {
 				log_msg("'-%c' Invalid value", 'b');
-				rc = SOCKPERF_ERR_BAD_ARGUMENT;
+				rc = 1;
 			}
 		}
 
@@ -1263,7 +1174,7 @@ static int parse_client_opt( const AOPT_OBJECT *client_obj )
 				int range = strtol(optarg, NULL, 0);
 				if (errno != 0 || range < 0) {
 					log_msg("'-%c' Invalid message range: %s", 'r', optarg);
-					rc = SOCKPERF_ERR_BAD_ARGUMENT;
+					rc = 1;
 				}
 				else {
 					s_user_params.msg_size_range = range;
@@ -1271,7 +1182,7 @@ static int parse_client_opt( const AOPT_OBJECT *client_obj )
 			}
 			else {
 				log_msg("'-%c' Invalid value", 'r');
-				rc = SOCKPERF_ERR_BAD_ARGUMENT;
+				rc = 1;
 			}
 		}
 
@@ -1286,7 +1197,7 @@ static int parse_client_opt( const AOPT_OBJECT *client_obj )
 				int srv_num = strtol(optarg, NULL, 0);
 				if (errno != 0  || srv_num < 1) {
 					log_msg("'-%c' Invalid server num val: %s", OPT_CLIENT_WORK_WITH_SRV_NUM, optarg);
-					rc = SOCKPERF_ERR_BAD_ARGUMENT;
+					rc = 1;
 				}
 				else {
 					s_user_params.client_work_with_srv_num = srv_num;
@@ -1294,7 +1205,7 @@ static int parse_client_opt( const AOPT_OBJECT *client_obj )
 			}
 			else {
 				log_msg("'-%d' Invalid value", OPT_CLIENT_WORK_WITH_SRV_NUM);
-				rc = SOCKPERF_ERR_BAD_ARGUMENT;
+				rc = 1;
 			}
 		}
 
@@ -1309,7 +1220,7 @@ static int parse_client_opt( const AOPT_OBJECT *client_obj )
 					long long temp = strtol(optarg, NULL, 0);
 					if (errno != 0  || temp <= 0 || temp > 1<<30 ) {
 						log_msg("Invalid %d val: %s", OPT_PPS, optarg);
-						rc = SOCKPERF_ERR_BAD_ARGUMENT;
+						rc = 1;
 					}
 					else {
 						s_user_params.pps = (uint32_t)temp;
@@ -1318,7 +1229,7 @@ static int parse_client_opt( const AOPT_OBJECT *client_obj )
 			}
 			else {
 				log_msg("'-%d' Invalid value", OPT_PPS);
-				rc = SOCKPERF_ERR_BAD_ARGUMENT;
+				rc = 1;
 			}
 		}
 
@@ -1329,7 +1240,7 @@ static int parse_client_opt( const AOPT_OBJECT *client_obj )
 				long long temp = strtol(optarg, NULL, 0);
 				if (errno != 0  || temp < 0) {
 					log_err("Invalid %d val: %s", OPT_SENDER_AFFINITY, optarg);
-					rc = SOCKPERF_ERR_BAD_ARGUMENT;
+					rc = 1;
 				}
 				else {
 					s_user_params.sender_affinity = (int)temp;
@@ -1337,7 +1248,7 @@ static int parse_client_opt( const AOPT_OBJECT *client_obj )
 			}
 			else {
 				log_msg("'-%d' Invalid value", OPT_SENDER_AFFINITY);
-				rc = SOCKPERF_ERR_BAD_ARGUMENT;
+				rc = 1;
 			}
 		}
 
@@ -1348,7 +1259,7 @@ static int parse_client_opt( const AOPT_OBJECT *client_obj )
 				long long temp = strtol(optarg, NULL, 0);
 				if (errno != 0  || temp < 0) {
 					log_err("Invalid %d val: %s", OPT_RECEIVER_AFFINITY, optarg);
-					rc = SOCKPERF_ERR_BAD_ARGUMENT;
+					rc = 1;
 				}
 				else {
 					s_user_params.receiver_affinity = (int)temp;
@@ -1356,7 +1267,7 @@ static int parse_client_opt( const AOPT_OBJECT *client_obj )
 			}
 			else {
 				log_msg("'-%d' Invalid value", OPT_RECEIVER_AFFINITY);
-				rc = SOCKPERF_ERR_BAD_ARGUMENT;
+				rc = 1;
 			}
 		}
 
@@ -1367,12 +1278,27 @@ static int parse_client_opt( const AOPT_OBJECT *client_obj )
 				s_user_params.fileFullLog = fopen(optarg, "w");
 				if (errno  || !s_user_params.fileFullLog) {
 					log_err("Invalid %d val. Can't open file %s for writing: %m", OPT_FULL_LOG, optarg);
-					rc = SOCKPERF_ERR_BAD_ARGUMENT;
+					rc = 1;
 				}
 			}
 			else {
 				log_msg("'-%d' Invalid value", OPT_FULL_LOG);
-				rc = SOCKPERF_ERR_BAD_ARGUMENT;
+				rc = 1;
+			}
+		}
+
+		if ( !rc && aopt_check(client_obj, OPT_NO_RDTSC) ) {
+			s_user_params.b_no_rdtsc = true;
+		}
+
+		if ( !rc && aopt_check(client_obj, OPT_LOAD_VMA) ) {
+			const char* optarg = aopt_value(client_obj, OPT_LOAD_VMA);
+			//s_user_params.b_load_vma = true;
+			if (!optarg || !*optarg) optarg = (char*)"libvma.so"; //default value
+			bool success = vma_set_func_pointers(optarg);
+			if (!success) {
+				log_err("Invalid %d val: %s: failed to set function pointers using the given libvma.so path:", OPT_LOAD_VMA, optarg);
+				rc = 1;
 			}
 		}
 	}
@@ -1421,36 +1347,35 @@ static int st1, st2;
 //------------------------------------------------------------------------------
 void cleanup()
 {
-	{
+	if (s_user_params.fd_handler_type == RECVFROM) {
+		close(s_fd_min);
+	}
+	else {
 		int ifd;
 		for (ifd = 0; ifd <= s_fd_max; ifd++) {
 			if (g_fds_array[ifd]) {
 				close(ifd);
-				if (g_fds_array[ifd]->active_fd_list) {
-					FREE(g_fds_array[ifd]->active_fd_list);
-				}
-				FREE(g_fds_array[ifd]);
+				free(g_fds_array[ifd]);
 			}
 		}
 
 	}
 	if(s_user_params.select_timeout) {
-		FREE(s_user_params.select_timeout);
+		free(s_user_params.select_timeout);
 		s_user_params.select_timeout = NULL;
 	}
 #ifdef  USING_VMA_EXTRA_API
 	if (g_dgram_buf) {
-		FREE(g_dgram_buf);
+		free(g_dgram_buf);
 		g_dgram_buf = NULL;
 	}
 #endif
 
-	if (g_pid_arr) {
-		FREE(g_pid_arr);
-	}
+	delete g_pMessage;
+	delete g_pReply;
 
-	if (g_pPacketTimes) {
-		delete g_pPacketTimes;
+	if (g_pid_arr) {
+		free(g_pid_arr);
 	}
 }
 
@@ -1475,10 +1400,10 @@ void set_signal_action()
 static void set_select_timeout(int time_out_msec)
 {
 	if (!s_user_params.select_timeout) {
-		s_user_params.select_timeout = (struct timeval*)MALLOC(sizeof(struct timeval));
+		s_user_params.select_timeout = (struct timeval*)malloc(sizeof(struct timeval));
 		if (!s_user_params.select_timeout) {
 			log_err("Failed to allocate memory for pointer select timeout structure");
-			exit_with_log(SOCKPERF_ERR_NO_MEMORY);
+			exit_with_log(1);
 		}
 	}
 	if (time_out_msec >= 0) {
@@ -1488,7 +1413,7 @@ static void set_select_timeout(int time_out_msec)
 	}
 	else {
 		// Clear timeout
-		FREE(s_user_params.select_timeout);
+		free(s_user_params.select_timeout);
 		s_user_params.select_timeout = NULL;
 	}
 }
@@ -1507,6 +1432,7 @@ void set_defaults()
 	s_user_params.rx_mc_if_addr.s_addr = htonl(INADDR_ANY);
 	s_user_params.tx_mc_if_addr.s_addr = htonl(INADDR_ANY);
 	s_user_params.sec_test_duration = DEFAULT_TEST_DURATION;
+	g_msg_size = MIN_PAYLOAD_SIZE;
 	s_user_params.mode = MODE_SERVER;
 	s_user_params.packetrate_stats_print_ratio = 0;
 	s_user_params.packetrate_stats_print_details = false;
@@ -1514,7 +1440,6 @@ void set_defaults()
 	s_user_params.data_integrity = false;
 	s_user_params.fd_handler_type = RECVFROM;
 	s_user_params.mthread_server = 0;
-	s_user_params.msg_size = MIN_PAYLOAD_SIZE;
 	s_user_params.msg_size_range = 0;
 	s_user_params.udp_buff_size = UDP_BUFF_DEFAULT_SIZE;
 	set_select_timeout(DEFAULT_SELECT_TIMEOUT_MSEC);
@@ -1544,14 +1469,10 @@ void set_defaults()
 	s_user_params.addr.sin_family = AF_INET;
 	s_user_params.addr.sin_port = htons(DEFAULT_PORT);
 	inet_aton(DEFAULT_MC_ADDR, &s_user_params.addr.sin_addr);
-	s_user_params.sock_type = SOCK_DGRAM;
-	s_user_params.tcp_nodelay = true;
-	s_user_params.mc_ttl = 2;
 
 	s_user_params.daemonize = false;
-
 	s_user_params.withsock_accl = false;
-	memset(s_user_params.mcg_filename, 0, sizeof(s_user_params.mcg_filename));
+	memset(&s_user_params.mcg_filename, 0, sizeof(s_user_params.mcg_filename));
 }
 
 //------------------------------------------------------------------------------
@@ -1635,25 +1556,29 @@ vma_recv_callback_retval_t myapp_vma_recv_pkt_filter_callback(
 /* returns the new socket fd
  or exit with error code */
 #ifdef ST_TEST
-int prepare_socket(struct fds_data *p_data, int fd, bool stTest = false)
+static int prepare_socket(struct sockaddr_in* p_addr, bool stTest = false)
 #else
-int prepare_socket(struct fds_data *p_data, int fd)
+static int prepare_socket(struct sockaddr_in* p_addr)
 #endif
 {
-	int rc = SOCKPERF_ERR_NONE;
+	int fd = -1;
+	int is_mulicast = 0;
+	u_int reuseaddr_true = 1;
+	struct sockaddr_in bind_addr;
 	int rcv_buff_size = 0;
 	int snd_buff_size = 0;
 	int size = sizeof(int);
 	int flags, ret;
-	struct sockaddr_in* p_addr = NULL;
 
-	if (!p_data) {
-		return INVALID_SOCKET;
+	is_mulicast = IN_MULTICAST(ntohl(p_addr->sin_addr.s_addr));
+
+	/* create a UDP socket */
+	if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+		log_err("socket(AF_INET, SOCK_DGRAM)");
+		exit_with_log(1);
 	}
 
-	p_addr = &(p_data->addr);
-
-	if (!rc && !s_user_params.is_blocked) {
+	if (!s_user_params.is_blocked) {
 		/*Uncomment to test FIONBIO command of ioctl
 		 * int opt = 1;
 		 * ioctl(fd, FIONBIO, &opt);
@@ -1663,73 +1588,69 @@ int prepare_socket(struct fds_data *p_data, int fd)
 		flags = fcntl(fd, F_GETFL);
 		if (flags < 0) {
 			log_err("fcntl(F_GETFL)");
-			rc = SOCKPERF_ERR_SOCKET;
 		}
 		flags |=  O_NONBLOCK;
 		ret = fcntl(fd, F_SETFL, flags);
 		if (ret < 0) {
 			log_err("fcntl(F_SETFL)");
-			rc = SOCKPERF_ERR_SOCKET;
 		}
 		//log_msg("fd %d is non-blocked now", fd);
 	}
 
-	if (!rc &&
-			(s_user_params.withsock_accl == true))
+	if (s_user_params.withsock_accl == true)
 	{
-		if (setsockopt(fd, SOL_SOCKET, 100, NULL, 0) < 0) {
-			log_err("setsockopt(100), set sock-accl failed.  It could be that this option is not supported in your system");
-			rc = SOCKPERF_ERR_SOCKET;
-		}
-		log_msg("succeed to set sock-accl");
+			if (setsockopt(fd, SOL_SOCKET, 100, NULL, 0) < 0) {
+				log_err("setsockopt(100), set sock-accl failed.  It could be that this option is not supported in your system");
+				exit_with_log(1);
+			}
+			log_msg("succeed to set sock-accl");
 	}
 
-	/* allow multiple sockets to use the same PORT number
-	 * set SO_REUSEADDR for TCP and multicast sockets only
-	 */
-	if (!rc &&
-			(p_data->sock_type == SOCK_STREAM || p_data->is_multicast))
-	{
-	    u_int reuseaddr_true = 1;
-
-	    if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &reuseaddr_true, sizeof(reuseaddr_true)) < 0) {
-		    log_err("setsockopt(SO_REUSEADDR) failed");
-		    rc = SOCKPERF_ERR_SOCKET;
-	    }
+	/* allow multiple sockets to use the same PORT number */
+	if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &reuseaddr_true, sizeof(reuseaddr_true)) < 0) {
+		log_err("setsockopt(SO_REUSEADDR) failed");
+		exit_with_log(1);
 	}
 
-	if (!rc &&
-			(s_user_params.udp_buff_size > 0)) {
+	if (s_user_params.udp_buff_size > 0) {
 		/* enlarge socket's buffer depth */
+
 		if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &(s_user_params.udp_buff_size), sizeof(s_user_params.udp_buff_size)) < 0) {
 			log_err("setsockopt(SO_RCVBUF) failed");
-			rc = SOCKPERF_ERR_SOCKET;
+			exit_with_log(1);
 		}
-		if (!rc &&
-				(getsockopt(fd, SOL_SOCKET, SO_RCVBUF, &rcv_buff_size,(socklen_t *)&size) < 0)){
+		if (getsockopt(fd, SOL_SOCKET, SO_RCVBUF, &rcv_buff_size,(socklen_t *)&size) < 0) {
 			log_err("getsockopt(SO_RCVBUF) failed");
-			rc = SOCKPERF_ERR_SOCKET;
+			exit_with_log(1);
 		}
-		if (!rc &&
-				(setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &(s_user_params.udp_buff_size), sizeof(s_user_params.udp_buff_size)) < 0)) {
+		if (setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &(s_user_params.udp_buff_size), sizeof(s_user_params.udp_buff_size)) < 0) {
 			log_err("setsockopt(SO_SNDBUF) failed");
-			rc = SOCKPERF_ERR_SOCKET;
+			exit_with_log(1);
 		}
-		if (!rc &&
-				(getsockopt(fd, SOL_SOCKET, SO_SNDBUF, &snd_buff_size, (socklen_t *)&size) < 0)) {
+		if (getsockopt(fd, SOL_SOCKET, SO_SNDBUF, &snd_buff_size, (socklen_t *)&size) < 0) {
 			log_err("getsockopt(SO_SNDBUF) failed");
-			rc = SOCKPERF_ERR_SOCKET;
+			exit_with_log(1);
 		}
-		if (!rc) {
-			log_msg("UDP buffers sizes of fd %d: RX: %d Byte, TX: %d Byte", fd, rcv_buff_size, snd_buff_size);
-			if (rcv_buff_size < s_user_params.udp_buff_size*2 ||
-				snd_buff_size < s_user_params.udp_buff_size*2  ) {
-				log_msg("WARNING: Failed setting receive or send udp socket buffer size to %d bytes (check 'sysctl net.core.rmem_max' value)", s_user_params.udp_buff_size);
-			}
+
+		log_msg("UDP buffers sizes of fd %d: RX: %d Byte, TX: %d Byte", fd, rcv_buff_size, snd_buff_size);
+		if (rcv_buff_size < s_user_params.udp_buff_size*2 ||
+		    snd_buff_size < s_user_params.udp_buff_size*2  ) {
+			log_msg("WARNING: Failed setting receive or send udp socket buffer size to %d bytes (check 'sysctl net.core.rmem_max' value)", s_user_params.udp_buff_size);
 		}
 	}
 
-	if (!rc && (p_data->is_multicast)) {
+	memset(&bind_addr, 0, sizeof(struct sockaddr_in));
+	bind_addr.sin_family = AF_INET;
+	bind_addr.sin_port = p_addr->sin_port;
+	bind_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+
+	/*log_dbg ("IP to bind: %s",inet_ntoa(client_addr.sin_addr));*/
+	if (bind(fd, (struct sockaddr*)&bind_addr, sizeof(struct sockaddr)) < 0) {
+		log_err("bind()");
+		exit_with_log(1);
+	}
+
+	if (is_mulicast) {
 		struct ip_mreq mreq;
 		memset(&mreq,0,sizeof(struct ip_mreq));
 
@@ -1741,49 +1662,24 @@ int prepare_socket(struct fds_data *p_data, int fd)
 			mreq.imr_interface.s_addr = s_user_params.rx_mc_if_addr.s_addr;
 			if (setsockopt(fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq)) < 0) {
 				log_err("setsockopt(IP_ADD_MEMBERSHIP)");
-				rc = SOCKPERF_ERR_SOCKET;
+				exit_with_log(1);
 			}
 		}
 
 		/* specify a specific interface address on which to transmitted the multicast packets of this socket */
-		if (!rc && (s_user_params.tx_mc_if_addr.s_addr != INADDR_ANY)) {
+		if (s_user_params.tx_mc_if_addr.s_addr != INADDR_ANY) {
 			if (setsockopt(fd, IPPROTO_IP, IP_MULTICAST_IF, &s_user_params.tx_mc_if_addr, sizeof(s_user_params.tx_mc_if_addr)) < 0) {
 				log_err("setsockopt(IP_MULTICAST_IF)");
-				rc = SOCKPERF_ERR_SOCKET;
+				exit_with_log(1);
 			}
 		}
 
-		if (!rc && (s_user_params.mc_loop_disable)) {
+		if (s_user_params.mc_loop_disable) {
 			/* disable multicast loop of all transmitted packets */
 			u_char loop_disabled = 0;
 			if (setsockopt(fd, IPPROTO_IP, IP_MULTICAST_LOOP, &loop_disabled, sizeof(loop_disabled)) < 0) {
 				log_err("setsockopt(IP_MULTICAST_LOOP)");
-				rc = SOCKPERF_ERR_SOCKET;
-			}
-		}
-
-		if (!rc)
-		{
-			/* the IP_MULTICAST_TTL socket option allows the application to primarily
-			 * limit the lifetime of the packet in the Internet and prevent it from
-			 * circulating
-			 */
-			int value = s_user_params.mc_ttl;
-			if (setsockopt(fd, IPPROTO_IP, IP_MULTICAST_TTL, (char*)&value, sizeof(value)) < 0) {
-				log_err("setsockopt(IP_MULTICAST_TTL)");
-				rc = SOCKPERF_ERR_SOCKET;
-			}
-		}
-	}
-
-	if (!rc &&
-			(p_data->sock_type == SOCK_STREAM)) {
-		if (s_user_params.tcp_nodelay) {
-			/* set Delivering Messages Immediately */
-			int tcp_nodelay = 1;
-			if (setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (char*)&tcp_nodelay, sizeof(tcp_nodelay)) < 0) {
-				log_err("setsockopt(TCP_NODELAY)");
-				rc = SOCKPERF_ERR_SOCKET;
+				exit_with_log(1);
 			}
 		}
 	}
@@ -1792,7 +1688,7 @@ int prepare_socket(struct fds_data *p_data, int fd)
 #ifdef ST_TEST
 	if (!stTest)
 #endif
-	if (!rc && (s_user_params.is_vmarxfiltercb && g_vma_api)) {
+	if (s_user_params.is_vmarxfiltercb && g_vma_api) {
 		// Try to register application with VMA's special receive notification callback logic
 		if (g_vma_api->register_recv_callback(fd, myapp_vma_recv_pkt_filter_callback, &fd) < 0) {
 			log_err("vma_api->register_recv_callback failed. Try running without option 'vmarxfiltercb'");
@@ -1803,20 +1699,18 @@ int prepare_socket(struct fds_data *p_data, int fd)
 	}
 #endif
 
-	return (!rc ? fd : INVALID_SOCKET);
+	return fd;
 }
 
 //------------------------------------------------------------------------------
 /* get IP:port pairs from the file and initialize the list */
 static int set_mcgroups_fromfile(const char *mcg_filename)
 {
-	int rc = SOCKPERF_ERR_NONE;
 	FILE *file_fd = NULL;
 	char line[MAX_MCFILE_LINE_LENGTH];
 	char *res;
-	int sock_type = SOCK_DGRAM;
-	char *ip = NULL;
-	char *port = NULL;
+	char *ip;
+	char *port;
 	fds_data *tmp;
 	int curr_fd = 0, last_fd = 0;
 	int regexpres;
@@ -1825,216 +1719,110 @@ static int set_mcgroups_fromfile(const char *mcg_filename)
 
 	if ((file_fd = fopen(mcg_filename, "r")) == NULL) {
 		printf("No such file: %s \n", mcg_filename);
-		return SOCKPERF_ERR_NOT_EXIST;
+		exit_with_log(4);
 	}
 
-	while (!rc && (res = fgets(line, MAX_MCFILE_LINE_LENGTH, file_fd))) {
+	while ((res = fgets(line, MAX_MCFILE_LINE_LENGTH, file_fd))) {
 		if (!res) {
 			if (ferror(file_fd)) {
 				log_err("fread()");
-				fclose(file_fd);
 				return -1;
 			}
-			else {
-			    fclose(file_fd);
+			else
 				return 0;	/* encountered EOF */
-			}
 		}
-
-		/* skip empty lines and comments */
-		if (line[0] == ' ' || line[0] == '\r' || line[0] == '\n' || line[0] == '#') {
-		    continue;
-		}
+		g_sockets_num++;
 
 		regexpres = regcomp(&regexpr, IP_PORT_FORMAT_REG_EXP, REG_EXTENDED|REG_NOSUB);
 		if (regexpres) {
 			log_err("Failed to compile regexp");
-			rc = SOCKPERF_ERR_FATAL;
-			break;
+			exit_with_log(1);
 		}
-		else {
-			regexpres = regexec(&regexpr, line, (size_t)0, NULL, 0);
-			regfree(&regexpr);
-			if (regexpres) {
-				log_msg("Invalid input in line %d: "
-					"each line must have the following format: ip:port or type:ip:port",
-					g_sockets_num);
-				rc = SOCKPERF_ERR_INCORRECT;
-				break;
-			}
+		regexpres = regexec(&regexpr, line, (size_t)0, NULL, 0);
+		regfree(&regexpr);
+		if (regexpres) {
+			log_msg("Invalid input in line %d: "
+				"each line must have the following format: ip:port",
+				g_sockets_num);
+			exit_with_log(1);
 		}
 
-		/* this code support backward compatibility with old format of file */
-		if (line[0] == 'U' || line[0] == 'u' ||
-			line[0] == 'T' || line[0] == 't') {
-			sock_type = (line[0] == 'T' || line[0] == 't' ? SOCK_STREAM : SOCK_DGRAM);
-			strtok(line, ":");
-			ip = strtok(NULL, ":");
-		}
-		else {
-			sock_type = SOCK_DGRAM;
-			ip = strtok(line, ":");
-		}
+		ip = strtok(line, ":");
 		port = strtok(NULL, ":\n");
 		if (!ip || !port) {
 			log_msg("Invalid input in line %d: "
-				"each line must have the following format: ip:port or type:ip:port",
+				"each line must have the following format: ip:port",
 				g_sockets_num);
-			rc = SOCKPERF_ERR_INCORRECT;
-			break;
+			exit_with_log(8);
 		}
-
-		tmp = (struct fds_data *)MALLOC(sizeof(struct fds_data));
+		tmp = (struct fds_data *)malloc(sizeof(struct fds_data));
 		if (!tmp) {
 			log_err("Failed to allocate memory with malloc()");
-			rc = SOCKPERF_ERR_NO_MEMORY;
+			exit_with_log(1);
+		}
+		memset(tmp,0,sizeof(struct fds_data));
+		tmp->addr.sin_family = AF_INET;
+		tmp->addr.sin_port = htons(atoi(port));
+		if (!inet_aton(ip, &tmp->addr.sin_addr)) {
+			log_msg("Invalid input in line %d: '%s:%s'", g_sockets_num, ip, port);
+			exit_with_log(8);
+		}
+		tmp->is_multicast = IN_MULTICAST(ntohl(tmp->addr.sin_addr.s_addr));
+		curr_fd = prepare_socket(&tmp->addr);
+		if (g_sockets_num != 1) { /*it is not the first fd*/
+			g_fds_array[last_fd]->next_fd = curr_fd;
 		}
 		else {
-			memset(tmp,0,sizeof(struct fds_data));
-			tmp->addr.sin_family = AF_INET;
-			tmp->addr.sin_port = htons(atoi(port));
-			if (!inet_aton(ip, &tmp->addr.sin_addr)) {
-				struct hostent *hostip = gethostbyname(ip);
-				if(hostip) {
-					memcpy(&(tmp->addr.sin_addr), hostip->h_addr_list[0], hostip->h_length);
-				}
-				else {
-					log_msg("Invalid address in line %d: '%s:%s'", g_sockets_num, ip, port);
-					FREE(tmp);
-					rc = SOCKPERF_ERR_INCORRECT;
-					break;
-				}
-			}
-			tmp->is_multicast = IN_MULTICAST(ntohl(tmp->addr.sin_addr.s_addr));
-			tmp->sock_type = sock_type;
-
-			/* Check if the same value exists */
-			bool is_exist = false;
-
-			for (int i = s_fd_min; i <= s_fd_max; i++) {
-				/* duplicated values are accepted in case client connection using TCP */
-				if (((s_user_params.mode == MODE_CLIENT)  && (tmp->sock_type == SOCK_STREAM))) {
-					continue;
-				}
-
-				if ( g_fds_array[i] &&
-					 !memcmp( &(g_fds_array[i]->addr), &(tmp->addr), sizeof(tmp->addr)) ) {
-					is_exist = true;
-					break;
-				}
-			}
-
-			if (is_exist) {
-				FREE(tmp);
-				tmp = NULL;
-				continue;
-			}
-
-			tmp->active_fd_count = 0;
-			tmp->active_fd_list = (int*)MALLOC(MAX_ACTIVE_FD_NUM * sizeof(int));
-			if (!tmp->active_fd_list) {
-				log_err("Failed to allocate memory with malloc()");
-				rc = SOCKPERF_ERR_NO_MEMORY;
-			}
-			else {
-				/* create a socket */
-				if ((curr_fd = socket(AF_INET, tmp->sock_type, 0)) < 0) {
-					log_err("socket(AF_INET, SOCK_x)");
-					rc = SOCKPERF_ERR_SOCKET;
-				}
-				else {
-					if ( (curr_fd >= MAX_FDS_NUM) ||
-						 (prepare_socket(tmp, curr_fd) == INVALID_SOCKET) ) {
-						log_err("Invalid socket");
-						close(curr_fd);
-						rc = SOCKPERF_ERR_SOCKET;
-					}
-					else {
-						int i = 0;
-
-						g_sockets_num++;
-
-						for (i = 0; i < MAX_ACTIVE_FD_NUM; i++) {
-							tmp->active_fd_list[i] = INVALID_SOCKET;
-						}
-						tmp->recv.cur_addr = tmp->recv.buf;
-						tmp->recv.max_size = sizeof(tmp->recv.buf) - MAX_PAYLOAD_SIZE;
-						tmp->recv.cur_offset = 0;
-						tmp->recv.cur_size = tmp->recv.max_size;
-
-						if (g_sockets_num != 1) { /*it is not the first fd*/
-							g_fds_array[last_fd]->next_fd = curr_fd;
-						}
-						else {
-							s_fd_min = curr_fd;
-						}
-
-						last_fd = curr_fd;
-						g_fds_array[curr_fd] = tmp;
-						s_fd_max = max(s_fd_max, curr_fd);
-						s_fd_min = min(s_fd_min, curr_fd);
-						s_fd_num++;
-					}
-				}
-			}
-
-			/* Failure check */
-			if (rc) {
-				if (tmp->active_fd_list) {
-					FREE(tmp->active_fd_list);
-				}
-				FREE(tmp);
-			}
+			s_fd_min = curr_fd;
 		}
+		last_fd = curr_fd;
+		g_fds_array[curr_fd] = tmp;
+		s_fd_max = max(s_fd_max, curr_fd);
+		s_fd_min = min(s_fd_min, curr_fd);
+		s_fd_num++;
 	}
+
+	g_fds_array[s_fd_max]->next_fd = s_fd_min; /* close loop for fast wrap around in client */
 
 	fclose(file_fd);
 
-	if (!rc) {
-		g_fds_array[s_fd_max]->next_fd = s_fd_min; /* close loop for fast wrap around in client */
-
 #ifdef ST_TEST
-		{
-			char *ip   = "224.3.2.1";
-			char *port = "11111";
-			static fds_data data1, data2;
+	{
+		char *ip   = "224.3.2.1";
+		char *port = "11111";
+		static fds_data data1, data2;
 
-			tmp = &data1;
-			memset(tmp,0,sizeof(struct fds_data));
-			tmp->addr.sin_family = AF_INET;
-			tmp->addr.sin_port = htons(atoi(port));
-			if (!inet_aton(ip, &tmp->addr.sin_addr)) {
-				log_msg("Invalid input: '%s:%s'", ip, port);
-				exit_with_log(SOCKPERF_ERR_INCORRECT);
-			}
-			tmp->sock_type = sock_type;
-			tmp->is_multicast = IN_MULTICAST(ntohl(tmp->addr.sin_addr.s_addr));
-			st1 = prepare_socket(tmp, true);
-
-			tmp = &data2;
-			memset(tmp,0,sizeof(struct fds_data));
-			tmp->addr.sin_family = AF_INET;
-			tmp->addr.sin_port = htons(atoi(port));
-			if (!inet_aton(ip, &tmp->addr.sin_addr)) {
-				log_msg("Invalid input: '%s:%s'", ip, port);
-				exit_with_log(SOCKPERF_ERR_INCORRECT);
-			}
-			tmp->sock_type = sock_type;
-			tmp->is_multicast = IN_MULTICAST(ntohl(tmp->addr.sin_addr.s_addr));
-			st2 = prepare_socket(tmp, true);
-
+		tmp = &data1;
+		memset(tmp,0,sizeof(struct fds_data));
+		tmp->addr.sin_family = AF_INET;
+		tmp->addr.sin_port = htons(atoi(port));
+		if (!inet_aton(ip, &tmp->addr.sin_addr)) {
+			log_msg("Invalid input: '%s:%s'", ip, port);
+			exit_with_log(8);
 		}
-#endif
-	}
+		tmp->is_multicast = IN_MULTICAST(ntohl(tmp->addr.sin_addr.s_addr));
+		st1 = prepare_socket(&tmp->addr, true);
 
-	return rc;
+		tmp = &data2;
+		memset(tmp,0,sizeof(struct fds_data));
+		tmp->addr.sin_family = AF_INET;
+		tmp->addr.sin_port = htons(atoi(port));
+		if (!inet_aton(ip, &tmp->addr.sin_addr)) {
+			log_msg("Invalid input: '%s:%s'", ip, port);
+			exit_with_log(8);
+		}
+		tmp->is_multicast = IN_MULTICAST(ntohl(tmp->addr.sin_addr.s_addr));
+		st2 = prepare_socket(&tmp->addr, true);
+
+	}
+#endif
+	return 0;
 }
 
 
 //------------------------------------------------------------------------------
 int bringup(const int *p_daemonize)
 {
-	int rc = SOCKPERF_ERR_NONE;
 
 #if 0
 	// AlexR: for testing daemonize with allready opened UDP socket
@@ -2047,94 +1835,43 @@ int bringup(const int *p_daemonize)
 	if (*p_daemonize) {
 		if (daemon(1, 1)) {
 			log_err("Failed to daemonize");
-			rc = SOCKPERF_ERR_FATAL;
 		}
 		log_msg("Running as daemon");
 	}
 
-	/* Create and initialize sockets */
-	if (!rc)
+	/* TODO it should be moved in suitable place */
 	{
-		setbuf(stdout, NULL);
-
-		/* initialize g_fds_array array */
-		if (strlen(s_user_params.mcg_filename)) {
-			rc = set_mcgroups_fromfile(s_user_params.mcg_filename);
-		}
-		else {
-			int curr_fd = INVALID_SOCKET;
-			fds_data *tmp = (struct fds_data *)MALLOC(sizeof(struct fds_data));
-			if (!tmp) {
-				log_err("Failed to allocate memory with malloc()");
-				rc = SOCKPERF_ERR_NO_MEMORY;
+		if (strlen(s_user_params.mcg_filename) > 0 || s_user_params.mthread_server) {
+			if (strlen(s_user_params.mcg_filename) > 0) {
+				set_mcgroups_fromfile(s_user_params.mcg_filename);
 			}
-			else {
-				memset(tmp, 0, sizeof(struct fds_data));
-				memcpy(&tmp->addr, &(s_user_params.addr), sizeof(struct sockaddr_in));
-
-				tmp->is_multicast = IN_MULTICAST(ntohl(tmp->addr.sin_addr.s_addr));
-				tmp->sock_type = s_user_params.sock_type;
-
-				tmp->active_fd_count = 0;
-				tmp->active_fd_list = (int*)MALLOC(MAX_ACTIVE_FD_NUM * sizeof(int));
-				if (!tmp->active_fd_list) {
-					log_err("Failed to allocate memory with malloc()");
-					rc = SOCKPERF_ERR_NO_MEMORY;
+			if (s_user_params.mthread_server) {
+				if (s_user_params.threads_num > g_sockets_num  || s_user_params.threads_num == 0) {
+					s_user_params.threads_num = g_sockets_num;
+				}
+				g_pid_arr = (int*)malloc(sizeof(int)*(s_user_params.threads_num + 1));
+				if(!g_pid_arr) {
+					log_err("Failed to allocate memory for pid array");
+					exit_with_log(1);
 				}
 				else {
-					/* create a socket */
-					if ((curr_fd = socket(AF_INET, tmp->sock_type, 0)) < 0) {
-						log_err("socket(AF_INET, SOCK_x)");
-						rc = SOCKPERF_ERR_SOCKET;
-					}
-					else {
-						if ( (curr_fd >= MAX_FDS_NUM) ||
-							 (prepare_socket(tmp, curr_fd) == INVALID_SOCKET) ) {
-							log_err("Invalid socket");
-							close(curr_fd);
-							rc = SOCKPERF_ERR_SOCKET;
-						}
-						else {
-							int i = 0;
-
-							g_sockets_num = 1;
-
-							for (i = 0; i < MAX_ACTIVE_FD_NUM; i++) {
-								tmp->active_fd_list[i] = INVALID_SOCKET;
-							}
-							tmp->recv.cur_addr = tmp->recv.buf;
-							tmp->recv.max_size = sizeof(tmp->recv.buf) - MAX_PAYLOAD_SIZE;
-							tmp->recv.cur_offset = 0;
-							tmp->recv.cur_size = tmp->recv.max_size;
-
-							s_fd_min = s_fd_max = curr_fd;
-							s_fd_num = 1;
-							g_fds_array[s_fd_min] = tmp;
-							g_fds_array[s_fd_min]->next_fd = s_fd_min;
-						}
-					}
-				}
-
-				/* Failure check */
-				if (rc) {
-					if (tmp->active_fd_list) {
-						FREE(tmp->active_fd_list);
-					}
-					FREE(tmp);
+					log_msg("Running %d threads to manage %d sockets",s_user_params.threads_num,g_sockets_num);
 				}
 			}
 		}
-
-		if ( !rc &&
-				(s_user_params.threads_num > g_sockets_num  || s_user_params.threads_num == 0)) {
-			log_err("Number of threads should be less than sockets count");
-			rc = SOCKPERF_ERR_BAD_ARGUMENT;
+		else {
+			fds_data *tmp = (struct fds_data *)malloc(sizeof(struct fds_data));
+			memset(tmp, 0, sizeof(struct fds_data));
+			memcpy(&tmp->addr, &(s_user_params.addr), sizeof(struct sockaddr_in));
+			tmp->is_multicast = IN_MULTICAST(ntohl(tmp->addr.sin_addr.s_addr));
+			s_fd_min = s_fd_max = prepare_socket(&tmp->addr);
+			s_fd_num = 1;
+			g_fds_array[s_fd_min] = tmp;
+			g_fds_array[s_fd_min]->next_fd = s_fd_min;
 		}
 	}
 
-	/* Setup VMA */
-	if ( !rc &&
-			(s_user_params.is_vmarxfiltercb || s_user_params.is_vmazcopyread)) {
+	if (s_user_params.is_vmarxfiltercb || s_user_params.is_vmazcopyread) {
 #ifdef  USING_VMA_EXTRA_API
 		// Get VMA extended API
 		g_vma_api = vma_get_api();
@@ -2149,52 +1886,50 @@ int bringup(const int *p_daemonize)
 #endif
 	}
 
-	/* Setup internal data */
-	if (!rc) {
-		int _max_buff_size = max(s_user_params.msg_size + 1, g_vma_dgram_desc_size);
-		_max_buff_size = max(_max_buff_size, MAX_PAYLOAD_SIZE);
+	int max_buff_size = max(g_msg_size+1, g_vma_dgram_desc_size);
+	max_buff_size = max(max_buff_size, MAX_PAYLOAD_SIZE);
+
 
 #ifdef  USING_VMA_EXTRA_API
-		if (s_user_params.is_vmazcopyread && g_vma_api){
-			   g_dgram_buf = (unsigned char*)MALLOC(_max_buff_size);
-		}
+	if (s_user_params.is_vmazcopyread && g_vma_api){
+		   g_dgram_buf = (unsigned char*)malloc(max_buff_size);
+	}
 #endif
 
-		int64_t cycleDurationNsec = NSEC_IN_SEC * s_user_params.burst_size / s_user_params.pps;
+	Message::initMaxSize(max_buff_size);
+	g_pMessage = new Message();
 
-		if (s_user_params.pps == UINT32_MAX) { // MAX PPS mode
-			s_user_params.pps = PPS_MAX;
-			cycleDurationNsec = 0;
-		}
-
-		s_user_params.cycleDuration = TicksDuration(cycleDurationNsec);
-
-		uint64_t _maxTestDuration = 1 + s_user_params.sec_test_duration;       // + 1sec for timer inaccuracy safety
-		uint64_t _maxSequenceNo = _maxTestDuration * s_user_params.pps + 10 * s_user_params.reply_every; // + 10 replies for safety
-		_maxSequenceNo += s_user_params.burst_size; // needed for the case burst_size > pps
-
-		if (s_user_params.pPlaybackVector) {
-			_maxSequenceNo = s_user_params.pPlaybackVector->size();
-		}
-
-		/* SERVER does not have info about max number of expected packets */
-		if (s_user_params.mode == MODE_SERVER) {
-			_maxSequenceNo = UINT64_MAX;
-		}
-
-		Message::initMaxSize(_max_buff_size);
-		Message::initMaxSeqNo(_maxSequenceNo);
-
-		if (!s_user_params.b_stream && !s_user_params.mode == MODE_SERVER) {
-			g_pPacketTimes = new PacketTimes(_maxSequenceNo,
-											 s_user_params.reply_every,
-											 s_user_params.client_work_with_srv_num);
-		}
-
-		set_signal_action();
+	if (s_user_params.mode == MODE_CLIENT) {
+		g_pMessage->getHeader()->setClient();
+	}
+	else {
+		g_pMessage->getHeader()->setServer();
 	}
 
-	return rc;
+	g_pReply = new Message();
+
+	int64_t cycleDurationNsec = NSEC_IN_SEC * s_user_params.burst_size / s_user_params.pps;
+
+	if (s_user_params.pps == UINT32_MAX) { // MAX PPS mode
+		s_user_params.pps = PPS_MAX;
+		cycleDurationNsec = 0;
+	}
+
+	s_user_params.cycleDuration = TicksDuration(cycleDurationNsec);
+
+	uint64_t _maxTestDuration = 1 + s_user_params.sec_test_duration;       // + 1sec for timer inaccuracy safety
+	uint64_t _maxSequenceNo = _maxTestDuration * s_user_params.pps + 10 * s_user_params.reply_every; // + 10 replies for safety
+	_maxSequenceNo += s_user_params.burst_size; // needed for the case burst_size > pps
+
+
+	if (s_user_params.pPlaybackVector) {
+		_maxSequenceNo = s_user_params.pPlaybackVector->size();
+	}
+	g_pPacketTimes = new PacketTimes(_maxSequenceNo, s_user_params.reply_every, s_user_params.client_work_with_srv_num);
+
+	set_signal_action();
+
+	return 0;
 }
 
 //------------------------------------------------------------------------------
@@ -2206,7 +1941,7 @@ void do_test()
 		break;
 	case MODE_SERVER:
 	   if (s_user_params.mthread_server) {
-		   server_select_per_thread();
+	           server_select_per_thread();
 	   }
 	   else {
 		   server_handler(s_fd_min, s_fd_max, s_fd_num);
@@ -2224,7 +1959,7 @@ void do_test()
 int main(int argc, char *argv[])
 {
 	try {
-		int rc = SOCKPERF_ERR_NONE;
+		int rc =0;
 
 		// step #1:  set default values for command line args
 		set_defaults();
@@ -2268,16 +2003,13 @@ int main(int argc, char *argv[])
 	    }
 
 		// Prepare application to start
-	    rc = bringup(&s_user_params.daemonize);
-		if (rc) {
-			cleanup();
-			exit_with_log(rc);
+		if (bringup(&s_user_params.daemonize)) {
+			return 1;
 		}
 
 		log_dbg("+INFO:\n\t\
 mode = %d \n\t\
 with_sock_accl = %d \n\t\
-msg_size = %d \n\t\
 msg_size_range = %d \n\t\
 sec_test_duration = %d \n\t\
 data_integrity = %d \n\t\
@@ -2294,8 +2026,6 @@ pre_warmup_wait = %d \n\t\
 is_vmarxfiltercb = %d \n\t\
 is_vmazcopyread = %d \n\t\
 mc_loop_disable = %d \n\t\
-mc_ttl = %d \n\t\
-tcp_nodelay = %d \n\t\
 client_work_with_srv_num = %d \n\t\
 b_server_reply_via_uc = %d \n\t\
 b_server_detect_gaps = %d\n\t\
@@ -2310,7 +2040,6 @@ daemonize = %d \n\t\
 mcg_filename = %s \n",
 s_user_params.mode,
 s_user_params.withsock_accl,
-s_user_params.msg_size,
 s_user_params.msg_size_range,
 s_user_params.sec_test_duration,
 s_user_params.data_integrity,
@@ -2327,8 +2056,6 @@ s_user_params.pre_warmup_wait,
 s_user_params.is_vmarxfiltercb,
 s_user_params.is_vmazcopyread,
 s_user_params.mc_loop_disable,
-s_user_params.mc_ttl,
-s_user_params.tcp_nodelay,
 s_user_params.client_work_with_srv_num,
 s_user_params.b_server_reply_via_uc,
 s_user_params.b_server_detect_gaps,
@@ -2375,16 +2102,7 @@ s_user_params.daemonize,
 		log_dbg("+INFO: taking rdtsc directly consumes %.3lf nsec", tdelta / SIZE * 1000*1000*1000 / ticks_per_second );
 
 
-		// step #5: check is user defined a specific SEED value to be used in all rand() calls
-		// if no seed value is provided, the rand() function is automatically seeded with a value of 1.
-		char *env_ptr = NULL;
-		if ((env_ptr = getenv("SEED")) != NULL) {
-			int seed = (unsigned)atoi(env_ptr);
-			srand(seed);
-		}
-
-
-		// step #6: do run the test
+		// step #5: do run the test
 		/*
 		** TEST START
 		*/
@@ -2396,11 +2114,11 @@ s_user_params.daemonize,
 	}
 	catch (const std::exception & e) {
 		printf(MODULE_NAME ": test failed because of an exception with the following information:\n\t%s\n", e.what());
-		exit_with_log (SOCKPERF_ERR_FATAL);
+		exit_with_log (1);
 	}
 	catch (...) {
 		printf(MODULE_NAME ": test failed because of an unknown exception \n");
-		exit_with_log (SOCKPERF_ERR_FATAL);
+		exit_with_log (1);
 	}
 
 	exit (0);

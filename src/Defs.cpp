@@ -47,9 +47,10 @@ struct vma_datagram_t *g_dgram = NULL;
 #endif
 
 int g_vma_dgram_desc_size = 0;
+Message *g_pMessage = NULL;
+Message *g_pReply = NULL;
 
-uint32_t PPS_MAX = PPS_MAX_UL;     // will be overwrite at runtime in case of ping-pong test
-PacketTimes* g_pPacketTimes = NULL;
+PacketTimes* g_pPacketTimes;
 
 unsigned int g_data_integrity_failed = 0;
 unsigned int g_duplicate_packets_counter = 0;
@@ -66,9 +67,12 @@ const char* g_fds_handle_desc[FD_HANDLE_MAX] =
 	"epoll"
 };
 
+int g_msg_size;
 
 fds_data* g_fds_array[MAX_FDS_NUM];
 
+int g_min_msg_size = MIN_PAYLOAD_SIZE;
+int g_max_msg_size = MIN_PAYLOAD_SIZE;
 
 #ifdef  USING_VMA_EXTRA_API
 struct vma_api_t *g_vma_api;

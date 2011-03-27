@@ -105,10 +105,10 @@ void dumpFullLog(int serverNo, RecordLog* pFullLog, size_t size, TicksDuration *
 }
 
 //------------------------------------------------------------------------------
-void client_statistics(int serverNo, Message *pMsgRequest)
+void client_statistics(int serverNo)
 {
 	const uint64_t receiveCount = g_receiveCount;
-	const uint64_t sendCount    = pMsgRequest->getSequenceCounter();
+	const uint64_t sendCount    = g_pMessage->getSequenceCounter();
 	const uint64_t replyEvery   = g_pApp->m_const_params.reply_every;
 	const size_t SIZE = receiveCount;
 	const int SERVER_NO = serverNo;
@@ -186,76 +186,60 @@ void client_statistics(int serverNo, Message *pMsgRequest)
 
 	if (!counter) {
 		log_msg_file2(f, "No valid observations found.  Try increasing test duration and/or --pps/--reply-every parameters");
+		return;
 	}
-	else {
-		TicksDuration avgRtt = counter ? sumRtt / counter : TicksDuration::TICKS0 ;
-		TicksDuration avgLatency = avgRtt / 2;
 
-		TicksDuration stdDev = TicksDuration::stdDev(pLat, counter);
-		log_msg_file2(f, "\e[2;35m====> avg-lat=%7.3lf (std-dev=%.3lf)\e[0m", avgLatency.toDecimalUsec(), stdDev.toDecimalUsec());
+	TicksDuration avgRtt = counter ? sumRtt / counter : TicksDuration::TICKS0 ;
+	TicksDuration avgLatency = avgRtt / 2;
 
-		bool isColor = (g_pPacketTimes->getDroppedCount(SERVER_NO) || g_pPacketTimes->getDupCount(SERVER_NO) || g_pPacketTimes->getOooCount(SERVER_NO));
-		//isColor = isColor && isatty(fileno(stdout));
-		const char* colorRedStr   = isColor ? "\e[0;31m" : "";
-		const char* colorResetStr = isColor ? "\e[0m" : "";
-		log_msg_file2(f, "%s# dropped packets = %lu; # duplicated packets = %lu; # out-of-order packets = %lu%s"
-				, colorRedStr
-				, (long unsigned)g_pPacketTimes->getDroppedCount(SERVER_NO)
-				, (long unsigned)g_pPacketTimes->getDupCount(SERVER_NO)
-				, (long unsigned)g_pPacketTimes->getOooCount(SERVER_NO)
-				, colorResetStr
-				);
+	TicksDuration stdDev = TicksDuration::stdDev(pLat, counter);
+	log_msg_file2(f, "\e[2;35m====> avg-lat=%7.3lf (std-dev=%.3lf)\e[0m", avgLatency.toDecimalUsec(), stdDev.toDecimalUsec());
 
-		double usecAvarageLatency = avgLatency.toDecimalUsec();
-		if (usecAvarageLatency)
-			print_average_latency(usecAvarageLatency);
+	bool isColor = (g_pPacketTimes->getDroppedCount(SERVER_NO) || g_pPacketTimes->getDupCount(SERVER_NO) || g_pPacketTimes->getOooCount(SERVER_NO));
+	//isColor = isColor && isatty(fileno(stdout));
+	const char* colorRedStr   = isColor ? "\e[0;31m" : "";
+	const char* colorResetStr = isColor ? "\e[0m" : "";
+	log_msg_file2(f, "%s# dropped packets = %lu; # duplicated packets = %lu; # out-of-order packets = %lu%s"
+			, colorRedStr
+			, (long unsigned)g_pPacketTimes->getDroppedCount(SERVER_NO)
+			, (long unsigned)g_pPacketTimes->getDupCount(SERVER_NO)
+			, (long unsigned)g_pPacketTimes->getOooCount(SERVER_NO)
+			, colorResetStr
+			);
 
-		printPercentiles(f, pLat, counter);
+	double usecAvarageLatency = avgLatency.toDecimalUsec();
+	if (usecAvarageLatency)
+		print_average_latency(usecAvarageLatency);
 
-		dumpFullLog(SERVER_NO, pFullLog, lcounter, pLat);
-	}
+	printPercentiles(f, pLat, counter);
+
+	dumpFullLog(SERVER_NO, pFullLog, lcounter, pLat);
 
 	delete[] pLat;
 	delete[] pFullLog;
 }
 
 //------------------------------------------------------------------------------
-void stream_statistics(Message *pMsgRequest)
+void stream_statistics()
 {
 	TicksDuration totalRunTime = s_endTime - s_startTime;
 	if (totalRunTime <= TicksDuration::TICKS0) return;
 	if (!g_pApp->m_const_params.b_stream) return;
 
-	const uint64_t sendCount = pMsgRequest->getSequenceCounter();
+	const uint64_t sendCount = g_pMessage->getSequenceCounter();
 
 	// Send only mode!
 	log_msg("Total of %" PRIu64 " messages sent in %.3lf sec\n", sendCount, totalRunTime.toDecimalUsec()/1000000);
-	if (g_pApp->m_const_params.pps != PPS_MAX) {
-		if (g_pApp->m_const_params.msg_size_range)
-			log_msg("\e[2;35mNOTE: test was performed, using average msg-size=%d (+/-%d), pps=%u. For getting maximum throughput use --pps=max (and consider --msg_size=1472 or --msg_size=4096)\e[0m",
-					g_pApp->m_const_params.msg_size,
-					g_pApp->m_const_params.msg_size_range,
-					g_pApp->m_const_params.pps);
-		else
-			log_msg("\e[2;35mNOTE: test was performed, using msg-size=%d, pps=%u. For getting maximum throughput use --pps=max (and consider --msg_size=1472 or --msg_size=4096)\e[0m",
-					g_pApp->m_const_params.msg_size,
-					g_pApp->m_const_params.pps);
-	}
-	else if (g_pApp->m_const_params.msg_size != 1472) {
-		if (g_pApp->m_const_params.msg_size_range)
-			log_msg("\e[2;35mNOTE: test was performed, using average msg-size=%d (+/-%d). For getting maximum throughput consider using --msg_size=1472\e[0m",
-					g_pApp->m_const_params.msg_size,
-					g_pApp->m_const_params.msg_size_range);
-		else
-			log_msg("\e[2;35mNOTE: test was performed, using msg-size=%d. For getting maximum throughput consider using --msg_size=1472\e[0m",
-					g_pApp->m_const_params.msg_size);
-	}
+	if (g_pApp->m_const_params.pps != PPS_MAX)
+		log_msg("\e[2;35mNOTE: test was performed, using msg-size=%d, pps=%u. For getting maximum throughput use --pps=max (and consider --msg_size=1472 or --msg_size=4096)\e[0m", g_msg_size, g_pApp->m_const_params.pps);
+	else if (g_msg_size != 1472)
+		log_msg("\e[2;35mNOTE: test was performed, using msg-size=%d. For getting maximum throughput consider using --msg_size=1472\e[0m", g_msg_size);
 
-	int ip_frags_per_msg = (g_pApp->m_const_params.msg_size + DEFAULT_IP_PAYLOAD_SZ - 1) / DEFAULT_IP_PAYLOAD_SZ;
+	int ip_frags_per_msg = (g_msg_size + DEFAULT_IP_PAYLOAD_SZ - 1) / DEFAULT_IP_PAYLOAD_SZ;
 	int mps = (int)(0.5 + ((double)sendCount)*1000*1000 / totalRunTime.toDecimalUsec());
 
 	int pps = mps * ip_frags_per_msg;
-	int total_line_ip_data = g_pApp->m_const_params.msg_size + ip_frags_per_msg*28;
+	int total_line_ip_data = g_msg_size + ip_frags_per_msg*28;
 	double MBps = ((double)mps * total_line_ip_data)/1024/1024; /* No including IP + UDP Headers per fragment */
 	if (ip_frags_per_msg == 1)
 		log_msg("Summary: Message Rate is %d [msg/sec]", mps);
@@ -275,7 +259,8 @@ void client_sig_handler(int signum)
 	s_endTime.setNow();
 
 	// Just in case not Activity updates where logged add a '\n'
-	if (g_pApp->m_const_params.packetrate_stats_print_ratio && !g_pApp->m_const_params.packetrate_stats_print_details)
+	if (g_pApp->m_const_params.packetrate_stats_print_ratio && !g_pApp->m_const_params.packetrate_stats_print_details &&
+	   (g_pApp->m_const_params.packetrate_stats_print_ratio < g_pMessage->getSequenceCounter()))
 		printf("\n");
 
 	switch (signum) {
@@ -293,40 +278,15 @@ void client_sig_handler(int signum)
 
 //==============================================================================
 //==============================================================================
+//force them to be non inline
+ClientBase::ClientBase(){}
+ClientBase::~ClientBase(){}
+template <class IoType, class SwitchDataIntegrity, class SwitchActivityInfo, class SwitchCycleDuration, class SwitchMsgSize , class PongModeCare>
+Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration, SwitchMsgSize , PongModeCare>::Client(int _fd_min, int _fd_max, int _fd_num): m_receiverTid(0), m_ioHandler(_fd_min, _fd_max, _fd_num) {}
+template <class IoType, class SwitchDataIntegrity, class SwitchActivityInfo, class SwitchCycleDuration, class SwitchMsgSize , class PongModeCare>
+Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration, SwitchMsgSize , PongModeCare>:: ~Client(){}
 
-//------------------------------------------------------------------------------
-ClientBase::ClientBase()
-{
-	m_pMsgReply = new Message();
-	m_pMsgReply->setLength(MAX_PAYLOAD_SIZE);
 
-	m_pMsgRequest = new Message();
-	m_pMsgRequest->getHeader()->setClient();
-	m_pMsgRequest->setLength(g_pApp->m_const_params.msg_size);
-}
-
-//------------------------------------------------------------------------------
-ClientBase::~ClientBase()
-{
-	delete m_pMsgReply;
-	delete m_pMsgRequest;
-}
-
-//------------------------------------------------------------------------------
-template <class IoType, class SwitchDataIntegrity, class SwitchActivityInfo, class SwitchCycleDuration, class SwitchMsgSize , class PongModeCare >
-Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration, SwitchMsgSize , PongModeCare>::Client(int _fd_min, int _fd_max, int _fd_num):
-	ClientBase(),
-	m_receiverTid(0),
-	m_ioHandler(_fd_min, _fd_max, _fd_num),
-	m_pongModeCare(m_pMsgRequest)
-{
-}
-
-//------------------------------------------------------------------------------
-template <class IoType, class SwitchDataIntegrity, class SwitchActivityInfo, class SwitchCycleDuration, class SwitchMsgSize , class PongModeCare >
-Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration, SwitchMsgSize , PongModeCare>::~Client()
-{
-}
 
 //------------------------------------------------------------------------------
 template <class IoType, class SwitchDataIntegrity, class SwitchActivityInfo, class SwitchCycleDuration, class SwitchMsgSize , class PongModeCare>
@@ -358,13 +318,13 @@ void Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration
 
 	log_msg("Test ended");
 
-	if (!m_pMsgRequest->getSequenceCounter())
+	if (! g_pMessage->getSequenceCounter())
 	{
 		log_msg("No messages were sent");
 	}
 	else if (g_pApp->m_const_params.b_stream)
 	{
-		stream_statistics(m_pMsgRequest);
+		stream_statistics();
 	}
 	else
 	{
@@ -376,7 +336,7 @@ void Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration
 					, (int)g_pApp->m_const_params.pps
 					, (int)g_pApp->m_const_params.burst_size
 					, (int)g_pApp->m_const_params.reply_every
-					, (int)g_pApp->m_const_params.msg_size
+					, (int)g_msg_size
 					, (int)g_pApp->m_const_params.sec_test_duration);
 
 			fprintf(f, "------------------------------\n");
@@ -384,7 +344,7 @@ void Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration
 
 		const int NUM_SERVERS = 1;
 		for (int i = 0; i < NUM_SERVERS; i++)
-			client_statistics(i, m_pMsgRequest);
+			client_statistics(i);
 	}
 
 	if (g_pApp->m_const_params.fileFullLog)
@@ -397,100 +357,61 @@ void Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration
 
 //------------------------------------------------------------------------------
 template <class IoType, class SwitchDataIntegrity, class SwitchActivityInfo, class SwitchCycleDuration, class SwitchMsgSize , class PongModeCare>
-int Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration, SwitchMsgSize , PongModeCare>
+void Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration, SwitchMsgSize , PongModeCare>
 ::initBeforeLoop()
 {
-	int rc = SOCKPERF_ERR_NONE;
+	printf(MODULE_NAME "[CLIENT] send on:");
 
-	/* bind/connect socket */
-	if (rc == SOCKPERF_ERR_NONE)
-	{
-		struct sockaddr_in bind_addr;
+	if (g_b_exit) return;
 
-		// cycle through all set fds in the array (with wrap around to beginning)
-		for (int ifd = m_ioHandler.m_fd_min; ifd <= m_ioHandler.m_fd_max; ifd++) {
-
-			if (!(g_fds_array[ifd] && (g_fds_array[ifd]->active_fd_list))) continue;
-
-			memset(&bind_addr, 0, sizeof(struct sockaddr_in));
-
-			if (g_fds_array[ifd]->sock_type == SOCK_DGRAM) {
-				bind_addr.sin_family = AF_INET;
-				bind_addr.sin_port = g_fds_array[ifd]->addr.sin_port;
-				bind_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-				log_dbg ("binding to: %s:%d [%d]...", inet_ntoa(bind_addr.sin_addr), ntohs(bind_addr.sin_port), ifd);
-				if (bind(ifd, (struct sockaddr*)&bind_addr, sizeof(struct sockaddr)) < 0) {
-					log_err("Can`t bind socket");
-					rc = SOCKPERF_ERR_SOCKET;
-				}
-			}
-			else {
-				memcpy(&bind_addr, &(g_fds_array[ifd]->addr), sizeof(struct sockaddr_in));
-				log_dbg ("connecting to: %s:%d [%d]...", inet_ntoa(bind_addr.sin_addr), ntohs(bind_addr.sin_port), ifd);
-				if (connect(ifd, (struct sockaddr*)&bind_addr, sizeof(struct sockaddr)) < 0) {
-					log_err("Can`t connect socket");
-					rc = SOCKPERF_ERR_SOCKET;
-				}
-			}
-		}
+	if (!g_pApp->m_const_params.b_stream) {
+		log_msg("using %s() to block on socket(s)", g_fds_handle_desc[g_pApp->m_const_params.fd_handler_type]);
 	}
 
-	if (g_b_exit) return rc;
+	m_ioHandler.prepareNetwork();
+	sleep(g_pApp->m_const_params.pre_warmup_wait);
 
-	if (rc == SOCKPERF_ERR_NONE) {
+	m_ioHandler.warmup();
 
-		printf(MODULE_NAME "[CLIENT] send on:");
+	sleep(2);
 
-		if (!g_pApp->m_const_params.b_stream) {
-			log_msg("using %s() to block on socket(s)", g_fds_handle_desc[g_pApp->m_const_params.fd_handler_type]);
+	if (g_b_exit) return;
+
+/*
+	int fd = m_ioHandler.m_fd_min;
+	g_pMessage->getHeader()->setPongRequest();
+	for (int i = 0 ; i < 10; i++) {
+		msg_sendto(fd, g_pMessage->getData(), g_msg_size, &(g_fds_array[fd]->addr));
+		client_receive_from_selected(fd, 0);
+		log_msg("got  'warmup' packet #%d on fds=%d", i, fd);
+	}
+	g_pMessage->getHeader()->setPongRequest(false);
+//*/
+
+	set_affinity(pthread_self(), g_pApp->m_const_params.sender_affinity);
+
+	if (!g_pApp->m_const_params.b_client_ping_pong && !g_pApp->m_const_params.b_stream) { // latency_under_load
+		if (0 != pthread_create(&m_receiverTid, 0, ::client_receiver_thread, this)){
+			log_err("pthread_create has failed");
+			exit_with_log(7);
 		}
-
-		rc = m_ioHandler.prepareNetwork();
-		if (rc == SOCKPERF_ERR_NONE) {
-			sleep(g_pApp->m_const_params.pre_warmup_wait);
-
-			m_ioHandler.warmup(m_pMsgRequest);
-
-			sleep(2);
-
-			if (g_b_exit) return rc;
-
-			rc = set_affinity(pthread_self(), g_pApp->m_const_params.sender_affinity);
-			if (rc == SOCKPERF_ERR_NONE) {
-				if (!g_pApp->m_const_params.b_client_ping_pong && !g_pApp->m_const_params.b_stream) { // latency_under_load
-					if (0 != pthread_create(&m_receiverTid, 0, ::client_receiver_thread, this)){
-						log_err("pthread_create has failed");
-						rc = SOCKPERF_ERR_FATAL;
-					}
-					else {
-						set_affinity(m_receiverTid, g_pApp->m_const_params.receiver_affinity);
-					}
-				}
-
-				if (rc == SOCKPERF_ERR_NONE) {
-					log_msg("Starting test...");
-
-					if (!g_pApp->m_const_params.pPlaybackVector) {
-						struct itimerval timer;
-						set_client_timer(&timer);
-						int ret = setitimer(ITIMER_REAL, &timer, NULL);
-						if (ret) {
-							log_err("setitimer()");
-							rc = SOCKPERF_ERR_FATAL;
-						}
-					}
-
-					if (rc == SOCKPERF_ERR_NONE) {
-						s_startTime.setNow();
-						g_lastTicks = s_startTime;
-						g_cycleStartTime = s_startTime - g_pApp->m_const_params.cycleDuration;
-					}
-				}
-			}
-		}
+		set_affinity(m_receiverTid, g_pApp->m_const_params.receiver_affinity);
 	}
 
-	return rc;
+	log_msg("Starting test...");
+
+	if (!g_pApp->m_const_params.pPlaybackVector) {
+		struct itimerval timer;
+		set_client_timer(&timer);
+		int ret = setitimer(ITIMER_REAL, &timer, NULL);
+		if (ret) {
+			log_err("setitimer()");
+			exit_with_log(1);
+		}
+	}
+	s_startTime.setNow();
+	g_lastTicks = s_startTime;
+	g_cycleStartTime = s_startTime - g_pApp->m_const_params.cycleDuration;
 }
 
 //------------------------------------------------------------------------------
@@ -544,7 +465,7 @@ void Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration
 	// cycle through all set fds in the array (with wrap around to beginning)
 	for (int ifd = m_ioHandler.m_fd_min; i < size && !g_b_exit; ifd = g_fds_array[ifd]->next_fd, ++i) {
 
-		m_pMsgRequest->setLength(pv[i].size);
+		g_msg_size = pv[i].size;
 
 		//idle
 		playbackCycleDurationWait(pv[i].duration);
@@ -552,7 +473,7 @@ void Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration
 		//send
 		client_send_packet(ifd);
 
-		m_switchActivityInfo.execute(m_pMsgRequest->getSequenceCounter());
+		m_switchActivityInfo.execute(g_pMessage->getSequenceCounter());
 	}
 	g_cycle_wait_loop_counter++; //for silenting waring at the end
 	g_b_exit = true;
@@ -562,22 +483,17 @@ void Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration
 //------------------------------------------------------------------------------
 template <class IoType, class SwitchDataIntegrity, class SwitchActivityInfo, class SwitchCycleDuration, class SwitchMsgSize , class PongModeCare>
 void Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration, SwitchMsgSize , PongModeCare>
-::doHandler()
- {
-	int rc = SOCKPERF_ERR_NONE;
+::doHandler(){
+	initBeforeLoop();
 
-	rc = initBeforeLoop();
-	
-	if (rc == SOCKPERF_ERR_NONE) {
-		if (g_pApp->m_const_params.pPlaybackVector)
-			doPlayback();
-		else if (g_pApp->m_const_params.b_client_ping_pong)
-			doSendThenReceiveLoop();
-		else
-			doSendLoop();
+	if (g_pApp->m_const_params.pPlaybackVector)
+		doPlayback();
+	else if (g_pApp->m_const_params.b_client_ping_pong)
+		doSendThenReceiveLoop();
+	else
+		doSendLoop();
 
-		cleanupAfterLoop();
-	}
+	cleanupAfterLoop();
 }
 
 
