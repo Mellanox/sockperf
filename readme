@@ -1,0 +1,54 @@
+This is the distribution of sockperf
+
+* What is sockperf
+      
+* Licensing
+
+* What you will need to compile aLic on Unix systems
+
+   perl 5.8+ (used by the automake tools)
+
+   GNU make tools: automake 1.7+, autoconf 2.57+, m4 1.4+ and libtool 1.4+
+
+   A Compiler, among those tested are:
+   . gcc4 (Ubuntu 9)
+
+* How to install:
+
+  GNU make utility can be used.
+
+    $ make -f makefile.gnu
+    $ make -f makefile.gnu clean
+    $ make -f makefile.gnu install
+    $ make -f makefile.gnu uninstall
+    $ make -f makefile.gnu dist
+
+
+  The sockperf package uses the GNU autotools compilation and installation
+  framework.
+   
+    $ ./autogen.sh
+    $ ./configure --prefix=<path to install>
+    $ make
+    $ make install
+
+  To enable test scripts
+    $ ./configure --prefix=<path to install> --enable-test
+   
+  To enable the documentation
+    $ ./configure --prefix=<path to install> --enable-doc
+   
+  To enable the special scripts
+    $ ./configure --prefix=<path to install> --enable-tool
+   
+  To compile with debug symbols and information: 
+    $ ./configure --prefix=<path to install> --enable-debug
+
+   This will define the _DEBUG variable at compile time.
+
+   Type './configure --help' for a list of all the configure
+   options. Some of the options are generic autoconf options, while the aLic
+   specific options are prefixed with "SOCKPERF:" in the help text.
+
+
+Good luck!

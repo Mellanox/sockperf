@@ -1,0 +1,118 @@
+################################################################################
+#                                                                              #
+# Set top level definitions as tools, compilation options, output direcory etc.#
+# Author: Igor Ivanov Igor.Ivanov@itseez.com                                   #
+#                                                                              #
+################################################################################
+
+#
+# Set top place for project
+#
+ifndef TOP_DIR
+TOP_DIR:= $(shell if [ "$$PWD" != "" ]; then echo $$PWD; else pwd; fi)
+endif
+
+export TOP_DIR
+
+#
+# Set project version
+#
+VERSION := $(shell (awk -F. '{ print $$1 }' $(TOP_DIR)/version | tr -d '\n'))
+VERSION := $(VERSION).$(shell (awk -F. '{ print $$2 }' $(TOP_DIR)/version | tr -d '\n'))
+export VERSION := $(VERSION).$(shell (svnversion . | awk '{ print $$1 }' | tr -d '\n'))
+
+
+#
+# Entry directory under which 
+# bin/, include/, and lib/ are used for installation
+#
+ifndef INST_DIR
+INST_DIR=$(TOP_DIR)/inst
+endif
+
+export INST_DIR
+
+
+export ARCH = $(shell uname -m)
+
+#export ARCH = i386
+#export ARCH = powerpc
+
+export CROSS_COMPILE = ppc_4xx-
+
+
+ifndef DEVTOOL_DIR
+ifeq ($(ARCH), powerpc)
+export PATH := /home/vadmin/eldk-4.2/usr/bin:/bin:$PATH
+DEVTOOL_DIR = /home/vadmin/eldk-4.2/usr/ppc-linux
+else
+DEVTOOL_DIR = /usr
+endif
+endif
+
+
+OUT_DIR:= $(TOP_DIR)/bin
+
+
+ifndef TARGET_OS
+TARGET_OS = __LINUX__
+endif
+
+ifeq ($(TARGET_OS), __LINUX__)
+OS_DIR = linux
+else
+OS_DIR = win
+endif
+
+# set build configuration as DBG, RLS
+ifndef TARGET_BUILD
+TARGET_BUILD = DBG
+endif
+
+ifeq ($(TARGET_BUILD), DBG)
+BUILD_DIR = dbg
+else
+BUILD_DIR = rls
+endif
+
+
+export OUT_DIR := $(OUT_DIR)/$(OS_DIR)/$(BUILD_DIR)/$(ARCH)
+
+ 
+DEVTOOL_BIN = $(DEVTOOL_DIR)/bin
+DEVTOOL_LIB = $(DEVTOOL_DIR)/lib
+CC = $(DEVTOOL_BIN)/g++
+AS = $(DEVTOOL_BIN)/as
+LN = $(DEVTOOL_BIN)/ld
+AR = $(DEVTOOL_BIN)/ar
+DEL = rm
+
+
+CFLAGS := -Winline -Wall -Werror --param inline-unit-growth=200
+CFLAGS := $(CFLAGS) -D$(TARGET_OS) -DVERSION=$(VERSION)
+AFLAGS := 
+LFLAGS := --verbose --trace
+
+ifeq ($(TARGET_BUILD), DBG)
+CFLAGS := $(CFLAGS) -g -D_DEBUG -DDEBUG
+AFLAGS := $(AFLAGS)
+LFLAGS := $(LFLAGS)
+else
+CFLAGS := $(CFLAGS) -O3 -ffast-math -DNDEBUG
+AFLAGS := $(AFLAGS)
+LFLAGS := $(LFLAGS) -O --strip-all
+endif
+
+
+SYSINCS = \
+	-I$(DEVTOOL_DIR)/include
+
+
+SYSLIBS = \
+	-lrt \
+	-ldl \
+	-lpthread
+
+# </gnumake.def>
+
+
