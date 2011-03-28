@@ -369,7 +369,7 @@ const char* aopt_help( const AOPT_DESC *desc )
         for (; desc && desc->key && buf; desc++)
         {
             char buf_short[10];
-            char buf_long[50];
+            char buf_long[25];
             const char *cur_ptr_short = NULL;
             const char* const *cur_ptr_long = NULL;
             int cur_len_short = 0;
@@ -425,14 +425,7 @@ const char* aopt_help( const AOPT_DESC *desc )
             {
             	char format[50];
 
-            	if (strlen(buf_long) > 21 )
-            	{
-            		sprintf(format, " %%-7s %%-21s\n %-7s %-21s\t-%%s\n", "", "");
-            	}
-            	else
-            	{
-            		sprintf(format, " %%-7s %%-21s\t-%%s\n");
-            	}
+            	sprintf(format, " %%-%ds %%-%ds\t-%%s\n", 7, 25);
 
             	ret = snprintf( (buf + buf_offset),
                                 (buf_size - buf_offset),

@@ -32,7 +32,6 @@
 #include "common.h"
 
 // static memebers initialization
-/*static*/ uint64_t Message::ms_maxSequenceNo;
 /*static*/ int Message::ms_maxSize;
 
 //------------------------------------------------------------------------------
@@ -46,12 +45,12 @@ private:
 };
 //------------------
 MemException::MemException (const char *file, int line, const char * handler, size_t size) throw() {
-	const size_t LEN = 256;
-	char buf[LEN+1];
-	snprintf(buf, LEN, "%s:%d: %s failed allocating %d bytes",file, line, handler, (int)size);
-	buf[LEN] = '\0';
-	m_what = buf;
-}
+		const size_t LEN = 256;
+		char buf[LEN+1];
+		snprintf(buf, LEN, "%s:%d: %s failed allocating %d bytes",file, line, handler, (int)size);
+		buf[LEN] = '\0';
+		m_what = buf;
+	}
 
 //------------------------------------------------------------------------------
 /*static*/ void Message::initMaxSize(int size) throw (std::exception)
@@ -65,15 +64,6 @@ MemException::MemException (const char *file, int line, const char * handler, si
 }
 
 //------------------------------------------------------------------------------
-/*static*/ void Message::initMaxSeqNo(uint64_t seqno) throw (std::exception)
-{
-	if (ms_maxSequenceNo)
-		throw std::logic_error("MaxSeqNo is already initialized");
-	else
-		ms_maxSequenceNo = seqno;
-}
-
-//------------------------------------------------------------------------------
 Message::Message()  throw (std::exception) { //throws in case fatal error occurred
 
 	if (! ms_maxSize)
@@ -82,15 +72,21 @@ Message::Message()  throw (std::exception) { //throws in case fatal error occurr
 	if (ms_maxSize < MsgHeader::EFFECTIVE_SIZE)
 		throw std::out_of_range("maxSize < MsgHeader::EFFECTIVE_SIZE");
 
-	m_buf = MALLOC(ms_maxSize + 7); // extra +7 for enabling 8 alignment of m_sequence_number
+	m_buf = malloc(ms_maxSize + 7); // extra +7 for enabling 8 alignment of m_sequence_number
 	if (! m_buf) {
 		throw MemException(__FILE__, __LINE__, "malloc", ms_maxSize);
 	}
 
-	setBuf();
+	int alignment = (8 - (long int)m_buf) % 8;
+	m_data = (uint8_t*)m_buf + alignment; // this will force m_sequence_number to be 8 aligned even on 32 bit arch
+	m_header = (MsgHeader*)m_data;
 
+	if ((void*)m_data != (void*)m_header)
+		throw std::logic_error("adrs error");
+
+	srand((unsigned)time(NULL));
 	for (int len = 0; len < ms_maxSize; len++)
-		m_addr[len] = (uint8_t) rand();
+		m_data[len] = (uint8_t) rand();
 	memset(m_header, 0, MsgHeader::EFFECTIVE_SIZE);
 
 /*
@@ -100,8 +96,6 @@ Message::Message()  throw (std::exception) { //throws in case fatal error occurr
 }
 
 //------------------------------------------------------------------------------
-Message::~Message()
-{
-	FREE (m_buf);
+Message::~Message() {
+	free (m_buf);
 }
-

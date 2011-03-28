@@ -30,7 +30,6 @@
 #define __INC_COMMON_H__
 
 #include "Defs.h"
-//#include "Switches.h"
 #include "Message.h"
 
 //------------------------------------------------------------------------------
@@ -40,20 +39,19 @@ void printf_backtrace(void);
 pid_t gettid(void);
 void exit_with_log(int status);
 
-int set_affinity(pthread_t tid, int cpu);
-void hexdump(void *ptr, int buflen);
+void set_affinity(pthread_t tid, int cpu);
 
 //inline functions
 //------------------------------------------------------------------------------
-static inline int msg_recvfrom(int fd, uint8_t* buf, int nbytes, struct sockaddr_in *recvfrom_addr)
+static inline int msg_recvfrom(int fd, struct sockaddr_in *recvfrom_addr)
 {
 	int ret = 0;
-	socklen_t size = sizeof(struct sockaddr_in);
-    int flags = 0;
+	socklen_t size = sizeof(struct sockaddr);
 
 #ifdef  USING_VMA_EXTRA_API
 
 	if (g_pApp->m_const_params.is_vmazcopyread && g_vma_api) {
+		int flags = 0;
 
 		// Free VMA's previously received zero copied datagram
 		if (g_dgram) {
@@ -70,55 +68,22 @@ static inline int msg_recvfrom(int fd, uint8_t* buf, int nbytes, struct sockaddr
 				g_dgram = (struct vma_datagram_t*)g_dgram_buf;
 
 				// copy signature
-				memcpy(buf, g_dgram->iov[0].iov_base, MsgHeader::EFFECTIVE_SIZE);
+				memcpy(g_pReply->getData(), g_dgram->iov[0].iov_base, MsgHeader::EFFECTIVE_SIZE);
 			}
 			else {
 				// copy signature
-				memcpy(buf, g_dgram_buf, MsgHeader::EFFECTIVE_SIZE);
+				memcpy(g_pReply->getData(), g_dgram_buf, MsgHeader::EFFECTIVE_SIZE);
 			}
 		}
 	}
 	else
 #endif
 	{
-		/*
-	        When writing onto a connection-oriented socket that has been shut down
-	        (by the local or the remote end) SIGPIPE is sent to the writing process
-	        and EPIPE is returned. The signal is not sent when the write call specified
-	        the MSG_NOSIGNAL flag.
-	        Note: another way is call signal (SIGPIPE,SIG_IGN);
-	     */
-		flags = MSG_NOSIGNAL;
-
-		ret = recvfrom(fd, buf, nbytes, flags, (struct sockaddr*)recvfrom_addr, &size);
-
-#if defined(LOG_TRACE_MSG_IN) && (LOG_TRACE_MSG_IN==TRUE)
-		printf(">   ");
-		hexdump(buf, MsgHeader::EFFECTIVE_SIZE);
-#endif /* LOG_TRACE_MSG_IN */
-
-#if defined(LOG_TRACE_RECV) && (LOG_TRACE_RECV==TRUE)
-		LOG_TRACE ("raw", "%s IP: %s:%d [fd=%d ret=%d] %s", __FUNCTION__,
-					                   inet_ntoa(recvfrom_addr->sin_addr),
-					                   ntohs(recvfrom_addr->sin_port),
-					                   fd,
-					                   ret,
-					                   strerror(errno));
-#endif /* LOG_TRACE_RECV */
+		//ret = recvfrom(fd, g_pReply->getData(), g_msg_size, 0, (struct sockaddr*)recvfrom_addr, &size);
+		ret = recvfrom(fd, g_pReply->getData(), MAX_PAYLOAD_SIZE, 0, (struct sockaddr*)recvfrom_addr, &size);
 	}
 
-	if (ret == 0 || errno == EPIPE || errno == ECONNRESET) {
-		/* If no messages are available to be received and the peer has performed an orderly shutdown,
-		 * recv()/recvfrom() shall return 0
-		 * */
-		ret = 0;
-		errno = 0;
-	}
-	/* ret < MsgHeader::EFFECTIVE_SIZE
-	 * ret value less than MsgHeader::EFFECTIVE_SIZE
-	 * is bad case for UDP so error could be actual but it is possible value for TCP
-	 */
-	else if (ret < 0 && errno && errno != EAGAIN && errno != EINTR) {
+	if (ret < MsgHeader::EFFECTIVE_SIZE && errno != EAGAIN && errno != EINTR) {
 		recvfromError(fd);
 	}
 
@@ -128,45 +93,10 @@ static inline int msg_recvfrom(int fd, uint8_t* buf, int nbytes, struct sockaddr
 //------------------------------------------------------------------------------
 static inline int msg_sendto(int fd, uint8_t* buf, int nbytes, const struct sockaddr_in *sendto_addr)
 {
-	int ret = 0;
-    int flags = 0;
-
-    /*
-        When writing onto a connection-oriented socket that has been shut down
-        (by the local or the remote end) SIGPIPE is sent to the writing process
-        and EPIPE is returned. The signal is not sent when the write call specified
-        the MSG_NOSIGNAL flag.
-        Note: another way is call signal (SIGPIPE,SIG_IGN);
-      */
-	flags = MSG_NOSIGNAL;
-
-#if defined(LOG_TRACE_MSG_OUT) && (LOG_TRACE_MSG_OUT==TRUE)
-	printf("<<< ");
-	hexdump(buf, MsgHeader::EFFECTIVE_SIZE);
-#endif /* LOG_TRACE_SEND */
-
-	ret = sendto(fd, buf, nbytes, flags, (struct sockaddr*)sendto_addr, sizeof(struct sockaddr));
-
-#if defined(LOG_TRACE_SEND) && (LOG_TRACE_SEND==TRUE)
-	LOG_TRACE ("raw", "%s IP: %s:%d [fd=%d ret=%d] %s", __FUNCTION__,
-			                   inet_ntoa(sendto_addr->sin_addr),
-			                   ntohs(sendto_addr->sin_port),
-			                   fd,
-			                   ret,
-			                   strerror(errno));
-#endif /* LOG_TRACE_SEND */
-
-	if (ret == 0 || errno == EPIPE || errno == ECONNRESET) {
-		/* If no messages are available to be received and the peer has performed an orderly shutdown,
-		 * send()/sendto() shall return 0
-		 * */
-		ret = 0;
-		errno = 0;
-	}
-	else if (ret < 0 && errno && errno != EINTR) {
+	int ret = sendto(fd, buf, nbytes, 0, (struct sockaddr*)sendto_addr, sizeof(struct sockaddr));
+	if (ret < 0 && errno && errno != EINTR) {
 		sendtoError(fd, nbytes, sendto_addr);
 	}
-
 	return ret;
 }
 

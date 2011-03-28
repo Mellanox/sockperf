@@ -38,8 +38,6 @@
 #include <stdlib.h>		/* random()*/
 #include <string.h>
 #include <stdio.h>
-#include <stdarg.h>
-#include <assert.h>
 #include <signal.h>
 #include <time.h>		/* clock_gettime()*/
 #include <unistd.h>		/* getopt() and sleep()*/
@@ -57,10 +55,8 @@
 #include <sys/select.h>		/* select() According to POSIX 1003.1-2001 */
 #include <sys/epoll.h>
 #include <sys/syscall.h>
-#include <arpa/inet.h>		/* internet address manipulation */
-#include <netinet/in.h>		/* internet address manipulation */
-#include <netdb.h>			/* gethostbyname() */
-#include <netinet/tcp.h>	/* tcp specific */
+#include <arpa/inet.h>		/* internet address manipulation*/
+#include <netinet/in.h>		/* internet address manipulation*/
 #include "Ticks.h"
 #include "Message.h"
 #include "Playback.h"
@@ -74,10 +70,7 @@
 #define MAX_PAYLOAD_SIZE        	(65506)
 #define MAX_STREAM_SIZE         	(50*1024*1024)
 
-const uint32_t PPS_MAX_UL          = 10*1000*1000; //  10 M PPS is 4 times the maximum possible under VMA today
-const uint32_t PPS_MAX_PP          = 400*1000;     // 400 K PPS for ping-pong will be break only when we reach RTT of 2.5 usec
-extern uint32_t PPS_MAX;
-
+const uint32_t PPS_MAX             = 10*1000*1000;
 const uint32_t PPS_DEFAULT         = 10*1000;
 const uint32_t REPLY_EVERY_DEFAULT = 100;
 
@@ -86,33 +79,27 @@ const uint32_t TEST_END_COOLDOWN_MSEC = 50;
 
 
 #define DEFAULT_TEST_DURATION		1	/* [sec] */
-#define DEFAULT_MC_ADDR				"0.0.0.0"
-#define DEFAULT_PORT				11111
-#define DEFAULT_IP_MTU 				1500
+#define DEFAULT_MC_ADDR			"0.0.0.0"
+#define DEFAULT_PORT			11111
+#define DEFAULT_IP_MTU 			1500
 #define DEFAULT_IP_PAYLOAD_SZ 		(DEFAULT_IP_MTU-28)
-#define DUMMY_PORT					57341
-#define MAX_ACTIVE_FD_NUM			1024 /* maximum number of active connection to the single TCP addr:port */
+#define DUMMY_PORT			57341
 
 #ifndef MAX_PATH_LENGTH
 #define MAX_PATH_LENGTH         	1024
 #endif
-#define MAX_MCFILE_LINE_LENGTH  	25	/* sizeof("U:255.255.255.255:11111\0") */
-
-#define IP_PORT_FORMAT_REG_EXP		"^([UuTt]:)*([a-zA-Z0-9\\.\\-]+):(6553[0-5]|655[0-2][0-9]|65[0-4][0-9]{2}|6[0-4][0-9]{3}|[0-5]?[0-9]{1,4})[\r\n]"
-/*
-#define IP_PORT_FORMAT_REG_EXP		"^([UuTt]:)*((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}"\
+#define MAX_MCFILE_LINE_LENGTH  	23	/* sizeof("255.255.255.255:11111\0") */
+#define IP_PORT_FORMAT_REG_EXP		"^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}"\
 					"(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?):"\
 					"(6553[0-5]|655[0-2][0-9]|65[0-4][0-9]{2}|6[0-4][0-9]{3}|[0-5]?[0-9]{1,4})\n"
-*/
-#define PRINT_PROTOCOL(type)	((type) == SOCK_DGRAM ? "UDP" : ((type) == SOCK_STREAM ? "TCP" : "<?>"))
 
-#define MAX_ARGV_SIZE				256
-#define MAX_DURATION 				36000000
-#define MAX_FDS_NUM 				1024
+#define MAX_ARGV_SIZE			256
+#define RECIEVE_AGAIN_S_SELECT 		2
+#define MAX_DURATION 			36000000
+#define MAX_FDS_NUM 			1024
 #define UDP_BUFF_DEFAULT_SIZE 		0
 #define DEFAULT_SELECT_TIMEOUT_MSEC	10
-#define DEFAULT_DEBUG_LEVEL			0
-#define INVALID_SOCKET 				(-1)
+#define DEFAULT_DEBUG_LEVEL		0
 
 enum {
 	OPT_RX_MC_IF 			 = 1,
@@ -139,10 +126,7 @@ enum {
 	OPT_LOAD_VMA,                //23
 	OPT_FULL_LOG,                //24
 	OPT_PLAYBACK_DATA,                  //26
-	OPT_TCP,					//27
-	OPT_TCP_NODELAY_OFF,		//28
-	OPT_IP_MULTICAST_TTL,			//29
-	OPT_SOCK_ACCL,				//30
+	OPT_SOCK_ACCL,				//27
 };
 
 #define MODULE_NAME			"sockperf"
@@ -166,104 +150,6 @@ typedef enum {
 } debug_level_t;
 
 
-#ifndef TRUE
-#define TRUE (1 == 1)
-#endif /* TRUE */
-
-#ifndef FALSE
-#define FALSE (1 == 0)
-#endif /* FALSE */
-
-
-/**
- * @enum SOCKPERF_ERROR
- * @brief List of supported error codes.
- */
-typedef enum
-{
-	SOCKPERF_ERR_NONE  =  0x0,  /**< the function completed */
-	SOCKPERF_ERR_BAD_ARGUMENT,  /**< incorrect parameter */
-	SOCKPERF_ERR_INCORRECT,     /**< incorrect format of object */
-	SOCKPERF_ERR_UNSUPPORTED,   /**< this function is not supported */
-	SOCKPERF_ERR_NOT_EXIST,     /**< requested object does not exist */
-	SOCKPERF_ERR_NO_MEMORY,     /**< dynamic memory error */
-	SOCKPERF_ERR_FATAL,         /**< system fatal error */
-	SOCKPERF_ERR_SOCKET,        /**< socket operation error */
-	SOCKPERF_ERR_TIMEOUT,       /**< the time limit expires */
-	SOCKPERF_ERR_UNKNOWN        /**< general error */
-} SOCKPERF_ERROR;
-
-
-/*
- *  Debug configuration settings
- */
-#ifdef DEBUG
-	#define LOG_TRACE_SEND		FALSE
-	#define LOG_TRACE_RECV		FALSE
-	#define LOG_TRACE_MSG_IN	FALSE
-	#define LOG_TRACE_MSG_OUT	FALSE
-	#define LOG_TRACE_CONNECT	FALSE
-	#define LOG_MEMORY_CHECK	FALSE
-
-	#define LOG_TRACE(category, format, ...) \
-		log_send(category, 1, __FILE__, __LINE__, __FUNCTION__, format, ##__VA_ARGS__)
-
-	inline void log_send( const char* name,
-						  int priority,
-						  const char* file_name,
-						  const int line_no,
-						  const char* func_name,
-						  const char* format,
-						  ...)
-	{
-		char buf[250];
-		va_list va;
-		int n = 0;
-
-		if (priority) {
-			va_start(va, format);
-			n = vsnprintf(buf, sizeof(buf) - 1, format, va);
-			va_end(va);
-
-			printf("[%s] %s: %s <%s: %s #%d>\n",
-				"debug",
-				(name ? name : ""),
-				buf,
-				file_name,
-				func_name,
-				line_no
-				);
-		}
-	}
-
-	#if defined(LOG_MEMORY_CHECK) && (LOG_MEMORY_CHECK==TRUE)
-		#define MALLOC(size) 	__malloc(size, __FUNCTION__, __LINE__)
-		#define FREE(ptr) 		__free(ptr, __FUNCTION__, __LINE__)
-	#else
-		#define MALLOC(size) 	malloc(size)
-		#define FREE(ptr) 		free(ptr)
-	#endif /* LOG_MEMORY_CHECK */
-
-	inline void *__malloc(int size, const char * func, int line)
-	{
-		void * ptr = malloc(size);
-		printf ("malloc: %p (%d) <%s:%d>\n", ptr, size, func, line);
-		return ptr;
-	}
-
-	inline void __free(void * ptr, const char * func, int line)
-	{
-		free(ptr);
-		printf ("free  : %p <%s:%d>\n", ptr, func, line);
-		return ;
-	}
-#else
-	#define LOG_TRACE(category, format, ...)
-	#define MALLOC(size) 	malloc(size)
-	#define FREE(ptr) 		free(ptr)
-#endif /* DEBUG */
-
-
 extern bool g_b_exit;
 extern uint64_t g_receiveCount;
 extern uint64_t g_serverSendCount;
@@ -281,6 +167,8 @@ extern struct vma_datagram_t *g_dgram;
 
 extern int g_vma_dgram_desc_size;
 class Message;
+extern Message *g_pMessage;
+extern Message *g_pReply;
 
 class PacketTimes;
 extern PacketTimes* g_pPacketTimes;
@@ -293,6 +181,7 @@ extern int g_sockets_num;
 extern TicksTime g_lastTicks;
 extern unsigned long long g_last_packet_counter;
 
+extern int g_msg_size;
 
 typedef struct spike{
 //   double usec;
@@ -301,36 +190,20 @@ typedef struct spike{
    int next;
  }spike;
 
+typedef struct static_lst{
+	int head, tail;
+}static_lst;
 
-/**
- * @struct fds_data
- * @brief Socket related info
- */
 typedef struct fds_data {
-	struct sockaddr_in addr;	/**< server address information */
-	int is_multicast;			/**< if this socket is multicast */
-	int sock_type;				/**< SOCK_STREAM (tcp), SOCK_DGRAM (udp), SOCK_RAW (ip) */
+	struct sockaddr_in addr;
+	int is_multicast;
 	int next_fd;
-	int active_fd_count;		/**< number of active connections (by default 1-for UDP; 0-for TCP) */
-	int *active_fd_list;		/**< list of fd related active connections (UDP has the same fd by default) */
-	struct {
-		uint8_t buf[2 * MAX_PAYLOAD_SIZE];
-		int max_size;
-		uint8_t *cur_addr;
-		int cur_offset;
-		int cur_size;
-	} recv;
 } fds_data;
 
-
-/**
- * @struct sub_fds_arr_info
- * @brief Interval of fds related the thread
- */
 typedef struct sub_fds_arr_info {
-	int fd_min;					/**< minimum descriptor (fd) */
-	int fd_max;					/**< maximum socket descriptor (fd) */
-	int fd_num;					/**< number of socket descriptors */
+	int fd_min;
+	int fd_max;
+	int fd_num;
 }sub_fds_arr_info;
 
 typedef struct clt_session_info {
@@ -374,6 +247,9 @@ extern seq_num_map g_seq_num_map;
 
 extern fds_data* g_fds_array[MAX_FDS_NUM];
 
+extern int g_min_msg_size;
+extern int g_max_msg_size;
+
 #ifdef  USING_VMA_EXTRA_API
 extern struct vma_api_t *g_vma_api;
 #endif
@@ -401,7 +277,7 @@ struct user_params_t {
 	work_mode_t mode; // either  client or server
 	struct in_addr rx_mc_if_addr;
 	struct in_addr tx_mc_if_addr;
-	int msg_size;
+//	int msg_size; - ABH: I took it out of struct, because this is not user-param (we allow it to get random values) - hence it breaks const concept
 	int msg_size_range;
 	int sec_test_duration;
 	bool data_integrity;
@@ -435,9 +311,6 @@ struct user_params_t {
 	bool b_stream; //client side only
 	PlaybackVector *pPlaybackVector; //client side only
 	struct sockaddr_in addr;
-	int sock_type;
-	bool tcp_nodelay;
-	int mc_ttl;
 	int daemonize;
 	char mcg_filename[MAX_PATH_LENGTH];
 	bool withsock_accl;

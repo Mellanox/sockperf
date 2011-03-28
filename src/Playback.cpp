@@ -44,7 +44,7 @@ void readFile(StringVector &sv, const char *filename)
 {
 	std::string line;
 	std::ifstream infile (filename, std::ios_base::in); //TODO: error in case file is missing
-	if (infile.fail()) {printf("can't open file: %s\n", filename); exit(SOCKPERF_ERR_NOT_EXIST);}
+	if (infile.fail()) {printf("can't open file: %s\n", filename); exit(1);}
 	int i = 0;
 
 	while (infile.good() && getline(infile, line))
@@ -72,9 +72,9 @@ void parsePlaybackData(PlaybackVector &pv, StringVector &sv)
 			//printf("[%lu]: %s\n", i+1, s.c_str());
 			if (2 == sscanf(s.c_str(), "%lf, %d", &curr_time, &pi.size))
 			{
-				if (prev_time > curr_time) {printf("out-of-order timestamp at line #%lu\n", (long unsigned)i+1); exit(SOCKPERF_ERR_INCORRECT);}
+				if (prev_time > curr_time) {printf("out-of-order timestamp at line #%lu\n", (long unsigned)i+1); exit(1);}
 				pi.duration.setFromSeconds(curr_time - prev_time);
-				if (!pi.isValid()) {printf("illegal time or size at line #%lu\n", (long unsigned)i+1); exit(SOCKPERF_ERR_INCORRECT);}
+				if (!pi.isValid()) {printf("illegal time or size at line #%lu\n", (long unsigned)i+1); exit(1);}
 			
 				pv.push_back(pi);
 				prev_time = curr_time;

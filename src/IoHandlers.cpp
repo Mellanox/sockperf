@@ -43,21 +43,21 @@ IoHandler::~IoHandler() {
 }
 
 //------------------------------------------------------------------------------
-void IoHandler::warmup(Message *pMsgRequest) const
+void IoHandler::warmup() const
 {
 	if (!g_pApp->m_const_params.do_warmup)
 		return;
-	pMsgRequest->setWarmupMessage();
+	g_pMessage->setWarmupMessage();
 
 	log_msg("Warmup stage (sending a few dummy packets)...");
 	for (int ifd = m_fd_min; ifd <= m_fd_max; ifd++) {
 		if (g_fds_array[ifd] && g_fds_array[ifd]->is_multicast) {
 			for (int count=0; count<2; count++) {
-				msg_sendto(ifd, pMsgRequest->getBuf(), pMsgRequest->getLength(), &(g_fds_array[ifd]->addr));
+				msg_sendto(ifd, g_pMessage->getData(), g_msg_size, &(g_fds_array[ifd]->addr));
 			}
 		}
 	}
-	pMsgRequest->resetWarmupMessage();
+	g_pMessage->resetWarmupMessage();
 }
 
 //==============================================================================
@@ -71,23 +71,16 @@ IoRecvfrom::~IoRecvfrom() {
 }
 
 //------------------------------------------------------------------------------
-int IoRecvfrom::prepareNetwork()
+void IoRecvfrom::prepareNetwork()
 {
-	int rc = SOCKPERF_ERR_NONE;
 	int list_count = 0;
 
 	printf("\n");
 	for (int ifd = m_fd_min; ifd <= m_fd_max; ifd++) {
 		if (g_fds_array[ifd]) {
-			printf("[%2d] IP = %-15s PORT = %5d # %s\n",
-					list_count++,
-					inet_ntoa(g_fds_array[ifd]->addr.sin_addr),
-					ntohs(g_fds_array[ifd]->addr.sin_port),
-					PRINT_PROTOCOL(g_fds_array[ifd]->sock_type));
+			printf("[%2d] IP = %-15s PORT = %5d\n", list_count++, inet_ntoa(g_fds_array[ifd]->addr.sin_addr), ntohs(g_fds_array[ifd]->addr.sin_port));
 		}
 	}
-
-	return rc;
 }
 
 //==============================================================================
@@ -101,25 +94,18 @@ IoSelect::~IoSelect() {
 }
 
 //------------------------------------------------------------------------------
-int IoSelect::prepareNetwork()
+void IoSelect::prepareNetwork()
 {
-	int rc = SOCKPERF_ERR_NONE;
 	int list_count = 0;
 	FD_ZERO(&m_save_fds);
 
 	printf("\n");
 	for (int ifd = m_fd_min; ifd <= m_fd_max; ifd++) {
 		if (g_fds_array[ifd]) {
-			printf("[%2d] IP = %-15s PORT = %5d # %s\n",
-					list_count++,
-					inet_ntoa(g_fds_array[ifd]->addr.sin_addr),
-					ntohs(g_fds_array[ifd]->addr.sin_port),
-					PRINT_PROTOCOL(g_fds_array[ifd]->sock_type));
+			printf("[%2d] IP = %-15s PORT = %5d\n", list_count++, inet_ntoa(g_fds_array[ifd]->addr.sin_addr), ntohs(g_fds_array[ifd]->addr.sin_port));
 			FD_SET(ifd, &m_save_fds);
 		}
 	}
-
-	return rc;
 }
 
 //==============================================================================
@@ -133,39 +119,31 @@ IoPoll::IoPoll(int _fd_min, int _fd_max, int _fd_num) : IoHandler(_fd_min, _fd_m
 //------------------------------------------------------------------------------
 IoPoll::~IoPoll() {
 	if (mp_poll_fd_arr) {
-		FREE(mp_poll_fd_arr);
+		free(mp_poll_fd_arr);
 	}
 }
 
 //------------------------------------------------------------------------------
-int IoPoll::prepareNetwork()
+void IoPoll::prepareNetwork()
 {
-	int rc = SOCKPERF_ERR_NONE;
+	mp_poll_fd_arr = (struct pollfd *)malloc(m_fd_num * sizeof(struct pollfd));
 
-	mp_poll_fd_arr = (struct pollfd *)MALLOC(MAX_FDS_NUM * sizeof(struct pollfd));
 	if (!mp_poll_fd_arr) {
 		log_err("Failed to allocate memory for poll fd array");
-		rc = SOCKPERF_ERR_NO_MEMORY;
-	}
-	else {
-		printf("\n");
-		int fd_count = 0;
-		int list_count = 0;
-		for (int ifd = m_fd_min; ifd <= m_fd_max; ifd++) {
-			if (g_fds_array[ifd]) {
-				printf("[%2d] IP = %-15s PORT = %5d # %s\n",
-						list_count++,
-						inet_ntoa(g_fds_array[ifd]->addr.sin_addr),
-						ntohs(g_fds_array[ifd]->addr.sin_port),
-						PRINT_PROTOCOL(g_fds_array[ifd]->sock_type));
-				mp_poll_fd_arr[fd_count].fd = ifd;
-				mp_poll_fd_arr[fd_count].events = POLLIN | POLLPRI;
-				fd_count++;
-			}
-		}
+		exit_with_log(1);
 	}
 
-	return rc;
+	printf("\n");
+	int fd_count = 0;
+	int list_count = 0;
+	for (int ifd = m_fd_min; ifd <= m_fd_max; ifd++) {
+		if (g_fds_array[ifd]) {
+			printf("[%2d] IP = %-15s PORT = %5d\n", list_count++, inet_ntoa(g_fds_array[ifd]->addr.sin_addr), ntohs(g_fds_array[ifd]->addr.sin_port));
+			mp_poll_fd_arr[fd_count].fd = ifd;
+			mp_poll_fd_arr[fd_count].events = POLLIN | POLLPRI;
+			fd_count++;
+		}
+	}
 }
 
 //==============================================================================
@@ -179,40 +157,30 @@ IoEpoll::IoEpoll(int _fd_min, int _fd_max, int _fd_num) : IoHandler(_fd_min, _fd
 //------------------------------------------------------------------------------
 IoEpoll::~IoEpoll() {
 	close(m_epfd);
-	FREE(mp_epoll_events);
+	free(mp_epoll_events);
 }
 
 //------------------------------------------------------------------------------
-int IoEpoll::prepareNetwork()
+void IoEpoll::prepareNetwork()
 {
-	int rc = SOCKPERF_ERR_NONE;
 	struct epoll_event ev;
 
 	int list_count = 0;
-	mp_epoll_events = (struct epoll_event *)MALLOC(MAX_FDS_NUM * sizeof(struct epoll_event));
+	mp_epoll_events = (struct epoll_event *)malloc(sizeof(struct epoll_event)*m_fd_num);
 	if (!mp_epoll_events) {
 		log_err("Failed to allocate memory for epoll event array");
-		rc = SOCKPERF_ERR_NO_MEMORY;
+		exit_with_log(1);
 	}
-	else {
-		printf("\n");
-		m_max_events = 0;
-		m_epfd = epoll_create(MAX_FDS_NUM);
-		for (int ifd = m_fd_min; ifd <= m_fd_max; ifd++) {
-			if (g_fds_array[ifd]) {
-				printf("[%2d] IP = %-15s PORT = %5d # %s\n",
-						list_count++,
-						inet_ntoa(g_fds_array[ifd]->addr.sin_addr),
-						ntohs(g_fds_array[ifd]->addr.sin_port),
-						PRINT_PROTOCOL(g_fds_array[ifd]->sock_type));
 
-				ev.events = EPOLLIN | EPOLLPRI;
-				ev.data.fd = ifd;
-				epoll_ctl(m_epfd, EPOLL_CTL_ADD, ev.data.fd, &ev);
-				m_max_events++;
-			}
+	printf("\n");
+	m_epfd = epoll_create(m_fd_num);
+	for (int ifd = m_fd_min; ifd <= m_fd_max; ifd++) {
+		if (g_fds_array[ifd]) {
+			printf("[%2d] IP = %-15s PORT = %5d\n", list_count++, inet_ntoa(g_fds_array[ifd]->addr.sin_addr), ntohs(g_fds_array[ifd]->addr.sin_port));
+
+			ev.events = EPOLLIN | EPOLLPRI;
+			ev.data.fd = ifd;
+			epoll_ctl(m_epfd, EPOLL_CTL_ADD, ev.data.fd, &ev);
 		}
 	}
-
-	return rc;
 }

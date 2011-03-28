@@ -26,7 +26,6 @@
  * OF SUCH DAMAGE.
  *
  */
-
 #include "vma-redirect.h"
 #include <dlfcn.h>
 
@@ -34,17 +33,13 @@
 socket_fptr_t        fn_socket       = NULL;
 close_fptr_t         fn_close        = NULL;
 shutdown_fptr_t      fn_shutdown     = NULL;
-accept_fptr_t        fn_accept       = NULL;
 bind_fptr_t          fn_bind         = NULL;
 connect_fptr_t       fn_connect      = NULL;
-listen_fptr_t        fn_listen       = NULL;
-
 setsockopt_fptr_t    fn_setsockopt   = NULL;
 getsockopt_fptr_t    fn_getsockopt   = NULL;
 fcntl_fptr_t         fn_fcntl        = NULL;
 ioctl_fptr_t         fn_ioctl        = NULL;
 getsockname_fptr_t   fn_getsockname  = NULL;
-getpeername_fptr_t   fn_getpeername  = NULL;
 read_fptr_t          fn_read         = NULL;
 readv_fptr_t         fn_readv        = NULL;
 recv_fptr_t          fn_recv         = NULL;
@@ -114,17 +109,13 @@ static bool vma_set_func_pointers_internal(void *libHandle)
 	if (! SET_FUNC_POINTER(libHandle, close))        return false;
 	if (! SET_FUNC_POINTER(libHandle, shutdown))     return false;
 
-	if (! SET_FUNC_POINTER(libHandle, accept))       return false;
 	if (! SET_FUNC_POINTER(libHandle, bind))         return false;
 	if (! SET_FUNC_POINTER(libHandle, connect))      return false;
-	if (! SET_FUNC_POINTER(libHandle, listen))      return false;
-
 	if (! SET_FUNC_POINTER(libHandle, setsockopt))   return false;
 	if (! SET_FUNC_POINTER(libHandle, getsockopt))   return false;
 	if (! SET_FUNC_POINTER(libHandle, fcntl))        return false;
 	if (! SET_FUNC_POINTER(libHandle, ioctl))        return false;
 	if (! SET_FUNC_POINTER(libHandle, getsockname))  return false;
-	if (! SET_FUNC_POINTER(libHandle, getpeername))  return false;
 
 	if (! SET_FUNC_POINTER(libHandle, read))         return false;
 	if (! SET_FUNC_POINTER(libHandle, readv))        return false;
@@ -165,24 +156,22 @@ bool vma_set_func_pointers(bool loadVma)
 	void * libHandle = RTLD_DEFAULT;
 	if (loadVma) {
 		const char* libName = "libvma.so";
-//		libHandle = dlopen(libName, RTLD_NOW);  // this was broken in vma_tcp_4.5 because of symbol: vma_log_set_log_stderr
-		libHandle = dlopen(libName, RTLD_LAZY);
+		//libName = "/volt/avnerb/workspace/vma_4.1/src/.libs/libvma.so";
+		libHandle = dlopen(libName, RTLD_NOW);
 		if (! libHandle) return false;
 	}
 	return vma_set_func_pointers_internal(libHandle);
 }
 
-
+//*
 //------------------------------------------------------------------------------
 bool vma_set_func_pointers(const char *LibVmaPath)
 {
 	if (!LibVmaPath || !* LibVmaPath) return false;
 
-	//void * libHandle = dlopen(LibVmaPath, RTLD_NOW);  // this was broken in vma_tcp_4.5 because of symbol: vma_log_set_log_stderr
-	void * libHandle = dlopen(LibVmaPath, RTLD_LAZY);
-
+	void * libHandle = dlopen(LibVmaPath, RTLD_NOW);
 	if (! libHandle) return false;
 
 	return vma_set_func_pointers_internal(libHandle);
 }
-
+//*/

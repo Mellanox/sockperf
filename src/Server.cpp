@@ -33,86 +33,27 @@
 //==============================================================================
 
 //------------------------------------------------------------------------------
-ServerBase::ServerBase(IoHandler & _ioHandler) : m_ioHandlerRef(_ioHandler)
+void ServerBase::initBeforeLoop()
 {
-	m_pMsgReply = new Message();
-	m_pMsgReply->setLength(MAX_PAYLOAD_SIZE);
 
-	m_pMsgRequest = new Message();
-	m_pMsgRequest->getHeader()->setServer();
-	m_pMsgRequest->setLength(g_pApp->m_const_params.msg_size);
-}
+	set_affinity(pthread_self(), g_pApp->m_const_params.receiver_affinity);
 
-//------------------------------------------------------------------------------
-ServerBase::~ServerBase()
-{
-	delete m_pMsgReply;
-	delete m_pMsgRequest;
-}
+	char to_array[20];
+	log_dbg("thread %d: fd_min: %d, fd_max : %d, fd_num: %d"
+			, gettid(), m_ioHandlerRef.m_fd_min, m_ioHandlerRef.m_fd_max, m_ioHandlerRef.m_fd_num);
 
-
-//------------------------------------------------------------------------------
-int ServerBase::initBeforeLoop()
-{
-	int rc = SOCKPERF_ERR_NONE;
-
-	rc = set_affinity(pthread_self(), g_pApp->m_const_params.receiver_affinity);
-
-	/* bind socket */
-	if (rc == SOCKPERF_ERR_NONE)
-	{
-		struct sockaddr_in bind_addr;
-
-		log_dbg("thread %d: fd_min: %d, fd_max : %d, fd_num: %d"
-				, gettid(), m_ioHandlerRef.m_fd_min, m_ioHandlerRef.m_fd_max, m_ioHandlerRef.m_fd_num);
-
-		// cycle through all set fds in the array (with wrap around to beginning)
-		for (int ifd = m_ioHandlerRef.m_fd_min; ifd <= m_ioHandlerRef.m_fd_max; ifd++) {
-
-			if (!(g_fds_array[ifd] && (g_fds_array[ifd]->active_fd_list))) continue;
-
-			memset(&bind_addr, 0, sizeof(struct sockaddr_in));
-			bind_addr.sin_family = AF_INET;
-			bind_addr.sin_port = g_fds_array[ifd]->addr.sin_port;
-			bind_addr.sin_addr.s_addr = g_fds_array[ifd]->addr.sin_addr.s_addr;
-
-			if (bind(ifd, (struct sockaddr*)&bind_addr, sizeof(struct sockaddr)) < 0) {
-				log_err("Can`t bind socket\n");
-				rc = SOCKPERF_ERR_SOCKET;
-			}
-
-			log_dbg ("IP to bind: %s : %d [%d]", inet_ntoa(bind_addr.sin_addr), ntohs(bind_addr.sin_port), ifd);
-
-	        if ((g_fds_array[ifd]->sock_type == SOCK_STREAM) &&
-	        	(listen(ifd, 10) < 0))
-	        {
-	            log_err("Can`t listen connection\n");
-				rc = SOCKPERF_ERR_SOCKET;
-	        }
-		}
+	if (g_pApp->m_const_params.mode == MODE_BRIDGE) {
+		sprintf(to_array, "%s", inet_ntoa(g_pApp->m_const_params.tx_mc_if_addr));
+		printf(MODULE_NAME ": [BRIDGE] transferring packets from %s to %s on:", inet_ntoa(g_pApp->m_const_params.rx_mc_if_addr), to_array);
+	}
+	else {
+		printf(MODULE_NAME ": [SERVER] listen on:");
 	}
 
-	if (g_b_exit) return rc;
-
-	if (rc == SOCKPERF_ERR_NONE) {
-		if (g_pApp->m_const_params.mode == MODE_BRIDGE) {
-			char to_array[20];
-			sprintf(to_array, "%s", inet_ntoa(g_pApp->m_const_params.tx_mc_if_addr));
-			printf(MODULE_NAME ": [BRIDGE] transferring packets from %s to %s on:", inet_ntoa(g_pApp->m_const_params.rx_mc_if_addr), to_array);
-		}
-		else {
-			printf(MODULE_NAME ": [SERVER] listen on:");
-		}
-
-		rc = m_ioHandlerRef.prepareNetwork();
-		if (rc == SOCKPERF_ERR_NONE) {
-			sleep(g_pApp->m_const_params.pre_warmup_wait);
-			m_ioHandlerRef.warmup(m_pMsgRequest);
-			log_msg("[tid %d] using %s() to block on socket(s)", gettid(), g_fds_handle_desc[g_pApp->m_const_params.fd_handler_type]);
-		}
-	}
-
-	return rc;
+	m_ioHandlerRef.prepareNetwork();
+	sleep(g_pApp->m_const_params.pre_warmup_wait);
+	m_ioHandlerRef.warmup();
+	log_msg("[tid %d] using %s() to block on socket(s)", gettid(), g_fds_handle_desc[g_pApp->m_const_params.fd_handler_type]);
 }
 
 //------------------------------------------------------------------------------
@@ -147,7 +88,7 @@ void Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::doLoop()
 {
 	int numReady = 0;
 	int actual_fd = 0;
-	
+
 	while (!g_b_exit) {
 		// wait for arrival
 		numReady = m_ioHandler.waitArrival();
@@ -156,7 +97,7 @@ void Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::doLoop()
 		if (g_b_exit) continue;
 		if (numReady < 0) {
 			log_err("%s()", g_fds_handle_desc[g_pApp->m_const_params.fd_handler_type]);
-			exit_with_log(SOCKPERF_ERR_FATAL);
+			exit_with_log(1);
 		}
 		if (numReady == 0) {
 			if (!g_pApp->m_const_params.select_timeout)
@@ -165,38 +106,12 @@ void Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::doLoop()
 		}
 
 		// handle arrival and response
-		int accept_fd = INVALID_SOCKET;
-		bool do_update = false;
-		for (int ifd = m_ioHandler.get_look_start(); (numReady) && (ifd < m_ioHandler.get_look_end()); ifd++) {
+	for (int ifd = m_ioHandler.get_look_start(); ifd < m_ioHandler.get_look_end(); ifd++) {
 			actual_fd = m_ioHandler.analyzeArrival(ifd);
-
 			if (actual_fd){
-				assert( g_fds_array[actual_fd] &&
-						"invalid fd");
-
-				accept_fd = server_accept(actual_fd);
-				if (accept_fd == actual_fd) {
-					if (server_receive_then_send(actual_fd)) {
-						do_update = true;
-					}
-				}
-				else if (accept_fd != INVALID_SOCKET) {
-					do_update = true;
-				}
-				else {
-					/* do nothing */
-				}
-				numReady--;
+				server_receive_then_send(actual_fd);
 			}
 		}
-
-		/* do update of active fd in case accept/close was occured */
-		if (do_update) {
-			m_ioHandler.update();
-		}
-
-		assert( !numReady &&
-				"all waiting descriptors should have been processed");
 	}
 }
 
@@ -269,7 +184,7 @@ void *server_handler_for_multi_threaded(void *arg)
 	fd_num = p_sub_fds_arr_info->fd_num;
 	server_handler(fd_min, fd_max, fd_num);
 	if (p_sub_fds_arr_info != NULL){
-		FREE(p_sub_fds_arr_info);
+		free(p_sub_fds_arr_info);
 	}
 	return 0;
 }
@@ -349,7 +264,6 @@ void server_sig_handler(int signum) {
 
 //------------------------------------------------------------------------------
 void server_select_per_thread() {
-	int rc = SOCKPERF_ERR_NONE;
 	int i;
 	pthread_t tid;
 	int fd_num;
@@ -360,11 +274,10 @@ void server_select_per_thread() {
 	devide_fds_arr_between_threads(&num_of_remainded_fds, &fd_num);
 
 	for (i = 0; i < g_pApp->m_const_params.threads_num; i++) {
-		sub_fds_arr_info *thread_fds_arr_info = (sub_fds_arr_info*)MALLOC(sizeof(sub_fds_arr_info));
+		sub_fds_arr_info *thread_fds_arr_info = (sub_fds_arr_info*)malloc(sizeof(sub_fds_arr_info));
 		if (!thread_fds_arr_info) {
 			log_err("Failed to allocate memory for sub_fds_arr_info");
-			rc = SOCKPERF_ERR_NO_MEMORY;
-			break;
+			exit_with_log(1);
 		}
 		thread_fds_arr_info->fd_num = fd_num;
 		if (num_of_remainded_fds) {
@@ -372,23 +285,16 @@ void server_select_per_thread() {
 			num_of_remainded_fds--;
 		}
 		find_min_max_fds(last_fds, thread_fds_arr_info->fd_num, &(thread_fds_arr_info->fd_min), &(thread_fds_arr_info->fd_max));
-		if (0 != pthread_create(&tid, 0, server_handler_for_multi_threaded, (void *)thread_fds_arr_info)){
-			FREE(thread_fds_arr_info);
-			log_err("pthread_create has failed");
-			rc = SOCKPERF_ERR_FATAL;
-			break;
-		}
+		pthread_create(&tid, 0, server_handler_for_multi_threaded, (void *)thread_fds_arr_info);
 		g_pid_arr[i + 1] = tid;
 		last_fds = thread_fds_arr_info->fd_max + 1;
 	}
-	while ((rc == SOCKPERF_ERR_NONE) && !g_b_exit) {
+	while (!g_b_exit) {
 		sleep(1);
 	}
 	for (i = 1; i <= g_pApp->m_const_params.threads_num; i++) {
-		if (g_pid_arr[i]) {
-			pthread_kill(g_pid_arr[i], SIGINT);
-			pthread_join(g_pid_arr[i], 0);
-		}
+		pthread_kill(g_pid_arr[i], SIGINT);
+		pthread_join(g_pid_arr[i], 0);
 	}
 	log_msg("%s() exit", __func__);
 }

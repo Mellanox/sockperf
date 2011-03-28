@@ -26,7 +26,6 @@
  * OF SUCH DAMAGE.
  *
  */
-
 #ifndef TICKS_H_
 #define TICKS_H_
 
