@@ -481,7 +481,7 @@ int Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration,
 					}
 
 					if (rc == SOCKPERF_ERR_NONE) {
-						s_startTime.setNow();
+						s_startTime.setNowNonInline();
 						g_lastTicks = s_startTime;
 						g_cycleStartTime = s_startTime - g_pApp->m_const_params.cycleDuration;
 					}
