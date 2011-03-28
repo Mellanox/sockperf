@@ -409,7 +409,7 @@ void Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration
 			exit_with_log(1);
 		}
 	}
-	s_startTime.setNow();
+	s_startTime.setNowNonInline();
 	g_lastTicks = s_startTime;
 	g_cycleStartTime = s_startTime - g_pApp->m_const_params.cycleDuration;
 }
