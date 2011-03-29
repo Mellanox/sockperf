@@ -58,6 +58,8 @@ int ServerBase::initBeforeLoop()
 
 	rc = set_affinity(pthread_self(), g_pApp->m_const_params.receiver_affinity);
 
+	if (g_b_exit) return rc;
+
 	/* bind socket */
 	if (rc == SOCKPERF_ERR_NONE)
 	{
@@ -79,16 +81,19 @@ int ServerBase::initBeforeLoop()
 			if (bind(ifd, (struct sockaddr*)&bind_addr, sizeof(struct sockaddr)) < 0) {
 				log_err("Can`t bind socket\n");
 				rc = SOCKPERF_ERR_SOCKET;
+				break;
 			}
+			else {
+				log_dbg ("IP to bind: %s : %d [%d]", inet_ntoa(bind_addr.sin_addr), ntohs(bind_addr.sin_port), ifd);
 
-			log_dbg ("IP to bind: %s : %d [%d]", inet_ntoa(bind_addr.sin_addr), ntohs(bind_addr.sin_port), ifd);
-
-	        if ((g_fds_array[ifd]->sock_type == SOCK_STREAM) &&
-	        	(listen(ifd, 10) < 0))
-	        {
-	            log_err("Can`t listen connection\n");
-				rc = SOCKPERF_ERR_SOCKET;
-	        }
+				if ((g_fds_array[ifd]->sock_type == SOCK_STREAM) &&
+					(listen(ifd, 10) < 0))
+				{
+					log_err("Can`t listen connection\n");
+					rc = SOCKPERF_ERR_SOCKET;
+					break;
+				}
+			}
 		}
 	}
 
@@ -268,7 +273,7 @@ void *server_handler_for_multi_threaded(void *arg)
 	fd_max = p_sub_fds_arr_info->fd_max;
 	fd_num = p_sub_fds_arr_info->fd_num;
 	server_handler(fd_min, fd_max, fd_num);
-	if (p_sub_fds_arr_info != NULL){
+	if (p_sub_fds_arr_info){
 		FREE(p_sub_fds_arr_info);
 	}
 	return 0;
@@ -372,7 +377,13 @@ void server_select_per_thread() {
 			num_of_remainded_fds--;
 		}
 		find_min_max_fds(last_fds, thread_fds_arr_info->fd_num, &(thread_fds_arr_info->fd_min), &(thread_fds_arr_info->fd_max));
-		if (0 != pthread_create(&tid, 0, server_handler_for_multi_threaded, (void *)thread_fds_arr_info)){
+		int ret = pthread_create(&tid, 0, server_handler_for_multi_threaded, (void *)thread_fds_arr_info);
+		/*
+		 * There is undocumented behaviour for early versions of libc (for example libc 2.5, 2.6, 2.7)
+		 * as pthread_create() call returns error code 12 ENOMEM and return value 0
+		 * Note: libc-2.9 demonstrates expected behaivour
+		 */
+		if ( (ret != 0) || (errno == ENOMEM) ) {
 			FREE(thread_fds_arr_info);
 			log_err("pthread_create has failed");
 			rc = SOCKPERF_ERR_FATAL;
@@ -385,7 +396,7 @@ void server_select_per_thread() {
 		sleep(1);
 	}
 	for (i = 1; i <= g_pApp->m_const_params.threads_num; i++) {
-		if (g_pid_arr[i]) {
+		if (g_pid_arr[i] && (pthread_kill(g_pid_arr[i], 0) == 0)) {
 			pthread_kill(g_pid_arr[i], SIGINT);
 			pthread_join(g_pid_arr[i], 0);
 		}
