@@ -146,7 +146,8 @@ enum {
 };
 
 #define MODULE_NAME			"sockperf"
-#define MODULE_COPYRIGHT	"Copyright (C) 2001-2010 Voltaire LTD."
+#define MODULE_COPYRIGHT	"Copyright (C) 2011 Mellanox Technologies Ltd." \
+	"\nSockPerf is open source software, see http://sockperf.googlecode.com/"
 #define log_msg(log_fmt, log_args...)	printf(MODULE_NAME ": " log_fmt "\n", ##log_args)
 #define log_msg_file(file, log_fmt, log_args...)	fprintf(file, MODULE_NAME ": " log_fmt "\n", ##log_args)
 #define log_msg_file2(file, log_fmt, log_args...)	if (1) {log_msg(log_fmt, ##log_args); if (file) log_msg_file(file, log_fmt, ##log_args);} else
