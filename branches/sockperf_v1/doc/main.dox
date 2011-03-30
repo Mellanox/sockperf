@@ -216,16 +216,6 @@ What you will need to compile sockperf on Unix systems
    tar -xf ./sockperf-<version>.tar
 @endcode
 
-   GNU make utility can be used.
-
-@code
-    $ make -f makefile.gnu
-    $ make -f makefile.gnu clean
-    $ make -f makefile.gnu install
-    $ make -f makefile.gnu uninstall
-    $ make -f makefile.gnu dist
-@endcode
-
   The sockperf package uses the GNU autotools compilation and installation
   framework.
 
