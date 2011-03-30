@@ -842,6 +842,7 @@ static int proc_mode_server( int id, int argc, const char **argv )
 							rc = SOCKPERF_ERR_NO_MEMORY;
 						}
 						else {
+							memset(g_pid_arr, 0, sizeof(int)*(s_user_params.threads_num + 1));
 							log_msg("Running %d threads to manage %d sockets",s_user_params.threads_num,g_sockets_num);
 						}
 					}

@@ -402,6 +402,8 @@ int Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration,
 {
 	int rc = SOCKPERF_ERR_NONE;
 
+	if (g_b_exit) return rc;
+
 	/* bind/connect socket */
 	if (rc == SOCKPERF_ERR_NONE)
 	{
@@ -422,6 +424,7 @@ int Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration,
 				if (bind(ifd, (struct sockaddr*)&bind_addr, sizeof(struct sockaddr)) < 0) {
 					log_err("Can`t bind socket");
 					rc = SOCKPERF_ERR_SOCKET;
+					break;
 				}
 			}
 			else {
@@ -430,6 +433,7 @@ int Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration,
 				if (connect(ifd, (struct sockaddr*)&bind_addr, sizeof(struct sockaddr)) < 0) {
 					log_err("Can`t connect socket");
 					rc = SOCKPERF_ERR_SOCKET;
+					break;
 				}
 			}
 		}
