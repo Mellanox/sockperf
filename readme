@@ -15,15 +15,6 @@ This is the distribution of sockperf
 
 * How to install:
 
-  GNU make utility can be used.
-
-    $ make -f makefile.gnu
-    $ make -f makefile.gnu clean
-    $ make -f makefile.gnu install
-    $ make -f makefile.gnu uninstall
-    $ make -f makefile.gnu dist
-
-
   The sockperf package uses the GNU autotools compilation and installation
   framework.
    
