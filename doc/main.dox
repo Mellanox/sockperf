@@ -550,7 +550,6 @@ What you will need to compile sockperf on Unix systems
    tar -xf ./sockperf-<version>.tar
 @endcode
 
-
   The sockperf package uses the GNU autotools compilation and installation
   framework.
 

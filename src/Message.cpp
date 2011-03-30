@@ -102,6 +102,8 @@ Message::Message()  throw (std::exception) { //throws in case fatal error occurr
 //------------------------------------------------------------------------------
 Message::~Message()
 {
-	FREE (m_buf);
+	if (m_buf) {
+		FREE (m_buf);
+	}
 }
 

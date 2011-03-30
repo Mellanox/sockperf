@@ -200,7 +200,8 @@ public:
 		assert( (ifd < MAX_FDS_NUM)  &&
 				"exceeded tool limitation (MAX_FDS_NUM)");
 
-		if ( mp_poll_fd_arr[ifd].revents & POLLIN || mp_poll_fd_arr[ifd].revents & POLLPRI) {
+		if ( mp_poll_fd_arr[ifd].revents & POLLIN || mp_poll_fd_arr[ifd].revents & POLLPRI ||
+			 mp_poll_fd_arr[ifd].revents & POLLERR || mp_poll_fd_arr[ifd].revents & POLLHUP ) {
 			return mp_poll_fd_arr[ifd].fd;
 		}
 		else {

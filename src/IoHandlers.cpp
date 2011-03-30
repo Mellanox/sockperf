@@ -128,6 +128,7 @@ IoPoll::IoPoll(int _fd_min, int _fd_max, int _fd_num) : IoHandler(_fd_min, _fd_m
 , m_timeout_msec(g_pApp->m_const_params.select_timeout
 		? g_pApp->m_const_params.select_timeout->tv_sec*1000 + g_pApp->m_const_params.select_timeout->tv_usec/1000
 				: -1){
+	mp_poll_fd_arr = NULL;
 }
 
 //------------------------------------------------------------------------------
@@ -174,12 +175,16 @@ IoEpoll::IoEpoll(int _fd_min, int _fd_max, int _fd_num) : IoHandler(_fd_min, _fd
 	, m_timeout_msec(g_pApp->m_const_params.select_timeout
 			? g_pApp->m_const_params.select_timeout->tv_sec*1000 + g_pApp->m_const_params.select_timeout->tv_usec/1000
 					: -1){
+	mp_epoll_events = NULL;
+	m_max_events = 0;
 }
 
 //------------------------------------------------------------------------------
 IoEpoll::~IoEpoll() {
-	close(m_epfd);
-	FREE(mp_epoll_events);
+	if (mp_epoll_events) {
+		close(m_epfd);
+		FREE(mp_epoll_events);
+	}
 }
 
 //------------------------------------------------------------------------------
