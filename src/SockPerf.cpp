@@ -159,10 +159,6 @@ static const AOPT_DESC  common_opt_desc[] =
              "Listen on/connect to port <port> (default 11111)."
 	},
 	{
-		'm', AOPT_ARG, aopt_set_literal( 'm' ), aopt_set_string( "msg-size" ),
-             "Use messages of size <size> bytes (minimum default 12)."
-	},
-	{
 		'f', AOPT_ARG, aopt_set_literal( 'f' ), aopt_set_string( "file" ),
              "Tread multiple ip+port combinations from file <file> (server uses select)."
 	},
@@ -259,20 +255,8 @@ static const AOPT_DESC  client_opt_desc[] =
              "Control the client's number of a packets sent in every burst."
 	},
 	{
-		'r', AOPT_ARG,	aopt_set_literal( 'r' ),	aopt_set_string( "range" ),
-             "comes with -m <size>, randomly change the messages size in range: <size> +- <N>."
-	},
-	{
-		OPT_DATA_INTEGRITY, AOPT_NOARG,	aopt_set_literal( 0 ),	aopt_set_string( "data-integrity" ),
-             "Perform data integrity test."
-	},
-	{
 		OPT_CLIENT_WORK_WITH_SRV_NUM, AOPT_ARG,	aopt_set_literal( 0 ),	aopt_set_string( "srv-num" ),
              "Set num of servers the client works with to N."
-	},
-	{
-		OPT_PPS, AOPT_ARG,	aopt_set_literal( 0 ),	aopt_set_string( "pps" ),
-             "Set number of packets-per-second (default = 10000 - for under-load mode, or max - for ping-pong and throughput modes; for maximum use --pps=max)."
 	},
 	{
 		OPT_SENDER_AFFINITY, AOPT_ARG,	aopt_set_literal( 0 ),	aopt_set_string( "sender-affinity" ),
@@ -346,6 +330,18 @@ static int proc_mode_under_load( int id, int argc, const char **argv )
 			OPT_REPLY_EVERY, AOPT_ARG,	aopt_set_literal( 0 ),	aopt_set_string( "reply-every" ),
 	             "Set number of send packets between reply packets (default = 100)."
 		},
+		{
+			OPT_PPS, AOPT_ARG,	aopt_set_literal( 0 ),	aopt_set_string( "pps" ),
+	             "Set number of packets-per-second (default = 10000 - for under-load mode, or max - for ping-pong and throughput modes; for maximum use --pps=max)."
+		},
+		{
+			'm', AOPT_ARG, aopt_set_literal( 'm' ), aopt_set_string( "msg-size" ),
+	             "Use messages of size <size> bytes (minimum default 12)."
+		},
+		{
+			'r', AOPT_ARG,	aopt_set_literal( 'r' ),	aopt_set_string( "range" ),
+	             "comes with -m <size>, randomly change the messages size in range: <size> +- <N>."
+		},
 		{ 0, AOPT_NOARG, aopt_set_literal( 0 ), aopt_set_string( NULL ), NULL }
 	};
 
@@ -407,6 +403,68 @@ static int proc_mode_under_load( int id, int argc, const char **argv )
 				rc = SOCKPERF_ERR_BAD_ARGUMENT;
 			}
 		}
+
+		if ( !rc && aopt_check(self_obj, OPT_PPS) ) {
+			const char* optarg = aopt_value(self_obj, OPT_PPS);
+			if (optarg) {
+				if (0 == strcmp("MAX", optarg) || 0 == strcmp("max", optarg)) {
+					s_user_params.pps = UINT32_MAX;
+				}
+				else {
+					errno = 0;
+					long long temp = strtol(optarg, NULL, 0);
+					if (errno != 0  || temp <= 0 || temp > 1<<30 ) {
+						log_msg("Invalid %d val: %s", OPT_PPS, optarg);
+						rc = SOCKPERF_ERR_BAD_ARGUMENT;
+					}
+					else {
+						s_user_params.pps = (uint32_t)temp;
+					}
+				}
+			}
+			else {
+				log_msg("'-%d' Invalid value", OPT_PPS);
+				rc = SOCKPERF_ERR_BAD_ARGUMENT;
+			}
+		}
+
+		if ( !rc && aopt_check(self_obj, 'm') ) {
+			const char* optarg = aopt_value(self_obj, 'm');
+			if (optarg) {
+				errno = 0;
+				int value = strtol(optarg, NULL, 0);
+				if (errno != 0 || value < MIN_PAYLOAD_SIZE) {
+					log_msg("'-%c' Invalid message size: %s (min: %d)", 'm', optarg, MIN_PAYLOAD_SIZE);
+					rc = SOCKPERF_ERR_BAD_ARGUMENT;
+				}
+				else {
+					s_user_params.msg_size = value;
+				}
+			}
+			else {
+				log_msg("'-%c' Invalid value", 'm');
+				rc = SOCKPERF_ERR_BAD_ARGUMENT;
+			}
+		}
+
+		if ( !rc && aopt_check(self_obj, 'r') ) {
+			const char* optarg = aopt_value(self_obj, 'r');
+			if (optarg) {
+				errno = 0;
+				int value = strtol(optarg, NULL, 0);
+				if (errno != 0 || value < 0) {
+					log_msg("'-%c' Invalid message range: %s", 'r', optarg);
+					rc = SOCKPERF_ERR_BAD_ARGUMENT;
+				}
+				else {
+					s_user_params.msg_size_range = value;
+				}
+			}
+			else {
+				log_msg("'-%c' Invalid value", 'r');
+				rc = SOCKPERF_ERR_BAD_ARGUMENT;
+			}
+		}
 	}
 
 	if (rc) {
@@ -456,6 +514,31 @@ static int proc_mode_ping_pong( int id, int argc, const char **argv )
 	int rc = SOCKPERF_ERR_NONE;
 	const AOPT_OBJECT *common_obj = NULL;
 	const AOPT_OBJECT *client_obj = NULL;
+	const AOPT_OBJECT *self_obj = NULL;
+
+	/*
+	 * List of supported ping-pong options.
+	 */
+	const AOPT_DESC  self_opt_desc[] =
+	{
+		{
+			OPT_PPS, AOPT_ARG,	aopt_set_literal( 0 ),	aopt_set_string( "pps" ),
+	             "Set number of packets-per-second (default = 10000 - for under-load mode, or max - for ping-pong and throughput modes; for maximum use --pps=max)."
+		},
+		{
+			'm', AOPT_ARG, aopt_set_literal( 'm' ), aopt_set_string( "msg-size" ),
+	             "Use messages of size <size> bytes (minimum default 12)."
+		},
+		{
+			'r', AOPT_ARG,	aopt_set_literal( 'r' ),	aopt_set_string( "range" ),
+	             "comes with -m <size>, randomly change the messages size in range: <size> +- <N>."
+		},
+		{
+			OPT_DATA_INTEGRITY, AOPT_NOARG,	aopt_set_literal( 0 ),	aopt_set_string( "data-integrity" ),
+	             "Perform data integrity test."
+		},
+		{ 0, AOPT_NOARG, aopt_set_literal( 0 ), aopt_set_string( NULL ), NULL }
+	};
 
 	/* Load supported option and create option objects */
 	{
@@ -467,6 +550,9 @@ static int proc_mode_ping_pong( int id, int argc, const char **argv )
 		valid_argc += temp_argc;
 		temp_argc = argc;
 		client_obj = aopt_init(&temp_argc, (const char **)argv, client_opt_desc);
+		valid_argc += temp_argc;
+		temp_argc = argc;
+		self_obj = aopt_init(&temp_argc, (const char **)argv, self_opt_desc);
 		valid_argc += temp_argc;
 		if (valid_argc < (argc - 1)) {
 			rc = SOCKPERF_ERR_BAD_ARGUMENT;
@@ -493,6 +579,82 @@ static int proc_mode_ping_pong( int id, int argc, const char **argv )
 		rc = parse_client_opt(client_obj);
 	}
 
+	/* Set command line specific values */
+	if (!rc && self_obj) {
+
+		if ( !rc && aopt_check(self_obj, OPT_PPS) ) {
+			const char* optarg = aopt_value(self_obj, OPT_PPS);
+			if (optarg) {
+				if (0 == strcmp("MAX", optarg) || 0 == strcmp("max", optarg)) {
+					s_user_params.pps = UINT32_MAX;
+				}
+				else {
+					errno = 0;
+					long long temp = strtol(optarg, NULL, 0);
+					if (errno != 0  || temp <= 0 || temp > 1<<30 ) {
+						log_msg("Invalid %d val: %s", OPT_PPS, optarg);
+						rc = SOCKPERF_ERR_BAD_ARGUMENT;
+					}
+					else {
+						s_user_params.pps = (uint32_t)temp;
+					}
+				}
+			}
+			else {
+				log_msg("'-%d' Invalid value", OPT_PPS);
+				rc = SOCKPERF_ERR_BAD_ARGUMENT;
+			}
+		}
+
+		if ( !rc && aopt_check(self_obj, 'm') ) {
+			const char* optarg = aopt_value(self_obj, 'm');
+			if (optarg) {
+				errno = 0;
+				int value = strtol(optarg, NULL, 0);
+				if (errno != 0 || value < MIN_PAYLOAD_SIZE) {
+					log_msg("'-%c' Invalid message size: %s (min: %d)", 'm', optarg, MIN_PAYLOAD_SIZE);
+					rc = SOCKPERF_ERR_BAD_ARGUMENT;
+				}
+				else {
+					s_user_params.msg_size = value;
+				}
+			}
+			else {
+				log_msg("'-%c' Invalid value", 'm');
+				rc = SOCKPERF_ERR_BAD_ARGUMENT;
+			}
+		}
+
+		if ( !rc && aopt_check(self_obj, 'r') ) {
+			const char* optarg = aopt_value(self_obj, 'r');
+			if (optarg) {
+				errno = 0;
+				int value = strtol(optarg, NULL, 0);
+				if (errno != 0 || value < 0) {
+					log_msg("'-%c' Invalid message range: %s", 'r', optarg);
+					rc = SOCKPERF_ERR_BAD_ARGUMENT;
+				}
+				else {
+					s_user_params.msg_size_range = value;
+				}
+			}
+			else {
+				log_msg("'-%c' Invalid value", 'r');
+				rc = SOCKPERF_ERR_BAD_ARGUMENT;
+			}
+		}
+
+		if ( !rc && aopt_check(self_obj, OPT_DATA_INTEGRITY) ) {
+			if (!aopt_check(client_obj, 'b')) {
+				s_user_params.data_integrity = true;
+			}
+			else {
+				log_msg("--data-integrity conflicts with -b option");
+				rc = SOCKPERF_ERR_BAD_ARGUMENT;
+			}
+		}
+	}
+
 	if (rc) {
 	    const char* help_str = NULL;
 	    char temp_buf[30];
@@ -514,16 +676,24 @@ static int proc_mode_ping_pong( int id, int argc, const char **argv )
 		help_str = aopt_help(client_opt_desc);
 	    if (help_str)
 	    {
-	        printf("%s\n", help_str);
+	        printf("%s", help_str);
 	        free((void*)help_str);
+			help_str = aopt_help(self_opt_desc);
+		    if (help_str)
+		    {
+		        printf("%s", help_str);
+		        free((void*)help_str);
+		    }
+		    printf("\n");
 	    }
 	}
 
 	/* Destroy option objects */
 	aopt_exit((AOPT_OBJECT*)common_obj);
 	aopt_exit((AOPT_OBJECT*)client_obj);
+	aopt_exit((AOPT_OBJECT*)self_obj);
 
-
+	/* It is set to reduce memory needed for PacketTime buffer */
 	if (s_user_params.pps == UINT32_MAX) { // MAX PPS mode
 		PPS_MAX = PPS_MAX_PP;
 	}
@@ -538,6 +708,27 @@ static int proc_mode_throughput( int id, int argc, const char **argv )
 	int rc = SOCKPERF_ERR_NONE;
 	const AOPT_OBJECT *common_obj = NULL;
 	const AOPT_OBJECT *client_obj = NULL;
+	const AOPT_OBJECT *self_obj = NULL;
+
+	/*
+	 * List of supported throughput options.
+	 */
+	const AOPT_DESC  self_opt_desc[] =
+	{
+		{
+			OPT_PPS, AOPT_ARG,	aopt_set_literal( 0 ),	aopt_set_string( "pps" ),
+	             "Set number of packets-per-second (default = 10000 - for under-load mode, or max - for ping-pong and throughput modes; for maximum use --pps=max)."
+		},
+		{
+			'm', AOPT_ARG, aopt_set_literal( 'm' ), aopt_set_string( "msg-size" ),
+	             "Use messages of size <size> bytes (minimum default 12)."
+		},
+		{
+			'r', AOPT_ARG,	aopt_set_literal( 'r' ),	aopt_set_string( "range" ),
+	             "comes with -m <size>, randomly change the messages size in range: <size> +- <N>."
+		},
+		{ 0, AOPT_NOARG, aopt_set_literal( 0 ), aopt_set_string( NULL ), NULL }
+	};
 
 	/* Load supported option and create option objects */
 	{
@@ -549,6 +740,9 @@ static int proc_mode_throughput( int id, int argc, const char **argv )
 		valid_argc += temp_argc;
 		temp_argc = argc;
 		client_obj = aopt_init(&temp_argc, (const char **)argv, client_opt_desc);
+		valid_argc += temp_argc;
+		temp_argc = argc;
+		self_obj = aopt_init(&temp_argc, (const char **)argv, self_opt_desc);
 		valid_argc += temp_argc;
 		if (valid_argc < (argc - 1)) {
 			rc = SOCKPERF_ERR_BAD_ARGUMENT;
@@ -575,6 +769,72 @@ static int proc_mode_throughput( int id, int argc, const char **argv )
 		rc = parse_client_opt(client_obj);
 	}
 
+	/* Set command line specific values */
+	if (!rc && self_obj) {
+
+		if ( !rc && aopt_check(self_obj, OPT_PPS) ) {
+			const char* optarg = aopt_value(self_obj, OPT_PPS);
+			if (optarg) {
+				if (0 == strcmp("MAX", optarg) || 0 == strcmp("max", optarg)) {
+					s_user_params.pps = UINT32_MAX;
+				}
+				else {
+					errno = 0;
+					long long temp = strtol(optarg, NULL, 0);
+					if (errno != 0  || temp <= 0 || temp > 1<<30 ) {
+						log_msg("Invalid %d val: %s", OPT_PPS, optarg);
+						rc = SOCKPERF_ERR_BAD_ARGUMENT;
+					}
+					else {
+						s_user_params.pps = (uint32_t)temp;
+					}
+				}
+			}
+			else {
+				log_msg("'-%d' Invalid value", OPT_PPS);
+				rc = SOCKPERF_ERR_BAD_ARGUMENT;
+			}
+		}
+
+		if ( !rc && aopt_check(self_obj, 'm') ) {
+			const char* optarg = aopt_value(self_obj, 'm');
+			if (optarg) {
+				errno = 0;
+				int value = strtol(optarg, NULL, 0);
+				if (errno != 0 || value < MIN_PAYLOAD_SIZE) {
+					log_msg("'-%c' Invalid message size: %s (min: %d)", 'm', optarg, MIN_PAYLOAD_SIZE);
+					rc = SOCKPERF_ERR_BAD_ARGUMENT;
+				}
+				else {
+					s_user_params.msg_size = value;
+				}
+			}
+			else {
+				log_msg("'-%c' Invalid value", 'm');
+				rc = SOCKPERF_ERR_BAD_ARGUMENT;
+			}
+		}
+
+		if ( !rc && aopt_check(self_obj, 'r') ) {
+			const char* optarg = aopt_value(self_obj, 'r');
+			if (optarg) {
+				errno = 0;
+				int value = strtol(optarg, NULL, 0);
+				if (errno != 0 || value < 0) {
+					log_msg("'-%c' Invalid message range: %s", 'r', optarg);
+					rc = SOCKPERF_ERR_BAD_ARGUMENT;
+				}
+				else {
+					s_user_params.msg_size_range = value;
+				}
+			}
+			else {
+				log_msg("'-%c' Invalid value", 'r');
+				rc = SOCKPERF_ERR_BAD_ARGUMENT;
+			}
+		}
+	}
+
 	if (rc) {
 	    const char* help_str = NULL;
 	    char temp_buf[30];
@@ -596,14 +856,22 @@ static int proc_mode_throughput( int id, int argc, const char **argv )
 		help_str = aopt_help(client_opt_desc);
 	    if (help_str)
 	    {
-	        printf("%s\n", help_str);
+	        printf("%s", help_str);
 	        free((void*)help_str);
+			help_str = aopt_help(self_opt_desc);
+		    if (help_str)
+		    {
+		        printf("%s", help_str);
+		        free((void*)help_str);
+		    }
+		    printf("\n");
 	    }
 	}
 
 	/* Destroy option objects */
 	aopt_exit((AOPT_OBJECT*)common_obj);
 	aopt_exit((AOPT_OBJECT*)client_obj);
+	aopt_exit((AOPT_OBJECT*)self_obj);
 
 	return rc;
 }
@@ -712,8 +980,7 @@ static int proc_mode_playback( int id, int argc, const char **argv )
 		printf("%s: %s\n", display_opt(id, temp_buf, sizeof(temp_buf)), sockperf_modes[id].note);
 		printf("\n");
 		printf("Usage: " MODULE_NAME " %s [options] [args]...\n", sockperf_modes[id].name);
-		printf(" " MODULE_NAME " %s -i ip  [-p port] [-m message_size] [-t time] [--data_integrity]\n", sockperf_modes[id].name);
-		printf(" " MODULE_NAME " %s -f file [-F s/p/e] [-m message_size] [-r msg_size_range] [-t time]\n", sockperf_modes[id].name);
+		printf(" " MODULE_NAME " %s -i ip  [-p port] --data-file playback.csv\n", sockperf_modes[id].name);
 		printf("\n");
 		printf("Options:\n");
 		help_str = aopt_help(common_opt_desc);
@@ -879,8 +1146,8 @@ static int proc_mode_server( int id, int argc, const char **argv )
 		printf("\n");
 		printf("Usage: " MODULE_NAME " %s [options] [args]...\n", sockperf_modes[id].name);
 		printf(" " MODULE_NAME " %s\n", sockperf_modes[id].name);
-		printf(" " MODULE_NAME " %s [-i ip] [-p port] [-m message_size] [--rx_mc_if ip] [--tx_mc_if ip]\n", sockperf_modes[id].name);
-		printf(" " MODULE_NAME " %s -f file [-F s/p/e] [-m message_size] [--rx_mc_if ip] [--tx_mc_if ip]\n", sockperf_modes[id].name);
+		printf(" " MODULE_NAME " %s [-i ip] [-p port] [--rx_mc_if ip] [--tx_mc_if ip]\n", sockperf_modes[id].name);
+		printf(" " MODULE_NAME " %s -f file [-F s/p/e] [--rx_mc_if ip] [--tx_mc_if ip]\n", sockperf_modes[id].name);
 		printf("\n");
 		printf("Options:\n");
 		help_str = aopt_help(common_opt_desc);
@@ -958,21 +1225,6 @@ static int parse_common_opt( const AOPT_OBJECT *common_obj )
 			}
 			else {
 				log_msg("'-%c' Invalid value", 'p');
-				rc = SOCKPERF_ERR_BAD_ARGUMENT;
-			}
-		}
-
-		if ( !rc && aopt_check(common_obj, 'm') ) {
-			const char* optarg = aopt_value(common_obj, 'm');
-			if (optarg) {
-				s_user_params.msg_size = strtol(optarg, NULL, 0);
-				if (s_user_params.msg_size < MIN_PAYLOAD_SIZE) {
-					log_msg("'-%c' Invalid message size: %d (min: %d)", 'm', s_user_params.msg_size, MIN_PAYLOAD_SIZE);
-					rc = SOCKPERF_ERR_BAD_ARGUMENT;
-				}
-			}
-			else {
-				log_msg("'-%c' Invalid value", 'm');
 				rc = SOCKPERF_ERR_BAD_ARGUMENT;
 			}
 		}
@@ -1242,13 +1494,13 @@ static int parse_client_opt( const AOPT_OBJECT *client_obj )
 			const char* optarg = aopt_value(client_obj, 'b');
 			if (optarg) {
 				errno = 0;
-				int burst_size = strtol(optarg, NULL, 0);
-				if (errno != 0 || burst_size < 1) {
+				int value = strtol(optarg, NULL, 0);
+				if (errno != 0 || value < 1) {
 					log_msg("'-%c' Invalid burst size: %s", 'b', optarg);
 					rc = SOCKPERF_ERR_BAD_ARGUMENT;
 				}
 				else {
-					s_user_params.burst_size = burst_size;
+					s_user_params.burst_size = value;
 				}
 			}
 			else {
@@ -1257,68 +1509,21 @@ static int parse_client_opt( const AOPT_OBJECT *client_obj )
 			}
 		}
 
-		if ( !rc && aopt_check(client_obj, 'r') ) {
-			const char* optarg = aopt_value(client_obj, 'r');
-			if (optarg) {
-				errno = 0;
-				int range = strtol(optarg, NULL, 0);
-				if (errno != 0 || range < 0) {
-					log_msg("'-%c' Invalid message range: %s", 'r', optarg);
-					rc = SOCKPERF_ERR_BAD_ARGUMENT;
-				}
-				else {
-					s_user_params.msg_size_range = range;
-				}
-			}
-			else {
-				log_msg("'-%c' Invalid value", 'r');
-				rc = SOCKPERF_ERR_BAD_ARGUMENT;
-			}
-		}
-
-		if ( !rc && aopt_check(client_obj, OPT_DATA_INTEGRITY) ) {
-			s_user_params.data_integrity = true;
-		}
-
 		if ( !rc && aopt_check(client_obj, OPT_CLIENT_WORK_WITH_SRV_NUM) ) {
 			const char* optarg = aopt_value(client_obj, OPT_CLIENT_WORK_WITH_SRV_NUM);
 			if (optarg) {
 				errno = 0;
-				int srv_num = strtol(optarg, NULL, 0);
-				if (errno != 0  || srv_num < 1) {
+				int value = strtol(optarg, NULL, 0);
+				if (errno != 0  || value < 1) {
 					log_msg("'-%c' Invalid server num val: %s", OPT_CLIENT_WORK_WITH_SRV_NUM, optarg);
 					rc = SOCKPERF_ERR_BAD_ARGUMENT;
 				}
 				else {
-					s_user_params.client_work_with_srv_num = srv_num;
+					s_user_params.client_work_with_srv_num = value;
 				}
 			}
 			else {
 				log_msg("'-%d' Invalid value", OPT_CLIENT_WORK_WITH_SRV_NUM);
-				rc = SOCKPERF_ERR_BAD_ARGUMENT;
-			}
-		}
-
-		if ( !rc && aopt_check(client_obj, OPT_PPS) ) {
-			const char* optarg = aopt_value(client_obj, OPT_PPS);
-			if (optarg) {
-				if (0 == strcmp("MAX", optarg) || 0 == strcmp("max", optarg)) {
-					s_user_params.pps = UINT32_MAX;
-				}
-				else {
-					errno = 0;
-					long long temp = strtol(optarg, NULL, 0);
-					if (errno != 0  || temp <= 0 || temp > 1<<30 ) {
-						log_msg("Invalid %d val: %s", OPT_PPS, optarg);
-						rc = SOCKPERF_ERR_BAD_ARGUMENT;
-					}
-					else {
-						s_user_params.pps = (uint32_t)temp;
-					}
-				}
-			}
-			else {
-				log_msg("'-%d' Invalid value", OPT_PPS);
 				rc = SOCKPERF_ERR_BAD_ARGUMENT;
 			}
 		}
