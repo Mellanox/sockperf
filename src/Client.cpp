@@ -232,22 +232,22 @@ void stream_statistics(Message *pMsgRequest)
 	log_msg("Total of %" PRIu64 " messages sent in %.3lf sec\n", sendCount, totalRunTime.toDecimalUsec()/1000000);
 	if (g_pApp->m_const_params.pps != PPS_MAX) {
 		if (g_pApp->m_const_params.msg_size_range)
-			log_msg("\e[2;35mNOTE: test was performed, using average msg-size=%d (+/-%d), pps=%u. For getting maximum throughput use --pps=max (and consider --msg_size=1472 or --msg_size=4096)\e[0m",
+			log_msg("\e[2;35mNOTE: test was performed, using average msg-size=%d (+/-%d), pps=%u. For getting maximum throughput use --pps=max (and consider --msg-size=1472 or --msg-size=4096)\e[0m",
 					g_pApp->m_const_params.msg_size,
 					g_pApp->m_const_params.msg_size_range,
 					g_pApp->m_const_params.pps);
 		else
-			log_msg("\e[2;35mNOTE: test was performed, using msg-size=%d, pps=%u. For getting maximum throughput use --pps=max (and consider --msg_size=1472 or --msg_size=4096)\e[0m",
+			log_msg("\e[2;35mNOTE: test was performed, using msg-size=%d, pps=%u. For getting maximum throughput use --pps=max (and consider --msg-size=1472 or --msg-size=4096)\e[0m",
 					g_pApp->m_const_params.msg_size,
 					g_pApp->m_const_params.pps);
 	}
 	else if (g_pApp->m_const_params.msg_size != 1472) {
 		if (g_pApp->m_const_params.msg_size_range)
-			log_msg("\e[2;35mNOTE: test was performed, using average msg-size=%d (+/-%d). For getting maximum throughput consider using --msg_size=1472\e[0m",
+			log_msg("\e[2;35mNOTE: test was performed, using average msg-size=%d (+/-%d). For getting maximum throughput consider using --msg-size=1472\e[0m",
 					g_pApp->m_const_params.msg_size,
 					g_pApp->m_const_params.msg_size_range);
 		else
-			log_msg("\e[2;35mNOTE: test was performed, using msg-size=%d. For getting maximum throughput consider using --msg_size=1472\e[0m",
+			log_msg("\e[2;35mNOTE: test was performed, using msg-size=%d. For getting maximum throughput consider using --msg-size=1472\e[0m",
 					g_pApp->m_const_params.msg_size);
 	}
 
@@ -372,7 +372,7 @@ void Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration
 		if (f) {
 			fprintf(f, "------------------------------\n");
 			fprintf(f, "test was performed using the following parameters: "
-					"--pps=%d --burst=%d --reply-every=%d --msg_size=%d --time=%d\n"
+					"--pps=%d --burst=%d --reply-every=%d --msg-size=%d --time=%d\n"
 					, (int)g_pApp->m_const_params.pps
 					, (int)g_pApp->m_const_params.burst_size
 					, (int)g_pApp->m_const_params.reply_every
