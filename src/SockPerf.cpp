@@ -720,7 +720,7 @@ static int proc_mode_ping_pong( int id, int argc, const char **argv )
 		}
 
 		if ( !rc && aopt_check(self_obj, OPT_DATA_INTEGRITY) ) {
-			if (!aopt_check(client_obj, 'b')) {
+			if (!aopt_check(self_obj, 'b')) {
 				s_user_params.data_integrity = true;
 			}
 			else {
