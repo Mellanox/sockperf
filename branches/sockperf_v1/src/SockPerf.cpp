@@ -2075,8 +2075,6 @@ s_user_params.daemonize,
 		// Display VMA version
 #ifdef VMA_LIBRARY_MAJOR
 		log_msg("Linked with VMA version: %d.%d.%d.%d", VMA_LIBRARY_MAJOR, VMA_LIBRARY_MINOR, VMA_LIBRARY_REVISION, VMA_LIBRARY_RELEASE);
-#else
-		log_msg("No VMA version info");
 #endif
 #ifdef VMA_DATE_TIME
 		log_msg("VMA Build Date: %s", VMA_DATE_TIME);
