@@ -392,7 +392,7 @@ void server_select_per_thread() {
 				break;
 			}
 			g_pid_arr[i + 1] = tid;
-			last_fds = thread_fds_arr_info->fd_max + 1;
+			last_fds = cur_thread_fds_arr_info->fd_max + 1;
 		}
 
 		/* Wait for ^C */
