@@ -247,14 +247,6 @@ static const AOPT_DESC  common_opt_desc[] =
 static const AOPT_DESC  client_opt_desc[] =
 {
 	{
-		't', AOPT_ARG,	aopt_set_literal( 't' ),	aopt_set_string( "time" ),
-             "Run for <sec> seconds (default 1, max = 36000000)."
-	},
-	{
-		'b', AOPT_ARG,	aopt_set_literal( 'b' ),	aopt_set_string( "burst" ),
-             "Control the client's number of a packets sent in every burst."
-	},
-	{
 		OPT_CLIENT_WORK_WITH_SRV_NUM, AOPT_ARG,	aopt_set_literal( 0 ),	aopt_set_string( "srv-num" ),
              "Set num of servers the client works with to N."
 	},
@@ -327,6 +319,14 @@ static int proc_mode_under_load( int id, int argc, const char **argv )
 	const AOPT_DESC  self_opt_desc[] =
 	{
 		{
+			't', AOPT_ARG,	aopt_set_literal( 't' ),	aopt_set_string( "time" ),
+	             "Run for <sec> seconds (default 1, max = 36000000)."
+		},
+		{
+			'b', AOPT_ARG,	aopt_set_literal( 'b' ),	aopt_set_string( "burst" ),
+	             "Control the client's number of a packets sent in every burst."
+		},
+		{
 			OPT_REPLY_EVERY, AOPT_ARG,	aopt_set_literal( 0 ),	aopt_set_string( "reply-every" ),
 	             "Set number of send packets between reply packets (default = 100)."
 		},
@@ -385,6 +385,40 @@ static int proc_mode_under_load( int id, int argc, const char **argv )
 
 	/* Set command line specific values */
 	if (!rc && self_obj) {
+		if ( !rc && aopt_check(self_obj, 't') ) {
+			const char* optarg = aopt_value(self_obj, 't');
+			if (optarg) {
+				s_user_params.sec_test_duration = strtol(optarg, NULL, 0);
+				if (s_user_params.sec_test_duration <= 0 || s_user_params.sec_test_duration > MAX_DURATION) {
+					log_msg("'-%c' Invalid duration: %d", 't', s_user_params.sec_test_duration);
+					rc = SOCKPERF_ERR_BAD_ARGUMENT;
+				}
+			}
+			else {
+				log_msg("'-%c' Invalid value", 't');
+				rc = SOCKPERF_ERR_BAD_ARGUMENT;
+			}
+		}
+
+		if ( !rc && aopt_check(self_obj, 'b') ) {
+			const char* optarg = aopt_value(self_obj, 'b');
+			if (optarg) {
+				errno = 0;
+				int value = strtol(optarg, NULL, 0);
+				if (errno != 0 || value < 1) {
+					log_msg("'-%c' Invalid burst size: %s", 'b', optarg);
+					rc = SOCKPERF_ERR_BAD_ARGUMENT;
+				}
+				else {
+					s_user_params.burst_size = value;
+				}
+			}
+			else {
+				log_msg("'-%c' Invalid value", 'b');
+				rc = SOCKPERF_ERR_BAD_ARGUMENT;
+			}
+		}
+
 		if ( !rc && aopt_check(self_obj, OPT_REPLY_EVERY) ) {
 			const char* optarg = aopt_value(self_obj, OPT_REPLY_EVERY);
 			if (optarg) {
@@ -522,6 +556,14 @@ static int proc_mode_ping_pong( int id, int argc, const char **argv )
 	const AOPT_DESC  self_opt_desc[] =
 	{
 		{
+			't', AOPT_ARG,	aopt_set_literal( 't' ),	aopt_set_string( "time" ),
+	             "Run for <sec> seconds (default 1, max = 36000000)."
+		},
+		{
+			'b', AOPT_ARG,	aopt_set_literal( 'b' ),	aopt_set_string( "burst" ),
+	             "Control the client's number of a packets sent in every burst."
+		},
+		{
 			OPT_PPS, AOPT_ARG,	aopt_set_literal( 0 ),	aopt_set_string( "pps" ),
 	             "Set number of packets-per-second (default = 10000 - for under-load mode, or max - for ping-pong and throughput modes; for maximum use --pps=max)."
 		},
@@ -581,6 +623,39 @@ static int proc_mode_ping_pong( int id, int argc, const char **argv )
 
 	/* Set command line specific values */
 	if (!rc && self_obj) {
+		if ( !rc && aopt_check(self_obj, 't') ) {
+			const char* optarg = aopt_value(self_obj, 't');
+			if (optarg) {
+				s_user_params.sec_test_duration = strtol(optarg, NULL, 0);
+				if (s_user_params.sec_test_duration <= 0 || s_user_params.sec_test_duration > MAX_DURATION) {
+					log_msg("'-%c' Invalid duration: %d", 't', s_user_params.sec_test_duration);
+					rc = SOCKPERF_ERR_BAD_ARGUMENT;
+				}
+			}
+			else {
+				log_msg("'-%c' Invalid value", 't');
+				rc = SOCKPERF_ERR_BAD_ARGUMENT;
+			}
+		}
+
+		if ( !rc && aopt_check(self_obj, 'b') ) {
+			const char* optarg = aopt_value(self_obj, 'b');
+			if (optarg) {
+				errno = 0;
+				int value = strtol(optarg, NULL, 0);
+				if (errno != 0 || value < 1) {
+					log_msg("'-%c' Invalid burst size: %s", 'b', optarg);
+					rc = SOCKPERF_ERR_BAD_ARGUMENT;
+				}
+				else {
+					s_user_params.burst_size = value;
+				}
+			}
+			else {
+				log_msg("'-%c' Invalid value", 'b');
+				rc = SOCKPERF_ERR_BAD_ARGUMENT;
+			}
+		}
 
 		if ( !rc && aopt_check(self_obj, OPT_PPS) ) {
 			const char* optarg = aopt_value(self_obj, OPT_PPS);
@@ -716,6 +791,14 @@ static int proc_mode_throughput( int id, int argc, const char **argv )
 	const AOPT_DESC  self_opt_desc[] =
 	{
 		{
+			't', AOPT_ARG,	aopt_set_literal( 't' ),	aopt_set_string( "time" ),
+	             "Run for <sec> seconds (default 1, max = 36000000)."
+		},
+		{
+			'b', AOPT_ARG,	aopt_set_literal( 'b' ),	aopt_set_string( "burst" ),
+	             "Control the client's number of a packets sent in every burst."
+		},
+		{
 			OPT_PPS, AOPT_ARG,	aopt_set_literal( 0 ),	aopt_set_string( "pps" ),
 	             "Set number of packets-per-second (default = 10000 - for under-load mode, or max - for ping-pong and throughput modes; for maximum use --pps=max)."
 		},
@@ -771,6 +854,39 @@ static int proc_mode_throughput( int id, int argc, const char **argv )
 
 	/* Set command line specific values */
 	if (!rc && self_obj) {
+		if ( !rc && aopt_check(self_obj, 't') ) {
+			const char* optarg = aopt_value(self_obj, 't');
+			if (optarg) {
+				s_user_params.sec_test_duration = strtol(optarg, NULL, 0);
+				if (s_user_params.sec_test_duration <= 0 || s_user_params.sec_test_duration > MAX_DURATION) {
+					log_msg("'-%c' Invalid duration: %d", 't', s_user_params.sec_test_duration);
+					rc = SOCKPERF_ERR_BAD_ARGUMENT;
+				}
+			}
+			else {
+				log_msg("'-%c' Invalid value", 't');
+				rc = SOCKPERF_ERR_BAD_ARGUMENT;
+			}
+		}
+
+		if ( !rc && aopt_check(self_obj, 'b') ) {
+			const char* optarg = aopt_value(self_obj, 'b');
+			if (optarg) {
+				errno = 0;
+				int value = strtol(optarg, NULL, 0);
+				if (errno != 0 || value < 1) {
+					log_msg("'-%c' Invalid burst size: %s", 'b', optarg);
+					rc = SOCKPERF_ERR_BAD_ARGUMENT;
+				}
+				else {
+					s_user_params.burst_size = value;
+				}
+			}
+			else {
+				log_msg("'-%c' Invalid value", 'b');
+				rc = SOCKPERF_ERR_BAD_ARGUMENT;
+			}
+		}
 
 		if ( !rc && aopt_check(self_obj, OPT_PPS) ) {
 			const char* optarg = aopt_value(self_obj, OPT_PPS);
@@ -1475,40 +1591,6 @@ static int parse_client_opt( const AOPT_OBJECT *client_obj )
 	s_user_params.mode = MODE_CLIENT;
 
 	if (client_obj) {
-		if ( !rc && aopt_check(client_obj, 't') ) {
-			const char* optarg = aopt_value(client_obj, 't');
-			if (optarg) {
-				s_user_params.sec_test_duration = strtol(optarg, NULL, 0);
-				if (s_user_params.sec_test_duration <= 0 || s_user_params.sec_test_duration > MAX_DURATION) {
-					log_msg("'-%c' Invalid duration: %d", 't', s_user_params.sec_test_duration);
-					rc = SOCKPERF_ERR_BAD_ARGUMENT;
-				}
-			}
-			else {
-				log_msg("'-%c' Invalid value", 't');
-				rc = SOCKPERF_ERR_BAD_ARGUMENT;
-			}
-		}
-
-		if ( !rc && aopt_check(client_obj, 'b') ) {
-			const char* optarg = aopt_value(client_obj, 'b');
-			if (optarg) {
-				errno = 0;
-				int value = strtol(optarg, NULL, 0);
-				if (errno != 0 || value < 1) {
-					log_msg("'-%c' Invalid burst size: %s", 'b', optarg);
-					rc = SOCKPERF_ERR_BAD_ARGUMENT;
-				}
-				else {
-					s_user_params.burst_size = value;
-				}
-			}
-			else {
-				log_msg("'-%c' Invalid value", 'b');
-				rc = SOCKPERF_ERR_BAD_ARGUMENT;
-			}
-		}
-
 		if ( !rc && aopt_check(client_obj, OPT_CLIENT_WORK_WITH_SRV_NUM) ) {
 			const char* optarg = aopt_value(client_obj, OPT_CLIENT_WORK_WITH_SRV_NUM);
 			if (optarg) {
@@ -2554,8 +2636,6 @@ s_user_params.daemonize,
 		// Display VMA version
 #ifdef VMA_LIBRARY_MAJOR
 		log_msg("Linked with VMA version: %d.%d.%d.%d", VMA_LIBRARY_MAJOR, VMA_LIBRARY_MINOR, VMA_LIBRARY_REVISION, VMA_LIBRARY_RELEASE);
-#else
-		log_msg("No VMA version info");
 #endif
 #ifdef VMA_DATE_TIME
 		log_msg("VMA Build Date: %s", VMA_DATE_TIME);
