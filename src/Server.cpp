@@ -272,10 +272,9 @@ void *server_handler_for_multi_threaded(void *arg)
 	fd_min = p_sub_fds_arr_info->fd_min;
 	fd_max = p_sub_fds_arr_info->fd_max;
 	fd_num = p_sub_fds_arr_info->fd_num;
+
 	server_handler(fd_min, fd_max, fd_num);
-	if (p_sub_fds_arr_info){
-		FREE(p_sub_fds_arr_info);
-	}
+
 	return 0;
 }
 
@@ -360,47 +359,61 @@ void server_select_per_thread() {
 	int fd_num;
 	int num_of_remainded_fds;
 	int last_fds = 0;
+	sub_fds_arr_info *thread_fds_arr_info = NULL;
 
-	g_pid_arr[0] = gettid();
-	devide_fds_arr_between_threads(&num_of_remainded_fds, &fd_num);
+	thread_fds_arr_info = (sub_fds_arr_info*)MALLOC(sizeof(sub_fds_arr_info) * g_pApp->m_const_params.threads_num);
+	memset(thread_fds_arr_info, 0, sizeof(thread_fds_arr_info) * g_pApp->m_const_params.threads_num);
+	if (!thread_fds_arr_info) {
+		log_err("Failed to allocate memory for sub_fds_arr_info");
+		rc = SOCKPERF_ERR_NO_MEMORY;
+	}
+	else {
+		g_pid_arr[0] = gettid();
+		devide_fds_arr_between_threads(&num_of_remainded_fds, &fd_num);
 
-	for (i = 0; i < g_pApp->m_const_params.threads_num; i++) {
-		sub_fds_arr_info *thread_fds_arr_info = (sub_fds_arr_info*)MALLOC(sizeof(sub_fds_arr_info));
-		if (!thread_fds_arr_info) {
-			log_err("Failed to allocate memory for sub_fds_arr_info");
-			rc = SOCKPERF_ERR_NO_MEMORY;
-			break;
+		for (i = 0; i < g_pApp->m_const_params.threads_num; i++) {
+			sub_fds_arr_info *cur_thread_fds_arr_info = (thread_fds_arr_info + i);
+
+			cur_thread_fds_arr_info->fd_num = fd_num;
+			if (num_of_remainded_fds) {
+				cur_thread_fds_arr_info->fd_num++;
+				num_of_remainded_fds--;
+			}
+			find_min_max_fds(last_fds, cur_thread_fds_arr_info->fd_num, &(cur_thread_fds_arr_info->fd_min), &(cur_thread_fds_arr_info->fd_max));
+			int ret = pthread_create(&tid, 0, server_handler_for_multi_threaded, (void *)cur_thread_fds_arr_info);
+			/*
+			 * There is undocumented behaviour for early versions of libc (for example libc 2.5, 2.6, 2.7)
+			 * as pthread_create() call returns error code 12 ENOMEM and return value 0
+			 * Note: libc-2.9 demonstrates expected behaivour
+			 */
+			if ( (ret != 0) || (errno == ENOMEM) ) {
+				log_err("pthread_create has failed");
+				rc = SOCKPERF_ERR_FATAL;
+				break;
+			}
+			g_pid_arr[i + 1] = tid;
+			last_fds = thread_fds_arr_info->fd_max + 1;
 		}
-		thread_fds_arr_info->fd_num = fd_num;
-		if (num_of_remainded_fds) {
-			thread_fds_arr_info->fd_num++;
-			num_of_remainded_fds--;
+
+		/* Wait for ^C */
+		while ((rc == SOCKPERF_ERR_NONE) && !g_b_exit) {
+			sleep(1);
 		}
-		find_min_max_fds(last_fds, thread_fds_arr_info->fd_num, &(thread_fds_arr_info->fd_min), &(thread_fds_arr_info->fd_max));
-		int ret = pthread_create(&tid, 0, server_handler_for_multi_threaded, (void *)thread_fds_arr_info);
-		/*
-		 * There is undocumented behaviour for early versions of libc (for example libc 2.5, 2.6, 2.7)
-		 * as pthread_create() call returns error code 12 ENOMEM and return value 0
-		 * Note: libc-2.9 demonstrates expected behaivour
-		 */
-		if ( (ret != 0) || (errno == ENOMEM) ) {
+
+		/* Stop all launched threads */
+		for (i = 1; i <= g_pApp->m_const_params.threads_num; i++) {
+			if (g_pid_arr[i] && (pthread_kill(g_pid_arr[i], 0) == 0)) {
+				pthread_kill(g_pid_arr[i], SIGINT);
+				pthread_join(g_pid_arr[i], 0);
+			}
+		}
+
+		/* Free thread info allocated data */
+		if (thread_fds_arr_info) {
 			FREE(thread_fds_arr_info);
-			log_err("pthread_create has failed");
-			rc = SOCKPERF_ERR_FATAL;
-			break;
-		}
-		g_pid_arr[i + 1] = tid;
-		last_fds = thread_fds_arr_info->fd_max + 1;
-	}
-	while ((rc == SOCKPERF_ERR_NONE) && !g_b_exit) {
-		sleep(1);
-	}
-	for (i = 1; i <= g_pApp->m_const_params.threads_num; i++) {
-		if (g_pid_arr[i] && (pthread_kill(g_pid_arr[i], 0) == 0)) {
-			pthread_kill(g_pid_arr[i], SIGINT);
-			pthread_join(g_pid_arr[i], 0);
 		}
 	}
+
 	log_msg("%s() exit", __func__);
 }
 

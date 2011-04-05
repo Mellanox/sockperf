@@ -467,7 +467,7 @@ int Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration,
 						rc = SOCKPERF_ERR_FATAL;
 					}
 					else {
-						set_affinity(m_receiverTid, g_pApp->m_const_params.receiver_affinity);
+						rc = set_affinity(m_receiverTid, g_pApp->m_const_params.receiver_affinity);
 					}
 				}
 
