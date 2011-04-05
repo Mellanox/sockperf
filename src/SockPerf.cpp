@@ -231,7 +231,7 @@ static const AOPT_DESC  common_opt_desc[] =
              "set socket accleration before run (available for some of Mellanox systems)"
 	},
 	{
-		OPT_LOAD_VMA, AOPT_ARG,	aopt_set_literal( 0 ),	aopt_set_string( "load-vma" ),
+		OPT_LOAD_VMA, AOPT_OPTARG,	aopt_set_literal( 0 ),	aopt_set_string( "load-vma" ),
              "Load VMA dynamically even when LD_PRELOAD was not used."
 	},
 	{
