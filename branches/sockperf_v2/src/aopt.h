@@ -59,7 +59,8 @@ typedef enum
 {
     AOPT_NOARG      = 0,        /**< option does not have value */
     AOPT_REPEAT     = 1,        /**< option can appear few times */
-    AOPT_ARG        = 2         /**< option should have value */
+    AOPT_ARG        = 2,        /**< option should have value */
+    AOPT_OPTARG     = 4         /**< option can have value */
 } AOPT_TYPE;
 
 

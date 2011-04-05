@@ -179,7 +179,7 @@ const AOPT_OBJECT* aopt_init( int *argc, const char **argv, const AOPT_DESC *des
                                 /* have valid token (option) and count it */
                                 (*argc)++;
 
-                                if ( opt_spec_p->flags & AOPT_ARG )
+                                if ( (opt_spec_p->flags & AOPT_ARG) || (opt_spec_p->flags & AOPT_OPTARG) )
                                 {
                                     /* 
                                      * check if argument follows the option and =  in the same token
@@ -209,7 +209,10 @@ const AOPT_OBJECT* aopt_init( int *argc, const char **argv, const AOPT_DESC *des
                                         /* have valid token (value) and count it */
                                         (*argc)++;
                                     }
-                                    else
+                                    /*
+                                     * check if argument is mandatory
+                                     */
+                                    else if ( opt_spec_p->flags & AOPT_ARG )
                                     {
                                         status = __LINE__;
                                         AOPT_TRACE("Option %s should have an argument\n", (*arg_p));
