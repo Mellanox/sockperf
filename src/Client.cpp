@@ -561,6 +561,7 @@ void Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration
 	g_cycle_wait_loop_counter++; //for silenting waring at the end
 	g_b_exit = true;
 	s_endTime.setNowNonInline();//reduce code size by calling non inline func from slow path
+	usleep(20*1000);//wait for reply of last packet //TODO: configure!
 }
 
 //------------------------------------------------------------------------------
