@@ -770,7 +770,8 @@ static int proc_mode_ping_pong( int id, int argc, const char **argv )
 
 	/* It is set to reduce memory needed for PacketTime buffer */
 	if (s_user_params.pps == UINT32_MAX) { // MAX PPS mode
-		PPS_MAX = PPS_MAX_PP;
+		PPS_MAX = PPS_MAX_PP * s_user_params.burst_size;
+		if (PPS_MAX > PPS_MAX_UL) PPS_MAX = PPS_MAX_UL;
 	}
 
 
