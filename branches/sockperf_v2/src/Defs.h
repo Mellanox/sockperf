@@ -176,6 +176,16 @@ typedef enum {
 #endif /* FALSE */
 
 
+/* This macros should be used in printf to display uintptr_t */
+#ifndef PRIXPTR
+#define PRIXPTR    "lX"
+#endif
+
+#ifndef UNREFERENCED_PARAMETER
+#define UNREFERENCED_PARAMETER(P) ((void)P)
+#endif
+
+
 /**
  * @enum SOCKPERF_ERROR
  * @brief List of supported error codes.
@@ -203,8 +213,8 @@ typedef enum
 	#define LOG_TRACE_RECV		FALSE
 	#define LOG_TRACE_MSG_IN	FALSE
 	#define LOG_TRACE_MSG_OUT	FALSE
-	#define LOG_TRACE_CONNECT	FALSE
 	#define LOG_MEMORY_CHECK	FALSE
+	#define LOG_LOCK_CHECK		FALSE
 
 	#define LOG_TRACE(category, format, ...) \
 		log_send(category, 1, __FILE__, __LINE__, __FUNCTION__, format, ##__VA_ARGS__)
@@ -265,6 +275,47 @@ typedef enum
 #endif /* DEBUG */
 
 
+/**
+ * @name Synchronization
+ * @brief Multi-threading Synchronization operations.
+ */
+/** @{ */
+	#define CRITICAL_SECTION        pthread_mutex_t
+	#if defined(_GNU_SOURCE)
+		#define INIT_CRITICAL(x)    \
+									{ \
+										pthread_mutexattr_t attr; \
+										pthread_mutexattr_init(&attr); \
+										pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_DEFAULT); \
+										pthread_mutex_init(x, &attr); \
+										pthread_mutexattr_destroy(&attr); \
+									}
+	#else
+		#define INIT_CRITICAL(x)    pthread_mutex_init(x, NULL)
+	#endif
+	#define DELETE_CRITICAL(x)      pthread_mutex_destroy(x)
+	#define DBG_ENTER_CRITICAL(x)   pthread_mutex_lock(x)
+	#define DBG_LEAVE_CRITICAL(x)   pthread_mutex_unlock(x)
+
+    /* Debugging Multi-threading operations. */
+	#if defined(LOG_LOCK_CHECK) && (LOG_LOCK_CHECK==TRUE)
+        #define ENTER_CRITICAL(x)   \
+                                        { \
+                                        printf("lock = 0x%" PRIXPTR " <%s: %s #%d>\n", (uintptr_t)x, __FILE__, __FUNCTION__, __LINE__); \
+                                        DBG_ENTER_CRITICAL(x); \
+                                        }
+        #define LEAVE_CRITICAL(x)   \
+                                        { \
+                                        printf("unlock = 0x%" PRIXPTR " <%s: %s #%d>\n", (uintptr_t)x, __FILE__, __FUNCTION__, __LINE__); \
+                                        DBG_LEAVE_CRITICAL(x); \
+                                        }
+    #else
+        #define ENTER_CRITICAL(x)       DBG_ENTER_CRITICAL(x)
+        #define LEAVE_CRITICAL(x)       DBG_LEAVE_CRITICAL(x)
+    #endif /* LOG_LOCK_CHECK */
+/** @} */
+
+
 extern bool g_b_exit;
 extern uint64_t g_receiveCount;
 extern uint64_t g_serverSendCount;
@@ -273,7 +324,6 @@ extern unsigned long long g_cycle_wait_loop_counter;
 extern TicksTime g_cycleStartTime;
 
 extern debug_level_t g_debug_level;
-extern int *g_pid_arr;
 
 #ifdef  USING_VMA_EXTRA_API
 extern unsigned char* g_dgram_buf;

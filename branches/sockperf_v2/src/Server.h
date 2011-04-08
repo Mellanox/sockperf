@@ -97,94 +97,11 @@ public:
 	/*inline*/ bool server_receive_then_send(int ifd);
 
 	//------------------------------------------------------------------------------
-	/*inline*/ int server_accept(int ifd);
+	int server_accept(int ifd);
 private:
 	SwitchActivityInfo m_switchActivityInfo;
 	SwitchCalcGaps m_switchCalcGaps;
 };
-
-
-#if defined(LOG_TRACE_CONNECT) && (LOG_TRACE_CONNECT==TRUE)
-	#define _DBG_FDS_NUM  10
-	static int _dbg_fds[_DBG_FDS_NUM];
-#endif /* LOG_TRACE_CONNECT */
-
-//------------------------------------------------------------------------------
-template <class IoType, class SwitchActivityInfo, class SwitchCalcGaps>
-inline int Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_accept(int ifd)
-{
-	bool do_accept = false;
-	int active_ifd = ifd;
-
-	if (g_fds_array[ifd]->sock_type == SOCK_STREAM && g_fds_array[ifd]->active_fd_list) {
-		struct sockaddr_in addr;
-		socklen_t addr_size = sizeof(addr);
-		fds_data *tmp;
-
-		tmp = (struct fds_data *)MALLOC(sizeof(struct fds_data));
-		if (!tmp) {
-			log_err("Failed to allocate memory with malloc()");
-			return INVALID_SOCKET;
-		}
-		memcpy(tmp, g_fds_array[ifd], sizeof(struct fds_data));
-		tmp->next_fd = ifd;
-		tmp->active_fd_list = NULL;
-		tmp->active_fd_count = 0;
-		tmp->recv.cur_addr = tmp->recv.buf;
-		tmp->recv.max_size = sizeof(tmp->recv.buf) - MAX_PAYLOAD_SIZE;
-		tmp->recv.cur_offset = 0;
-		tmp->recv.cur_size = tmp->recv.max_size;
-
-		active_ifd = accept(ifd, (struct sockaddr *)&addr, (socklen_t*)&addr_size);
-        if (active_ifd < 0)
-        {
-        	active_ifd = INVALID_SOCKET;
-            FREE(tmp);
-            log_dbg("Can`t accept connection\n");
-        }
-        else {
-    		/* Check if it is exceeded internal limitations
-    		 * MAX_FDS_NUM and MAX_ACTIVE_FD_NUM
-    		 */
-    		if ( (active_ifd < MAX_FDS_NUM) &&
-        	     (g_fds_array[ifd]->active_fd_count < (MAX_ACTIVE_FD_NUM - 1)) ) {
-            	if (prepare_socket(tmp, active_ifd) != INVALID_SOCKET) {
-        			int *active_fd_list = g_fds_array[ifd]->active_fd_list;
-        			int i = 0;
-
-        			for (i = 0; i < MAX_ACTIVE_FD_NUM; i++) {
-        				if (active_fd_list[i] == INVALID_SOCKET) {
-        					active_fd_list[i] = active_ifd;
-        					g_fds_array[ifd]->active_fd_count++;
-        					g_fds_array[active_ifd] = tmp;
-
-        					log_dbg ("peer address to accept: %s:%d [%d]", inet_ntoa(addr.sin_addr), ntohs(addr.sin_port), active_ifd);
-
-#if defined(LOG_TRACE_CONNECT) && (LOG_TRACE_CONNECT==TRUE)
-        					{
-        						printf("0[%d] :", active_ifd);
-        						for (int _k = 3; _k < _DBG_FDS_NUM; _k++) printf("%9d ", _dbg_fds[_k]);
-        						printf("\n");
-        					}
-#endif /* LOG_TRACE_CONNECT */
-           					do_accept = true;
-           					break;
-        				}
-        			}
-            	}
-        	}
-
-        	if (!do_accept) {
-        		close(active_ifd);
-        		active_ifd = INVALID_SOCKET;
-        		FREE(tmp);
-                log_dbg ("peer address to refuse: %s:%d [%d]", inet_ntoa(addr.sin_addr), ntohs(addr.sin_port), active_ifd);
-        	}
-        }
-	}
-
-	return active_ifd;
-}
 
 //------------------------------------------------------------------------------
 /*
@@ -204,10 +121,6 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_t
 			           g_fds_array[ifd]->recv.cur_size,
 			           &recvfrom_addr);
 
-#if defined(LOG_TRACE_CONNECT) && (LOG_TRACE_CONNECT==TRUE)
-	if (ifd < _DBG_FDS_NUM) _dbg_fds[ifd]++;
-#endif /* LOG_TRACE_CONNECT */
-
 	if (ret == 0) {
 		if (g_fds_array[ifd]->sock_type == SOCK_STREAM) {
 			int next_fd = g_fds_array[ifd]->next_fd;
@@ -215,22 +128,13 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_t
 
 			for (i = 0; i < MAX_ACTIVE_FD_NUM; i++) {
 				if (g_fds_array[next_fd]->active_fd_list[i] == ifd) {
-	 			log_dbg ("peer address to close: %s:%d [%d]", inet_ntoa(g_fds_array[ifd]->addr.sin_addr), ntohs(g_fds_array[ifd]->addr.sin_port), ifd);
+					log_dbg ("peer address to close: %s:%d [%d]", inet_ntoa(g_fds_array[ifd]->addr.sin_addr), ntohs(g_fds_array[ifd]->addr.sin_port), ifd);
 
 					close(ifd);
 					g_fds_array[next_fd]->active_fd_count--;
 					g_fds_array[next_fd]->active_fd_list[i] = INVALID_SOCKET;
 					FREE(g_fds_array[ifd]);
 					g_fds_array[ifd] = NULL;
-
-#if defined(LOG_TRACE_CONNECT) && (LOG_TRACE_CONNECT==TRUE)
-		            {
-		        		printf("X[%d] :", ifd);
-		            	for (int _k = 3; _k < _DBG_FDS_NUM; _k++) printf("%9d ", _dbg_fds[_k]);
-		        		if (ifd < _DBG_FDS_NUM) _dbg_fds[ifd] = 0;
-		            	printf("\n");
-		            }
-#endif /* LOG_TRACE_CONNECT */
 					break;
 				}
 			}
@@ -339,15 +243,6 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_t
 							g_fds_array[next_fd]->active_fd_list[i] = INVALID_SOCKET;
 							FREE(g_fds_array[ifd]);
 							g_fds_array[ifd] = NULL;
-
-#if defined(LOG_TRACE_CONNECT) && (LOG_TRACE_CONNECT==TRUE)
-				            {
-				        		printf("X[%d] :", ifd);
-				            	for (int _k = 3; _k < _DBG_FDS_NUM; _k++) printf("%9d ", _dbg_fds[_k]);
-				        		if (ifd < _DBG_FDS_NUM) _dbg_fds[ifd] = 0;
-				            	printf("\n");
-				            }
-#endif /* LOG_TRACE_CONNECT */
 							break;
 						}
 					}

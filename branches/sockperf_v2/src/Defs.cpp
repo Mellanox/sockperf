@@ -39,7 +39,6 @@ unsigned long long g_cycle_wait_loop_counter = 0;
 TicksTime g_cycleStartTime;
 
 debug_level_t g_debug_level = LOG_LVL_INFO;
-int *g_pid_arr = NULL;
 
 #ifdef  USING_VMA_EXTRA_API
 unsigned char* g_dgram_buf = NULL;
