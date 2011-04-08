@@ -30,6 +30,10 @@
 #include "IoHandlers.h"
 #include "Switches.h"
 
+static CRITICAL_SECTION	thread_exit_lock;
+static pthread_t *thread_pid_array = NULL;
+
+
 //==============================================================================
 
 //------------------------------------------------------------------------------
@@ -206,6 +210,75 @@ void Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::doLoop()
 }
 
 //------------------------------------------------------------------------------
+template <class IoType, class SwitchActivityInfo, class SwitchCalcGaps>
+int Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_accept(int ifd)
+{
+	bool do_accept = false;
+	int active_ifd = ifd;
+
+	if (g_fds_array[ifd]->sock_type == SOCK_STREAM && g_fds_array[ifd]->active_fd_list) {
+		struct sockaddr_in addr;
+		socklen_t addr_size = sizeof(addr);
+		fds_data *tmp;
+
+		tmp = (struct fds_data *)MALLOC(sizeof(struct fds_data));
+		if (!tmp) {
+			log_err("Failed to allocate memory with malloc()");
+			return INVALID_SOCKET;
+		}
+		memcpy(tmp, g_fds_array[ifd], sizeof(struct fds_data));
+		tmp->next_fd = ifd;
+		tmp->active_fd_list = NULL;
+		tmp->active_fd_count = 0;
+		tmp->recv.cur_addr = tmp->recv.buf;
+		tmp->recv.max_size = sizeof(tmp->recv.buf) - MAX_PAYLOAD_SIZE;
+		tmp->recv.cur_offset = 0;
+		tmp->recv.cur_size = tmp->recv.max_size;
+
+		active_ifd = accept(ifd, (struct sockaddr *)&addr, (socklen_t*)&addr_size);
+        if (active_ifd < 0)
+        {
+        	active_ifd = INVALID_SOCKET;
+            FREE(tmp);
+            log_dbg("Can`t accept connection\n");
+        }
+        else {
+    		/* Check if it is exceeded internal limitations
+    		 * MAX_FDS_NUM and MAX_ACTIVE_FD_NUM
+    		 */
+    		if ( (active_ifd < MAX_FDS_NUM) &&
+        	     (g_fds_array[ifd]->active_fd_count < (MAX_ACTIVE_FD_NUM - 1)) ) {
+            	if (prepare_socket(tmp, active_ifd) != INVALID_SOCKET) {
+        			int *active_fd_list = g_fds_array[ifd]->active_fd_list;
+        			int i = 0;
+
+        			for (i = 0; i < MAX_ACTIVE_FD_NUM; i++) {
+        				if (active_fd_list[i] == INVALID_SOCKET) {
+        					active_fd_list[i] = active_ifd;
+        					g_fds_array[ifd]->active_fd_count++;
+        					g_fds_array[active_ifd] = tmp;
+
+        					log_dbg ("peer address to accept: %s:%d [%d]", inet_ntoa(addr.sin_addr), ntohs(addr.sin_port), active_ifd);
+           					do_accept = true;
+           					break;
+        				}
+        			}
+            	}
+        	}
+
+        	if (!do_accept) {
+        		close(active_ifd);
+        		active_ifd = INVALID_SOCKET;
+        		FREE(tmp);
+                log_dbg ("peer address to refuse: %s:%d [%d]", inet_ntoa(addr.sin_addr), ntohs(addr.sin_port), active_ifd);
+        	}
+        }
+	}
+
+	return active_ifd;
+}
+
+//------------------------------------------------------------------------------
 template <class IoType, class SwitchActivityInfo, class SwitchCheckGaps>
 void server_handler(int _fd_min, int _fd_max, int _fd_num) {
 	Server<IoType, SwitchActivityInfo, SwitchCheckGaps> s(_fd_min, _fd_max, _fd_num);
@@ -275,6 +348,19 @@ void *server_handler_for_multi_threaded(void *arg)
 
 	server_handler(fd_min, fd_max, fd_num);
 
+	/* Mark this thread as complete (the first index is reserved for main thread) */
+	{
+		int i = 0;
+		for (i = 1; i < g_pApp->m_const_params.threads_num; i++) {
+			if (thread_pid_array[i] && (thread_pid_array[i] == pthread_self())) {
+				ENTER_CRITICAL(&thread_exit_lock);
+				thread_pid_array[i] = 0;
+				LEAVE_CRITICAL(&thread_exit_lock);
+				break;
+			}
+		}
+	}
+
 	return 0;
 }
 
@@ -307,6 +393,7 @@ void find_min_max_fds(int start_look_from, int len, int* p_fd_min, int* p_fd_max
 void server_sig_handler(int signum) {
 	if (g_b_exit) {
 		log_msg("Test end (interrupted by signal %d)", signum);
+		log_dbg("thread %d - exiting", gettid());
 		return;
 	}
 
@@ -316,7 +403,7 @@ void server_sig_handler(int signum) {
 		printf("\n");
 
 	if (g_pApp->m_const_params.mthread_server) {
-		if (gettid() == g_pid_arr[0]) {  //main thread
+		if ((pthread_t)gettid() == thread_pid_array[0]) {  //main thread
 			if (g_debug_level >= LOG_LVL_DEBUG) {
 				log_dbg("Main thread %d got signal %d - exiting",gettid(),signum);
 			}
@@ -367,8 +454,23 @@ void server_select_per_thread() {
 		log_err("Failed to allocate memory for sub_fds_arr_info");
 		rc = SOCKPERF_ERR_NO_MEMORY;
 	}
-	else {
-		g_pid_arr[0] = gettid();
+
+	if (rc == SOCKPERF_ERR_NONE) {
+		thread_pid_array = (pthread_t*)MALLOC(sizeof(pthread_t)*(g_pApp->m_const_params.threads_num + 1));
+		if(!thread_pid_array) {
+			log_err("Failed to allocate memory for pid array");
+			rc = SOCKPERF_ERR_NO_MEMORY;
+		}
+		else {
+			memset(thread_pid_array, 0, sizeof(pthread_t)*(g_pApp->m_const_params.threads_num + 1));
+			log_msg("Running %d threads to manage %d sockets", g_pApp->m_const_params.threads_num, g_sockets_num);
+		}
+	}
+
+	if (rc == SOCKPERF_ERR_NONE) {
+		INIT_CRITICAL(&thread_exit_lock);
+
+		thread_pid_array[0] = (pthread_t)gettid();
 		devide_fds_arr_between_threads(&num_of_remainded_fds, &fd_num);
 
 		for (i = 0; i < g_pApp->m_const_params.threads_num; i++) {
@@ -391,7 +493,7 @@ void server_select_per_thread() {
 				rc = SOCKPERF_ERR_FATAL;
 				break;
 			}
-			g_pid_arr[i + 1] = tid;
+			thread_pid_array[i + 1] = tid;
 			last_fds = cur_thread_fds_arr_info->fd_max + 1;
 		}
 
@@ -400,18 +502,34 @@ void server_select_per_thread() {
 			sleep(1);
 		}
 
-		/* Stop all launched threads */
+		/* Stop all launched threads (the first index is reserved for main thread) */
 		for (i = 1; i <= g_pApp->m_const_params.threads_num; i++) {
-			if (g_pid_arr[i] && (pthread_kill(g_pid_arr[i], 0) == 0)) {
-				pthread_kill(g_pid_arr[i], SIGINT);
-				pthread_join(g_pid_arr[i], 0);
+			pthread_t cur_thread_pid = 0;
+
+			ENTER_CRITICAL(&thread_exit_lock);
+			cur_thread_pid = thread_pid_array[i];
+			if (cur_thread_pid && (pthread_kill(cur_thread_pid, 0) == 0)) {
+				pthread_kill(cur_thread_pid, SIGINT);
+			}
+			LEAVE_CRITICAL(&thread_exit_lock);
+			if (cur_thread_pid) {
+				pthread_join(cur_thread_pid,0);
 			}
 		}
 
-		/* Free thread info allocated data */
-		if (thread_fds_arr_info) {
-			FREE(thread_fds_arr_info);
-		}
+		DELETE_CRITICAL(&thread_exit_lock);
+	}
+
+	/* Free thread info allocated data */
+	if (thread_fds_arr_info) {
+		FREE(thread_fds_arr_info);
+		thread_fds_arr_info = NULL;
+	}
+
+	/* Free thread TID array */
+	if (thread_pid_array) {
+		FREE(thread_pid_array);
+		thread_pid_array = NULL;
 	}
 
 	log_msg("%s() exit", __func__);

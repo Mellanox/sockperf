@@ -1219,16 +1219,6 @@ static int proc_mode_server( int id, int argc, const char **argv )
 					}
 					else {
 						s_user_params.threads_num = threads_num;
-
-						g_pid_arr = (int*)MALLOC(sizeof(int)*(s_user_params.threads_num + 1));
-						if(!g_pid_arr) {
-							log_err("Failed to allocate memory for pid array");
-							rc = SOCKPERF_ERR_NO_MEMORY;
-						}
-						else {
-							memset(g_pid_arr, 0, sizeof(int)*(s_user_params.threads_num + 1));
-							log_msg("Running %d threads to manage %d sockets",s_user_params.threads_num,g_sockets_num);
-						}
 					}
 				}
 				else {
@@ -1733,10 +1723,6 @@ void cleanup()
 		g_dgram_buf = NULL;
 	}
 #endif
-
-	if (g_pid_arr) {
-		FREE(g_pid_arr);
-	}
 
 	if (g_pPacketTimes) {
 		delete g_pPacketTimes;
