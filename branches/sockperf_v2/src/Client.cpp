@@ -123,15 +123,12 @@ void client_statistics(int serverNo, Message *pMsgRequest)
 	}
 
 	// ignore 1st & last 20/10 msec of test
+	TicksTime testStart = s_startTime;
+	TicksTime testEnd   = s_endTime;
 
-	TicksTime time1 = g_pPacketTimes->getTxTime(replyEvery);// first pong request packet
-	TicksTime timeN = g_pPacketTimes->getTxTime(sendCount); // will be "truncated" to last pong request packet
-	TicksTime testStart = time1 + TicksDuration::TICKS1MSEC * TEST_START_WARMUP_MSEC;
-	TicksTime testEnd   = timeN - TicksDuration::TICKS1MSEC * TEST_END_COOLDOWN_MSEC;
-
-	if (g_pApp->m_const_params.pPlaybackVector) { // no warmup in playback mode
-		testStart = time1;
-		testEnd   = timeN;
+	if (!g_pApp->m_const_params.pPlaybackVector) { // no warmup in playback mode
+		testStart += TicksDuration::TICKS1MSEC * TEST_START_WARMUP_MSEC;
+		testEnd   -= TicksDuration::TICKS1MSEC * TEST_END_COOLDOWN_MSEC;
 	}
 
 	TicksDuration *pLat = new TicksDuration[SIZE];
@@ -142,12 +139,10 @@ void client_statistics(int serverNo, Message *pMsgRequest)
 	size_t counter = 0;
 	size_t lcounter = 0;
 	TicksTime prevRxTime;
-	for (size_t i = 1; i < SIZE; i++) {
+	for (size_t i = 1; i <= SIZE; i++) {
 		uint64_t seqNo    = i * replyEvery;
 		const TicksTime & txTime   = g_pPacketTimes->getTxTime(seqNo);
 		const TicksTime & rxTime   = g_pPacketTimes->getRxTimeArray(seqNo)[SERVER_NO];
-
-		//log_msg_file2(f, "[%3lu] txTime=%10.3lf, rxTime=%10.3lf, rtt=%8.3lf", i, txTime.toDecimalUsec(), rxTime.toDecimalUsec(), (rxTime-txTime).toDecimalUsec() );
 
 		if (txTime < testStart || txTime > testEnd) {
 			continue;
@@ -271,8 +266,8 @@ void client_sig_handler(int signum)
 		log_msg("Test end (interrupted by signal %d)", signum);
 		return;
 	}
+	s_endTime.setNowNonInline();
 	g_b_exit = true;
-	s_endTime.setNow();
 
 	// Just in case not Activity updates where logged add a '\n'
 	if (g_pApp->m_const_params.packetrate_stats_print_ratio && !g_pApp->m_const_params.packetrate_stats_print_details)
@@ -468,6 +463,9 @@ int Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration,
 					}
 					else {
 						rc = set_affinity(m_receiverTid, g_pApp->m_const_params.receiver_affinity);
+
+						/* wait for receiver thread to start (since we don't use warmup) */
+						usleep(100*1000);
 					}
 				}
 
@@ -538,8 +536,6 @@ template <class IoType, class SwitchDataIntegrity, class SwitchActivityInfo, cla
 void Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration, SwitchMsgSize , PongModeCare>
 ::doPlayback()
 {
-	usleep(100*1000);//wait for receiver thread to start (since we don't use warmup) //TODO: configure!
-	s_startTime.setNowNonInline();//reduce code size by calling non inline func from slow path
 	const PlaybackVector &pv = * g_pApp->m_const_params.pPlaybackVector;
 
 	size_t i = 0;
