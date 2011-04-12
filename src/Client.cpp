@@ -122,9 +122,21 @@ void client_statistics(int serverNo, Message *pMsgRequest)
 		return;
 	}
 
-	// ignore 1st & last 20/10 msec of test
-	TicksTime testStart = s_startTime;
-	TicksTime testEnd   = s_endTime;
+	/*
+	 * There are few reasons to ignore warmup/cooldown packets:
+	 *
+	 * 1. At the head of the test the load is not real, since only few packets were sent so far.
+	 * 2. At the tail of the test the load is not real since the sender stopped sending; hence,
+	 *    the receiver accept packets without load
+	 * 3. The sender thread starts sending packets and generating load, before the receiver
+	 *    thread has started, and before its code was cached to memory/cpu.
+	 * 4. There are some packets that were sent close to s_end time; the legitimate replies to
+	 *    them will arrive after s_end time and may be lost.  Hence, your fix may cause us to
+	 *    report on those packets as dropped packets.
+	 */
+
+	TicksTime testStart = g_pPacketTimes->getTxTime(replyEvery);// first pong request packet
+	TicksTime testEnd   = g_pPacketTimes->getTxTime(sendCount); // will be "truncated" to last pong request packet
 
 	if (!g_pApp->m_const_params.pPlaybackVector) { // no warmup in playback mode
 		testStart += TicksDuration::TICKS1MSEC * TEST_START_WARMUP_MSEC;
@@ -139,7 +151,7 @@ void client_statistics(int serverNo, Message *pMsgRequest)
 	size_t counter = 0;
 	size_t lcounter = 0;
 	TicksTime prevRxTime;
-	for (size_t i = 1; i <= SIZE; i++) {
+	for (size_t i = 1; i < SIZE; i++) {
 		uint64_t seqNo    = i * replyEvery;
 		const TicksTime & txTime   = g_pPacketTimes->getTxTime(seqNo);
 		const TicksTime & rxTime   = g_pPacketTimes->getRxTimeArray(seqNo)[SERVER_NO];
@@ -463,9 +475,6 @@ int Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration,
 					}
 					else {
 						rc = set_affinity(m_receiverTid, g_pApp->m_const_params.receiver_affinity);
-
-						/* wait for receiver thread to start (since we don't use warmup) */
-						usleep(100*1000);
 					}
 				}
 
@@ -536,6 +545,8 @@ template <class IoType, class SwitchDataIntegrity, class SwitchActivityInfo, cla
 void Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration, SwitchMsgSize , PongModeCare>
 ::doPlayback()
 {
+	usleep(100*1000);//wait for receiver thread to start (since we don't use warmup) //TODO: configure!
+	s_startTime.setNowNonInline();//reduce code size by calling non inline func from slow path
 	const PlaybackVector &pv = * g_pApp->m_const_params.pPlaybackVector;
 
 	size_t i = 0;
