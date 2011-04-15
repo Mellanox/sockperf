@@ -43,8 +43,11 @@ typedef std::vector<std::string>  StringVector;
 void readFile(StringVector &sv, const char *filename)
 {
 	std::string line;
-	std::ifstream infile (filename, std::ios_base::in); //TODO: error in case file is missing
-	if (infile.fail()) {printf("can't open file: %s\n", filename); exit(SOCKPERF_ERR_NOT_EXIST);}
+	std::ifstream infile (filename, std::ios_base::in);
+	if (infile.fail()) {
+		log_msg("Can't open file: %s\n", filename);
+		exit(SOCKPERF_ERR_NOT_EXIST);
+	}
 	int i = 0;
 
 	while (infile.good() && getline(infile, line))
@@ -52,8 +55,10 @@ void readFile(StringVector &sv, const char *filename)
 		sv.push_back (line);
 		i++;
 	}
-	if (!infile.eof()) {printf("file: %s, error in line: #%d\n", filename, i+1); exit(1);}
-
+	if (!infile.eof()) {
+		log_msg("file: %s, error in line: #%d\n", filename, i+1);
+		exit(SOCKPERF_ERR_INCORRECT);
+	}
 
 }
 

@@ -109,7 +109,7 @@ const uint32_t TEST_END_COOLDOWN_MSEC = 50;
 #define MAX_ARGV_SIZE				256
 #define MAX_DURATION 				36000000
 #define MAX_FDS_NUM 				1024
-#define UDP_BUFF_DEFAULT_SIZE 		0
+#define SOCK_BUFF_DEFAULT_SIZE 		0
 #define DEFAULT_SELECT_TIMEOUT_MSEC	10
 #define DEFAULT_DEBUG_LEVEL			0
 #define INVALID_SOCKET 				(-1)
@@ -120,7 +120,7 @@ enum {
 	OPT_SELECT_TIMEOUT,		// 3
 	OPT_MULTI_THREADED_SERVER, 	// 4
 	OPT_CLIENT_CYCLE_DURATION,	// 5
-	OPT_UDP_BUFFER_SIZE,		// 6
+	OPT_BUFFER_SIZE,		// 6
 	OPT_DATA_INTEGRITY, 		// 7
 	OPT_DAEMONIZE,			// 8
 	OPT_NONBLOCKED,			// 9
@@ -463,7 +463,7 @@ struct user_params_t {
 //	bool stream_mode; - use b_stream instead
 	int mthread_server;
 	struct timeval* select_timeout;
-	int udp_buff_size;
+	int sock_buff_size;
 	int threads_num;
 	bool is_blocked;
 	bool do_warmup;
