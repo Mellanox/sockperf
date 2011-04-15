@@ -151,6 +151,10 @@ void client_statistics(int serverNo, Message *pMsgRequest)
 	size_t counter = 0;
 	size_t lcounter = 0;
 	TicksTime prevRxTime;
+	TicksTime startValidTime;
+	TicksTime endValidTime;
+	uint64_t startValidSeqNo = 0;
+	uint64_t endValidSeqNo = 0;
 	for (size_t i = 1; i < SIZE; i++) {
 		uint64_t seqNo    = i * replyEvery;
 		const TicksTime & txTime   = g_pPacketTimes->getTxTime(seqNo);
@@ -159,6 +163,13 @@ void client_statistics(int serverNo, Message *pMsgRequest)
 		if (txTime < testStart || txTime > testEnd) {
 			continue;
 		}
+
+		if (startValidSeqNo == 0) {
+			startValidSeqNo = seqNo;
+			startValidTime = txTime;
+		}
+		endValidSeqNo = seqNo;
+		endValidTime = rxTime;
 
 		pFullLog[lcounter][0] = txTime;
 		pFullLog[lcounter][1] = rxTime;
@@ -188,13 +199,17 @@ void client_statistics(int serverNo, Message *pMsgRequest)
 	}
 
 	TicksDuration totalRunTime = s_endTime - s_startTime;
-	log_msg_file2(f, "[including warmup] RunTime=%.3lf sec; SentMessages=%" PRIu64 "; ReceivedMessages=%" PRIu64 ""
-			, totalRunTime.toDecimalUsec()/1000000, sendCount, receiveCount);
+	log_msg_file2(f, "[Total Run] RunTime=%.3lf sec; SentMessages=%" PRIu64 "; ReceivedMessages=%" PRIu64 "",
+			totalRunTime.toDecimalUsec()/1000000, sendCount, receiveCount);
 
 	if (!counter) {
 		log_msg_file2(f, "No valid observations found.  Try increasing test duration and/or --pps/--reply-every parameters");
 	}
 	else {
+		TicksDuration validRunTime = endValidTime - startValidTime;
+		log_msg_file2(f, "[Valid Duration] RunTime=%.3lf sec; SentMessages=%" PRIu64 "; ReceivedMessages=%" PRIu64 "",
+				validRunTime.toDecimalUsec()/1000000, (endValidSeqNo - startValidSeqNo + 1), (uint64_t)counter);
+
 		TicksDuration avgRtt = counter ? sumRtt / counter : TicksDuration::TICKS0 ;
 		TicksDuration avgLatency = avgRtt / 2;
 

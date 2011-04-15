@@ -196,11 +196,11 @@ static const AOPT_DESC  common_opt_desc[] =
 	},
 	{
 		OPT_IP_MULTICAST_TTL, AOPT_ARG, aopt_set_literal( 0 ), aopt_set_string( "mc-ttl" ),
-             "Limit the lifetime of the packet  (default 2)."
+             "Limit the lifetime of the packet (default 2)."
 	},
 	{
-		OPT_UDP_BUFFER_SIZE, AOPT_ARG, aopt_set_literal( 0 ), aopt_set_string( "udp-buffer-size" ),
-             "Set udp buffer size to <size> bytes."
+		OPT_BUFFER_SIZE, AOPT_ARG, aopt_set_literal( 0 ), aopt_set_string( "buffer-size" ),
+             "Set total socket receive/send buffer <size> in bytes (system defined by default)."
 	},
 	{
 		OPT_VMAZCOPYREAD, AOPT_NOARG, aopt_set_literal( 0 ), aopt_set_string( "vmazcopyread" ),
@@ -228,7 +228,7 @@ static const AOPT_DESC  common_opt_desc[] =
 	},
 	{
 		OPT_SOCK_ACCL, AOPT_NOARG,	aopt_set_literal( 0 ),	aopt_set_string( "set-sock-accl" ),
-             "set socket accleration before run (available for some of Mellanox systems)"
+             "Set socket accleration before run (available for some of Mellanox systems)"
 	},
 	{
 		OPT_LOAD_VMA, AOPT_OPTARG,	aopt_set_literal( 0 ),	aopt_set_string( "load-vma" ),
@@ -1142,11 +1142,11 @@ static int proc_mode_server( int id, int argc, const char **argv )
 	 */
 	static const AOPT_DESC  server_opt_desc[] =
 	{
-		{
+/*		{
 			'B', AOPT_NOARG,	aopt_set_literal( 'B' ),	aopt_set_string( "Bridge" ),
 	             "Run in Bridge mode."
 		},
-		{
+*/		{
 			OPT_MULTI_THREADED_SERVER, AOPT_ARG, aopt_set_literal( 0 ), aopt_set_string( "threads-num" ),
 	             "Run <N> threads on server side (requires '-f' option)."
 		},
@@ -1188,7 +1188,6 @@ static int proc_mode_server( int id, int argc, const char **argv )
 	/* Set default values */
 	s_user_params.mode = MODE_SERVER;
 	s_user_params.pps = PPS_DEFAULT;
-	/* set message size by default; it can be redefined by option --msg_size or -m */
 	s_user_params.msg_size = MAX_PAYLOAD_SIZE;
 
 	/* Set command line common options */
@@ -1463,21 +1462,21 @@ static int parse_common_opt( const AOPT_OBJECT *common_obj )
 			s_user_params.mc_loop_disable = false;
 		}
 
-		if ( !rc && aopt_check(common_obj, OPT_UDP_BUFFER_SIZE) ) {
-			const char* optarg = aopt_value(common_obj, OPT_UDP_BUFFER_SIZE);
+		if ( !rc && aopt_check(common_obj, OPT_BUFFER_SIZE) ) {
+			const char* optarg = aopt_value(common_obj, OPT_BUFFER_SIZE);
 			if (optarg) {
 				errno = 0;
-				int udp_buff_size = strtol(optarg, NULL, 0);
-				if (errno != 0 || udp_buff_size <= 0) {
-					log_msg("'-%c' Invalid udp buffer size: %s", OPT_UDP_BUFFER_SIZE, optarg);
+				int sock_buff_size = strtol(optarg, NULL, 0);
+				if (errno != 0 || sock_buff_size <= 0) {
+					log_msg("'-%c' Invalid socket buffer size: %s", OPT_BUFFER_SIZE, optarg);
 					rc = SOCKPERF_ERR_BAD_ARGUMENT;
 				}
 				else {
-					s_user_params.udp_buff_size = udp_buff_size;
+					s_user_params.sock_buff_size = sock_buff_size;
 				}
 			}
 			else {
-				log_msg("'-%d' Invalid value", OPT_UDP_BUFFER_SIZE);
+				log_msg("'-%d' Invalid value", OPT_BUFFER_SIZE);
 				rc = SOCKPERF_ERR_BAD_ARGUMENT;
 			}
 		}
@@ -1531,8 +1530,8 @@ static int parse_common_opt( const AOPT_OBJECT *common_obj )
 			if (!optarg || !*optarg) optarg = (char*)"libvma.so"; //default value
 			bool success = vma_set_func_pointers(optarg);
 			if (!success) {
-				log_err("Invalid --load-vma value: %s: failed to set function pointers using the given libvma.so path:", optarg);
-				log_err("dlerror() says: %s:", dlerror());
+				log_msg("Invalid --load-vma value: %s: failed to set function pointers using the given libvma.so path:", optarg);
+				log_msg("dlerror() says: %s:", dlerror());
 				rc = SOCKPERF_ERR_BAD_ARGUMENT;
 			}
 		}
@@ -1607,7 +1606,7 @@ static int parse_client_opt( const AOPT_OBJECT *client_obj )
 				errno = 0;
 				long long temp = strtol(optarg, NULL, 0);
 				if (errno != 0  || temp < 0) {
-					log_err("Invalid %d val: %s", OPT_SENDER_AFFINITY, optarg);
+					log_msg("Invalid %d val: %s", OPT_SENDER_AFFINITY, optarg);
 					rc = SOCKPERF_ERR_BAD_ARGUMENT;
 				}
 				else {
@@ -1626,7 +1625,7 @@ static int parse_client_opt( const AOPT_OBJECT *client_obj )
 				errno = 0;
 				long long temp = strtol(optarg, NULL, 0);
 				if (errno != 0  || temp < 0) {
-					log_err("Invalid %d val: %s", OPT_RECEIVER_AFFINITY, optarg);
+					log_msg("Invalid %d val: %s", OPT_RECEIVER_AFFINITY, optarg);
 					rc = SOCKPERF_ERR_BAD_ARGUMENT;
 				}
 				else {
@@ -1645,7 +1644,7 @@ static int parse_client_opt( const AOPT_OBJECT *client_obj )
 				errno = 0;
 				s_user_params.fileFullLog = fopen(optarg, "w");
 				if (errno  || !s_user_params.fileFullLog) {
-					log_err("Invalid %d val. Can't open file %s for writing: %m", OPT_FULL_LOG, optarg);
+					log_msg("Invalid %d val. Can't open file %s for writing: %m", OPT_FULL_LOG, optarg);
 					rc = SOCKPERF_ERR_BAD_ARGUMENT;
 				}
 			}
@@ -1773,8 +1772,8 @@ void set_defaults()
 {
 	bool success = vma_set_func_pointers(false);
 	if (!success) {
-		log_err("failed to set function pointers for system functions");
-		exit (1);
+		log_msg("failed to set function pointers for system functions");
+		exit (SOCKPERF_ERR_FATAL);
 	}
 
 	memset(&s_user_params, 0, sizeof(struct user_params_t));
@@ -1791,7 +1790,7 @@ void set_defaults()
 	s_user_params.mthread_server = 0;
 	s_user_params.msg_size = MIN_PAYLOAD_SIZE;
 	s_user_params.msg_size_range = 0;
-	s_user_params.udp_buff_size = UDP_BUFF_DEFAULT_SIZE;
+	s_user_params.sock_buff_size = SOCK_BUFF_DEFAULT_SIZE;
 	set_select_timeout(DEFAULT_SELECT_TIMEOUT_MSEC);
 	s_user_params.threads_num = 1;
 	s_user_params.is_blocked = true;
@@ -1916,9 +1915,6 @@ int prepare_socket(struct fds_data *p_data, int fd)
 #endif
 {
 	int rc = SOCKPERF_ERR_NONE;
-	int rcv_buff_size = 0;
-	int snd_buff_size = 0;
-	int size = sizeof(int);
 	int flags, ret;
 	struct sockaddr_in* p_addr = NULL;
 
@@ -1974,9 +1970,18 @@ int prepare_socket(struct fds_data *p_data, int fd)
 	}
 
 	if (!rc &&
-			(s_user_params.udp_buff_size > 0)) {
-		/* enlarge socket's buffer depth */
-		if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &(s_user_params.udp_buff_size), sizeof(s_user_params.udp_buff_size)) < 0) {
+			(s_user_params.sock_buff_size > 0)) {
+		int size = sizeof(int);
+		int rcv_buff_size = 0;
+		int snd_buff_size = 0;
+
+		/*
+		 * Sets or gets the maximum socket receive buffer in bytes. The kernel
+		 * doubles this value (to allow space for bookkeeping overhead) when it
+		 * is set using setsockopt(), and this doubled value is returned by
+		 * getsockopt().
+		 */
+		if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &(s_user_params.sock_buff_size), sizeof(s_user_params.sock_buff_size)) < 0) {
 			log_err("setsockopt(SO_RCVBUF) failed");
 			rc = SOCKPERF_ERR_SOCKET;
 		}
@@ -1985,8 +1990,14 @@ int prepare_socket(struct fds_data *p_data, int fd)
 			log_err("getsockopt(SO_RCVBUF) failed");
 			rc = SOCKPERF_ERR_SOCKET;
 		}
+		/*
+		 * Sets or gets the maximum socket send buffer in bytes. The kernel
+		 * doubles this value (to allow space for bookkeeping overhead) when it
+		 * is set using setsockopt(), and this doubled value is returned by
+		 * getsockopt().
+		 */
 		if (!rc &&
-				(setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &(s_user_params.udp_buff_size), sizeof(s_user_params.udp_buff_size)) < 0)) {
+				(setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &(s_user_params.sock_buff_size), sizeof(s_user_params.sock_buff_size)) < 0)) {
 			log_err("setsockopt(SO_SNDBUF) failed");
 			rc = SOCKPERF_ERR_SOCKET;
 		}
@@ -1996,10 +2007,10 @@ int prepare_socket(struct fds_data *p_data, int fd)
 			rc = SOCKPERF_ERR_SOCKET;
 		}
 		if (!rc) {
-			log_msg("UDP buffers sizes of fd %d: RX: %d Byte, TX: %d Byte", fd, rcv_buff_size, snd_buff_size);
-			if (rcv_buff_size < s_user_params.udp_buff_size*2 ||
-				snd_buff_size < s_user_params.udp_buff_size*2  ) {
-				log_msg("WARNING: Failed setting receive or send udp socket buffer size to %d bytes (check 'sysctl net.core.rmem_max' value)", s_user_params.udp_buff_size);
+			log_msg("Socket buffers sizes of fd %d: RX: %d Byte, TX: %d Byte", fd, rcv_buff_size, snd_buff_size);
+			if (rcv_buff_size < s_user_params.sock_buff_size*2 ||
+				snd_buff_size < s_user_params.sock_buff_size*2  ) {
+				log_msg("WARNING: Failed setting receive or send socket buffer size to %d bytes (check 'sysctl net.core.rmem_max' value)", s_user_params.sock_buff_size);
 			}
 		}
 	}
@@ -2099,7 +2110,7 @@ static int set_mcgroups_fromfile(const char *mcg_filename)
 	regex_t regexpr;
 
 	if ((file_fd = fopen(mcg_filename, "r")) == NULL) {
-		printf("No such file: %s \n", mcg_filename);
+		log_msg("Can't open file: %s\n", mcg_filename);
 		return SOCKPERF_ERR_NOT_EXIST;
 	}
 
@@ -2123,7 +2134,7 @@ static int set_mcgroups_fromfile(const char *mcg_filename)
 
 		regexpres = regcomp(&regexpr, IP_PORT_FORMAT_REG_EXP, REG_EXTENDED|REG_NOSUB);
 		if (regexpres) {
-			log_err("Failed to compile regexp");
+			log_msg("Failed to compile regexp");
 			rc = SOCKPERF_ERR_FATAL;
 			break;
 		}
@@ -2402,7 +2413,7 @@ int bringup(const int *p_daemonize)
 
 		if ( !rc &&
 				(s_user_params.threads_num > g_sockets_num  || s_user_params.threads_num == 0)) {
-			log_err("Number of threads should be less than sockets count");
+			log_msg("Number of threads should be less than sockets count");
 			rc = SOCKPERF_ERR_BAD_ARGUMENT;
 		}
 	}
@@ -2561,7 +2572,7 @@ burst_size = %d \n\t\
 packetrate_stats_print_details = %d \n\t\
 fd_handler_type = %d \n\t\
 mthread_server = %d \n\t\
-udp_buff_size = %d \n\t\
+sock_buff_size = %d \n\t\
 threads_num = %d \n\t\
 is_blocked = %d \n\t\
 do_warmup = %d \n\t\
@@ -2594,7 +2605,7 @@ s_user_params.burst_size,
 s_user_params.packetrate_stats_print_details,
 s_user_params.fd_handler_type,
 s_user_params.mthread_server,
-s_user_params.udp_buff_size,
+s_user_params.sock_buff_size,
 s_user_params.threads_num,
 s_user_params.is_blocked,
 s_user_params.do_warmup,
