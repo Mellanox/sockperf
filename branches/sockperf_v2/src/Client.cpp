@@ -453,9 +453,38 @@ int Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration,
 				memcpy(&bind_addr, &(g_fds_array[ifd]->addr), sizeof(struct sockaddr_in));
 				log_dbg ("connecting to: %s:%d [%d]...", inet_ntoa(bind_addr.sin_addr), ntohs(bind_addr.sin_port), ifd);
 				if (connect(ifd, (struct sockaddr*)&bind_addr, sizeof(struct sockaddr)) < 0) {
-					log_err("Can`t connect socket");
-					rc = SOCKPERF_ERR_SOCKET;
-					break;
+					if(errno == EINPROGRESS) {
+						fd_set rfds, wfds;
+						struct timeval tv;
+						tv.tv_sec = 0; tv.tv_usec = 500;
+
+						FD_ZERO(&rfds);
+						FD_ZERO(&wfds);
+
+						int max_fd = -1;
+
+						FD_SET(ifd, &wfds);
+						FD_SET(ifd, &rfds);
+						if(ifd > max_fd) max_fd = ifd;
+
+						select(max_fd + 1, &rfds, &wfds, NULL, &tv);
+						if(FD_ISSET(ifd, &wfds) || FD_ISSET(ifd, &rfds)) {
+							socklen_t err_len;
+							int error;
+
+							err_len = sizeof(error);
+							if(getsockopt(ifd, SOL_SOCKET, SO_ERROR, &error, &err_len) < 0 || error != 0) {
+								log_err("Can`t connect socket");
+								rc = SOCKPERF_ERR_SOCKET;
+								break;
+						    }
+						}
+					}
+					else {
+						log_err("Can`t connect socket");
+						rc = SOCKPERF_ERR_SOCKET;
+						break;
+					}
 				}
 			}
 		}
