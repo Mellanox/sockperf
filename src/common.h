@@ -40,6 +40,7 @@ void printf_backtrace(void);
 pid_t gettid(void);
 void exit_with_log(int status);
 
+int set_affinity_list(pthread_t tid, const char * cpu_list);
 int set_affinity(pthread_t tid, int cpu);
 void hexdump(void *ptr, int buflen);
 

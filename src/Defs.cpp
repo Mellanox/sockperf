@@ -30,10 +30,9 @@
 #include "Message.h"
 #include "PacketTimes.h"
 
-//global variables
+/* Global variables */
 bool g_b_exit = false;
 uint64_t g_receiveCount = 0; // TODO: should be one per server
-uint64_t g_serverSendCount = 0;
 
 unsigned long long g_cycle_wait_loop_counter = 0;
 TicksTime g_cycleStartTime;
@@ -45,17 +44,11 @@ unsigned char* g_dgram_buf = NULL;
 struct vma_datagram_t *g_dgram = NULL;
 #endif
 
-int g_vma_dgram_desc_size = 0;
 
 uint32_t PPS_MAX = PPS_MAX_UL;     // will be overwrite at runtime in case of ping-pong test
 PacketTimes* g_pPacketTimes = NULL;
 
-unsigned int g_data_integrity_failed = 0;
-unsigned int g_duplicate_packets_counter = 0;
-int g_sockets_num = 0;
-
 TicksTime g_lastTicks;
-unsigned long long g_last_packet_counter = 0;
 
 const char* g_fds_handle_desc[FD_HANDLE_MAX] =
 {

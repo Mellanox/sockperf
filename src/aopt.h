@@ -179,7 +179,7 @@ const char* aopt_value( const AOPT_OBJECT *aopt_obj, int key );
  * aopt_help
  *
  * @brief
- *    This function form help informaion  basing options description and
+ *    This function form help information  basing options description and
  *    return string with one. The string should be freed using the free() 
  *    function when you are done with it. NULL is returned if the it would 
  *    produce an empty string or if the string cannot be allocated.
