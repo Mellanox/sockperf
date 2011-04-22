@@ -510,7 +510,7 @@ int Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration,
 
 			if (g_b_exit) return rc;
 
-			rc = set_affinity(pthread_self(), g_pApp->m_const_params.sender_affinity);
+			rc = set_affinity_list(pthread_self(), g_pApp->m_const_params.sender_affinity);
 			if (rc == SOCKPERF_ERR_NONE) {
 				if (!g_pApp->m_const_params.b_client_ping_pong && !g_pApp->m_const_params.b_stream) { // latency_under_load
 					if (0 != pthread_create(&m_receiverTid, 0, ::client_receiver_thread, this)){
@@ -518,7 +518,7 @@ int Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration,
 						rc = SOCKPERF_ERR_FATAL;
 					}
 					else {
-						rc = set_affinity(m_receiverTid, g_pApp->m_const_params.receiver_affinity);
+						rc = set_affinity_list(m_receiverTid, g_pApp->m_const_params.receiver_affinity);
 					}
 				}
 
@@ -692,33 +692,35 @@ void client_handler(int _fd_min, int _fd_max, int _fd_num) {
 }
 
 //------------------------------------------------------------------------------
-void client_handler(int _fd_min, int _fd_max, int _fd_num) {
-
-	switch (g_pApp->m_const_params.fd_handler_type) {
-		case SELECT:
-		{
-			client_handler<IoSelect> (_fd_min, _fd_max, _fd_num);
-			break;
-		}
-		case RECVFROM:
-		{
-			client_handler<IoRecvfrom> (_fd_min, _fd_max, _fd_num);
-			break;
-		}
-		case POLL:
-		{
-			client_handler<IoPoll> (_fd_min, _fd_max, _fd_num);
-			break;
-		}
-		case EPOLL:
-		{
-			client_handler<IoEpoll> (_fd_min, _fd_max, _fd_num);
-			break;
-		}
-		default:
-		{
-			ERROR("unknown file handler");
-			break;
+void client_handler(handler_info *p_info)
+{
+	if (p_info) {
+		switch (g_pApp->m_const_params.fd_handler_type) {
+			case SELECT:
+			{
+				client_handler<IoSelect> (p_info->fd_min, p_info->fd_max, p_info->fd_num);
+				break;
+			}
+			case RECVFROM:
+			{
+				client_handler<IoRecvfrom> (p_info->fd_min, p_info->fd_max, p_info->fd_num);
+				break;
+			}
+			case POLL:
+			{
+				client_handler<IoPoll> (p_info->fd_min, p_info->fd_max, p_info->fd_num);
+				break;
+			}
+			case EPOLL:
+			{
+				client_handler<IoEpoll> (p_info->fd_min, p_info->fd_max, p_info->fd_num);
+				break;
+			}
+			default:
+			{
+				ERROR("unknown file handler");
+				break;
+			}
 		}
 	}
 }

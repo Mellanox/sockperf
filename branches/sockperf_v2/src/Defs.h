@@ -118,7 +118,7 @@ enum {
 	OPT_RX_MC_IF 			 = 1,
 	OPT_TX_MC_IF,			// 2
 	OPT_SELECT_TIMEOUT,		// 3
-	OPT_MULTI_THREADED_SERVER, 	// 4
+	OPT_THREADS_NUM, 	// 4
 	OPT_CLIENT_CYCLE_DURATION,	// 5
 	OPT_BUFFER_SIZE,		// 6
 	OPT_DATA_INTEGRITY, 		// 7
@@ -143,6 +143,7 @@ enum {
 	OPT_TCP_NODELAY_OFF,		//28
 	OPT_IP_MULTICAST_TTL,			//29
 	OPT_SOCK_ACCL,				//30
+	OPT_THREADS_AFFINITY,				//31
 };
 
 #define MODULE_NAME			"sockperf"
@@ -315,10 +316,9 @@ typedef enum
     #endif /* LOG_LOCK_CHECK */
 /** @} */
 
-
+/* Global variables */
 extern bool g_b_exit;
 extern uint64_t g_receiveCount;
-extern uint64_t g_serverSendCount;
 
 extern unsigned long long g_cycle_wait_loop_counter;
 extern TicksTime g_cycleStartTime;
@@ -330,19 +330,12 @@ extern unsigned char* g_dgram_buf;
 extern struct vma_datagram_t *g_dgram;
 #endif
 
-extern int g_vma_dgram_desc_size;
 class Message;
 
 class PacketTimes;
 extern PacketTimes* g_pPacketTimes;
 
-extern unsigned int g_data_integrity_failed;
-extern unsigned int g_duplicate_packets_counter;
-
-extern int g_sockets_num;
-
 extern TicksTime g_lastTicks;
-extern unsigned long long g_last_packet_counter;
 
 
 typedef struct spike{
@@ -375,14 +368,15 @@ typedef struct fds_data {
 
 
 /**
- * @struct sub_fds_arr_info
- * @brief Interval of fds related the thread
+ * @struct handler_info
+ * @brief Handler configuration data
  */
-typedef struct sub_fds_arr_info {
+typedef struct handler_info {
+	int id;						/**< handler ID */
 	int fd_min;					/**< minimum descriptor (fd) */
 	int fd_max;					/**< maximum socket descriptor (fd) */
 	int fd_num;					/**< number of socket descriptors */
-}sub_fds_arr_info;
+}handler_info;
 
 typedef struct clt_session_info {
 	uint64_t seq_num;
@@ -465,6 +459,7 @@ struct user_params_t {
 	struct timeval* select_timeout;
 	int sock_buff_size;
 	int threads_num;
+	char threads_affinity[MAX_ARGV_SIZE];
 	bool is_blocked;
 	bool do_warmup;
 	unsigned int pre_warmup_wait;
@@ -479,9 +474,8 @@ struct user_params_t {
 	uint32_t reply_every; //client side only
 	bool b_client_ping_pong; //client side only
 	bool b_no_rdtsc;
-	int sender_affinity;
-	int receiver_affinity; // client side only
-	//bool b_load_vma;
+	char sender_affinity[MAX_ARGV_SIZE];
+	char receiver_affinity[MAX_ARGV_SIZE];
 	FILE* fileFullLog; //client side only
 	bool b_stream; //client side only
 	PlaybackVector *pPlaybackVector; //client side only

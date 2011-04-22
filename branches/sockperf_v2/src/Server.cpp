@@ -60,7 +60,7 @@ int ServerBase::initBeforeLoop()
 {
 	int rc = SOCKPERF_ERR_NONE;
 
-	rc = set_affinity(pthread_self(), g_pApp->m_const_params.receiver_affinity);
+	rc = set_affinity_list(pthread_self(), g_pApp->m_const_params.threads_affinity);
 
 	if (g_b_exit) return rc;
 
@@ -305,58 +305,54 @@ void server_handler(int _fd_min, int _fd_max, int _fd_num) {
 
 
 //------------------------------------------------------------------------------
-void server_handler(int _fd_min, int _fd_max, int _fd_num) {
-	switch (g_pApp->m_const_params.fd_handler_type) {
-	case RECVFROM:
-	{
-		server_handler<IoRecvfrom>(_fd_min, _fd_max, _fd_num);
-		break;
+void server_handler(handler_info *p_info)
+{
+	if (p_info) {
+		switch (g_pApp->m_const_params.fd_handler_type) {
+		case RECVFROM:
+		{
+			server_handler<IoRecvfrom>(p_info->fd_min, p_info->fd_max, p_info->fd_num);
+			break;
+		}
+		case SELECT:
+		{
+			server_handler<IoSelect>(p_info->fd_min, p_info->fd_max, p_info->fd_num);
+			break;
+		}
+		case POLL:
+		{
+			server_handler<IoPoll>(p_info->fd_min, p_info->fd_max, p_info->fd_num);
+			break;
+		}
+		case EPOLL:
+		{
+			server_handler<IoEpoll>(p_info->fd_min, p_info->fd_max, p_info->fd_num);
+			break;
+		}
+		default:
+			ERROR("unknown file handler");
+		}
 	}
-	case SELECT:
-	{
-		server_handler<IoSelect>(_fd_min, _fd_max, _fd_num);
-		break;
-	}
-	case POLL:
-	{
-		server_handler<IoPoll>(_fd_min, _fd_max, _fd_num);
-		break;
-	}
-	case EPOLL:
-	{
-		server_handler<IoEpoll>(_fd_min, _fd_max, _fd_num);
-		break;
-	}
-	default:
-		ERROR("unknown file handler");
-	}
-
 }
 
 
 //------------------------------------------------------------------------------
 void *server_handler_for_multi_threaded(void *arg)
 {
-	int fd_min;
-	int fd_max;
-	int fd_num;
-	sub_fds_arr_info *p_sub_fds_arr_info = (sub_fds_arr_info*)arg;
+	handler_info *p_info = (handler_info *)arg;
 
-	fd_min = p_sub_fds_arr_info->fd_min;
-	fd_max = p_sub_fds_arr_info->fd_max;
-	fd_num = p_sub_fds_arr_info->fd_num;
+	if (p_info) {
+		server_handler(p_info);
 
-	server_handler(fd_min, fd_max, fd_num);
-
-	/* Mark this thread as complete (the first index is reserved for main thread) */
-	{
-		int i = 0;
-		for (i = 1; i < g_pApp->m_const_params.threads_num; i++) {
-			if (thread_pid_array[i] && (thread_pid_array[i] == pthread_self())) {
-				ENTER_CRITICAL(&thread_exit_lock);
-				thread_pid_array[i] = 0;
-				LEAVE_CRITICAL(&thread_exit_lock);
-				break;
+		/* Mark this thread as complete (the first index is reserved for main thread) */
+		{
+			int i = p_info->id + 1;
+			if (p_info->id < g_pApp->m_const_params.threads_num) {
+				if (thread_pid_array[i] && (thread_pid_array[i] == pthread_self())) {
+					ENTER_CRITICAL(&thread_exit_lock);
+					thread_pid_array[i] = 0;
+					LEAVE_CRITICAL(&thread_exit_lock);
+				}
 			}
 		}
 	}
@@ -364,13 +360,6 @@ void *server_handler_for_multi_threaded(void *arg)
 	return 0;
 }
 
-// some helper functions ---> may need to move to common
-//------------------------------------------------------------------------------
-void devide_fds_arr_between_threads(int *p_num_of_remainded_fds, int *p_fds_arr_len) {
-
-	*p_num_of_remainded_fds = g_sockets_num%g_pApp->m_const_params.threads_num;
-	*p_fds_arr_len = g_sockets_num/g_pApp->m_const_params.threads_num;
-}
 
 //------------------------------------------------------------------------------
 void find_min_max_fds(int start_look_from, int len, int* p_fd_min, int* p_fd_max) {
@@ -439,19 +428,19 @@ void server_sig_handler(int signum) {
 
 
 //------------------------------------------------------------------------------
-void server_select_per_thread() {
+void server_select_per_thread(int _fd_num) {
 	int rc = SOCKPERF_ERR_NONE;
 	int i;
 	pthread_t tid;
 	int fd_num;
 	int num_of_remainded_fds;
 	int last_fds = 0;
-	sub_fds_arr_info *thread_fds_arr_info = NULL;
+	handler_info *handler_info_array = NULL;
 
-	thread_fds_arr_info = (sub_fds_arr_info*)MALLOC(sizeof(sub_fds_arr_info) * g_pApp->m_const_params.threads_num);
-	memset(thread_fds_arr_info, 0, sizeof(thread_fds_arr_info) * g_pApp->m_const_params.threads_num);
-	if (!thread_fds_arr_info) {
-		log_err("Failed to allocate memory for sub_fds_arr_info");
+	handler_info_array = (handler_info*)MALLOC(sizeof(handler_info) * g_pApp->m_const_params.threads_num);
+	memset(handler_info_array, 0, sizeof(handler_info) * g_pApp->m_const_params.threads_num);
+	if (!handler_info_array) {
+		log_err("Failed to allocate memory for handler_info_arr");
 		rc = SOCKPERF_ERR_NO_MEMORY;
 	}
 
@@ -463,7 +452,7 @@ void server_select_per_thread() {
 		}
 		else {
 			memset(thread_pid_array, 0, sizeof(pthread_t)*(g_pApp->m_const_params.threads_num + 1));
-			log_msg("Running %d threads to manage %d sockets", g_pApp->m_const_params.threads_num, g_sockets_num);
+			log_msg("Running %d threads to manage %d sockets", g_pApp->m_const_params.threads_num, _fd_num);
 		}
 	}
 
@@ -471,18 +460,30 @@ void server_select_per_thread() {
 		INIT_CRITICAL(&thread_exit_lock);
 
 		thread_pid_array[0] = (pthread_t)gettid();
-		devide_fds_arr_between_threads(&num_of_remainded_fds, &fd_num);
+
+		/* Divide fds_arr between threads */
+		num_of_remainded_fds = _fd_num % g_pApp->m_const_params.threads_num;
+		fd_num = _fd_num / g_pApp->m_const_params.threads_num;
 
 		for (i = 0; i < g_pApp->m_const_params.threads_num; i++) {
-			sub_fds_arr_info *cur_thread_fds_arr_info = (thread_fds_arr_info + i);
+			handler_info *cur_handler_info = (handler_info_array + i);
 
-			cur_thread_fds_arr_info->fd_num = fd_num;
+			/* Set ID of handler (thread) */
+			cur_handler_info->id = i;
+
+			/* Set number of processed sockets */
+			cur_handler_info->fd_num = fd_num;
 			if (num_of_remainded_fds) {
-				cur_thread_fds_arr_info->fd_num++;
+				cur_handler_info->fd_num++;
 				num_of_remainded_fds--;
 			}
-			find_min_max_fds(last_fds, cur_thread_fds_arr_info->fd_num, &(cur_thread_fds_arr_info->fd_min), &(cur_thread_fds_arr_info->fd_max));
-			int ret = pthread_create(&tid, 0, server_handler_for_multi_threaded, (void *)cur_thread_fds_arr_info);
+
+			/* Set min/max possible socket to be processed */
+			find_min_max_fds(last_fds, cur_handler_info->fd_num, &(cur_handler_info->fd_min), &(cur_handler_info->fd_max));
+
+			/* Launch handler */
+			int ret = pthread_create(&tid, 0, server_handler_for_multi_threaded, (void *)cur_handler_info);
+
 			/*
 			 * There is undocumented behaviour for early versions of libc (for example libc 2.5, 2.6, 2.7)
 			 * as pthread_create() call returns error code 12 ENOMEM and return value 0
@@ -494,7 +495,7 @@ void server_select_per_thread() {
 				break;
 			}
 			thread_pid_array[i + 1] = tid;
-			last_fds = cur_thread_fds_arr_info->fd_max + 1;
+			last_fds = cur_handler_info->fd_max + 1;
 		}
 
 		/* Wait for ^C */
@@ -521,9 +522,9 @@ void server_select_per_thread() {
 	}
 
 	/* Free thread info allocated data */
-	if (thread_fds_arr_info) {
-		FREE(thread_fds_arr_info);
-		thread_fds_arr_info = NULL;
+	if (handler_info_array) {
+		FREE(handler_info_array);
+		handler_info_array = NULL;
 	}
 
 	/* Free thread TID array */

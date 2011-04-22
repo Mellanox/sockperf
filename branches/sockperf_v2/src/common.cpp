@@ -80,6 +80,92 @@ void exit_with_log(int status)
 }
 
 //------------------------------------------------------------------------------
+int set_affinity_list(pthread_t tid, const char * cpu_list)
+{
+	int rc = SOCKPERF_ERR_NONE;
+
+	if (cpu_list && cpu_list[0]) {
+        long cpu_from = -1;
+        long cpu_cur = 0;
+    	char * buf = strdup(cpu_list);
+    	char * cur_buf = buf;
+    	char * cur_ptr = buf;
+    	char * end_ptr = NULL;
+    	cpu_set_t cpuset;
+
+		CPU_ZERO(&cpuset);
+
+		/* Parse cpu list */
+		while (cur_buf) {
+			if (*cur_ptr == '\0') {
+				cpu_cur = strtol(cur_buf, &end_ptr, 0);
+				if ( (errno != 0) || (cur_buf == end_ptr) ) {
+					log_err("Invalid argument: %s", cpu_list);
+					rc = SOCKPERF_ERR_BAD_ARGUMENT;
+					break;
+				}
+				cur_buf = NULL;
+			}
+			else if (*cur_ptr == ',') {
+				*cur_ptr = '\0';
+				cpu_cur = strtol(cur_buf, &end_ptr, 0);
+				if ( (errno != 0) || (cur_buf == end_ptr) ) {
+					log_err("Invalid argument: %s", cpu_list);
+					rc = SOCKPERF_ERR_BAD_ARGUMENT;
+					break;
+				}
+				cur_buf = cur_ptr + 1;
+				cur_ptr++;
+			}
+			else if (*cur_ptr == '-') {
+				*cur_ptr = '\0';
+				cpu_from = strtol(cur_buf, &end_ptr, 0);
+				if ( (errno != 0) || (cur_buf == end_ptr) ) {
+					log_err("Invalid argument: %s", cpu_list);
+					rc = SOCKPERF_ERR_BAD_ARGUMENT;
+					break;
+				}
+				cur_buf = cur_ptr + 1;
+				cur_ptr++;
+				continue;
+			}
+			else {
+				cur_ptr++;
+				continue;
+			}
+
+			if ((cpu_from <= cpu_cur) && (cpu_cur < CPU_SETSIZE)) {
+				if (cpu_from == -1) cpu_from = cpu_cur;
+
+				while ((cpu_from <= cpu_cur)) {
+					CPU_SET(cpu_from, &cpuset);
+					cpu_from++;
+				}
+				cpu_from = -1;
+			}
+			else {
+				log_err("Invalid argument: %s", cpu_list);
+				rc = SOCKPERF_ERR_BAD_ARGUMENT;
+				break;
+			}
+		}
+
+		if ( (rc == SOCKPERF_ERR_NONE) &&
+			 (0 != pthread_setaffinity_np(tid, sizeof(cpu_set_t), &cpuset)) )
+		{
+			log_err("pthread_setaffinity_np failed to set tid(%lu) to cpu(%s)", tid, cpu_list);
+			rc = SOCKPERF_ERR_FATAL;
+		}
+
+		if (buf) {
+			free(buf);
+		}
+	}
+
+	return rc;
+}
+
+//------------------------------------------------------------------------------
 int set_affinity(pthread_t tid, int cpu)
 {
 	int rc = SOCKPERF_ERR_NONE;
