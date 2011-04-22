@@ -127,6 +127,7 @@ enum {
 	OPT_FULL_LOG,                //24
 	OPT_PLAYBACK_DATA,                  //26
 	OPT_SOCK_ACCL,				//27
+	OPT_THREADS_AFFINITY,				//31
 };
 
 #define MODULE_NAME			"sockperf"
@@ -291,6 +292,7 @@ struct user_params_t {
 	struct timeval* select_timeout;
 	int udp_buff_size;
 	int threads_num;
+	char threads_affinity[MAX_ARGV_SIZE];
 	bool is_blocked;
 	bool do_warmup;
 	unsigned int pre_warmup_wait;
@@ -305,9 +307,8 @@ struct user_params_t {
 	uint32_t reply_every; //client side only
 	bool b_client_ping_pong; //client side only
 	bool b_no_rdtsc;
-	int sender_affinity;
-	int receiver_affinity; // client side only
-	//bool b_load_vma;
+	char sender_affinity[MAX_ARGV_SIZE];
+	char receiver_affinity[MAX_ARGV_SIZE];
 	FILE* fileFullLog; //client side only
 	bool b_stream; //client side only
 	PlaybackVector *pPlaybackVector; //client side only
