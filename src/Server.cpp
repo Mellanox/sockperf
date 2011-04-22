@@ -36,7 +36,7 @@
 void ServerBase::initBeforeLoop()
 {
 
-	set_affinity(pthread_self(), g_pApp->m_const_params.receiver_affinity);
+	set_affinity_list(pthread_self(), g_pApp->m_const_params.threads_affinity);
 
 	char to_array[20];
 	log_dbg("thread %d: fd_min: %d, fd_max : %d, fd_num: %d"

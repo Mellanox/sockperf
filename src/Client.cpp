@@ -388,14 +388,14 @@ void Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration
 	g_pMessage->getHeader()->setPongRequest(false);
 //*/
 
-	set_affinity(pthread_self(), g_pApp->m_const_params.sender_affinity);
+	set_affinity_list(pthread_self(), g_pApp->m_const_params.sender_affinity);
 
 	if (!g_pApp->m_const_params.b_client_ping_pong && !g_pApp->m_const_params.b_stream) { // latency_under_load
 		if (0 != pthread_create(&m_receiverTid, 0, ::client_receiver_thread, this)){
 			log_err("pthread_create has failed");
 			exit_with_log(7);
 		}
-		set_affinity(m_receiverTid, g_pApp->m_const_params.receiver_affinity);
+		set_affinity_list(m_receiverTid, g_pApp->m_const_params.receiver_affinity);
 	}
 
 	log_msg("Starting test...");

@@ -746,6 +746,10 @@ static int proc_mode_server( int id, int argc, const char **argv )
 	             "Run <N> threads on server side (requires '-f' option)."
 		},
 		{
+			OPT_THREADS_AFFINITY, AOPT_ARG,	aopt_set_literal( 0 ),	aopt_set_string( "cpu-affinity" ),
+	             "Set threads affinity to the given core ids in list format (see: cat /proc/cpuinfo)."
+		},
+		{
 			OPT_VMARXFILTERCB, AOPT_NOARG,	aopt_set_literal( 0 ),	aopt_set_string( "vmarxfiltercb" ),
 	             "If possible use VMA's receive path packet filter callback API (See VMA's readme)."
 		},
@@ -824,6 +828,17 @@ static int proc_mode_server( int id, int argc, const char **argv )
 			}
 			else {
 				log_msg("--threads-num must be used with feed file (option '-f')");
+				rc = 1;
+			}
+		}
+
+		if ( !rc && aopt_check(server_obj, OPT_THREADS_AFFINITY) ) {
+			const char* optarg = aopt_value(server_obj, OPT_THREADS_AFFINITY);
+			if (optarg) {
+				strcpy(s_user_params.threads_affinity, optarg);
+			}
+			else {
+				log_msg("'-%d' Invalid threads affinity", OPT_THREADS_AFFINITY);
 				rc = 1;
 			}
 		}
@@ -1233,21 +1248,14 @@ static int parse_client_opt( const AOPT_OBJECT *client_obj )
 			}
 		}
 
+
 		if ( !rc && aopt_check(client_obj, OPT_SENDER_AFFINITY) ) {
 			const char* optarg = aopt_value(client_obj, OPT_SENDER_AFFINITY);
 			if (optarg) {
-				errno = 0;
-				long long temp = strtol(optarg, NULL, 0);
-				if (errno != 0  || temp < 0) {
-					log_err("Invalid %d val: %s", OPT_SENDER_AFFINITY, optarg);
-					rc = 1;
-				}
-				else {
-					s_user_params.sender_affinity = (int)temp;
-				}
+				strcpy(s_user_params.sender_affinity, optarg);
 			}
 			else {
-				log_msg("'-%d' Invalid value", OPT_SENDER_AFFINITY);
+				log_msg("'-%d' Invalid sender affinity", OPT_SENDER_AFFINITY);
 				rc = 1;
 			}
 		}
@@ -1255,18 +1263,10 @@ static int parse_client_opt( const AOPT_OBJECT *client_obj )
 		if ( !rc && aopt_check(client_obj, OPT_RECEIVER_AFFINITY) ) {
 			const char* optarg = aopt_value(client_obj, OPT_RECEIVER_AFFINITY);
 			if (optarg) {
-				errno = 0;
-				long long temp = strtol(optarg, NULL, 0);
-				if (errno != 0  || temp < 0) {
-					log_err("Invalid %d val: %s", OPT_RECEIVER_AFFINITY, optarg);
-					rc = 1;
-				}
-				else {
-					s_user_params.receiver_affinity = (int)temp;
-				}
+				strcpy(s_user_params.receiver_affinity, optarg);
 			}
 			else {
-				log_msg("'-%d' Invalid value", OPT_RECEIVER_AFFINITY);
+				log_msg("'-%d' Invalid receiver affinity", OPT_RECEIVER_AFFINITY);
 				rc = 1;
 			}
 		}
@@ -1444,6 +1444,7 @@ void set_defaults()
 	s_user_params.udp_buff_size = UDP_BUFF_DEFAULT_SIZE;
 	set_select_timeout(DEFAULT_SELECT_TIMEOUT_MSEC);
 	s_user_params.threads_num = 1;
+	memset(s_user_params.threads_affinity, 0, sizeof(s_user_params.threads_affinity));
 	s_user_params.is_blocked = true;
 	s_user_params.do_warmup = true;
 	s_user_params.pre_warmup_wait = 0;
@@ -1459,8 +1460,8 @@ void set_defaults()
 	s_user_params.reply_every = REPLY_EVERY_DEFAULT;
 	s_user_params.b_client_ping_pong = false;
 	s_user_params.b_no_rdtsc = false;
-	s_user_params.sender_affinity = -1;
-	s_user_params.receiver_affinity = -1;
+	memset(s_user_params.sender_affinity, 0, sizeof(s_user_params.sender_affinity));
+	memset(s_user_params.receiver_affinity, 0, sizeof(s_user_params.receiver_affinity));
 	//s_user_params.b_load_vma = false;
 	s_user_params.fileFullLog = NULL;
 	s_user_params.b_stream = false;
@@ -2020,6 +2021,7 @@ fd_handler_type = %d \n\t\
 mthread_server = %d \n\t\
 udp_buff_size = %d \n\t\
 threads_num = %d \n\t\
+threads_affinity = %s \n\t\
 is_blocked = %d \n\t\
 do_warmup = %d \n\t\
 pre_warmup_wait = %d \n\t\
@@ -2033,8 +2035,8 @@ pps = %d \n\t\
 reply_every = %d \n\t\
 b_client_ping_pong = %d \n\t\
 b_no_rdtsc = %d \n\t\
-sender_affinity = %d \n\t\
-receiver_affinity = %d \n\t\
+sender_affinity = %s \n\t\
+receiver_affinity = %s \n\t\
 b_stream = %d \n\t\
 daemonize = %d \n\t\
 mcg_filename = %s \n",
@@ -2050,6 +2052,7 @@ s_user_params.fd_handler_type,
 s_user_params.mthread_server,
 s_user_params.udp_buff_size,
 s_user_params.threads_num,
+s_user_params.threads_affinity,
 s_user_params.is_blocked,
 s_user_params.do_warmup,
 s_user_params.pre_warmup_wait,
@@ -2063,8 +2066,8 @@ s_user_params.pps,
 s_user_params.reply_every,
 s_user_params.b_client_ping_pong,
 s_user_params.b_no_rdtsc,
-s_user_params.sender_affinity,
-s_user_params.receiver_affinity,
+(strlen(s_user_params.sender_affinity) ? s_user_params.sender_affinity : "<empty>"),
+(strlen(s_user_params.receiver_affinity) ? s_user_params.receiver_affinity : "<empty>"),
 s_user_params.b_stream,
 s_user_params.daemonize,
 (strlen(s_user_params.mcg_filename) ? s_user_params.mcg_filename : "<empty>"));
