@@ -82,11 +82,20 @@ VMA_IOMUX_SELECT_SKIP_OS=$DEFAULT_VMA_SELECT_SKIP_OS		#500
 VMA_IOMUX_HUGETLB=$DEFAULT_VMA_HUGETLB				#1
 MAX_SOCKPERF_MSG_SIZE=65000
 ACTIVITY=100000
-RX_ADAPTIVE=off
-RX_FRAMES_4_SOCKPERF=1
-RX_FRAMES_4_IPERF=16
-RX_USEC_4_LAT_TEST=0
-RX_USEC_4_BW_TEST=10
+
+RX_ADAPTIVE_ETH_THROUGHPUT=on
+RX_FRAMES_ETH_THROUGHPUT=88
+RX_USEC_ETH_THROUGHPUT=16
+RX_ADAPTIVE_IB_THROUGHPUT=on
+RX_FRAMES_IB_THROUGHPUT=16
+RX_USEC_IB_THROUGHPUT=10
+RX_ADAPTIVE_ETH_LATENCY=off
+RX_FRAMES_ETH_LATENCY=1
+RX_USEC_ETH_LATENCY=0
+RX_ADAPTIVE_IB_LATENCY=off
+RX_FRAMES_IB_LATENCY=1
+RX_USEC_IB_LATENCY=0
+
 UMCAST_VAL=1
 DST_NET="224.0.0.0"
 DST_MASK="240.0.0.0"
@@ -978,7 +987,13 @@ function update_coalesce_4_sockperf
 	remote_coalesce_params_changed=$FALSE
 	echo "" >> "$TMP_DIR/$log_file.prep"
 	echo "============>Prepare coalesce params for sockperf<=============" >> "$TMP_DIR/$log_file.prep"
-	update_coalesce_params $RX_FRAMES_4_SOCKPERF $RX_USEC_4_LAT_TEST $RX_ADAPTIVE	
+
+	check_if_infbnd_iface
+        if [[ $is_infiniband -eq $TRUE ]]; then
+            update_coalesce_params $RX_FRAMES_IB_LATENCY $RX_USEC_IB_LATENCY $RX_ADAPTIVE_IB_LATENCY
+        else
+            update_coalesce_params $RX_FRAMES_ETH_LATENCY $RX_USEC_ETH_LATENCY $RX_ADAPTIVE_ETH_LATENCY
+        fi
 }
 
 function update_coalesce_4_tr_test
@@ -987,7 +1002,13 @@ function update_coalesce_4_tr_test
 	remote_coalesce_params_changed=$FALSE
 	echo "" >> "$TMP_DIR/$log_file.prep"
 	echo "========>Prepare coalesce params for throughput test<=========" >> "$TMP_DIR/$log_file.prep"
-	update_coalesce_params $RX_FRAMES_4_IPERF $RX_USEC_4_BW_TEST $RX_ADAPTIVE
+
+	check_if_infbnd_iface
+        if [[ $is_infiniband -eq $TRUE ]]; then
+            update_coalesce_params $RX_FRAMES_IB_THROUGHPUT $RX_USEC_IB_THROUGHPUT $RX_ADAPTIVE_IB_THROUGHPUT
+        else
+            update_coalesce_params $RX_FRAMES_ETH_THROUGHPUT $RX_USEC_ETH_THROUGHPUT $RX_ADAPTIVE_ETH_THROUGHPUT
+        fi
 }
 
 function update_coalesce_params
