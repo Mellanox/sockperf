@@ -141,9 +141,10 @@ enum {
 	OPT_PLAYBACK_DATA,                  //26
 	OPT_TCP,					//27
 	OPT_TCP_NODELAY_OFF,		//28
-	OPT_IP_MULTICAST_TTL,			//29
-	OPT_SOCK_ACCL,				//30
-	OPT_THREADS_AFFINITY,				//31
+	OPT_NONBLOCKED_SEND,		//29
+	OPT_IP_MULTICAST_TTL,			//30
+	OPT_SOCK_ACCL,				//31
+	OPT_THREADS_AFFINITY,				//32
 };
 
 #define MODULE_NAME			"sockperf"
@@ -187,22 +188,26 @@ typedef enum {
 #endif
 
 
+#define RET_SOCKET_SKIPPED		(-2)   	/**< socket operation is skipped */
+#define RET_SOCKET_SHUTDOWN		0		/**< socket is shutdown */
+
+
 /**
  * @enum SOCKPERF_ERROR
  * @brief List of supported error codes.
  */
 typedef enum
 {
-	SOCKPERF_ERR_NONE  =  0x0,  /**< the function completed */
-	SOCKPERF_ERR_BAD_ARGUMENT,  /**< incorrect parameter */
-	SOCKPERF_ERR_INCORRECT,     /**< incorrect format of object */
-	SOCKPERF_ERR_UNSUPPORTED,   /**< this function is not supported */
-	SOCKPERF_ERR_NOT_EXIST,     /**< requested object does not exist */
-	SOCKPERF_ERR_NO_MEMORY,     /**< dynamic memory error */
-	SOCKPERF_ERR_FATAL,         /**< system fatal error */
-	SOCKPERF_ERR_SOCKET,        /**< socket operation error */
-	SOCKPERF_ERR_TIMEOUT,       /**< the time limit expires */
-	SOCKPERF_ERR_UNKNOWN        /**< general error */
+	SOCKPERF_ERR_NONE  =  0x0,  	/**< the function completed */
+	SOCKPERF_ERR_BAD_ARGUMENT,  	/**< incorrect parameter */
+	SOCKPERF_ERR_INCORRECT,     	/**< incorrect format of object */
+	SOCKPERF_ERR_UNSUPPORTED,   	/**< this function is not supported */
+	SOCKPERF_ERR_NOT_EXIST,     	/**< requested object does not exist */
+	SOCKPERF_ERR_NO_MEMORY,     	/**< dynamic memory error */
+	SOCKPERF_ERR_FATAL,         	/**< system fatal error */
+	SOCKPERF_ERR_SOCKET,        	/**< socket operation error */
+	SOCKPERF_ERR_TIMEOUT,       	/**< the time limit expires */
+	SOCKPERF_ERR_UNKNOWN        	/**< general error */
 } SOCKPERF_ERROR;
 
 
@@ -319,6 +324,7 @@ typedef enum
 /* Global variables */
 extern bool g_b_exit;
 extern uint64_t g_receiveCount;
+extern uint64_t g_skipCount;
 
 extern unsigned long long g_cycle_wait_loop_counter;
 extern TicksTime g_cycleStartTime;
@@ -400,7 +406,16 @@ namespace std
 				//XOR "a.b" part of "a.b.c.d" address with 16bit port; leave "c.d" part untouched for maximum hashing
 				return key.sin_addr.s_addr ^ key.sin_port;
 			}
-		    };
+		};
+
+		template<>
+		struct hash<struct in_addr> : public std::unary_function<struct in_addr, int>
+		    {
+			int operator()(struct in_addr const &key) const
+			{
+				return key.s_addr & 0xFF;
+			}
+		};
 	}
 
 	template<>
@@ -411,11 +426,19 @@ namespace std
 			return key1.sin_port == key2.sin_port && key1.sin_addr.s_addr == key2.sin_addr.s_addr;
 		}
 	};
+
+	template<>
+	struct equal_to<struct in_addr>: public std::binary_function<struct in_addr, struct in_addr, bool>
+	{
+		bool operator()(struct in_addr const &key1, struct in_addr const &key2) const
+		{
+			return key1.s_addr == key2.s_addr;
+		}
+	};
 }
 
 typedef std::tr1::unordered_map<struct sockaddr_in, clt_session_info_t> seq_num_map;
-
-extern seq_num_map g_seq_num_map;
+typedef std::tr1::unordered_map<struct in_addr, int> addr_to_id;
 
 extern fds_data* g_fds_array[MAX_FDS_NUM];
 
@@ -440,7 +463,6 @@ typedef enum {
 	FD_HANDLE_MAX
 } fd_block_handler_t;
 
-extern const char* g_fds_handle_desc[FD_HANDLE_MAX];
 
 struct user_params_t {
 	work_mode_t mode; // either  client or server
@@ -482,6 +504,7 @@ struct user_params_t {
 	struct sockaddr_in addr;
 	int sock_type;
 	bool tcp_nodelay;
+	bool is_nonblocked_send;
 	int mc_ttl;
 	int daemonize;
 	char mcg_filename[MAX_PATH_LENGTH];

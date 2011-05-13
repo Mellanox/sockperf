@@ -133,6 +133,7 @@ public:
 		m_header->m_sequence_number = _sequence;
 	}
 	void incSequenceCounter() {m_header->m_sequence_number++;}
+	void decSequenceCounter() {m_header->m_sequence_number--;}
 
 	uint16_t isWarmupMessage() const {return m_header->isWarmupMessage();}
 	void setWarmupMessage()   {m_header->setWarmupMessage();}

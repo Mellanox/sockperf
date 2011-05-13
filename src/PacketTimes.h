@@ -40,17 +40,30 @@ public:
 	~PacketTimes();
 
 	bool verifyError(uint64_t _seqNo);
-	bool verify(uint64_t _seqNo) {return (_seqNo <= m_maxSequenceNo) ? true : verifyError(_seqNo);}
 
-	inline uint64_t seq2index (uint64_t _seqNo) {return verify(_seqNo) ?_seqNo / m_replyEvery * m_blockSize : 0;}//index 0 is not used for real packets
+	uint64_t seq2index (uint64_t _seqNo) {
+		return ((_seqNo <= m_maxSequenceNo) ?
+					_seqNo / m_replyEvery * m_blockSize :
+					verifyError(_seqNo));
+	}//index 0 is not used for real packets
 
-	const TicksTime & getTxTime  (uint64_t _seqNo) {return  m_pTimes[seq2index(_seqNo)];}
-	const TicksTime * getRxTimeArray(uint64_t _seqNo) {return &m_pInternalUse[seq2index(_seqNo)];}
+	const TicksTime & getTxTime  (uint64_t _seqNo) {
+		return  m_pTimes[seq2index(_seqNo)];
+	}
+	const TicksTime * getRxTimeArray(uint64_t _seqNo) {
+		return &m_pInternalUse[seq2index(_seqNo)];
+	}
 
-	void setTxTime(uint64_t _seqNo){ m_pTimes[seq2index(_seqNo)].setNow();
+	void clearTxTime(uint64_t _seqNo) {
+		m_pTimes[seq2index(_seqNo)] = TicksTime::TICKS0;
+	}
+	void setTxTime(uint64_t _seqNo){
+		m_pTimes[seq2index(_seqNo)].setNow();
 		//log_msg(">>> %lu: tx=%.3lf", _seqNo, (double)m_pTimes[seq2index(_seqNo)].debugToNsec()/1000/1000 );//TODO: remove
 	}
-	void setRxTime(uint64_t _seqNo, uint64_t _serverNo = 0) {setRxTime(_seqNo, TicksTime().setNow(), _serverNo);}
+	void setRxTime(uint64_t _seqNo, uint64_t _serverNo = 0) {
+		setRxTime(_seqNo, TicksTime().setNow(), _serverNo);
+	}
 	void setRxTime(uint64_t _seqNo, const TicksTime &_time, uint64_t _serverNo = 0) {
 		TicksTime *rxTimes = &m_pInternalUse[seq2index(_seqNo)];
 		if (rxTimes[_serverNo] == TicksTime::TICKS0)
@@ -59,7 +72,7 @@ public:
 			++g_receiveCount;
 			//log_msg("<<< %lu: rx=%.3lf", _seqNo, (double)_time.debugToNsec()/1000/1000 );//TODO: remove
 		}
-		else if (!g_b_exit && verify(_seqNo))
+		else if (!g_b_exit)
 		{
 			incDupCount(_serverNo); /*log_err("dup-packket at _seqNo=%lu", _seqNo);*/
 		}

@@ -43,6 +43,7 @@ void exit_with_log(int status);
 int set_affinity_list(pthread_t tid, const char * cpu_list);
 int set_affinity(pthread_t tid, int cpu);
 void hexdump(void *ptr, int buflen);
+const char* handler2str( fd_block_handler_t type );
 
 //inline functions
 //------------------------------------------------------------------------------
@@ -112,7 +113,7 @@ static inline int msg_recvfrom(int fd, uint8_t* buf, int nbytes, struct sockaddr
 		/* If no messages are available to be received and the peer has performed an orderly shutdown,
 		 * recv()/recvfrom() shall return 0
 		 * */
-		ret = 0;
+		ret = RET_SOCKET_SHUTDOWN;
 		errno = 0;
 	}
 	/* ret < MsgHeader::EFFECTIVE_SIZE
@@ -132,20 +133,85 @@ static inline int msg_sendto(int fd, uint8_t* buf, int nbytes, const struct sock
 	int ret = 0;
     int flags = 0;
 
-    /*
-        When writing onto a connection-oriented socket that has been shut down
-        (by the local or the remote end) SIGPIPE is sent to the writing process
-        and EPIPE is returned. The signal is not sent when the write call specified
-        the MSG_NOSIGNAL flag.
-        Note: another way is call signal (SIGPIPE,SIG_IGN);
-      */
-	flags = MSG_NOSIGNAL;
-
 #if defined(LOG_TRACE_MSG_OUT) && (LOG_TRACE_MSG_OUT==TRUE)
 	printf("<<< ");
 	hexdump(buf, MsgHeader::EFFECTIVE_SIZE);
 #endif /* LOG_TRACE_SEND */
 
+    /*
+	 * MSG_NOSIGNAL:
+	 * When writing onto a connection-oriented socket that has been shut down
+	 * (by the local or the remote end) SIGPIPE is sent to the writing process
+	 * and EPIPE is returned. The signal is not sent when the write call specified
+	 * the MSG_NOSIGNAL flag.
+	 * Note: another way is call signal (SIGPIPE,SIG_IGN);
+     */
+	flags = MSG_NOSIGNAL;
+
+#if defined(EXTRA_ABILITY) && (EXTRA_ABILITY==TRUE)
+	/*
+	 * MSG_DONTWAIT:
+	 * Enables non-blocking operation; if the operation would block,
+	 * EAGAIN is returned (this can also be enabled using the O_NONBLOCK with
+	 * the F_SETFL fcntl()).
+	 */
+	if (g_pApp->m_const_params.is_nonblocked_send) {
+		flags |= MSG_DONTWAIT;
+	}
+
+    int size = nbytes;
+
+	while (nbytes) {
+		ret = sendto(fd, buf, nbytes, flags, (struct sockaddr*)sendto_addr, sizeof(struct sockaddr));
+
+#if defined(LOG_TRACE_SEND) && (LOG_TRACE_SEND==TRUE)
+		LOG_TRACE ("raw", "%s IP: %s:%d [fd=%d ret=%d] %s", __FUNCTION__,
+								   inet_ntoa(sendto_addr->sin_addr),
+								   ntohs(sendto_addr->sin_port),
+								   fd,
+								   ret,
+								   strerror(errno));
+#endif /* LOG_TRACE_SEND */
+
+		if (ret > 0) {
+			nbytes -= ret;
+			ret = size;
+		}
+		else if (ret == 0 || errno == EPIPE || errno == ECONNRESET) {
+			/* If no messages are available to be received and the peer has performed an orderly shutdown,
+			 * send()/sendto() shall return (RET_SOCKET_SHUTDOWN)
+			 */
+			errno = 0;
+			ret = RET_SOCKET_SHUTDOWN;
+			break;
+		}
+		else if (ret < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
+			/* If space is not available at the sending socket to hold the message to be transmitted and
+			 * the socket file descriptor does have O_NONBLOCK set and
+			 * no bytes related message sent before
+			 * send()/sendto() shall return (RET_SOCKET_SKIPPED)
+			 */
+			errno = 0;
+			if (nbytes < size) continue;
+
+			ret = RET_SOCKET_SKIPPED;
+			break;
+		}
+		else if (ret < 0 && (errno == EINTR)) {
+			/* A signal occurred.
+			 */
+			errno = 0;
+			break;
+		}
+		else {
+			/* Unprocessed error
+			 */
+			sendtoError(fd, nbytes, sendto_addr);
+			errno = 0;
+			break;
+		}
+	}
+#else
 	ret = sendto(fd, buf, nbytes, flags, (struct sockaddr*)sendto_addr, sizeof(struct sockaddr));
 
 #if defined(LOG_TRACE_SEND) && (LOG_TRACE_SEND==TRUE)
@@ -167,6 +233,7 @@ static inline int msg_sendto(int fd, uint8_t* buf, int nbytes, const struct sock
 	else if (ret < 0 && errno && errno != EINTR) {
 		sendtoError(fd, nbytes, sendto_addr);
 	}
+#endif /* defined(EXTRA_ABILITY) */
 
 	return ret;
 }

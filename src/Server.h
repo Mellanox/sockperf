@@ -121,7 +121,7 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_t
 			           g_fds_array[ifd]->recv.cur_size,
 			           &recvfrom_addr);
 
-	if (ret == 0) {
+	if (ret == RET_SOCKET_SHUTDOWN) {
 		if (g_fds_array[ifd]->sock_type == SOCK_STREAM) {
 			int next_fd = g_fds_array[ifd]->next_fd;
 			int i = 0;
@@ -229,7 +229,7 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_t
 				sendto_addr = recvfrom_addr;
 			}
 			ret = msg_sendto(ifd, m_pMsgReply->getBuf(), m_pMsgReply->getLength(), &sendto_addr);
-			if (ret == 0) {
+			if (ret == RET_SOCKET_SHUTDOWN) {
 				if (g_fds_array[ifd]->sock_type == SOCK_STREAM) {
 					int next_fd = g_fds_array[ifd]->next_fd;
 					int i = 0;
