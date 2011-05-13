@@ -205,3 +205,17 @@ void hexdump(void *ptr, int buflen)
         printf("\n");
     }
 }
+
+//------------------------------------------------------------------------------
+const char* handler2str( fd_block_handler_t type )
+{
+	static const char* s_fds_handle_desc[FD_HANDLE_MAX] =
+	{
+		"recvfrom",
+		"select",
+		"poll",
+		"epoll"
+	};
+
+	return s_fds_handle_desc[type];
+}

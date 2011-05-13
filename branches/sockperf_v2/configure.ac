@@ -143,6 +143,18 @@ if test x$enable_debuginfo = xyes; then
 fi
 
 
+##########################
+# Enable extra functionality
+#
+AC_ARG_ENABLE(
+    [extra],
+    AC_HELP_STRING([--enable-extra],
+                   [SOCKPERF: include extended functionality (or new ability) (default=no)]))
+if test x$enable_extra = xyes; then
+    CXXFLAGS="$CXXFLAGS -DEXTRA_ABILITY=TRUE --param max-inline-insns-single=600"
+fi
+
+
 #####################################
 # Checks for header files.
 #

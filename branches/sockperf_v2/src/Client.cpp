@@ -115,12 +115,29 @@ void client_statistics(int serverNo, Message *pMsgRequest)
 
 	FILE* f = g_pApp->m_const_params.fileFullLog;
 
-	log_msg_file2(f, "========= Printing statistics for Server No: %d", SERVER_NO);
-
 	if (!receiveCount) {
 		log_msg_file2(f, "No messages were received from the server. Is the server down?");
 		return;
 	}
+
+	/* Print total statistic that is independent on server count */
+	if (SERVER_NO == 0) {
+		TicksDuration totalRunTime = s_endTime - s_startTime;
+#if defined(EXTRA_ABILITY) && (EXTRA_ABILITY==TRUE)
+		if (g_skipCount) {
+			log_msg_file2(f, "[Total Run] RunTime=%.3lf sec; SentMessages=%" PRIu64 "; ReceivedMessages=%" PRIu64 "; SkippedMessages=%" PRIu64 "",
+				totalRunTime.toDecimalUsec()/1000000, sendCount, receiveCount, g_skipCount);
+		}
+		else 
+#endif /* defined(EXTRA_ABILITY) */
+		{
+			log_msg_file2(f, "[Total Run] RunTime=%.3lf sec; SentMessages=%" PRIu64 "; ReceivedMessages=%" PRIu64 "",
+				totalRunTime.toDecimalUsec()/1000000, sendCount, receiveCount);
+		}
+	}
+
+	/* Print server related statistic */
+	log_msg_file2(f, "========= Printing statistics for Server No: %d", SERVER_NO);
 
 	/*
 	 * There are few reasons to ignore warmup/cooldown packets:
@@ -198,10 +215,6 @@ void client_statistics(int serverNo, Message *pMsgRequest)
 		counter++;
 	}
 
-	TicksDuration totalRunTime = s_endTime - s_startTime;
-	log_msg_file2(f, "[Total Run] RunTime=%.3lf sec; SentMessages=%" PRIu64 "; ReceivedMessages=%" PRIu64 "",
-			totalRunTime.toDecimalUsec()/1000000, sendCount, receiveCount);
-
 	if (!counter) {
 		log_msg_file2(f, "No valid observations found.  Try increasing test duration and/or --pps/--reply-every parameters");
 	}
@@ -216,8 +229,10 @@ void client_statistics(int serverNo, Message *pMsgRequest)
 		TicksDuration stdDev = TicksDuration::stdDev(pLat, counter);
 		log_msg_file2(f, "\e[2;35m====> avg-lat=%7.3lf (std-dev=%.3lf)\e[0m", avgLatency.toDecimalUsec(), stdDev.toDecimalUsec());
 
-		bool isColor = (g_pPacketTimes->getDroppedCount(SERVER_NO) || g_pPacketTimes->getDupCount(SERVER_NO) || g_pPacketTimes->getOooCount(SERVER_NO));
-		//isColor = isColor && isatty(fileno(stdout));
+		/* Display ERROR statistic */
+		bool isColor = (g_pPacketTimes->getDroppedCount(SERVER_NO) ||
+				        g_pPacketTimes->getDupCount(SERVER_NO) ||
+				        g_pPacketTimes->getOooCount(SERVER_NO));
 		const char* colorRedStr   = isColor ? "\e[0;31m" : "";
 		const char* colorResetStr = isColor ? "\e[0m" : "";
 		log_msg_file2(f, "%s# dropped packets = %lu; # duplicated packets = %lu; # out-of-order packets = %lu%s"
@@ -245,13 +260,24 @@ void client_statistics(int serverNo, Message *pMsgRequest)
 void stream_statistics(Message *pMsgRequest)
 {
 	TicksDuration totalRunTime = s_endTime - s_startTime;
+
 	if (totalRunTime <= TicksDuration::TICKS0) return;
 	if (!g_pApp->m_const_params.b_stream) return;
 
 	const uint64_t sendCount = pMsgRequest->getSequenceCounter();
 
 	// Send only mode!
-	log_msg("Total of %" PRIu64 " messages sent in %.3lf sec\n", sendCount, totalRunTime.toDecimalUsec()/1000000);
+#if defined(EXTRA_ABILITY) && (EXTRA_ABILITY==TRUE)
+	if (g_skipCount) {
+		log_msg("Total of %" PRIu64 " messages sent in %.3lf sec (%" PRIu64 " messages skipped)\n",
+				sendCount, totalRunTime.toDecimalUsec()/1000000, g_skipCount);
+	}
+	else 
+#endif /* defined(EXTRA_ABILITY) */
+	{
+		log_msg("Total of %" PRIu64 " messages sent in %.3lf sec\n",
+				sendCount, totalRunTime.toDecimalUsec()/1000000);
+	}
 	if (g_pApp->m_const_params.pps != PPS_MAX) {
 		if (g_pApp->m_const_params.msg_size_range)
 			log_msg("\e[2;35mNOTE: test was performed, using average msg-size=%d (+/-%d), pps=%u. For getting maximum throughput use --pps=max (and consider --msg-size=1472 or --msg-size=4096)\e[0m",
@@ -404,9 +430,9 @@ void Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration
 			fprintf(f, "------------------------------\n");
 		}
 
-		const int NUM_SERVERS = 1;
-		for (int i = 0; i < NUM_SERVERS; i++)
+		for (int i = 0; i < g_pApp->m_const_params.client_work_with_srv_num; i++) {
 			client_statistics(i, m_pMsgRequest);
+		}
 	}
 
 	if (g_pApp->m_const_params.fileFullLog)
@@ -497,7 +523,7 @@ int Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration,
 		printf(MODULE_NAME "[CLIENT] send on:");
 
 		if (!g_pApp->m_const_params.b_stream) {
-			log_msg("using %s() to block on socket(s)", g_fds_handle_desc[g_pApp->m_const_params.fd_handler_type]);
+			log_msg("using %s() to block on socket(s)", handler2str(g_pApp->m_const_params.fd_handler_type));
 		}
 
 		rc = m_ioHandler.prepareNetwork();

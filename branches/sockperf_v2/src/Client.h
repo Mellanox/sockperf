@@ -52,6 +52,9 @@ class Client : public ClientBase{
 private:
 	pthread_t m_receiverTid;
 	IoType m_ioHandler;
+#if defined(EXTRA_ABILITY) && (EXTRA_ABILITY==TRUE)
+	addr_to_id   m_ServerList;
+#endif /* defined(EXTRA_ABILITY) */
 
 	SwitchDataIntegrity m_switchDataIntegrity;
 	SwitchActivityInfo  m_switchActivityInfo;
@@ -72,6 +75,40 @@ private:
 	void doPlayback();
 	void cleanupAfterLoop();
 
+#if defined(EXTRA_ABILITY) && (EXTRA_ABILITY==TRUE)
+	//------------------------------------------------------------------------------
+	inline int client_get_server_id(int ifd, struct sockaddr_in *recvfrom_addr)
+	{
+		int serverNo = 0;
+
+		assert( (g_fds_array[ifd]) && "invalid fd");
+
+		if ( g_fds_array[ifd] && g_fds_array[ifd]->is_multicast ) {
+
+			addr_to_id::iterator itr = m_ServerList.find(recvfrom_addr->sin_addr);
+			if (itr == m_ServerList.end()) {
+				if ((int)m_ServerList.size() >= g_pApp->m_const_params.client_work_with_srv_num) {
+					/* To recognize case when more then expected servers are working */
+					serverNo = -1;
+				}
+				else {
+					serverNo = m_ServerList.size();
+					std::pair<addr_to_id::iterator, bool> ret = m_ServerList.insert(addr_to_id::value_type(recvfrom_addr->sin_addr, m_ServerList.size()));
+					if (!ret.second) {
+						log_err("Failed to insert new server.");
+						serverNo = -1;
+					}
+				}
+			}
+			else {
+				serverNo = itr->second;
+			}
+		}
+
+		return serverNo;
+	}
+#endif /* defined(EXTRA_ABILITY) */
+
 	//------------------------------------------------------------------------------
 	inline void client_send_packet(int ifd)
 	{
@@ -80,22 +117,31 @@ private:
 		m_pMsgRequest->incSequenceCounter();
 
 		ret = m_pongModeCare.msg_sendto(ifd);
-		if (ret == 0) {
+
+		/* check dead peer case */
+		if (ret == RET_SOCKET_SHUTDOWN) {
 			if (g_fds_array[ifd]->sock_type == SOCK_STREAM) {
 				log_err("A connection was forcibly closed by a peer");
 				exit_with_log(SOCKPERF_ERR_SOCKET);
 			}
 		}
+#if defined(EXTRA_ABILITY) && (EXTRA_ABILITY==TRUE)
+		/* check skip send operation case */
+		else if (ret == RET_SOCKET_SKIPPED) {
+			g_skipCount++;
+			m_pMsgRequest->decSequenceCounter();
+		}
+#endif /* defined(EXTRA_ABILITY) */
 	}
 
 	//------------------------------------------------------------------------------
 	inline unsigned int client_receive_from_selected(int ifd)
 	{
-		static const int SERVER_NO = 0;
 		int ret = 0;
 		int nbytes = 0;
 		struct sockaddr_in recvfrom_addr;
 		int receiveCount = 0;
+		int serverNo = 0;
 
 		TicksTime rxTime;
 
@@ -103,7 +149,7 @@ private:
 				           g_fds_array[ifd]->recv.cur_addr + g_fds_array[ifd]->recv.cur_offset,
 				           g_fds_array[ifd]->recv.cur_size,
 				           &recvfrom_addr);
-		if (ret == 0) {
+		if (ret == RET_SOCKET_SHUTDOWN) {
 			if (g_fds_array[ifd]->sock_type == SOCK_STREAM) {
 				log_err("A connection was forcibly closed by a peer");
 				exit_with_log(SOCKPERF_ERR_SOCKET);
@@ -183,8 +229,22 @@ private:
 			}
 			#endif
 
-			g_pPacketTimes->setRxTime(m_pMsgReply->getSequenceCounter(), rxTime, SERVER_NO);
+#if defined(EXTRA_ABILITY) && (EXTRA_ABILITY==TRUE)
+			serverNo = client_get_server_id(ifd, &recvfrom_addr);
+			if (serverNo < 0) {
+				log_msg("Number of servers more than expected");
+				exit_with_log(SOCKPERF_ERR_FATAL);
+			}
+			else {
+				g_pPacketTimes->setRxTime(m_pMsgReply->getSequenceCounter(),
+										  rxTime,
+										  serverNo);
+				m_switchDataIntegrity.execute(m_pMsgRequest, m_pMsgReply);
+			}
+#else
+			g_pPacketTimes->setRxTime(m_pMsgReply->getSequenceCounter(), rxTime, serverNo);
 			m_switchDataIntegrity.execute(m_pMsgRequest, m_pMsgReply);
+#endif /* defined(EXTRA_ABILITY) */
 		}
 
 		/* 6: shift to start of cycle buffer in case receiving buffer is empty and
@@ -213,7 +273,7 @@ private:
 			// check errors
 			if (g_b_exit) break;
 			if (numReady < 0) {
-				log_err("%s() failed", g_fds_handle_desc[g_pApp->m_const_params.fd_handler_type]);
+				log_err("%s() failed", handler2str(g_pApp->m_const_params.fd_handler_type));
 				exit_with_log(SOCKPERF_ERR_FATAL);
 			}
 			if (numReady == 0) {
@@ -255,7 +315,9 @@ private:
 	//------------------------------------------------------------------------------
 	inline void client_receive_burst()
 	{
-		for (unsigned int i = 0; i < g_pApp->m_const_params.burst_size && !g_b_exit; ) {
+		for ( unsigned int i = 0;
+			  i < (g_pApp->m_const_params.burst_size *
+				   g_pApp->m_const_params.client_work_with_srv_num) && !g_b_exit; ) {
 			i += client_receive();
 		}
 	}

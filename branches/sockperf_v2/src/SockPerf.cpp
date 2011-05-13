@@ -182,6 +182,12 @@ static const AOPT_DESC  common_opt_desc[] =
 		OPT_TCP_NODELAY_OFF, AOPT_NOARG, aopt_set_literal( 0 ), aopt_set_string( "tcp-avoid-nodelay" ),
              "tcp-nodelay uses for delivering TCP Messages Immediately (default ON)."
 	},
+#if defined(EXTRA_ABILITY) && (EXTRA_ABILITY==TRUE)
+	{
+		OPT_NONBLOCKED_SEND, AOPT_NOARG, aopt_set_literal( 0 ), aopt_set_string( "tcp-skip-blocking-send" ),
+             "Enables non-blocking send operation (default OFF)."
+	},
+#endif /* defined(EXTRA_ABILITY) */
 	{
 		OPT_RX_MC_IF, AOPT_ARG, aopt_set_literal( 0 ), aopt_set_string( "mc-rx-if" ),
              "<ip> address of interface on which to receive mulitcast packets (can be other then route table)."
@@ -1520,6 +1526,12 @@ static int parse_common_opt( const AOPT_OBJECT *common_obj )
 			s_user_params.is_blocked = false;
 		}
 
+#if defined(EXTRA_ABILITY) && (EXTRA_ABILITY==TRUE)
+		if ( !rc && aopt_check(common_obj, OPT_NONBLOCKED_SEND) ) {
+			s_user_params.is_nonblocked_send = true;
+		}
+#endif /* defined(EXTRA_ABILITY) */
+
 		if ( !rc && aopt_check(common_obj, OPT_DONTWARMUP) ) {
 			s_user_params.do_warmup = false;
 		}
@@ -1806,6 +1818,7 @@ void set_defaults()
 	s_user_params.threads_num = 1;
 	memset(s_user_params.threads_affinity, 0, sizeof(s_user_params.threads_affinity));
 	s_user_params.is_blocked = true;
+	s_user_params.is_nonblocked_send = false;
 	s_user_params.do_warmup = true;
 	s_user_params.pre_warmup_wait = 0;
 	s_user_params.is_vmarxfiltercb = false;
@@ -2594,6 +2607,7 @@ sock_buff_size = %d \n\t\
 threads_num = %d \n\t\
 threads_affinity = %s \n\t\
 is_blocked = %d \n\t\
+is_nonblocked_send = %d \n\t\
 do_warmup = %d \n\t\
 pre_warmup_wait = %d \n\t\
 is_vmarxfiltercb = %d \n\t\
@@ -2628,6 +2642,7 @@ s_user_params.sock_buff_size,
 s_user_params.threads_num,
 s_user_params.threads_affinity,
 s_user_params.is_blocked,
+s_user_params.is_nonblocked_send,
 s_user_params.do_warmup,
 s_user_params.pre_warmup_wait,
 s_user_params.is_vmarxfiltercb,

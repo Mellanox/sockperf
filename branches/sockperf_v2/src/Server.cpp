@@ -30,6 +30,8 @@
 #include "IoHandlers.h"
 #include "Switches.h"
 
+// static members initialization
+/*static*/ seq_num_map SwitchOnCalcGaps::ms_seq_num_map;
 static CRITICAL_SECTION	thread_exit_lock;
 static pthread_t *thread_pid_array = NULL;
 
@@ -117,7 +119,7 @@ int ServerBase::initBeforeLoop()
 		if (rc == SOCKPERF_ERR_NONE) {
 			sleep(g_pApp->m_const_params.pre_warmup_wait);
 			m_ioHandlerRef.warmup(m_pMsgRequest);
-			log_msg("[tid %d] using %s() to block on socket(s)", gettid(), g_fds_handle_desc[g_pApp->m_const_params.fd_handler_type]);
+			log_msg("[tid %d] using %s() to block on socket(s)", gettid(), handler2str(g_pApp->m_const_params.fd_handler_type));
 		}
 	}
 
@@ -164,12 +166,12 @@ void Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::doLoop()
 		// check errors
 		if (g_b_exit) continue;
 		if (numReady < 0) {
-			log_err("%s()", g_fds_handle_desc[g_pApp->m_const_params.fd_handler_type]);
+			log_err("%s()", handler2str(g_pApp->m_const_params.fd_handler_type));
 			exit_with_log(SOCKPERF_ERR_FATAL);
 		}
 		if (numReady == 0) {
 			if (!g_pApp->m_const_params.select_timeout)
-				log_msg("Error: %s() returned without fd ready", g_fds_handle_desc[g_pApp->m_const_params.fd_handler_type]);
+				log_msg("Error: %s() returned without fd ready", handler2str(g_pApp->m_const_params.fd_handler_type));
 			continue;
 		}
 
@@ -421,7 +423,7 @@ void server_sig_handler(int signum) {
 	else {
 		log_msg("Total %" PRIu64 " messages received and handled", g_receiveCount); //TODO: print also send count
 	}
-	SwitchOnCalcGaps::print_summary(&g_seq_num_map);
+	SwitchOnCalcGaps::print_summary();
 	g_b_exit = true;
 
 }
@@ -537,20 +539,20 @@ void server_select_per_thread(int _fd_num) {
 }
 
 
-// Temp location because of compilation issue with the way this method was inlined
+// Temp location because of compilation issue (inline-unit-growth=200) with the way this method was inlined
 void SwitchOnCalcGaps::execute(struct sockaddr_in *clt_addr, uint64_t seq_num, bool is_warmup)
 {
-	seq_num_map::iterator itr = g_seq_num_map.find(*clt_addr);
+	seq_num_map::iterator itr = ms_seq_num_map.find(*clt_addr);
 	bool starting_new_session = false;
 	bool print_summary = false;
 
-	if (itr == g_seq_num_map.end()) {
+	if (itr == ms_seq_num_map.end()) {
 		clt_session_info_t new_session;
 		memcpy(&new_session.addr, clt_addr, sizeof(struct sockaddr_in));
 		new_session.seq_num = seq_num;
 		new_session.total_drops = 0;
 		new_session.started = false;
-		std::pair<seq_num_map::iterator, bool> ret_val = g_seq_num_map.insert(seq_num_map::value_type(*clt_addr, new_session));
+		std::pair<seq_num_map::iterator, bool> ret_val = ms_seq_num_map.insert(seq_num_map::value_type(*clt_addr, new_session));
 		if (ret_val.second)
 			itr = ret_val.first;
 		else {
@@ -584,5 +586,30 @@ void SwitchOnCalcGaps::execute(struct sockaddr_in *clt_addr, uint64_t seq_num, b
 		if (!itr->second.started)
 			itr->second.started = true;
 		check_gaps(seq_num, itr);
+	}
+}
+
+// Temp location because of compilation issue (inline-unit-growth=200) with the way this method was inlined
+void SwitchOnActivityInfo::execute (uint64_t counter)
+{
+	static TicksTime s_currTicks;
+	static int s_print_header = 0;
+
+	if ( counter % g_pApp->m_const_params.packetrate_stats_print_ratio == 0) {
+		if (g_pApp->m_const_params.packetrate_stats_print_details) {
+			TicksDuration interval = s_currTicks.setNow() - g_lastTicks;
+			if (interval < TicksDuration::TICKS1HOUR) {
+				if (s_print_header++ % 20 == 0) {
+					printf("    -- Interval --     -- Message Rate --  -- Total Message Count --\n");
+				}
+				int64_t interval_packet_rate = g_pApp->m_const_params.packetrate_stats_print_ratio * NSEC_IN_SEC / interval.toNsec();
+				printf(" %10" PRId64 " [usec]    %10"PRId64" [msg/s]    %13"PRIu64" [msg]\n", interval.toUsec(), interval_packet_rate, counter);
+			}
+			g_lastTicks = s_currTicks;
+		}
+		else {
+			printf(".");
+		}
+		fflush(stdout);
 	}
 }

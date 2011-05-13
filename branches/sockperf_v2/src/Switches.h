@@ -111,6 +111,12 @@ public:
 			m_pMsgRequest->getHeader()->setPongRequest();
 			g_pPacketTimes->setTxTime(m_pMsgRequest->getSequenceCounter());
 			int ret = ::msg_sendto(ifd, m_pMsgRequest->getBuf(), m_pMsgRequest->getLength(), &(g_fds_array[ifd]->addr));
+#if defined(EXTRA_ABILITY) && (EXTRA_ABILITY==TRUE)
+			/* check skip send operation case */
+			if (ret == RET_SOCKET_SKIPPED) {
+				g_pPacketTimes->clearTxTime(m_pMsgRequest->getSequenceCounter());
+			}
+#endif /* defined(EXTRA_ABILITY) */
 			m_pMsgRequest->getHeader()->resetPongRequest();
 			return ret;
 		}
@@ -135,7 +141,14 @@ public:
 
 	inline int msg_sendto(int ifd) {
 		g_pPacketTimes->setTxTime(m_pMsgRequest->getSequenceCounter());
-		return ::msg_sendto(ifd, m_pMsgRequest->getBuf(), m_pMsgRequest->getLength(), &(g_fds_array[ifd]->addr));
+		int ret = ::msg_sendto(ifd, m_pMsgRequest->getBuf(), m_pMsgRequest->getLength(), &(g_fds_array[ifd]->addr));
+#if defined(EXTRA_ABILITY) && (EXTRA_ABILITY==TRUE)
+		/* check skip send operation case */
+		if (ret == RET_SOCKET_SKIPPED) {
+			g_pPacketTimes->clearTxTime(m_pMsgRequest->getSequenceCounter());
+		}
+#endif /* defined(EXTRA_ABILITY) */
+		return ret;
 	}
 
 private:
@@ -163,29 +176,7 @@ private:
 //==============================================================================
 class SwitchOnActivityInfo {
 public:
-	inline void execute (uint64_t counter)
-	{
-		static TicksTime s_currTicks;
-		static int s_print_header = 0;
-
-		if ( counter % g_pApp->m_const_params.packetrate_stats_print_ratio == 0) {
-			if (g_pApp->m_const_params.packetrate_stats_print_details) {
-				TicksDuration interval = s_currTicks.setNow() - g_lastTicks;
-				if (interval < TicksDuration::TICKS1HOUR) {
-					if (s_print_header++ % 20 == 0) {
-						printf("    -- Interval --     -- Message Rate --  -- Total Message Count --\n");
-					}
-					int64_t interval_packet_rate = g_pApp->m_const_params.packetrate_stats_print_ratio * NSEC_IN_SEC / interval.toNsec();
-					printf(" %10" PRId64 " [usec]    %10"PRId64" [msg/s]    %13"PRIu64" [msg]\n", interval.toUsec(), interval_packet_rate, counter);
-				}
-				g_lastTicks = s_currTicks;
-			}
-			else {
-				printf(".");
-			}
-			fflush(stdout);
-		}
-	}
+	/*inline*/ void execute (uint64_t counter);
 };
 
 //==============================================================================
@@ -245,9 +236,10 @@ public:
 	/*inline*/ void execute(struct sockaddr_in *clt_addr, uint64_t seq_num, bool is_warmup);
 
 
-	static void print_summary(seq_num_map *p_seq_num_map)
+	static void print_summary()
 	{
 		seq_num_map::iterator itr;
+		seq_num_map *p_seq_num_map = &ms_seq_num_map;
 
 		if (!p_seq_num_map)
 			return;
@@ -267,6 +259,7 @@ public:
 			log_msg("%-23s Summary: Total Dropped/OOO: %" PRIu64, ip_port_str, p_clt_session->total_drops);
 		}
 	}
+
 private:
 	inline void check_gaps(uint64_t received_seq_num, seq_num_map::iterator &seq_num_map_itr)
 	{
@@ -309,6 +302,7 @@ private:
 		}
 	}
 
+	static seq_num_map ms_seq_num_map;
 };
 
 #endif /* SWITCHES_H_ */

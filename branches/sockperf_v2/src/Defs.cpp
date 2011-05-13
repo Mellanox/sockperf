@@ -33,6 +33,7 @@
 /* Global variables */
 bool g_b_exit = false;
 uint64_t g_receiveCount = 0; // TODO: should be one per server
+uint64_t g_skipCount = 0; // TODO: should be one per server
 
 unsigned long long g_cycle_wait_loop_counter = 0;
 TicksTime g_cycleStartTime;
@@ -50,14 +51,6 @@ PacketTimes* g_pPacketTimes = NULL;
 
 TicksTime g_lastTicks;
 
-const char* g_fds_handle_desc[FD_HANDLE_MAX] =
-{
-	"recvfrom",
-	"select",
-	"poll",
-	"epoll"
-};
-
 
 fds_data* g_fds_array[MAX_FDS_NUM];
 
@@ -68,5 +61,4 @@ struct vma_api_t *g_vma_api;
 
 const App* g_pApp = NULL;
 
-seq_num_map g_seq_num_map;
 
