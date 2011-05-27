@@ -751,7 +751,7 @@ static int proc_mode_ping_pong( int id, int argc, const char **argv )
 		printf("%s: %s\n", display_opt(id, temp_buf, sizeof(temp_buf)), sockperf_modes[id].note);
 		printf("\n");
 		printf("Usage: " MODULE_NAME " %s [options] [args]...\n", sockperf_modes[id].name);
-		printf(" " MODULE_NAME " %s -i ip  [-p port] [-m message_size] [-t time] [--data_integrity]\n", sockperf_modes[id].name);
+		printf(" " MODULE_NAME " %s -i ip  [-p port] [-m message_size] [-t time]\n", sockperf_modes[id].name);
 		printf(" " MODULE_NAME " %s -f file [-F s/p/e] [-m message_size] [-r msg_size_range] [-t time]\n", sockperf_modes[id].name);
 		printf("\n");
 		printf("Options:\n");
@@ -977,7 +977,7 @@ static int proc_mode_throughput( int id, int argc, const char **argv )
 		printf("%s: %s\n", display_opt(id, temp_buf, sizeof(temp_buf)), sockperf_modes[id].note);
 		printf("\n");
 		printf("Usage: " MODULE_NAME " %s [options] [args]...\n", sockperf_modes[id].name);
-		printf(" " MODULE_NAME " %s -i ip  [-p port] [-m message_size] [-t time] [--data_integrity]\n", sockperf_modes[id].name);
+		printf(" " MODULE_NAME " %s -i ip  [-p port] [-m message_size] [-t time]\n", sockperf_modes[id].name);
 		printf(" " MODULE_NAME " %s -f file [-F s/p/e] [-m message_size] [-r msg_size_range] [-t time]\n", sockperf_modes[id].name);
 		printf("\n");
 		printf("Options:\n");
@@ -1285,8 +1285,8 @@ static int proc_mode_server( int id, int argc, const char **argv )
 		printf("\n");
 		printf("Usage: " MODULE_NAME " %s [options] [args]...\n", sockperf_modes[id].name);
 		printf(" " MODULE_NAME " %s\n", sockperf_modes[id].name);
-		printf(" " MODULE_NAME " %s [-i ip] [-p port] [--rx_mc_if ip] [--tx_mc_if ip]\n", sockperf_modes[id].name);
-		printf(" " MODULE_NAME " %s -f file [-F s/p/e] [--rx_mc_if ip] [--tx_mc_if ip]\n", sockperf_modes[id].name);
+		printf(" " MODULE_NAME " %s [-i ip] [-p port] [--rx-mc-if ip] [--tx-mc-if ip]\n", sockperf_modes[id].name);
+		printf(" " MODULE_NAME " %s -f file [-F s/p/e] [--rx-mc-if ip] [--tx-mc-if ip]\n", sockperf_modes[id].name);
 		printf("\n");
 		printf("Options:\n");
 		help_str = aopt_help(common_opt_desc);
