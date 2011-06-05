@@ -128,8 +128,9 @@ static inline int msg_recvfrom(int fd, uint8_t* buf, int nbytes, struct sockaddr
 //------------------------------------------------------------------------------
 static inline int msg_sendto(int fd, uint8_t* buf, int nbytes, const struct sockaddr_in *sendto_addr)
 {
-	int ret = 0;
-    int flags = 0;
+     int ret = nbytes;
+     int flags = 0;
+     int curr_ret = 0;
 
     /*
         When writing onto a connection-oriented socket that has been shut down
@@ -145,26 +146,32 @@ static inline int msg_sendto(int fd, uint8_t* buf, int nbytes, const struct sock
 	hexdump(buf, MsgHeader::EFFECTIVE_SIZE);
 #endif /* LOG_TRACE_SEND */
 
-	ret = sendto(fd, buf, nbytes, flags, (struct sockaddr*)sendto_addr, sizeof(struct sockaddr));
+	while(nbytes && ret > 0) {
+		curr_ret = sendto(fd, buf, nbytes, flags, (struct sockaddr*)sendto_addr, sizeof(struct sockaddr));
 
 #if defined(LOG_TRACE_SEND) && (LOG_TRACE_SEND==TRUE)
 	LOG_TRACE ("raw", "%s IP: %s:%d [fd=%d ret=%d] %s", __FUNCTION__,
 			                   inet_ntoa(sendto_addr->sin_addr),
 			                   ntohs(sendto_addr->sin_port),
 			                   fd,
-			                   ret,
+			                   curr_ret,
 			                   strerror(errno));
 #endif /* LOG_TRACE_SEND */
-
-	if (ret == 0 || errno == EPIPE || errno == ECONNRESET) {
-		/* If no messages are available to be received and the peer has performed an orderly shutdown,
-		 * send()/sendto() shall return 0
-		 * */
-		ret = 0;
-		errno = 0;
-	}
-	else if (ret < 0 && errno && errno != EINTR) {
-		sendtoError(fd, nbytes, sendto_addr);
+		if (curr_ret > 0) {
+			nbytes -= curr_ret;
+			buf += curr_ret;
+		}
+		if (curr_ret == 0 || errno == EPIPE || errno == ECONNRESET) {
+			/* If no messages are available to be received and the peer has performed an orderly shutdown,
+			 * send()/sendto() shall return 0
+			 * */
+			ret = 0;
+			errno = 0;
+		}
+		else if (curr_ret < 0 && errno && errno != EINTR) {
+			sendtoError(fd, nbytes, sendto_addr);
+			ret = curr_ret;
+		}
 	}
 
 	return ret;
