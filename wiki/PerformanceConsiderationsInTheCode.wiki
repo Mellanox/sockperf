@@ -1,8 +1,5 @@
-#sockperf is designed to work efficiently under load of millions packets per second.
+sockperf is designed to work efficiently and reliably under load of millions packets per second.
 
-= Introduction =
-
-Add your content here.
 
 
 = Details =
