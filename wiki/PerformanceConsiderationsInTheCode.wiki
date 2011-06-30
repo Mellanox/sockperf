@@ -1,4 +1,4 @@
-sockperf is designed to work efficiently and reliably under load of millions packets per second.
+#sockperf is designed to work efficiently and reliably under load of millions packets per second.
 
 
 
