@@ -16,7 +16,7 @@ sockperf_v1 is based on udp_lat and adds to it:
  * additional switches and new options
  * major design changes for making the code easier for maintenance, while still keeping good performance and even improving it a bit.
 
-sockperf_v2 is based on sockperf_v1 and adds to it TCP support.  it introduces more complexity in the code, but still provide the good performance.
+sockperf_v2 is based on sockperf_v1 and adds to it TCP support (and few more options).  It introduces more complexity in the code, but still provide the good performance.
 
 In addition, sockperf_v1 was developed internally in Voltaire (acquired by Mellanox).  While sockperf_v2 was mainly developed by 3rd party contractor.
 Both versions are maintained by Mellanox.
