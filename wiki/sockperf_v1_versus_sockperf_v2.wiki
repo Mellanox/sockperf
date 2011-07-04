@@ -10,11 +10,11 @@ sockperf_v2 adds TCP support (and some complexity in the code)
 = Details =
 
 sockperf_v1 is based on udp_lat and adds to it:
-* latency under load mode
-* playback mode
-* discrete measurements at packet level (based on RDTSC) that allows providing better statistics.
-* additional switches and new options
-* major design changes for making the code easier for maintenance, while still keeping good performance and even improving it a bit.
+ * latency under load mode
+ * playback mode
+ * discrete measurements at packet level (based on RDTSC) that allows providing better statistics.
+ * additional switches and new options
+ * major design changes for making the code easier for maintenance, while still keeping good performance and even improving it a bit.
 
 In addition, sockperf_v1 was developed internally in Voltaire (acquired by Mellanox).  While sockperf_v2 was mainly developed by 3rd party contractor.
 Both versions are maintained by Mellanox.
