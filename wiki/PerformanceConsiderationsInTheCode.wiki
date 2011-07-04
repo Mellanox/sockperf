@@ -7,7 +7,7 @@ sockperf is designed to work efficiently and reliably under load of millions pac
 = Details =
 
 Add your content here.  Format your content with:
-  * *C++ Templates* - for static binding of "virtual" functions
+  * *C++ Templates* - for static binding of "virtual" functions (also available for inlining, unlike virtual functions).
 
   * *RDTSC* - for high-resolution, low-overhead way of getting timing information (applies for modern systems with "Invariant TSC")
 
