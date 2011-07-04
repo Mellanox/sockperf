@@ -2,7 +2,7 @@
 
 = Introduction =
 
-sockperf has very reach set of command line options for various types of network architectures and needs.
+sockperf has a very reach set of command line options for various types of network architectures and needs.
 
 
 = Details =
