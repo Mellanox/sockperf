@@ -2,7 +2,7 @@
 
 = Introduction =
 
-Add your content here.
+sockperf had 4 client (aka producer) modes and 1 server mode (aka consumer).
 
 
 = Details =
