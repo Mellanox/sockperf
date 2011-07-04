@@ -1,8 +1,8 @@
-#summary One-sentence summary of this page.
+#summary sockperf has 5 modes of operation.
 
 = Introduction =
 
-sockperf had 4 client (aka producer) modes and 1 server mode (aka consumer).
+sockperf had 4 client (aka producer) modes of operation and 1 server (aka consumer) mode of operation.
 
 
 = Details =
