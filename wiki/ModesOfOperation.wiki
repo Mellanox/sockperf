@@ -7,7 +7,6 @@ sockperf had 4 client (aka producer) modes of operation and 1 server (aka consum
 
 = Details =
 
-Add your content here.  Format your content with:
   * ping-pong
   * under-load
   * stream
