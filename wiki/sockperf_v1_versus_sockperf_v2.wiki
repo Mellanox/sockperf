@@ -2,12 +2,12 @@
 
 = Introduction =
 
-Add your content here.
+sockperf_v1 is base on Voltaire's udp_lat and only supports UDP traffic (both UC and MC).
+
+sockperf_v2 adds TCP support (and some complexity in the code)
 
 
 = Details =
 
-Add your content here.  Format your content with:
-  * Text in *bold* or _italic_
-  * Headings, paragraphs, and lists
-  * Automatic links to other wiki pages
+In addition, sockperf_v1 was developed internally in Voltaire (acquired by Mellanox).  While sockperf_v2 was mainly developed by 3rd party contractor.
+Both versions are maintained by Mellanox.
