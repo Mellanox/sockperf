@@ -17,4 +17,6 @@ Add your content here.  Format your content with:
 
   * *error handling is not inlined* replace blocks of error handling code with function call to error function.  This leaves more place for inlining real code of the fast path.
 
+  * *no locks between threads* The code is written in a way that there is no need to use locks at all between threads.  This is done while still keeping the data of both threads (sender & receiver threads in the client) in same pages for CPU cache purposes.  Both threads write to distinct entries in the global array of PacketTimes, and still these entries are close one to each other.  i.e., 1 entry for send time of a packet, followed by N entries for receive time of this packet's replies (from multiple servers).  After that comes another 1 entry for send, followed by N entries for recv and so on.
+
   * *and many more...*
