@@ -7,7 +7,7 @@ sockperf is designed to work efficiently and reliably under load of millions pac
 = Details =
 
 Add your content here.  Format your content with:
-  * *C++ Templates* - for static binding of "virtual" functions (also enables inlining, unlike virtual functions).  This saves many 'if's in the code for decisions that are constant throughout the lifetime of the fast path (for example switches from command line).  In addition to performance gain, this dramatically simplifies the code.
+  * *C++ Templates* - for static binding of "virtual" functions (also enables inlining, unlike virtual functions).  This saves many 'if's in the code for decisions that are constant throughout the lifetime of the fast path (for example switches from command line).  In addition to performance gain, this dramatically simplifies the code (and if you don't believe compare sockperf_v1 to its father udp_lat).
 
   * *RDTSC* - for high-resolution, low-overhead way of getting timing information (applies for modern systems with "Invariant TSC")
 
