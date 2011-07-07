@@ -6,5 +6,5 @@
 sockperf is based on udp_lat that was developed by the VMA team at Voltaire.  
 udp_lat was able to measure average latency in ping-pong test for UDP traffic.
 
-sockperf_v1 was developed by Avner BenHanoch
-sockperf_v2 was mainly developed by Igor Ivanov.
+ * sockperf_v1 was developed by Avner BenHanoch
+ * sockperf_v2 was mainly developed by Igor Ivanov.
