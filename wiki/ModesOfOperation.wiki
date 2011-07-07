@@ -1,4 +1,4 @@
-#summary sockperf has 5 modes of operation.
+#summary sockperf has 5 modes of operation
 
 = Introduction =
 
