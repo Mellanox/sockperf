@@ -481,6 +481,10 @@ static int proc_mode_under_load( int id, int argc, const char **argv )
 					log_msg("'-%c' Invalid message size: %s (min: %d)", 'm', optarg, MIN_PAYLOAD_SIZE);
 					rc = SOCKPERF_ERR_BAD_ARGUMENT;
 				}
+				else if (!aopt_check(common_obj, OPT_TCP) && value > MAX_PAYLOAD_SIZE) {
+					log_msg("'-%c' Invalid message size: %s (max: %d)", 'm', optarg, MAX_PAYLOAD_SIZE);
+					rc = SOCKPERF_ERR_BAD_ARGUMENT;
+				}
 				else {
 					s_user_params.msg_size = value;
 				}
@@ -702,6 +706,10 @@ static int proc_mode_ping_pong( int id, int argc, const char **argv )
 				int value = strtol(optarg, NULL, 0);
 				if (errno != 0 || value < MIN_PAYLOAD_SIZE) {
 					log_msg("'-%c' Invalid message size: %s (min: %d)", 'm', optarg, MIN_PAYLOAD_SIZE);
+					rc = SOCKPERF_ERR_BAD_ARGUMENT;
+				}
+				else if (!aopt_check(common_obj, OPT_TCP) && value > MAX_PAYLOAD_SIZE) {
+					log_msg("'-%c' Invalid message size: %s (max: %d)", 'm', optarg, MAX_PAYLOAD_SIZE);
 					rc = SOCKPERF_ERR_BAD_ARGUMENT;
 				}
 				else {
@@ -938,6 +946,10 @@ static int proc_mode_throughput( int id, int argc, const char **argv )
 				int value = strtol(optarg, NULL, 0);
 				if (errno != 0 || value < MIN_PAYLOAD_SIZE) {
 					log_msg("'-%c' Invalid message size: %s (min: %d)", 'm', optarg, MIN_PAYLOAD_SIZE);
+					rc = SOCKPERF_ERR_BAD_ARGUMENT;
+				}
+				else if (!aopt_check(common_obj, OPT_TCP) && value > MAX_PAYLOAD_SIZE) {
+					log_msg("'-%c' Invalid message size: %s (max: %d)", 'm', optarg, MAX_PAYLOAD_SIZE);
 					rc = SOCKPERF_ERR_BAD_ARGUMENT;
 				}
 				else {
