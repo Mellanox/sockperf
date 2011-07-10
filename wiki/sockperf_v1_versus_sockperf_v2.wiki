@@ -12,7 +12,7 @@ sockperf_v2 adds TCP support (and some complexity in the code)
 sockperf_v1 is based on udp_lat and adds to it:
  * latency under load mode
  * playback mode
- * discrete measurements at packet level (based on RDTSC) that allows providing better statistics.
+ * discrete measurements at packet level (based on RDTSC) that allows providing better statistics (like histogram).
  * additional switches and new options
  * major design changes for making the code easier for maintenance, while still keeping good performance and even improving it a bit.
 
