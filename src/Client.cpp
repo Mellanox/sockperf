@@ -303,7 +303,7 @@ void stream_statistics(Message *pMsgRequest)
 	int mps = (int)(0.5 + ((double)sendCount)*1000*1000 / totalRunTime.toDecimalUsec());
 
 	int pps = mps * ip_frags_per_msg;
-	int total_line_ip_data = g_pApp->m_const_params.msg_size + ip_frags_per_msg*28;
+	int total_line_ip_data = g_pApp->m_const_params.msg_size ; //+ ip_frags_per_msg*28;
 	double MBps = ((double)mps * total_line_ip_data)/1024/1024; /* No including IP + UDP Headers per fragment */
 	if (ip_frags_per_msg == 1)
 		log_msg("Summary: Message Rate is %d [msg/sec]", mps);
