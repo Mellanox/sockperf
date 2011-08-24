@@ -2358,13 +2358,6 @@ int bringup(const int *p_daemonize)
 {
 	int rc = SOCKPERF_ERR_NONE;
 
-#if 0
-	// AlexR: for testing daemonize with allready opened UDP socket
-	int fd = socket(AF_INET, SOCK_DGRAM, 0);
-	if (fd) {
-		log_msg("new socket - dummy");
-	}
-#endif
 
 	if (*p_daemonize) {
 		if (daemon(1, 1)) {
@@ -2593,14 +2586,14 @@ int main(int argc, char *argv[])
 		}
 
 	    if (rc) {
+			cleanup();
 	    	exit(0);
 	    }
 
 		// Prepare application to start
 	    rc = bringup(&s_user_params.daemonize);
 		if (rc) {
-			cleanup();
-			exit_with_log(rc);
+			exit_with_log(rc);  // will also perform cleanup
 		}
 
 		log_dbg("+INFO:\n\t\

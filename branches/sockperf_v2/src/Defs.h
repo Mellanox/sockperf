@@ -255,10 +255,10 @@ typedef enum
 
 	#if defined(LOG_MEMORY_CHECK) && (LOG_MEMORY_CHECK==TRUE)
 		#define MALLOC(size) 	__malloc(size, __FUNCTION__, __LINE__)
-		#define FREE(ptr) 		__free(ptr, __FUNCTION__, __LINE__)
+		#define FREE(ptr) 		do {__free(ptr, __FUNCTION__, __LINE__); ptr = NULL;} while(0)
 	#else
 		#define MALLOC(size) 	malloc(size)
-		#define FREE(ptr) 		free(ptr)
+		#define FREE(ptr) 		do {free(ptr); ptr = NULL;} while(0)
 	#endif /* LOG_MEMORY_CHECK */
 
 	inline void *__malloc(int size, const char * func, int line)
@@ -277,7 +277,7 @@ typedef enum
 #else
 	#define LOG_TRACE(category, format, ...)
 	#define MALLOC(size) 	malloc(size)
-	#define FREE(ptr) 		free(ptr)
+	#define FREE(ptr) 		do {free(ptr); ptr = NULL;} while(0) // FREE is not expected to be called from fast path
 #endif /* DEBUG */
 
 
