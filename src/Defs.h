@@ -64,6 +64,7 @@
 #include "Ticks.h"
 #include "Message.h"
 #include "Playback.h"
+#include <sys/resource.h>
 
 //#define USING_VMA_EXTRA_API
 #ifdef  USING_VMA_EXTRA_API
@@ -108,7 +109,7 @@ const uint32_t TEST_END_COOLDOWN_MSEC = 50;
 
 #define MAX_ARGV_SIZE				256
 #define MAX_DURATION 				36000000
-#define MAX_FDS_NUM 				1024
+extern const int MAX_FDS_NUM;
 #define SOCK_BUFF_DEFAULT_SIZE 		0
 #define DEFAULT_SELECT_TIMEOUT_MSEC	10
 #define DEFAULT_DEBUG_LEVEL			0
@@ -440,7 +441,7 @@ namespace std
 typedef std::tr1::unordered_map<struct sockaddr_in, clt_session_info_t> seq_num_map;
 typedef std::tr1::unordered_map<struct in_addr, int> addr_to_id;
 
-extern fds_data* g_fds_array[MAX_FDS_NUM];
+extern fds_data** g_fds_array;
 
 #ifdef  USING_VMA_EXTRA_API
 extern struct vma_api_t *g_vma_api;
