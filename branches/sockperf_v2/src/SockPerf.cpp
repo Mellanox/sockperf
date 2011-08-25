@@ -1761,6 +1761,10 @@ void cleanup()
 	if (g_pPacketTimes) {
 		delete g_pPacketTimes;
 	}
+	if (g_fds_array)
+	{
+		FREE(g_fds_array);
+	}
 }
 
 //------------------------------------------------------------------------------
@@ -1811,6 +1815,11 @@ void set_defaults()
 		exit (SOCKPERF_ERR_FATAL);
 	}
 
+	g_fds_array = (fds_data**) MALLOC(MAX_FDS_NUM *sizeof(fds_data*));
+	if (!g_fds_array) {
+		log_err("Failed to allocate memory for global pointer fds_array");
+		exit_with_log(SOCKPERF_ERR_NO_MEMORY);
+	}
 	memset(&s_user_params, 0, sizeof(struct user_params_t));
 	memset(g_fds_array, 0, sizeof(fds_data*)*MAX_FDS_NUM);
 	s_user_params.rx_mc_if_addr.s_addr = htonl(INADDR_ANY);

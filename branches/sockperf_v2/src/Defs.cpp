@@ -52,7 +52,20 @@ PacketTimes* g_pPacketTimes = NULL;
 TicksTime g_lastTicks;
 
 
-fds_data* g_fds_array[MAX_FDS_NUM];
+int get_max_active_fds_num() {
+	static int max_active_fd_num = 0;
+	if (!max_active_fd_num) {
+		struct rlimit curr_limits;
+		if (getrlimit (RLIMIT_NOFILE, &curr_limits) == -1) {
+			perror ("getrlimit");
+			return 1024; // try the common default
+		}
+		max_active_fd_num = (int) curr_limits.rlim_max;
+	}
+	return max_active_fd_num;
+}
+const int MAX_FDS_NUM = get_max_active_fds_num();
+fds_data** g_fds_array = NULL;
 
 
 #ifdef  USING_VMA_EXTRA_API
