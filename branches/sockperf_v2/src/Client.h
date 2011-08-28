@@ -269,7 +269,6 @@ private:
 		do {
 			// wait for arrival
 			numReady = m_ioHandler.waitArrival();
-
 			// check errors
 			if (g_b_exit) break;
 			if (numReady < 0) {
@@ -281,7 +280,6 @@ private:
 				//	log_msg("Error: %s() returned without fd ready", g_fds_handle_desc[g_pApp->m_const_params.fd_handler_type]);
 				continue;
 			}
-
 			/* ready fds were found so receive from the relevant sockets*/
 			for (int _fd = m_ioHandler.get_look_start(); (_fd < m_ioHandler.get_look_end()); _fd++) {
 				actual_fd = m_ioHandler.analyzeArrival(_fd);
@@ -289,9 +287,7 @@ private:
 					recieved_packets_num += client_receive_from_selected(actual_fd/*, packet_cnt_index*/);
 				}
 			}
-
 		} while (numReady <= 0);
-
 		return recieved_packets_num;
 	}
 
