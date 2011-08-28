@@ -45,7 +45,7 @@ void print_average_latency(double usecAvarageLatency)
 		log_msg("Summary: Latency is %.3lf usec", usecAvarageLatency);
 	}
 	else {
-		log_msg("Summary: Latency of burst of %d packets is %.3lf usec", g_pApp->m_const_params.burst_size, usecAvarageLatency);
+		log_msg("Summary: Latency of burst of %d messages is %.3lf usec", g_pApp->m_const_params.burst_size, usecAvarageLatency);
 	}
 }
 
@@ -216,7 +216,7 @@ void client_statistics(int serverNo, Message *pMsgRequest)
 	}
 
 	if (!counter) {
-		log_msg_file2(f, "No valid observations found.  Try increasing test duration and/or --pps/--reply-every parameters");
+		log_msg_file2(f, "No valid observations found.  Try increasing test duration and/or --mps/--reply-every parameters");
 	}
 	else {
 		TicksDuration validRunTime = endValidTime - startValidTime;
@@ -235,7 +235,7 @@ void client_statistics(int serverNo, Message *pMsgRequest)
 				        g_pPacketTimes->getOooCount(SERVER_NO));
 		const char* colorRedStr   = isColor ? "\e[0;31m" : "";
 		const char* colorResetStr = isColor ? "\e[0m" : "";
-		log_msg_file2(f, "%s# dropped packets = %lu; # duplicated packets = %lu; # out-of-order packets = %lu%s"
+		log_msg_file2(f, "%s# dropped messages = %lu; # duplicated messages = %lu; # out-of-order messages = %lu%s"
 				, colorRedStr
 				, (long unsigned)g_pPacketTimes->getDroppedCount(SERVER_NO)
 				, (long unsigned)g_pPacketTimes->getDupCount(SERVER_NO)
@@ -278,16 +278,16 @@ void stream_statistics(Message *pMsgRequest)
 		log_msg("Total of %" PRIu64 " messages sent in %.3lf sec\n",
 				sendCount, totalRunTime.toDecimalUsec()/1000000);
 	}
-	if (g_pApp->m_const_params.pps != PPS_MAX) {
+	if (g_pApp->m_const_params.mps != MPS_MAX) {
 		if (g_pApp->m_const_params.msg_size_range)
-			log_msg("\e[2;35mNOTE: test was performed, using average msg-size=%d (+/-%d), pps=%u. For getting maximum throughput use --pps=max (and consider --msg-size=1472 or --msg-size=4096)\e[0m",
+			log_msg("\e[2;35mNOTE: test was performed, using average msg-size=%d (+/-%d), mps=%u. For getting maximum throughput use --mps=max (and consider --msg-size=1472 or --msg-size=4096)\e[0m",
 					g_pApp->m_const_params.msg_size,
 					g_pApp->m_const_params.msg_size_range,
-					g_pApp->m_const_params.pps);
+					g_pApp->m_const_params.mps);
 		else
-			log_msg("\e[2;35mNOTE: test was performed, using msg-size=%d, pps=%u. For getting maximum throughput use --pps=max (and consider --msg-size=1472 or --msg-size=4096)\e[0m",
+			log_msg("\e[2;35mNOTE: test was performed, using msg-size=%d, mps=%u. For getting maximum throughput use --mps=max (and consider --msg-size=1472 or --msg-size=4096)\e[0m",
 					g_pApp->m_const_params.msg_size,
-					g_pApp->m_const_params.pps);
+					g_pApp->m_const_params.mps);
 	}
 	else if (g_pApp->m_const_params.msg_size != 1472) {
 		if (g_pApp->m_const_params.msg_size_range)
@@ -300,15 +300,15 @@ void stream_statistics(Message *pMsgRequest)
 	}
 
 	int ip_frags_per_msg = (g_pApp->m_const_params.msg_size + DEFAULT_IP_PAYLOAD_SZ - 1) / DEFAULT_IP_PAYLOAD_SZ;
-	int mps = (int)(0.5 + ((double)sendCount)*1000*1000 / totalRunTime.toDecimalUsec());
+	int msgps = (int)(0.5 + ((double)sendCount)*1000*1000 / totalRunTime.toDecimalUsec());
 
-	int pps = mps * ip_frags_per_msg;
+	int pktps = msgps * ip_frags_per_msg;
 	int total_line_ip_data = g_pApp->m_const_params.msg_size;
-	double MBps = ((double)mps * total_line_ip_data)/1024/1024; /* No including IP + UDP Headers per fragment */
+	double MBps = ((double)msgps * total_line_ip_data)/1024/1024; /* No including IP + UDP Headers per fragment */
 	if (ip_frags_per_msg == 1)
-		log_msg("Summary: Message Rate is %d [msg/sec]", mps);
+		log_msg("Summary: Message Rate is %d [msg/sec]", msgps);
 	else
-		log_msg("Summary: Message Rate is %d [msg/sec], Packet Rate is %d [pkt/sec] (%d ip frags / msg)", mps, pps, ip_frags_per_msg);
+		log_msg("Summary: Message Rate is %d [msg/sec], Packet Rate is about %d [pkt/sec] (%d ip frags / msg)", msgps, pktps, ip_frags_per_msg);
 	log_msg("Summary: BandWidth is %.3f MBps (%.3f Mbps)", MBps, MBps*8);
 }
 
@@ -420,8 +420,8 @@ void Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration
 		if (f) {
 			fprintf(f, "------------------------------\n");
 			fprintf(f, "test was performed using the following parameters: "
-					"--pps=%d --burst=%d --reply-every=%d --msg-size=%d --time=%d\n"
-					, (int)g_pApp->m_const_params.pps
+					"--mps=%d --burst=%d --reply-every=%d --msg-size=%d --time=%d\n"
+					, (int)g_pApp->m_const_params.mps
 					, (int)g_pApp->m_const_params.burst_size
 					, (int)g_pApp->m_const_params.reply_every
 					, (int)g_pApp->m_const_params.msg_size
@@ -439,7 +439,7 @@ void Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration
 		fclose(g_pApp->m_const_params.fileFullLog);
 
 	if (g_pApp->m_const_params.cycleDuration > TicksDuration::TICKS0 && !g_cycle_wait_loop_counter)
-		log_msg("Warning: the value of the clients cycle duration might be too small (%" PRId64 " usec).  Try changing --pps and --burst arguments ",
+		log_msg("Warning: the value of the clients cycle duration might be too small (%" PRId64 " usec).  Try changing --mps and --burst arguments ",
 			g_pApp->m_const_params.cycleDuration.toUsec());
 }
 

@@ -46,7 +46,7 @@ struct vma_datagram_t *g_dgram = NULL;
 #endif
 
 
-uint32_t PPS_MAX = PPS_MAX_UL;     // will be overwrite at runtime in case of ping-pong test
+uint32_t MPS_MAX = MPS_MAX_UL;     // will be overwrite at runtime in case of ping-pong test
 PacketTimes* g_pPacketTimes = NULL;
 
 TicksTime g_lastTicks;

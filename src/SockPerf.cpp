@@ -34,7 +34,7 @@
 /*
  * Still to do:
  *
- * V 2. stream mode should support respect --pps
+ * V 2. stream mode should support respect --mps
  * *  playback file
  * * * finalize playback (possible conflicts with other cmd-args, including disclaimer, print info before looping)
  * * * support factor 2x, 4x, etc in playback
@@ -56,9 +56,9 @@
  * 9. merge with perf envelope
  * 10. improve format of statistics at the end (tx/rx statistics line excluding warmup)
  * V 11. don't consider dropped packets at the end
- * X 12. consider: automatically set --pps=max in case of --ping-pong
+ * X 12. consider: automatically set --mps=max in case of --ping-pong
  * 13. consider: loop till desirable seqNo instead of using timer (will distinguish between test and cool down)
- * 14. remove error printouts about dup packets, or illegal seqno (and recheck illegal seqno with pps=100 when server listen on same MC with 120 sockets)
+ * 14. remove error printouts about dup packets, or illegal seqno (and recheck illegal seqno with mps=100 when server listen on same MC with 120 sockets)
  * 15. in case server is registered twice to same MC group+port, we consider the 2 replies as dup packet.  is this correct?
  * 16. handshake between C/S at the beginning of run will allow the client to configure N servers (like perf envelope) and more
  * 17. support sockperf version with -v
@@ -66,7 +66,7 @@
  * 19. warmup also for uc (mainly server side)
  * 20. less permuatation in templates, for example receiver thread can be different entity than sender thread
  * 21. use ptpd for latency test using synced clocks across machines (without RTT)
- * 22. use --pps=max as the default for ping-pong and throughput modes
+ * 22. use --mps=max as the default for ping-pong and throughput modes
  *
  */
 
@@ -172,11 +172,11 @@ static const AOPT_DESC  common_opt_desc[] =
 	},
 	{
 		'a', AOPT_ARG, aopt_set_literal( 'a' ), aopt_set_string( "activity" ),
-             "Measure activity by printing a '.' for the last <N> packets processed."
+             "Measure activity by printing a '.' for the last <N> messages processed."
 	},
 	{
 		'A', AOPT_ARG, aopt_set_literal( 'A' ), aopt_set_string( "Activity" ),
-             "Measure activity by printing the duration for last <N> packets processed."
+             "Measure activity by printing the duration for last <N>  messages processed."
 	},
 	{
 		OPT_TCP_NODELAY_OFF, AOPT_NOARG, aopt_set_literal( 0 ), aopt_set_string( "tcp-avoid-nodelay" ),
@@ -190,11 +190,11 @@ static const AOPT_DESC  common_opt_desc[] =
 #endif /* defined(EXTRA_ABILITY) */
 	{
 		OPT_RX_MC_IF, AOPT_ARG, aopt_set_literal( 0 ), aopt_set_string( "mc-rx-if" ),
-             "<ip> address of interface on which to receive mulitcast packets (can be other then route table)."
+             "<ip> address of interface on which to receive mulitcast messages (can be other then route table)."
 	},
 	{
 		OPT_TX_MC_IF, AOPT_ARG, aopt_set_literal( 0 ), aopt_set_string( "mc-tx-if" ),
-             "<ip> address of interface on which to transmit mulitcast packets (can be other then route table)."
+             "<ip> address of interface on which to transmit mulitcast messages (can be other then route table)."
 	},
 	{
 		OPT_MC_LOOPBACK_ENABLE, AOPT_NOARG, aopt_set_literal( 0 ), aopt_set_string( "mc-loopback-enable" ),
@@ -202,7 +202,7 @@ static const AOPT_DESC  common_opt_desc[] =
 	},
 	{
 		OPT_IP_MULTICAST_TTL, AOPT_ARG, aopt_set_literal( 0 ), aopt_set_string( "mc-ttl" ),
-             "Limit the lifetime of the packet (default 2)."
+             "Limit the lifetime of the message (default 2)."
 	},
 	{
 		OPT_BUFFER_SIZE, AOPT_ARG, aopt_set_literal( 0 ), aopt_set_string( "buffer-size" ),
@@ -222,11 +222,11 @@ static const AOPT_DESC  common_opt_desc[] =
 	},
 	{
 		OPT_DONTWARMUP, AOPT_NOARG, aopt_set_literal( 0 ), aopt_set_string( "dontwarmup" ),
-             "Don't send warm up packets on start."
+             "Don't send warm up messages on start."
 	},
 	{
 		OPT_PREWARMUPWAIT, AOPT_ARG, aopt_set_literal( 0 ), aopt_set_string( "pre-warmup-wait" ),
-             "Time to wait before sending warm up packets (seconds)."
+             "Time to wait before sending warm up messages (seconds)."
 	},
 	{
 		OPT_NO_RDTSC, AOPT_NOARG,	aopt_set_literal( 0 ),	aopt_set_string( "no-rdtsc" ),
@@ -266,7 +266,7 @@ static const AOPT_DESC  client_opt_desc[] =
 	},
 	{
 		OPT_FULL_LOG, AOPT_ARG,	aopt_set_literal( 0 ),	aopt_set_string( "full-log" ),
-             "Dump full log of all packets send/receive time to the given file in CSV format."
+             "Dump full log of all messages send/receive time to the given file in CSV format."
 	},
 	{ 0, AOPT_NOARG, aopt_set_literal( 0 ), aopt_set_string( NULL ), NULL }
 };
@@ -330,15 +330,19 @@ static int proc_mode_under_load( int id, int argc, const char **argv )
 		},
 		{
 			'b', AOPT_ARG,	aopt_set_literal( 'b' ),	aopt_set_string( "burst" ),
-	             "Control the client's number of a packets sent in every burst."
+	             "Control the client's number of a messages sent in every burst."
 		},
 		{
 			OPT_REPLY_EVERY, AOPT_ARG,	aopt_set_literal( 0 ),	aopt_set_string( "reply-every" ),
-	             "Set number of send packets between reply packets (default = 100)."
+	             "Set number of send messages between reply messages (default = 100)."
 		},
 		{
-			OPT_PPS, AOPT_ARG,	aopt_set_literal( 0 ),	aopt_set_string( "pps" ),
-	             "Set number of packets-per-second (default = 10000 - for under-load mode, or max - for ping-pong and throughput modes; for maximum use --pps=max)."
+				OPT_MPS, AOPT_ARG,	aopt_set_literal( 0 ),	aopt_set_string( "mps" ),
+			      "Set number of messages-per-second (default = 10000 - for under-load mode, or max - for ping-pong and throughput modes; for maximum use --mps=max; \n\t\t\t\t support --pps for old compatibility)."
+		},
+		{
+				OPT_MPS, AOPT_ARG,	aopt_set_literal( 0 ),	aopt_set_string( "pps"),
+					NULL
 		},
 		{
 			'm', AOPT_ARG, aopt_set_literal( 'm' ), aopt_set_string( "msg-size" ),
@@ -376,7 +380,7 @@ static int proc_mode_under_load( int id, int argc, const char **argv )
 
 	/* Set default values */
 	s_user_params.mode = MODE_CLIENT;
-	s_user_params.pps = PPS_DEFAULT;
+	s_user_params.mps = MPS_DEFAULT;
 	s_user_params.reply_every = REPLY_EVERY_DEFAULT;
 
 	/* Set command line common options */
@@ -448,26 +452,26 @@ static int proc_mode_under_load( int id, int argc, const char **argv )
 			}
 		}
 
-		if ( !rc && aopt_check(self_obj, OPT_PPS) ) {
-			const char* optarg = aopt_value(self_obj, OPT_PPS);
+		if ( !rc && aopt_check(self_obj, OPT_MPS) ) {
+			const char* optarg = aopt_value(self_obj, OPT_MPS);
 			if (optarg) {
 				if (0 == strcmp("MAX", optarg) || 0 == strcmp("max", optarg)) {
-					s_user_params.pps = UINT32_MAX;
+					s_user_params.mps = UINT32_MAX;
 				}
 				else {
 					errno = 0;
 					long long value = strtol(optarg, NULL, 0);
 					if (errno != 0  || value <= 0 || value > 1<<30 ) {
-						log_msg("Invalid %d val: %s", OPT_PPS, optarg);
+						log_msg("Invalid %d val: %s", OPT_MPS, optarg);
 						rc = SOCKPERF_ERR_BAD_ARGUMENT;
 					}
 					else {
-						s_user_params.pps = (uint32_t)value;
+						s_user_params.mps = (uint32_t)value;
 					}
 				}
 			}
 			else {
-				log_msg("'-%d' Invalid value", OPT_PPS);
+				log_msg("'-%d' Invalid value", OPT_MPS);
 				rc = SOCKPERF_ERR_BAD_ARGUMENT;
 			}
 		}
@@ -575,11 +579,15 @@ static int proc_mode_ping_pong( int id, int argc, const char **argv )
 		},
 		{
 			'b', AOPT_ARG,	aopt_set_literal( 'b' ),	aopt_set_string( "burst" ),
-	             "Control the client's number of a packets sent in every burst."
+	             "Control the client's number of a messages sent in every burst."
 		},
 		{
-			OPT_PPS, AOPT_ARG,	aopt_set_literal( 0 ),	aopt_set_string( "pps" ),
-	             "Set number of packets-per-second (default = 10000 - for under-load mode, or max - for ping-pong and throughput modes; for maximum use --pps=max)."
+			OPT_MPS, AOPT_ARG,	aopt_set_literal( 0 ),	aopt_set_string( "mps"),
+		         "Set number of messages-per-second (default = 10000 - for under-load mode, or max - for ping-pong and throughput modes; for maximum use --mps=max; \n\t\t\t\t support --pps for old compatibility)."
+		},
+		{
+			OPT_MPS, AOPT_ARG,	aopt_set_literal( 0 ),	aopt_set_string( "pps"),
+		         NULL
 		},
 		{
 			'm', AOPT_ARG, aopt_set_literal( 'm' ), aopt_set_string( "msg-size" ),
@@ -622,7 +630,7 @@ static int proc_mode_ping_pong( int id, int argc, const char **argv )
 	/* Set default values */
 	s_user_params.mode = MODE_CLIENT;
 	s_user_params.b_client_ping_pong = true;
-	s_user_params.pps = UINT32_MAX;
+	s_user_params.mps = UINT32_MAX;
 	s_user_params.reply_every = 1;
 
 	/* Set command line common options */
@@ -675,26 +683,26 @@ static int proc_mode_ping_pong( int id, int argc, const char **argv )
 			}
 		}
 
-		if ( !rc && aopt_check(self_obj, OPT_PPS) ) {
-			const char* optarg = aopt_value(self_obj, OPT_PPS);
+		if ( !rc && aopt_check(self_obj, OPT_MPS) ) {
+			const char* optarg = aopt_value(self_obj, OPT_MPS);
 			if (optarg) {
 				if (0 == strcmp("MAX", optarg) || 0 == strcmp("max", optarg)) {
-					s_user_params.pps = UINT32_MAX;
+					s_user_params.mps = UINT32_MAX;
 				}
 				else {
 					errno = 0;
 					long long value = strtol(optarg, NULL, 0);
 					if (errno != 0  || value <= 0 || value > 1<<30 ) {
-						log_msg("Invalid %d val: %s", OPT_PPS, optarg);
+						log_msg("Invalid %d val: %s", OPT_MPS, optarg);
 						rc = SOCKPERF_ERR_BAD_ARGUMENT;
 					}
 					else {
-						s_user_params.pps = (uint32_t)value;
+						s_user_params.mps = (uint32_t)value;
 					}
 				}
 			}
 			else {
-				log_msg("'-%d' Invalid value", OPT_PPS);
+				log_msg("'-%d' Invalid value", OPT_MPS);
 				rc = SOCKPERF_ERR_BAD_ARGUMENT;
 			}
 		}
@@ -791,9 +799,9 @@ static int proc_mode_ping_pong( int id, int argc, const char **argv )
 	aopt_exit((AOPT_OBJECT*)self_obj);
 
 	/* It is set to reduce memory needed for PacketTime buffer */
-	if (s_user_params.pps == UINT32_MAX) { // MAX PPS mode
-		PPS_MAX = PPS_MAX_PP * s_user_params.burst_size;
-		if (PPS_MAX > PPS_MAX_UL) PPS_MAX = PPS_MAX_UL;
+	if (s_user_params.mps == UINT32_MAX) { // MAX MPS mode
+		MPS_MAX = MPS_MAX_PP * s_user_params.burst_size;
+		if (MPS_MAX > MPS_MAX_UL) MPS_MAX = MPS_MAX_UL;
 	}
 
 
@@ -819,11 +827,15 @@ static int proc_mode_throughput( int id, int argc, const char **argv )
 		},
 		{
 			'b', AOPT_ARG,	aopt_set_literal( 'b' ),	aopt_set_string( "burst" ),
-	             "Control the client's number of a packets sent in every burst."
+	             "Control the client's number of a messages sent in every burst."
 		},
 		{
-			OPT_PPS, AOPT_ARG,	aopt_set_literal( 0 ),	aopt_set_string( "pps" ),
-	             "Set number of packets-per-second (default = 10000 - for under-load mode, or max - for ping-pong and throughput modes; for maximum use --pps=max)."
+				OPT_MPS, AOPT_ARG,	aopt_set_literal( 0 ),	aopt_set_string( "mps" ),
+		             "Set number of messages-per-second (default = 10000 - for under-load mode, or max - for ping-pong and throughput modes; for maximum use --mps=max; \n\t\t\t\t support --pps for old compatibility)."
+		},
+		{
+				OPT_MPS, AOPT_ARG,	aopt_set_literal( 0 ),	aopt_set_string( "pps"),
+					NULL
 		},
 		{
 			'm', AOPT_ARG, aopt_set_literal( 'm' ), aopt_set_string( "msg-size" ),
@@ -862,7 +874,7 @@ static int proc_mode_throughput( int id, int argc, const char **argv )
 	/* Set default values */
 	s_user_params.mode = MODE_CLIENT;
 	s_user_params.b_stream = true;
-	s_user_params.pps = UINT32_MAX;
+	s_user_params.mps = UINT32_MAX;
 	s_user_params.reply_every = 1 << (8 * sizeof(s_user_params.reply_every) - 2);
 
 	/* Set command line common options */
@@ -915,26 +927,26 @@ static int proc_mode_throughput( int id, int argc, const char **argv )
 			}
 		}
 
-		if ( !rc && aopt_check(self_obj, OPT_PPS) ) {
-			const char* optarg = aopt_value(self_obj, OPT_PPS);
+		if ( !rc && aopt_check(self_obj, OPT_MPS) ) {
+			const char* optarg = aopt_value(self_obj, OPT_MPS);
 			if (optarg) {
 				if (0 == strcmp("MAX", optarg) || 0 == strcmp("max", optarg)) {
-					s_user_params.pps = UINT32_MAX;
+					s_user_params.mps = UINT32_MAX;
 				}
 				else {
 					errno = 0;
 					long long value = strtol(optarg, NULL, 0);
 					if (errno != 0  || value <= 0 || value > 1<<30 ) {
-						log_msg("Invalid %d val: %s", OPT_PPS, optarg);
+						log_msg("Invalid %d val: %s", OPT_MPS, optarg);
 						rc = SOCKPERF_ERR_BAD_ARGUMENT;
 					}
 					else {
-						s_user_params.pps = (uint32_t)value;
+						s_user_params.mps = (uint32_t)value;
 					}
 				}
 			}
 			else {
-				log_msg("'-%d' Invalid value", OPT_PPS);
+				log_msg("'-%d' Invalid value", OPT_MPS);
 				rc = SOCKPERF_ERR_BAD_ARGUMENT;
 			}
 		}
@@ -1038,7 +1050,7 @@ static int proc_mode_playback( int id, int argc, const char **argv )
 	{
 		{
 			OPT_REPLY_EVERY, AOPT_ARG,	aopt_set_literal( 0 ),	aopt_set_string( "reply-every" ),
-	             "Set number of send packets between reply packets (default = 100)."
+	             "Set number of send messages between reply messages (default = 100)."
 		},
 		{
 			OPT_PLAYBACK_DATA, AOPT_ARG, aopt_set_literal( 0 ), aopt_set_string( "data-file" ),
@@ -1072,7 +1084,7 @@ static int proc_mode_playback( int id, int argc, const char **argv )
 
 	/* Set default values */
 	s_user_params.mode = MODE_CLIENT;
-	s_user_params.pps = PPS_DEFAULT;
+	s_user_params.mps = MPS_DEFAULT;
 	s_user_params.reply_every = REPLY_EVERY_DEFAULT;
 
 	/* Set command line common options */
@@ -1186,7 +1198,7 @@ static int proc_mode_server( int id, int argc, const char **argv )
 		},
 		{
 			OPT_VMARXFILTERCB, AOPT_NOARG,	aopt_set_literal( 0 ),	aopt_set_string( "vmarxfiltercb" ),
-	             "If possible use VMA's receive path packet filter callback API (See VMA's readme)."
+	             "If possible use VMA's receive path message filter callback API (See VMA's readme)."
 		},
 		{
 			OPT_FORCE_UC_REPLY, AOPT_NOARG,	aopt_set_literal( 0 ),	aopt_set_string( "force-unicast-reply" ),
@@ -1221,7 +1233,7 @@ static int proc_mode_server( int id, int argc, const char **argv )
 
 	/* Set default values */
 	s_user_params.mode = MODE_SERVER;
-	s_user_params.pps = PPS_DEFAULT;
+	s_user_params.mps = MPS_DEFAULT;
 	s_user_params.msg_size = MAX_PAYLOAD_SIZE;
 
 	/* Set command line common options */
@@ -1439,7 +1451,7 @@ static int parse_common_opt( const AOPT_OBJECT *common_obj )
 				s_user_params.packetrate_stats_print_ratio = strtol(optarg, NULL, 0);
 				s_user_params.packetrate_stats_print_details = false;
 				if (errno != 0) {
-					log_msg("'-%c' Invalid packet rate stats print value: %d", 'a', s_user_params.packetrate_stats_print_ratio);
+					log_msg("'-%c' Invalid message rate stats print value: %d", 'a', s_user_params.packetrate_stats_print_ratio);
 					rc = SOCKPERF_ERR_BAD_ARGUMENT;
 				}
 			}
@@ -1456,7 +1468,7 @@ static int parse_common_opt( const AOPT_OBJECT *common_obj )
 				s_user_params.packetrate_stats_print_ratio = strtol(optarg, NULL, 0);
 				s_user_params.packetrate_stats_print_details = true;
 				if (errno != 0) {
-					log_msg("'-%c' Invalid packet rate stats print value: %d", 'A', s_user_params.packetrate_stats_print_ratio);
+					log_msg("'-%c' Invalid message rate stats print value: %d", 'A', s_user_params.packetrate_stats_print_ratio);
 					rc = SOCKPERF_ERR_BAD_ARGUMENT;
 				}
 			}
@@ -1850,7 +1862,7 @@ void set_defaults()
 	s_user_params.b_server_reply_via_uc = false;
 	s_user_params.b_server_detect_gaps = false;
 
-	s_user_params.pps = PPS_DEFAULT;
+	s_user_params.mps = MPS_DEFAULT;
 	s_user_params.reply_every = REPLY_EVERY_DEFAULT;
 	s_user_params.b_client_ping_pong = false;
 	s_user_params.b_no_rdtsc = false;
@@ -1902,7 +1914,7 @@ vma_recv_callback_retval_t myapp_vma_recv_pkt_filter_callback(
 	uint8_t* recvbuf = (uint8_t*)iov[0].iov_base;
 
 	if (recvsize < MsgHeader::EFFECTIVE_SIZE) {
-		log_err("packet is too small");
+		log_err("message is too small");
 		return VMA_PACKET_DROP;
 
 	}
@@ -2465,7 +2477,7 @@ int bringup(const int *p_daemonize)
 		if (g_vma_api == NULL)
 			log_err("VMA Extra API not found - working with default socket APIs");
 		else
-			log_msg("VMA Extra API found - using VMA's receive zero copy and packet filter APIs");
+			log_msg("VMA Extra API found - using VMA's receive zero copy and messages filter APIs");
 
 		_vma_dgram_desc_size = sizeof(struct vma_datagram_t) + sizeof(struct iovec) * 16;
 #else
@@ -2484,18 +2496,18 @@ int bringup(const int *p_daemonize)
 		}
 #endif
 
-		int64_t cycleDurationNsec = NSEC_IN_SEC * s_user_params.burst_size / s_user_params.pps;
+		int64_t cycleDurationNsec = NSEC_IN_SEC * s_user_params.burst_size / s_user_params.mps;
 
-		if (s_user_params.pps == UINT32_MAX) { // MAX PPS mode
-			s_user_params.pps = PPS_MAX;
+		if (s_user_params.mps == UINT32_MAX) { // MAX MPS mode
+			s_user_params.mps = MPS_MAX;
 			cycleDurationNsec = 0;
 		}
 
 		s_user_params.cycleDuration = TicksDuration(cycleDurationNsec);
 
 		uint64_t _maxTestDuration = 1 + s_user_params.sec_test_duration;       // + 1sec for timer inaccuracy safety
-		uint64_t _maxSequenceNo = _maxTestDuration * s_user_params.pps + 10 * s_user_params.reply_every; // + 10 replies for safety
-		_maxSequenceNo += s_user_params.burst_size; // needed for the case burst_size > pps
+		uint64_t _maxSequenceNo = _maxTestDuration * s_user_params.mps + 10 * s_user_params.reply_every; // + 10 replies for safety
+		_maxSequenceNo += s_user_params.burst_size; // needed for the case burst_size > mps
 
 		if (s_user_params.pPlaybackVector) {
 			_maxSequenceNo = s_user_params.pPlaybackVector->size();
@@ -2632,7 +2644,7 @@ tcp_nodelay = %d \n\t\
 client_work_with_srv_num = %d \n\t\
 b_server_reply_via_uc = %d \n\t\
 b_server_detect_gaps = %d\n\t\
-pps = %d \n\t\
+mps = %d \n\t\
 reply_every = %d \n\t\
 b_client_ping_pong = %d \n\t\
 b_no_rdtsc = %d \n\t\
@@ -2667,7 +2679,7 @@ s_user_params.tcp_nodelay,
 s_user_params.client_work_with_srv_num,
 s_user_params.b_server_reply_via_uc,
 s_user_params.b_server_detect_gaps,
-s_user_params.pps,
+s_user_params.mps,
 s_user_params.reply_every,
 s_user_params.b_client_ping_pong,
 s_user_params.b_no_rdtsc,

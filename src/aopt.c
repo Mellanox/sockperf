@@ -371,6 +371,10 @@ const char* aopt_help( const AOPT_DESC *desc )
 
         for (; desc && desc->key && buf; desc++)
         {
+        	if ( NULL == desc->note) //ignore values without a description
+        	{
+        		continue;
+        	}
             char buf_short[10];
             char buf_long[50];
             const char *cur_ptr_short = NULL;

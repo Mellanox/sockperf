@@ -49,7 +49,7 @@ void IoHandler::warmup(Message *pMsgRequest) const
 		return;
 	pMsgRequest->setWarmupMessage();
 
-	log_msg("Warmup stage (sending a few dummy packets)...");
+	log_msg("Warmup stage (sending a few dummy messages)...");
 	for (int ifd = m_fd_min; ifd <= m_fd_max; ifd++) {
 		if (g_fds_array[ifd] && g_fds_array[ifd]->is_multicast) {
 			for (int count=0; count<2; count++) {

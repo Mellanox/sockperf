@@ -223,7 +223,7 @@ private:
 
 			#ifdef DEBUG //should not occur in real test
 			if (m_pMsgReply->getSequenceCounter() % g_pApp->m_const_params.reply_every) {
-				log_err("skipping unexpected received packet: seqNo=%" PRIu64 " mask=0x%x",
+				log_err("skipping unexpected received message: seqNo=%" PRIu64 " mask=0x%x",
 						m_pMsgReply->getSequenceCounter(), m_pMsgReply->getFlags());
 				continue;
 			}
