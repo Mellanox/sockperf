@@ -175,6 +175,7 @@ static inline int msg_sendto(int fd, uint8_t* buf, int nbytes, const struct sock
 
 		if (ret > 0) {
 			nbytes -= ret;
+			buf += ret;
 			ret = size;
 		}
 		else if (ret == 0 || errno == EPIPE || errno == ECONNRESET) {
