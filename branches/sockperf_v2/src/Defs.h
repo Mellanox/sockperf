@@ -75,11 +75,11 @@
 #define MAX_PAYLOAD_SIZE        	(65506)
 #define MAX_STREAM_SIZE         	(50*1024*1024)
 
-const uint32_t PPS_MAX_UL          = 10*1000*1000; //  10 M PPS is 4 times the maximum possible under VMA today
-const uint32_t PPS_MAX_PP          = 400*1000;     // 400 K PPS for ping-pong will be break only when we reach RTT of 2.5 usec
-extern uint32_t PPS_MAX;
+const uint32_t MPS_MAX_UL          = 10*1000*1000; //  10 M MPS is 4 times the maximum possible under VMA today
+const uint32_t MPS_MAX_PP          = 400*1000;     // 400 K MPS for ping-pong will be break only when we reach RTT of 2.5 usec
+extern uint32_t MPS_MAX;
 
-const uint32_t PPS_DEFAULT         = 10*1000;
+const uint32_t MPS_DEFAULT         = 10*1000;
 const uint32_t REPLY_EVERY_DEFAULT = 100;
 
 const uint32_t TEST_START_WARMUP_MSEC = 50;
@@ -132,7 +132,7 @@ enum {
 	OPT_MC_LOOPBACK_ENABLE,     //14
 	OPT_CLIENT_WORK_WITH_SRV_NUM,//15
 	OPT_FORCE_UC_REPLY,          //16
-	OPT_PPS,                     //17
+	OPT_MPS,                     //17
 	OPT_REPLY_EVERY,             //18
 	OPT_NO_RDTSC,                //20
 	OPT_SENDER_AFFINITY,         //21
@@ -493,7 +493,7 @@ struct user_params_t {
 	int client_work_with_srv_num;
 	bool b_server_reply_via_uc;
 	bool b_server_detect_gaps;
-	uint32_t pps; //client side only
+	uint32_t mps; //client side only
 	uint32_t reply_every; //client side only
 	bool b_client_ping_pong; //client side only
 	bool b_no_rdtsc;

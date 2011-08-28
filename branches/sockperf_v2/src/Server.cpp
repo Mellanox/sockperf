@@ -109,7 +109,7 @@ int ServerBase::initBeforeLoop()
 		if (g_pApp->m_const_params.mode == MODE_BRIDGE) {
 			char to_array[20];
 			sprintf(to_array, "%s", inet_ntoa(g_pApp->m_const_params.tx_mc_if_addr));
-			printf(MODULE_NAME ": [BRIDGE] transferring packets from %s to %s on:", inet_ntoa(g_pApp->m_const_params.rx_mc_if_addr), to_array);
+			printf(MODULE_NAME ": [BRIDGE] transferring messages from %s to %s on:", inet_ntoa(g_pApp->m_const_params.rx_mc_if_addr), to_array);
 		}
 		else {
 			printf(MODULE_NAME ": [SERVER] listen on:");
