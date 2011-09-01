@@ -526,13 +526,11 @@ void server_select_per_thread(int _fd_num) {
 	/* Free thread info allocated data */
 	if (handler_info_array) {
 		FREE(handler_info_array);
-		handler_info_array = NULL;
 	}
 
 	/* Free thread TID array */
 	if (thread_pid_array) {
 		FREE(thread_pid_array);
-		thread_pid_array = NULL;
 	}
 
 	log_msg("%s() exit", __func__);
