@@ -39,6 +39,8 @@ void sendtoError(int fd, int nbytes, const struct sockaddr_in *sendto_addr);//ta
 void printf_backtrace(void);
 pid_t gettid(void);
 void exit_with_log(int status);
+void exit_with_log(const char* error,int status);
+void print_log_dbg(struct in_addr sin_addr,in_port_t sin_port, int ifd);
 
 int set_affinity_list(pthread_t tid, const char * cpu_list);
 int set_affinity(pthread_t tid, int cpu);
