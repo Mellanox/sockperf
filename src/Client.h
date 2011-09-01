@@ -121,8 +121,7 @@ private:
 		/* check dead peer case */
 		if (ret == RET_SOCKET_SHUTDOWN) {
 			if (g_fds_array[ifd]->sock_type == SOCK_STREAM) {
-				log_err("A connection was forcibly closed by a peer");
-				exit_with_log(SOCKPERF_ERR_SOCKET);
+				exit_with_log("A connection was forcibly closed by a peer",SOCKPERF_ERR_SOCKET);
 			}
 		}
 #if defined(EXTRA_ABILITY) && (EXTRA_ABILITY==TRUE)
@@ -138,7 +137,6 @@ private:
 	inline unsigned int client_receive_from_selected(int ifd)
 	{
 		int ret = 0;
-		int nbytes = 0;
 		struct sockaddr_in recvfrom_addr;
 		int receiveCount = 0;
 		int serverNo = 0;
@@ -151,13 +149,12 @@ private:
 				           &recvfrom_addr);
 		if (ret == RET_SOCKET_SHUTDOWN) {
 			if (g_fds_array[ifd]->sock_type == SOCK_STREAM) {
-				log_err("A connection was forcibly closed by a peer");
-				exit_with_log(SOCKPERF_ERR_SOCKET);
+				exit_with_log("A connection was forcibly closed by a peer",SOCKPERF_ERR_SOCKET);
 			}
 		}
 		if (ret < 0) return 0;
 
-		nbytes = ret;
+		int nbytes = ret;
 		while (nbytes) {
 
 			/* 1: message header is not received yet */
@@ -232,8 +229,7 @@ private:
 #if defined(EXTRA_ABILITY) && (EXTRA_ABILITY==TRUE)
 			serverNo = client_get_server_id(ifd, &recvfrom_addr);
 			if (serverNo < 0) {
-				log_msg("Number of servers more than expected");
-				exit_with_log(SOCKPERF_ERR_FATAL);
+				exit_with_log("Number of servers more than expected",SOCKPERF_ERR_FATAL);
 			}
 			else {
 				g_pPacketTimes->setRxTime(m_pMsgReply->getSequenceCounter(),
@@ -263,31 +259,28 @@ private:
 	inline unsigned int client_receive(/*int packet_cnt_index*/)
 	{
 		int numReady = 0;
-		int actual_fd = 0;
-		unsigned int recieved_packets_num = 0;
 
 		do {
 			// wait for arrival
 			numReady = m_ioHandler.waitArrival();
-			// check errors
-			if (g_b_exit) break;
-			if (numReady < 0) {
-				log_err("%s() failed", handler2str(g_pApp->m_const_params.fd_handler_type));
-				exit_with_log(SOCKPERF_ERR_FATAL);
+		} while (!numReady && !g_b_exit);
+
+		if (g_b_exit) return 0;
+
+		// check errors
+		if (numReady < 0) {
+			exit_with_log(handler2str(g_pApp->m_const_params.fd_handler_type),SOCKPERF_ERR_FATAL);
+		}
+
+		/* ready fds were found so receive from the relevant sockets*/
+		unsigned int recieved_packets_num = 0;
+		int actual_fd = 0;
+		for (int _fd = m_ioHandler.get_look_start(); _fd < m_ioHandler.get_look_end() ; _fd++) {
+			actual_fd = m_ioHandler.analyzeArrival(_fd);
+			if (actual_fd){
+				recieved_packets_num += client_receive_from_selected(actual_fd/*, packet_cnt_index*/);
 			}
-			if (numReady == 0) {
-				//if (!g_pApp->m_const_params.select_timeout) - ABH: who cares?
-				//	log_msg("Error: %s() returned without fd ready", g_fds_handle_desc[g_pApp->m_const_params.fd_handler_type]);
-				continue;
-			}
-			/* ready fds were found so receive from the relevant sockets*/
-			for (int _fd = m_ioHandler.get_look_start(); (_fd < m_ioHandler.get_look_end()); _fd++) {
-				actual_fd = m_ioHandler.analyzeArrival(_fd);
-				if (actual_fd){
-					recieved_packets_num += client_receive_from_selected(actual_fd/*, packet_cnt_index*/);
-				}
-			}
-		} while (numReady <= 0);
+		}
 		return recieved_packets_num;
 	}
 

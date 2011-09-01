@@ -114,26 +114,24 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_t
 	struct sockaddr_in sendto_addr;
 	bool do_update = true;
 	int ret = 0;
-	int nbytes = 0;
-
+	fds_data* fds_ifd = g_fds_array[ifd];
 	ret = msg_recvfrom(ifd,
-			           g_fds_array[ifd]->recv.cur_addr + g_fds_array[ifd]->recv.cur_offset,
-			           g_fds_array[ifd]->recv.cur_size,
+			           fds_ifd->recv.cur_addr + fds_ifd->recv.cur_offset,
+			           fds_ifd->recv.cur_size,
 			           &recvfrom_addr);
 
 	if (ret == RET_SOCKET_SHUTDOWN) {
-		if (g_fds_array[ifd]->sock_type == SOCK_STREAM) {
-			int next_fd = g_fds_array[ifd]->next_fd;
-			int i = 0;
+		if (fds_ifd->sock_type == SOCK_STREAM) {
+			int next_fd = fds_ifd->next_fd;
 
-			for (i = 0; i < MAX_ACTIVE_FD_NUM; i++) {
+			for (int i = 0; i < MAX_ACTIVE_FD_NUM; i++) {
 				if (g_fds_array[next_fd]->active_fd_list[i] == ifd) {
-					log_dbg ("peer address to close: %s:%d [%d]", inet_ntoa(g_fds_array[ifd]->addr.sin_addr), ntohs(g_fds_array[ifd]->addr.sin_port), ifd);
+					print_log_dbg (fds_ifd->addr.sin_addr, fds_ifd->addr.sin_port, ifd);
 
 					close(ifd);
 					g_fds_array[next_fd]->active_fd_count--;
 					g_fds_array[next_fd]->active_fd_list[i] = INVALID_SOCKET;
-					FREE(g_fds_array[ifd]);
+					free(g_fds_array[ifd]);
 					g_fds_array[ifd] = NULL;
 					break;
 				}
@@ -143,46 +141,46 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_t
 	}
 	if (ret < 0) return (!do_update);
 
-	nbytes = ret;
+	int nbytes = ret;
 	while (nbytes) {
 
 		/* 1: message header is not received yet */
-		if ((g_fds_array[ifd]->recv.cur_offset + nbytes) < MsgHeader::EFFECTIVE_SIZE) {
-			g_fds_array[ifd]->recv.cur_size -= nbytes;
-			g_fds_array[ifd]->recv.cur_offset += nbytes;
+		if ((fds_ifd->recv.cur_offset + nbytes) < MsgHeader::EFFECTIVE_SIZE) {
+			fds_ifd->recv.cur_size -= nbytes;
+			fds_ifd->recv.cur_offset += nbytes;
 
 			/* 4: set current buffer size to size of remained part of message header to
 			 *    guarantee getting full message header on next iteration
 			 */
-			if (g_fds_array[ifd]->recv.cur_size < MsgHeader::EFFECTIVE_SIZE) {
-				g_fds_array[ifd]->recv.cur_size = MsgHeader::EFFECTIVE_SIZE - g_fds_array[ifd]->recv.cur_offset;
+			if (fds_ifd->recv.cur_size < MsgHeader::EFFECTIVE_SIZE) {
+				fds_ifd->recv.cur_size = MsgHeader::EFFECTIVE_SIZE - fds_ifd->recv.cur_offset;
 			}
 			return (!do_update);
 		}
 
 		/* 2: message header is got, match message to cycle buffer */
-		m_pMsgReply->setBuf(g_fds_array[ifd]->recv.cur_addr);
+		m_pMsgReply->setBuf(fds_ifd->recv.cur_addr);
 
 		/* 3: message is not complete */
-		if ((g_fds_array[ifd]->recv.cur_offset + nbytes) < m_pMsgReply->getLength()) {
-			g_fds_array[ifd]->recv.cur_size -= nbytes;
-			g_fds_array[ifd]->recv.cur_offset += nbytes;
+		if ((fds_ifd->recv.cur_offset + nbytes) < m_pMsgReply->getLength()) {
+			fds_ifd->recv.cur_size -= nbytes;
+			fds_ifd->recv.cur_offset += nbytes;
 
 			/* 4: set current buffer size to size of remained part of message to
 			 *    guarantee getting full message on next iteration (using extended reserved memory)
 			 *    and shift to start of cycle buffer
 			 */
-			if (g_fds_array[ifd]->recv.cur_size < (int)m_pMsgReply->getMaxSize()) {
-				g_fds_array[ifd]->recv.cur_size = m_pMsgReply->getLength() - g_fds_array[ifd]->recv.cur_offset;
+			if (fds_ifd->recv.cur_size < (int)m_pMsgReply->getMaxSize()) {
+				fds_ifd->recv.cur_size = m_pMsgReply->getLength() - fds_ifd->recv.cur_offset;
 			}
 			return (!do_update);
 		}
 
 		/* 5: message is complete shift to process next one */
-		nbytes -= m_pMsgReply->getLength() - g_fds_array[ifd]->recv.cur_offset;
-		g_fds_array[ifd]->recv.cur_addr += m_pMsgReply->getLength();
-		g_fds_array[ifd]->recv.cur_size -= m_pMsgReply->getLength() - g_fds_array[ifd]->recv.cur_offset;
-		g_fds_array[ifd]->recv.cur_offset = 0;
+		nbytes -= m_pMsgReply->getLength() - fds_ifd->recv.cur_offset;
+		fds_ifd->recv.cur_addr += m_pMsgReply->getLength();
+		fds_ifd->recv.cur_size -= m_pMsgReply->getLength() - fds_ifd->recv.cur_offset;
+		fds_ifd->recv.cur_offset = 0;
 
 #if defined(LOG_TRACE_MSG_IN) && (LOG_TRACE_MSG_IN==TRUE)
 		printf(">>> ");
@@ -195,9 +193,9 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_t
 			 * there is no uncompleted message
 			 */
 			if (!nbytes) {
-				g_fds_array[ifd]->recv.cur_addr = g_fds_array[ifd]->recv.buf;
-				g_fds_array[ifd]->recv.cur_size = g_fds_array[ifd]->recv.max_size;
-				g_fds_array[ifd]->recv.cur_offset = 0;
+				fds_ifd->recv.cur_addr = fds_ifd->recv.buf;
+				fds_ifd->recv.cur_size = fds_ifd->recv.max_size;
+				fds_ifd->recv.cur_offset = 0;
 			}
 			return (!do_update);
 		}
@@ -208,9 +206,9 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_t
 			 * there is no uncompleted message
 			 */
 			if (!nbytes) {
-				g_fds_array[ifd]->recv.cur_addr = g_fds_array[ifd]->recv.buf;
-				g_fds_array[ifd]->recv.cur_size = g_fds_array[ifd]->recv.max_size;
-				g_fds_array[ifd]->recv.cur_offset = 0;
+				fds_ifd->recv.cur_addr = fds_ifd->recv.buf;
+				fds_ifd->recv.cur_size = fds_ifd->recv.max_size;
+				fds_ifd->recv.cur_offset = 0;
 			}
 			return (!do_update);
 		}
@@ -223,25 +221,24 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_t
 				m_pMsgReply->setServer();
 			}
 			/* get source addr to reply. memcpy is not used to improve performance */
-			sendto_addr = g_fds_array[ifd]->addr;
-			if (!g_fds_array[ifd]->is_multicast || g_pApp->m_const_params.b_server_reply_via_uc) {// In unicast case reply to sender
+			sendto_addr =fds_ifd->addr;
+			if (!fds_ifd->is_multicast || g_pApp->m_const_params.b_server_reply_via_uc) {// In unicast case reply to sender
 				/* get source addr to reply. memcpy is not used to improve performance */
 				sendto_addr = recvfrom_addr;
 			}
 			ret = msg_sendto(ifd, m_pMsgReply->getBuf(), m_pMsgReply->getLength(), &sendto_addr);
 			if (ret == RET_SOCKET_SHUTDOWN) {
-				if (g_fds_array[ifd]->sock_type == SOCK_STREAM) {
-					int next_fd = g_fds_array[ifd]->next_fd;
-					int i = 0;
+				if (fds_ifd->sock_type == SOCK_STREAM) {
+					int next_fd = fds_ifd->next_fd;
 
-					for (i = 0; i < MAX_ACTIVE_FD_NUM; i++) {
+					for (int i = 0; i < MAX_ACTIVE_FD_NUM; i++) {
 						if (g_fds_array[next_fd]->active_fd_list[i] == ifd) {
-							log_dbg ("peer address to close: %s:%d [%d]", inet_ntoa(g_fds_array[ifd]->addr.sin_addr), ntohs(g_fds_array[ifd]->addr.sin_port), ifd);
+							print_log_dbg( fds_ifd->addr.sin_addr, fds_ifd->addr.sin_port, ifd);
 
 							close(ifd);
 							g_fds_array[next_fd]->active_fd_count--;
 							g_fds_array[next_fd]->active_fd_list[i] = INVALID_SOCKET;
-							FREE(g_fds_array[ifd]);
+							free(g_fds_array[ifd]);
 							g_fds_array[ifd] = NULL;
 							break;
 						}
@@ -258,11 +255,10 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_t
 	/* 6: shift to start of cycle buffer in case receiving buffer is empty and
 	 * there is no uncompleted message
 	 */
-	if (!nbytes) {
-		g_fds_array[ifd]->recv.cur_addr = g_fds_array[ifd]->recv.buf;
-		g_fds_array[ifd]->recv.cur_size = g_fds_array[ifd]->recv.max_size;
-		g_fds_array[ifd]->recv.cur_offset = 0;
-	}
+	// nbytes == 0
+	fds_ifd->recv.cur_addr = fds_ifd->recv.buf;
+	fds_ifd->recv.cur_size = fds_ifd->recv.max_size;
+	fds_ifd->recv.cur_offset = 0;
 
 	return (!do_update);
 }

@@ -185,8 +185,7 @@ public:
 	//----------------------
 	inline void execute(Message *pMsgSend, Message * pMsgReply) {
 		if (!check_data_integrity(pMsgSend, pMsgReply)) {
-			log_msg("data integrity test failed");
-			exit_with_log(SOCKPERF_ERR_INCORRECT);
+			exit_with_log("data integrity test failed",SOCKPERF_ERR_INCORRECT);
 		}
 	}
 private:

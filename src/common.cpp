@@ -80,6 +80,19 @@ void exit_with_log(int status)
 }
 
 //------------------------------------------------------------------------------
+void exit_with_log(const char* error, int status)
+{
+	log_err("%s",error);
+	cleanup();
+	printf("sockperf: program exits because of an error.  current value of errno=%d (%m)", errno);
+	printf_backtrace();
+	exit(status);
+}
+void print_log_dbg ( struct in_addr sin_addr,in_port_t sin_port, int ifd)
+{
+	log_dbg ("peer address to close: %s:%d [%d]",inet_ntoa(sin_addr), ntohs(sin_port), ifd);
+}
+//------------------------------------------------------------------------------
 int set_affinity_list(pthread_t tid, const char * cpu_list)
 {
 	int rc = SOCKPERF_ERR_NONE;
