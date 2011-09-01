@@ -1761,12 +1761,10 @@ void cleanup()
 	}
 	if(s_user_params.select_timeout) {
 		FREE(s_user_params.select_timeout);
-		s_user_params.select_timeout = NULL;
 	}
 #ifdef  USING_VMA_EXTRA_API
 	if (g_dgram_buf) {
 		FREE(g_dgram_buf);
-		g_dgram_buf = NULL;
 	}
 #endif
 
@@ -1814,7 +1812,6 @@ static void set_select_timeout(int time_out_msec)
 	else {
 		// Clear timeout
 		FREE(s_user_params.select_timeout);
-		s_user_params.select_timeout = NULL;
 	}
 }
 
@@ -2270,7 +2267,6 @@ static int set_mcgroups_fromfile(const char *mcg_filename)
 
 			if (is_exist) {
 				FREE(tmp);
-				tmp = NULL;
 				continue;
 			}
 
