@@ -146,6 +146,7 @@ enum {
 	OPT_IP_MULTICAST_TTL,			//30
 	OPT_SOCK_ACCL,				//31
 	OPT_THREADS_AFFINITY,				//32
+	OPT_DONT_REPLY,		//33
 };
 
 #define MODULE_NAME			"sockperf"
@@ -492,6 +493,7 @@ struct user_params_t {
 	bool mc_loop_disable;
 	int client_work_with_srv_num;
 	bool b_server_reply_via_uc;
+	bool b_server_dont_reply;
 	bool b_server_detect_gaps;
 	uint32_t mps; //client side only
 	uint32_t reply_every; //client side only

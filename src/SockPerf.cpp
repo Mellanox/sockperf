@@ -1205,6 +1205,10 @@ static int proc_mode_server( int id, int argc, const char **argv )
 	             "Force server to reply via unicast."
 		},
 		{
+				OPT_DONT_REPLY, AOPT_NOARG,	aopt_set_literal( 0 ),	aopt_set_string( "dont-reply" ),
+					"Server won't reply to the client messages."
+		},
+		{
 			'g', AOPT_NOARG,	aopt_set_literal( 'g' ),	aopt_set_string( "gap-detection" ),
 	             "Enable gap-detection."
 		},
@@ -1294,6 +1298,9 @@ static int proc_mode_server( int id, int argc, const char **argv )
 
 		if ( !rc && aopt_check(server_obj, OPT_FORCE_UC_REPLY) ) {
 			s_user_params.b_server_reply_via_uc = true;
+		}
+		if ( !rc && aopt_check(server_obj, OPT_DONT_REPLY) ) {
+			s_user_params.b_server_dont_reply = true;
 		}
 
 		if ( !rc && aopt_check(server_obj, 'g') ) {
@@ -1857,6 +1864,7 @@ void set_defaults()
 	s_user_params.mc_loop_disable = true;
 	s_user_params.client_work_with_srv_num = 1;
 	s_user_params.b_server_reply_via_uc = false;
+	s_user_params.b_server_dont_reply=false;
 	s_user_params.b_server_detect_gaps = false;
 
 	s_user_params.mps = MPS_DEFAULT;
@@ -2639,6 +2647,7 @@ mc_ttl = %d \n\t\
 tcp_nodelay = %d \n\t\
 client_work_with_srv_num = %d \n\t\
 b_server_reply_via_uc = %d \n\t\
+b_server_dont_reply = %d \n\t\
 b_server_detect_gaps = %d\n\t\
 mps = %d \n\t\
 reply_every = %d \n\t\
@@ -2674,6 +2683,7 @@ s_user_params.mc_ttl,
 s_user_params.tcp_nodelay,
 s_user_params.client_work_with_srv_num,
 s_user_params.b_server_reply_via_uc,
+s_user_params.b_server_dont_reply,
 s_user_params.b_server_detect_gaps,
 s_user_params.mps,
 s_user_params.reply_every,
