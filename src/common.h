@@ -132,8 +132,9 @@ static inline int msg_recvfrom(int fd, uint8_t* buf, int nbytes, struct sockaddr
 //------------------------------------------------------------------------------
 static inline int msg_sendto(int fd, uint8_t* buf, int nbytes, const struct sockaddr_in *sendto_addr)
 {
-	int ret = 0;
-    int flags = 0;
+     int ret = nbytes;
+     int flags = 0;
+     int curr_ret = 0;
 
 #if defined(LOG_TRACE_MSG_OUT) && (LOG_TRACE_MSG_OUT==TRUE)
 	printf("<<< ");
@@ -150,93 +151,34 @@ static inline int msg_sendto(int fd, uint8_t* buf, int nbytes, const struct sock
      */
 	flags = MSG_NOSIGNAL;
 
-#if defined(EXTRA_ABILITY) && (EXTRA_ABILITY==TRUE)
-	/*
-	 * MSG_DONTWAIT:
-	 * Enables non-blocking operation; if the operation would block,
-	 * EAGAIN is returned (this can also be enabled using the O_NONBLOCK with
-	 * the F_SETFL fcntl()).
-	 */
-	if (g_pApp->m_const_params.is_nonblocked_send) {
-		flags |= MSG_DONTWAIT;
-	}
 
-    int size = nbytes;
-
-	while (nbytes) {
-		ret = sendto(fd, buf, nbytes, flags, (struct sockaddr*)sendto_addr, sizeof(struct sockaddr));
-
-#if defined(LOG_TRACE_SEND) && (LOG_TRACE_SEND==TRUE)
-		LOG_TRACE ("raw", "%s IP: %s:%d [fd=%d ret=%d] %s", __FUNCTION__,
-								   inet_ntoa(sendto_addr->sin_addr),
-								   ntohs(sendto_addr->sin_port),
-								   fd,
-								   ret,
-								   strerror(errno));
-#endif /* LOG_TRACE_SEND */
-
-		if (ret > 0) {
-			nbytes -= ret;
-			buf += ret;
-			ret = size;
-		}
-		else if (ret == 0 || errno == EPIPE || errno == ECONNRESET) {
-			/* If no messages are available to be received and the peer has performed an orderly shutdown,
-			 * send()/sendto() shall return (RET_SOCKET_SHUTDOWN)
-			 */
-			errno = 0;
-			ret = RET_SOCKET_SHUTDOWN;
-			break;
-		}
-		else if (ret < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
-			/* If space is not available at the sending socket to hold the message to be transmitted and
-			 * the socket file descriptor does have O_NONBLOCK set and
-			 * no bytes related message sent before
-			 * send()/sendto() shall return (RET_SOCKET_SKIPPED)
-			 */
-			errno = 0;
-			if (nbytes < size) continue;
-
-			ret = RET_SOCKET_SKIPPED;
-			break;
-		}
-		else if (ret < 0 && (errno == EINTR)) {
-			/* A signal occurred.
-			 */
-			errno = 0;
-			break;
-		}
-		else {
-			/* Unprocessed error
-			 */
-			sendtoError(fd, nbytes, sendto_addr);
-			errno = 0;
-			break;
-		}
-	}
-#else
-	ret = sendto(fd, buf, nbytes, flags, (struct sockaddr*)sendto_addr, sizeof(struct sockaddr));
+	while(nbytes && ret > 0) {
+		curr_ret = sendto(fd, buf, nbytes, flags, (struct sockaddr*)sendto_addr, sizeof(struct sockaddr));
 
 #if defined(LOG_TRACE_SEND) && (LOG_TRACE_SEND==TRUE)
 	LOG_TRACE ("raw", "%s IP: %s:%d [fd=%d ret=%d] %s", __FUNCTION__,
 			                   inet_ntoa(sendto_addr->sin_addr),
 			                   ntohs(sendto_addr->sin_port),
 			                   fd,
-			                   ret,
+			                   curr_ret,
 			                   strerror(errno));
 #endif /* LOG_TRACE_SEND */
-
-	if (ret == 0 || errno == EPIPE || errno == ECONNRESET) {
-		/* If no messages are available to be received and the peer has performed an orderly shutdown,
-		 * send()/sendto() shall return 0
-		 * */
-		ret = 0;
-		errno = 0;
+		if (curr_ret > 0) {
+			nbytes -= curr_ret;
+			buf += curr_ret;
+		}
+		if (curr_ret == 0 || errno == EPIPE || errno == ECONNRESET) {
+			/* If no messages are available to be received and the peer has performed an orderly shutdown,
+			 * send()/sendto() shall return 0
+			 * */
+			ret = 0;
+			errno = 0;
+		}
+		else if (curr_ret < 0 && errno && errno != EINTR) {
+			sendtoError(fd, nbytes, sendto_addr);
+			ret = curr_ret;
+		}
 	}
-	else if (ret < 0 && errno && errno != EINTR) {
-		sendtoError(fd, nbytes, sendto_addr);
-	}
-#endif /* defined(EXTRA_ABILITY) */
 
 	return ret;
 }
