@@ -74,8 +74,10 @@ void printf_backtrace(void)
 void exit_with_log(int status)
 {
 	cleanup();
-	printf("sockperf: program exits because of an error.  current value of errno=%d (%m)", errno);
+	printf("sockperf: program exits because of an error.  current value of errno=%d (%m)\n", errno);
+#ifdef DEBUG
 	printf_backtrace();
+#endif
 	exit(status);
 }
 
@@ -84,9 +86,20 @@ void exit_with_log(const char* error, int status)
 {
 	log_err("%s",error);
 	cleanup();
-	printf("sockperf: program exits because of an error.  current value of errno=%d (%m)", errno);
-	printf_backtrace();
-	exit(status);
+	#ifdef DEBUG
+		printf_backtrace();
+	#endif
+		exit(status);
+}
+
+//------------------------------------------------------------------------------
+void exit_with_log(const char* error, int status, fds_data* fds)
+{
+	printf("IP = %-15s PORT = %5d # %s ",
+			inet_ntoa(fds->addr.sin_addr),
+			ntohs(fds->addr.sin_port),
+			PRINT_PROTOCOL(fds->sock_type));
+	exit_with_log(error, status);
 }
 void print_log_dbg ( struct in_addr sin_addr,in_port_t sin_port, int ifd)
 {

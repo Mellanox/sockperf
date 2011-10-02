@@ -1,6 +1,7 @@
 #
 # sockperf utility.
 #
+AM_LDFLAGS = -rdynamic
 
 all:
 	@(cp $(bin_PROGRAMS) $(bin_PROGRAMS)_$(PACKAGE_VERSION))

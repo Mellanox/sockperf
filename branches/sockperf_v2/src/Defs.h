@@ -72,8 +72,9 @@
 #endif
 
 #define MIN_PAYLOAD_SIZE        	(MsgHeader::EFFECTIVE_SIZE)
-#define MAX_PAYLOAD_SIZE        	(65506)
+extern int MAX_PAYLOAD_SIZE;
 #define MAX_STREAM_SIZE         	(50*1024*1024)
+#define MAX_TCP_SIZE				((1<<20)-1)
 
 const uint32_t MPS_MAX_UL          = 10*1000*1000; //  10 M MPS is 4 times the maximum possible under VMA today
 const uint32_t MPS_MAX_PP          = 400*1000;     // 400 K MPS for ping-pong will be break only when we reach RTT of 2.5 usec
@@ -156,7 +157,11 @@ enum {
 #define log_msg_file(file, log_fmt, log_args...)	fprintf(file, MODULE_NAME ": " log_fmt "\n", ##log_args)
 #define log_msg_file2(file, log_fmt, log_args...)	if (1) {log_msg(log_fmt, ##log_args); if (file) log_msg_file(file, log_fmt, ##log_args);} else
 
+#define log_err(log_fmt, log_args...)	printf("ERROR: " log_fmt " (errno=%d %s)\n", ##log_args, errno, strerror(errno))
+#ifdef DEBUG
+#undef log_err
 #define log_err(log_fmt, log_args...)	printf(MODULE_NAME ": " "%s:%d:ERROR: " log_fmt " (errno=%d %s)\n", __FILE__, __LINE__, ##log_args, errno, strerror(errno))
+#endif
 #define log_dbg(log_fmt, log_args...)	if (g_debug_level >= LOG_LVL_DEBUG) { printf(MODULE_NAME ": " log_fmt "\n", ##log_args); } else
 
 #define TRACE(msg) log_msg("TRACE <%s>: %s() %s:%d\n", msg, __func__, __FILE__, __LINE__)
@@ -366,7 +371,7 @@ typedef struct fds_data {
 	int active_fd_count;		/**< number of active connections (by default 1-for UDP; 0-for TCP) */
 	int *active_fd_list;		/**< list of fd related active connections (UDP has the same fd by default) */
 	struct {
-		uint8_t buf[2 * MAX_PAYLOAD_SIZE];
+		uint8_t *buf;
 		int max_size;
 		uint8_t *cur_addr;
 		int cur_offset;

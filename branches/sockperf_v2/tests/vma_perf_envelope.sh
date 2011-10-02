@@ -28,12 +28,12 @@
 
 #configurable parameters
 #---------------------------------------------------
-MC_GROUP=224.18.7.81
+MC_GROUP=17.17.17.100
 PORT=5001
 DURATION=10    #in seconds
 BW=10G
 OUTPUT_FILES_PATH="./"
-INTERFACE="ib0"
+INTERFACE="eth3"
 OVER_VMA="yes" #[yes | not]
 SOCKPERF_TC1_PPS_ARRAY=(100 1000 10000 50000 100000 500000)                                                   # Packet per second
 SOCKPERF_MSG_SIZE=(12 32 64 128 192 256 512 768 1024 1472 2048 4096 8192 16384 32768 65500)                   # Bytes
@@ -43,7 +43,7 @@ MC_GROUP_SIZES=(1 10 20 30 50 60 64 65 70 80 90 100 150 200 500)                
 
 #path
 #----------------------------------------------------
-SOCKPERF_APP=${SOCKPERF_PATH:-sockperf}
+SOCKPERF_APP=${SOCKPERF_PATH:-sockperf_2.5.132M}
 VMA_LIB=${VMA_PATH:-libvma.so}
 
 #####################################################
@@ -80,7 +80,7 @@ VMA_IOMUX_RX_WRE=$DEFAULT_VMA_RX_WRE				#3200
 VMA_IOMUX_RX_SKIP_OS=$DEFAULT_VMA_RX_SKIP_OS			#1000
 VMA_IOMUX_SELECT_SKIP_OS=$DEFAULT_VMA_SELECT_SKIP_OS		#500
 VMA_IOMUX_HUGETLB=$DEFAULT_VMA_HUGETLB				#1
-MAX_SOCKPERF_MSG_SIZE=65000
+MAX_SOCKPERF_MSG_SIZE=65507
 ACTIVITY=100000
 
 RX_ADAPTIVE_ETH_THROUGHPUT=on
@@ -165,7 +165,7 @@ function run_sockperf_tc1
 	print_message "===========================>SOCKPERF TC1<==========================" "$log_file"    
         
 	local size_arr_len=${#SOCKPERF_MSG_SIZE[*]}
-	local pps_arr_len=${#SOCKPERF_TC1_PPS_ARRAY[*]}
+	 local pps_arr_len=${#SOCKPERF_TC1_PPS_ARRAY[*]}
         sockperf_command_line_srv=${PREFIX}"${SOCKPERF_APP} server -i $MC_GROUP -p $PORT -m $MAX_SOCKPERF_MSG_SIZE"
         (echo ${SRV_CMMND_LINE_PREF}$sockperf_command_line_srv | tee -a $log_file) >& /dev/null
         (eval "$sockperf_command_line_srv 2>&1 | tee >> $log_file &") 
@@ -440,7 +440,7 @@ function run_sockperf_with_diff_mc_feed_files
 
 function run_sockperf_with_feed_file
 {
-	sockperf_command_line_srv=${PREFIX}"${SOCKPERF_APP} server -f $1 -F $2"
+	sockperf_command_line_srv=${PREFIX}"${SOCKPERF_APP} server -i $MC_GROUP -p $PORT -f $1 -F $2"
 	sockperf_command_line_clt=${PREFIX}"${SOCKPERF_APP} ping-pong -f $1 -F $2 -t $DURATION --pps=max"
 	
         (echo ${SRV_CMMND_LINE_PREF}$sockperf_command_line_srv | tee -a $log_file) >& /dev/null

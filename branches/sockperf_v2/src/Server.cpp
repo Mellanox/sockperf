@@ -229,11 +229,17 @@ int Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_accept(int ifd)
 			return INVALID_SOCKET;
 		}
 		memcpy(tmp, g_fds_array[ifd], sizeof(struct fds_data));
+		tmp->recv.buf = (uint8_t*) malloc (sizeof(uint8_t)*2*MAX_PAYLOAD_SIZE);
+		if (!tmp->recv.buf) {
+			log_err("Failed to allocate memory with malloc()");
+			FREE(tmp);
+			return SOCKPERF_ERR_NO_MEMORY;
+		}
 		tmp->next_fd = ifd;
 		tmp->active_fd_list = NULL;
 		tmp->active_fd_count = 0;
 		tmp->recv.cur_addr = tmp->recv.buf;
-		tmp->recv.max_size = sizeof(tmp->recv.buf) - MAX_PAYLOAD_SIZE;
+		tmp->recv.max_size = MAX_PAYLOAD_SIZE;
 		tmp->recv.cur_offset = 0;
 		tmp->recv.cur_size = tmp->recv.max_size;
 
@@ -241,6 +247,9 @@ int Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_accept(int ifd)
         if (active_ifd < 0)
         {
         	active_ifd = INVALID_SOCKET;
+			if (tmp->recv.buf){
+        		FREE(tmp->recv.buf);
+			}
             FREE(tmp);
             log_dbg("Can`t accept connection\n");
         }
@@ -271,6 +280,9 @@ int Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_accept(int ifd)
         	if (!do_accept) {
         		close(active_ifd);
         		active_ifd = INVALID_SOCKET;
+				if (tmp->recv.buf){
+        			FREE(tmp->recv.buf);
+				}
         		FREE(tmp);
                 log_dbg ("peer address to refuse: %s:%d [%d]", inet_ntoa(addr.sin_addr), ntohs(addr.sin_port), active_ifd);
         	}

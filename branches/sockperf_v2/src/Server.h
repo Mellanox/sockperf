@@ -161,6 +161,32 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_t
 		/* 2: message header is got, match message to cycle buffer */
 		m_pMsgReply->setBuf(fds_ifd->recv.cur_addr);
 
+		if ( m_pMsgReply->getLength() > MAX_PAYLOAD_SIZE){
+			//Message received was larger than expected, message ignored.
+			ret = RET_SOCKET_SHUTDOWN;
+			printf("IP = %-15s PORT = %5d # %s ",
+									inet_ntoa(fds_ifd->addr.sin_addr),
+									ntohs(fds_ifd->addr.sin_port),
+									PRINT_PROTOCOL(fds_ifd->sock_type));
+			log_err("Message received was larger than expected, message ignored.");
+
+			if (fds_ifd->sock_type == SOCK_STREAM) {
+				int next_fd = fds_ifd->next_fd;
+				for (int i = 0; i < MAX_ACTIVE_FD_NUM; i++) {
+									if (g_fds_array[next_fd]->active_fd_list[i] == ifd) {
+										print_log_dbg( fds_ifd->addr.sin_addr, fds_ifd->addr.sin_port, ifd);
+										close(ifd);
+										g_fds_array[next_fd]->active_fd_count--;
+										g_fds_array[next_fd]->active_fd_list[i] = INVALID_SOCKET;
+										free(g_fds_array[ifd]);
+										g_fds_array[ifd] = NULL;
+										break;
+									}
+								}
+							return (do_update);
+						}
+		}
+
 		/* 3: message is not complete */
 		if ((fds_ifd->recv.cur_offset + nbytes) < m_pMsgReply->getLength()) {
 			fds_ifd->recv.cur_size -= nbytes;
