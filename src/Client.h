@@ -121,7 +121,7 @@ private:
 		/* check dead peer case */
 		if (ret == RET_SOCKET_SHUTDOWN) {
 			if (g_fds_array[ifd]->sock_type == SOCK_STREAM) {
-				exit_with_log("A connection was forcibly closed by a peer",SOCKPERF_ERR_SOCKET);
+				exit_with_log("A connection was forcibly closed by a peer",SOCKPERF_ERR_SOCKET,g_fds_array[ifd]);
 			}
 		}
 #if defined(EXTRA_ABILITY) && (EXTRA_ABILITY==TRUE)
@@ -149,7 +149,7 @@ private:
 				           &recvfrom_addr);
 		if (ret == RET_SOCKET_SHUTDOWN) {
 			if (g_fds_array[ifd]->sock_type == SOCK_STREAM) {
-				exit_with_log("A connection was forcibly closed by a peer",SOCKPERF_ERR_SOCKET);
+				exit_with_log("A connection was forcibly closed by a peer",SOCKPERF_ERR_SOCKET,g_fds_array[ifd]);
 			}
 		}
 		if (ret < 0) return 0;

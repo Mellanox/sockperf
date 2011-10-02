@@ -80,6 +80,7 @@
 #include "Switches.h"
 #include "aopt.h"
 #include <dlfcn.h>
+#include <stdio.h>
 
 // forward declarations from Client.cpp & Server.cpp
 extern void client_sig_handler(int signum);
@@ -489,7 +490,12 @@ static int proc_mode_under_load( int id, int argc, const char **argv )
 					log_msg("'-%c' Invalid message size: %s (max: %d)", 'm', optarg, MAX_PAYLOAD_SIZE);
 					rc = SOCKPERF_ERR_BAD_ARGUMENT;
 				}
+				else if (aopt_check(common_obj, OPT_TCP) && value > MAX_TCP_SIZE) {
+					log_msg("'-%c' Invalid message size: %s (max: %d)", 'm', optarg, MAX_TCP_SIZE);
+					rc = SOCKPERF_ERR_BAD_ARGUMENT;
+				}
 				else {
+					MAX_PAYLOAD_SIZE = value;
 					s_user_params.msg_size = value;
 				}
 			}
@@ -720,7 +726,12 @@ static int proc_mode_ping_pong( int id, int argc, const char **argv )
 					log_msg("'-%c' Invalid message size: %s (max: %d)", 'm', optarg, MAX_PAYLOAD_SIZE);
 					rc = SOCKPERF_ERR_BAD_ARGUMENT;
 				}
+				else if (aopt_check(common_obj, OPT_TCP) && value > MAX_TCP_SIZE) {
+					log_msg("'-%c' Invalid message size: %s (max: %d)", 'm', optarg, MAX_TCP_SIZE);
+					rc = SOCKPERF_ERR_BAD_ARGUMENT;
+				}
 				else {
+					MAX_PAYLOAD_SIZE = value;
 					s_user_params.msg_size = value;
 				}
 			}
@@ -964,7 +975,12 @@ static int proc_mode_throughput( int id, int argc, const char **argv )
 					log_msg("'-%c' Invalid message size: %s (max: %d)", 'm', optarg, MAX_PAYLOAD_SIZE);
 					rc = SOCKPERF_ERR_BAD_ARGUMENT;
 				}
+				else if (aopt_check(common_obj, OPT_TCP) && value > MAX_TCP_SIZE) {
+					log_msg("'-%c' Invalid message size: %s (max: %d)", 'm', optarg, MAX_TCP_SIZE);
+					rc = SOCKPERF_ERR_BAD_ARGUMENT;
+				}
 				else {
+					MAX_PAYLOAD_SIZE = value;
 					s_user_params.msg_size = value;
 				}
 			}
@@ -1209,6 +1225,10 @@ static int proc_mode_server( int id, int argc, const char **argv )
 					"Server won't reply to the client messages."
 		},
 		{
+				'm', AOPT_ARG, aopt_set_literal( 'm' ), aopt_set_string( "msg-size" ),
+				"Set maximum message size that the server can receive <size> bytes (default 65506)."
+		},
+		{
 			'g', AOPT_NOARG,	aopt_set_literal( 'g' ),	aopt_set_string( "gap-detection" ),
 	             "Enable gap-detection."
 		},
@@ -1301,6 +1321,19 @@ static int proc_mode_server( int id, int argc, const char **argv )
 		}
 		if ( !rc && aopt_check(server_obj, OPT_DONT_REPLY) ) {
 			s_user_params.b_server_dont_reply = true;
+		}
+		if ( !rc && aopt_check(server_obj, 'm') ) {
+			const char* optarg = aopt_value(server_obj, 'm');
+			if (optarg) {
+				int value = strtol(optarg, NULL, 0);
+				if ( value > MAX_TCP_SIZE ) {
+					log_msg("'-%c' Invalid message size: %s (max: %d)", 'm', optarg, MAX_TCP_SIZE);
+					rc = SOCKPERF_ERR_BAD_ARGUMENT;
+				}
+				else{
+					MAX_PAYLOAD_SIZE = max(MAX_PAYLOAD_SIZE,value);
+				}
+			}
 		}
 
 		if ( !rc && aopt_check(server_obj, 'g') ) {
@@ -2274,6 +2307,10 @@ static int set_mcgroups_fromfile(const char *mcg_filename)
 			}
 
 			if (is_exist) {
+				if (tmp->recv.buf)
+				{
+					FREE(tmp->recv.buf);
+				}
 				FREE(tmp);
 				continue;
 			}
@@ -2305,8 +2342,14 @@ static int set_mcgroups_fromfile(const char *mcg_filename)
 						for (i = 0; i < MAX_ACTIVE_FD_NUM; i++) {
 							tmp->active_fd_list[i] = INVALID_SOCKET;
 						}
+						tmp->recv.buf = (uint8_t*) malloc (sizeof(uint8_t)*2*MAX_PAYLOAD_SIZE);
+						if (!tmp->recv.buf) {
+							log_err("Failed to allocate memory with malloc()");
+							FREE(tmp);
+							rc = SOCKPERF_ERR_NO_MEMORY;
+						}
 						tmp->recv.cur_addr = tmp->recv.buf;
-						tmp->recv.max_size = sizeof(tmp->recv.buf) - MAX_PAYLOAD_SIZE;
+						tmp->recv.max_size = MAX_PAYLOAD_SIZE;
 						tmp->recv.cur_offset = 0;
 						tmp->recv.cur_size = tmp->recv.max_size;
 
@@ -2329,6 +2372,9 @@ static int set_mcgroups_fromfile(const char *mcg_filename)
 			if (rc) {
 				if (tmp->active_fd_list) {
 					FREE(tmp->active_fd_list);
+				}
+				if (tmp->recv.buf) {
+					FREE(tmp->recv.buf);
 				}
 				FREE(tmp);
 			}
@@ -2442,8 +2488,14 @@ int bringup(const int *p_daemonize)
 							for (i = 0; i < MAX_ACTIVE_FD_NUM; i++) {
 								tmp->active_fd_list[i] = INVALID_SOCKET;
 							}
+							tmp->recv.buf = (uint8_t*) malloc (sizeof(uint8_t)*2*MAX_PAYLOAD_SIZE);
+							if (!tmp->recv.buf){
+								log_err("Failed to allocate memory with malloc()");
+								FREE(tmp);
+								rc = SOCKPERF_ERR_NO_MEMORY;
+							}
 							tmp->recv.cur_addr = tmp->recv.buf;
-							tmp->recv.max_size = sizeof(tmp->recv.buf) - MAX_PAYLOAD_SIZE;
+							tmp->recv.max_size = MAX_PAYLOAD_SIZE;
 							tmp->recv.cur_offset = 0;
 							tmp->recv.cur_size = tmp->recv.max_size;
 
@@ -2458,6 +2510,9 @@ int bringup(const int *p_daemonize)
 				if (rc) {
 					if (tmp->active_fd_list) {
 						FREE(tmp->active_fd_list);
+					}
+					if (tmp->recv.buf){
+						FREE(tmp->recv.buf);
 					}
 					FREE(tmp);
 				}
