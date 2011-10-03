@@ -39,7 +39,7 @@
 class MsgHeader {
 	friend class Message;
 public:
-	MsgHeader(uint64_t _sequence_number = 0) : m_sequence_number(_sequence_number),m_flags_and_length(0){}
+	MsgHeader(uint64_t _sequence_number = 0) : m_sequence_number(_sequence_number){}
 	~MsgHeader(){}
 
 //	uint32_t isClient() const {return m_isClient;}
@@ -48,33 +48,37 @@ public:
 //	uint32_t isPongRequest() const {return m_isPongRequest;}
 //	void setPongRequest(bool on = true) {m_isPongRequest = on ? 1 : 0;}
 
-	uint16_t isClient() const {return (m_flags_and_length & MASK_CLIENT)>>16;}
-	void setClient() {m_flags_and_length |=  MASK_CLIENT;}
-	void setServer() {m_flags_and_length &= ~MASK_CLIENT;}
+	bool isClient() const {return (!!(m_flags_and_length.m_flags & MASK_CLIENT));}
+	void setClient() {m_flags_and_length.m_flags |=  MASK_CLIENT;}
+	void setServer() {m_flags_and_length.m_flags &= ~MASK_CLIENT;}
 
-	uint16_t isPongRequest() const {return (m_flags_and_length & MASK_PONG)>>16;}
-	void setPongRequest()   {m_flags_and_length |=  MASK_PONG;}
-	void resetPongRequest() {m_flags_and_length &= ~MASK_PONG;}
+	bool isPongRequest() const {return (!!(m_flags_and_length.m_flags & MASK_PONG));}
+	void setPongRequest()   {m_flags_and_length.m_flags |=  MASK_PONG;}
+	void resetPongRequest() {m_flags_and_length.m_flags &= ~MASK_PONG;}
 
-	uint16_t isWarmupMessage() const {return (m_flags_and_length & MASK_WARMUP_MSG)>>16;}
-	void setWarmupMessage()   {m_flags_and_length |=  MASK_WARMUP_MSG;}
-	void resetWarmupMessage() {m_flags_and_length &= ~MASK_WARMUP_MSG;}
+	bool isWarmupMessage() const {return (!!(m_flags_and_length.m_flags & MASK_WARMUP_MSG));}
+	void setWarmupMessage()   {m_flags_and_length.m_flags |=  MASK_WARMUP_MSG;}
+	void resetWarmupMessage() {m_flags_and_length.m_flags &= ~MASK_WARMUP_MSG;}
 
 	// this is different than sizeof(MsgHeader) and safe only for the current implementation of the class
 	static const int EFFECTIVE_SIZE = (int)( sizeof(uint64_t) + sizeof(uint16_t) + sizeof(uint16_t) );
 //	static const int EFFECTIVE_SIZE = 16;
 
 private:
+	typedef struct
+	{
+		uint32_t m_flags:8;
+		int length:24;
+	}s_flags_and_length;
 	// NOTE: m_sequence_number must be the 1st field, because we want EFFECTIVE_SIZE of header to be 12 bytes
 	// hence we need the padding (to 16 bytes) to be after last field and not between fields
 	// pack() pragma can be added to set needed alignment
 	uint64_t m_sequence_number;
-	uint32_t m_flags_and_length;
+	s_flags_and_length m_flags_and_length;
 
-	static const uint32_t MASK_CLIENT=(1<<30);
-	static const uint32_t MASK_PONG  =(1<<29);
-	static const uint32_t MASK_WARMUP_MSG =(1<<28);
-	static const uint32_t ALL_FLAGS = MASK_WARMUP_MSG | MASK_PONG | MASK_CLIENT;
+	static const uint32_t MASK_CLIENT=1;
+	static const uint32_t MASK_PONG  =2;
+	static const uint32_t MASK_WARMUP_MSG =4;
 /*
 	uint32_t m_isClient:1;
 	uint32_t m_isPongRequest:1;
@@ -139,16 +143,14 @@ public:
 	void setWarmupMessage()   {m_header->setWarmupMessage();}
 	void resetWarmupMessage() {m_header->resetWarmupMessage();}
 
-	uint16_t getFlags() const {return (m_header->m_flags_and_length & m_header->ALL_FLAGS)>>16;}
+	uint16_t getFlags() const {return (m_header->m_flags_and_length.m_flags);}
 
 	int getLength() const {
 		//extract msg length from m_length and m_flags.
-		int size = (int) (m_header->m_flags_and_length & ~(m_header->ALL_FLAGS));
-        return size;
+		return m_header->m_flags_and_length.length;
     }
     void setLength(uint32_t _length) {
-        m_header->m_flags_and_length &= m_header->ALL_FLAGS; // reset 'length' section in m_flags_and_length
-        m_header->m_flags_and_length |= _length; // add the new 'length'
+    	m_header->m_flags_and_length.length = _length;
     }
 
 private:
