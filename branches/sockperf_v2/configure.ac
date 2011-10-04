@@ -142,8 +142,20 @@ AC_ARG_ENABLE(
                    [SOCKPERF: include debug information (default=no)]))
 if test x$enable_debuginfo = xyes; then
     CXXFLAGS="$CXXFLAGS -g"
+	CFLAGS="$CFLAGS -g"
 fi
 
+##########################
+# Enable build 32bit
+#
+AC_ARG_ENABLE(
+	[build32],
+	AC_HELP_STRING([--enable-build32],
+					[SOCKPERF: force build 32bit (default=no)]))
+if test x$enable_build32 = xyes; then
+	    CXXFLAGS="$CXXFLAGS -m32"
+		CFLAGS="$CFLAGS -m32"
+	fi
 
 ##########################
 # Enable extra functionality
