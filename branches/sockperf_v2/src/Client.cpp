@@ -309,7 +309,12 @@ void stream_statistics(Message *pMsgRequest)
 		log_msg("Summary: Message Rate is %d [msg/sec]", msgps);
 	else
 		log_msg("Summary: Message Rate is %d [msg/sec], Packet Rate is about %d [pkt/sec] (%d ip frags / msg)", msgps, pktps, ip_frags_per_msg);
-	log_msg("Summary: BandWidth is %.3f MBps (%.3f Mbps)", MBps, MBps*8);
+	if (g_pApp->m_const_params.giga_size){
+		log_msg("Summary: BandWidth is %.3f GBps (%.3f Gbps)", MBps/1000, MBps*8/1000);
+	}
+	else{
+		log_msg("Summary: BandWidth is %.3f MBps (%.3f Mbps)", MBps, MBps*8);
+	}
 }
 
 //------------------------------------------------------------------------------

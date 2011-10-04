@@ -140,6 +140,7 @@ enum {
 	OPT_RECEIVER_AFFINITY,       //22
 	OPT_LOAD_VMA,                //23
 	OPT_FULL_LOG,                //24
+	OPT_GIGA_SIZE,				//25
 	OPT_PLAYBACK_DATA,                  //26
 	OPT_TCP,					//27
 	OPT_TCP_NODELAY_OFF,		//28
@@ -507,6 +508,7 @@ struct user_params_t {
 	char sender_affinity[MAX_ARGV_SIZE];
 	char receiver_affinity[MAX_ARGV_SIZE];
 	FILE* fileFullLog; //client side only
+	bool giga_size; //client side only
 	bool b_stream; //client side only
 	PlaybackVector *pPlaybackVector; //client side only
 	struct sockaddr_in addr;
