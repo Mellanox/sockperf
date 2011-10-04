@@ -269,6 +269,10 @@ static const AOPT_DESC  client_opt_desc[] =
 		OPT_FULL_LOG, AOPT_ARG,	aopt_set_literal( 0 ),	aopt_set_string( "full-log" ),
              "Dump full log of all messages send/receive time to the given file in CSV format."
 	},
+	{
+		OPT_GIGA_SIZE, AOPT_NOARG,	aopt_set_literal( 0 ),	aopt_set_string( "giga-size" ),
+	             "Print sizes in GigaByte."
+	},
 	{ 0, AOPT_NOARG, aopt_set_literal( 0 ), aopt_set_string( NULL ), NULL }
 };
 
@@ -1740,6 +1744,9 @@ static int parse_client_opt( const AOPT_OBJECT *client_obj )
 				rc = SOCKPERF_ERR_BAD_ARGUMENT;
 			}
 		}
+		if ( !rc && aopt_check(client_obj, OPT_GIGA_SIZE) ) {
+			s_user_params.giga_size = true;
+		}
 	}
 
 	return rc;
@@ -1909,6 +1916,7 @@ void set_defaults()
 	//s_user_params.b_load_vma = false;
 	s_user_params.fileFullLog = NULL;
 	s_user_params.b_stream = false;
+	s_user_params.giga_size = false;
 	s_user_params.pPlaybackVector = NULL;
 
 	s_user_params.addr.sin_family = AF_INET;
