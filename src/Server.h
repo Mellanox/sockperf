@@ -102,7 +102,14 @@ private:
 	SwitchActivityInfo m_switchActivityInfo;
 	SwitchCalcGaps m_switchCalcGaps;
 };
-
+void print_log(const char* error, fds_data* fds)
+{
+	printf("IP = %-15s PORT = %5d # %s ",
+			inet_ntoa(fds->addr.sin_addr),
+			ntohs(fds->addr.sin_port),
+			PRINT_PROTOCOL(fds->sock_type));
+				log_err("%s",error);
+}
 //------------------------------------------------------------------------------
 /*
 ** receive from and send to selected socket
@@ -164,11 +171,7 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_t
 		if ( m_pMsgReply->getLength() > MAX_PAYLOAD_SIZE){
 			//Message received was larger than expected, message ignored.
 			ret = RET_SOCKET_SHUTDOWN;
-			printf("IP = %-15s PORT = %5d # %s ",
-									inet_ntoa(fds_ifd->addr.sin_addr),
-									ntohs(fds_ifd->addr.sin_port),
-									PRINT_PROTOCOL(fds_ifd->sock_type));
-			log_err("Message received was larger than expected, message ignored.");
+			print_log("Message received was larger than expected, message ignored.", fds_ifd);
 
 			if (fds_ifd->sock_type == SOCK_STREAM) {
 				int next_fd = fds_ifd->next_fd;
