@@ -52,9 +52,7 @@ class Client : public ClientBase{
 private:
 	pthread_t m_receiverTid;
 	IoType m_ioHandler;
-#if defined(EXTRA_ABILITY) && (EXTRA_ABILITY==TRUE)
 	addr_to_id   m_ServerList;
-#endif /* defined(EXTRA_ABILITY) */
 
 	SwitchDataIntegrity m_switchDataIntegrity;
 	SwitchActivityInfo  m_switchActivityInfo;
@@ -75,7 +73,6 @@ private:
 	void doPlayback();
 	void cleanupAfterLoop();
 
-#if defined(EXTRA_ABILITY) && (EXTRA_ABILITY==TRUE)
 	//------------------------------------------------------------------------------
 	inline int client_get_server_id(int ifd, struct sockaddr_in *recvfrom_addr)
 	{
@@ -107,7 +104,6 @@ private:
 
 		return serverNo;
 	}
-#endif /* defined(EXTRA_ABILITY) */
 
 	//------------------------------------------------------------------------------
 	inline void client_send_packet(int ifd)
@@ -124,13 +120,11 @@ private:
 				exit_with_log("A connection was forcibly closed by a peer",SOCKPERF_ERR_SOCKET,g_fds_array[ifd]);
 			}
 		}
-#if defined(EXTRA_ABILITY) && (EXTRA_ABILITY==TRUE)
 		/* check skip send operation case */
 		else if (ret == RET_SOCKET_SKIPPED) {
 			g_skipCount++;
 			m_pMsgRequest->decSequenceCounter();
 		}
-#endif /* defined(EXTRA_ABILITY) */
 	}
 
 	//------------------------------------------------------------------------------
@@ -226,7 +220,6 @@ private:
 			}
 			#endif
 
-#if defined(EXTRA_ABILITY) && (EXTRA_ABILITY==TRUE)
 			serverNo = client_get_server_id(ifd, &recvfrom_addr);
 			if (serverNo < 0) {
 				exit_with_log("Number of servers more than expected",SOCKPERF_ERR_FATAL);
@@ -237,10 +230,6 @@ private:
 										  serverNo);
 				m_switchDataIntegrity.execute(m_pMsgRequest, m_pMsgReply);
 			}
-#else
-			g_pPacketTimes->setRxTime(m_pMsgReply->getSequenceCounter(), rxTime, serverNo);
-			m_switchDataIntegrity.execute(m_pMsgRequest, m_pMsgReply);
-#endif /* defined(EXTRA_ABILITY) */
 		}
 
 		/* 6: shift to start of cycle buffer in case receiving buffer is empty and
