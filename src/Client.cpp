@@ -123,13 +123,11 @@ void client_statistics(int serverNo, Message *pMsgRequest)
 	/* Print total statistic that is independent on server count */
 	if (SERVER_NO == 0) {
 		TicksDuration totalRunTime = s_endTime - s_startTime;
-#if defined(EXTRA_ABILITY) && (EXTRA_ABILITY==TRUE)
 		if (g_skipCount) {
 			log_msg_file2(f, "[Total Run] RunTime=%.3lf sec; SentMessages=%" PRIu64 "; ReceivedMessages=%" PRIu64 "; SkippedMessages=%" PRIu64 "",
 				totalRunTime.toDecimalUsec()/1000000, sendCount, receiveCount, g_skipCount);
 		}
 		else 
-#endif /* defined(EXTRA_ABILITY) */
 		{
 			log_msg_file2(f, "[Total Run] RunTime=%.3lf sec; SentMessages=%" PRIu64 "; ReceivedMessages=%" PRIu64 "",
 				totalRunTime.toDecimalUsec()/1000000, sendCount, receiveCount);
@@ -267,13 +265,11 @@ void stream_statistics(Message *pMsgRequest)
 	const uint64_t sendCount = pMsgRequest->getSequenceCounter();
 
 	// Send only mode!
-#if defined(EXTRA_ABILITY) && (EXTRA_ABILITY==TRUE)
 	if (g_skipCount) {
 		log_msg("Total of %" PRIu64 " messages sent in %.3lf sec (%" PRIu64 " messages skipped)\n",
 				sendCount, totalRunTime.toDecimalUsec()/1000000, g_skipCount);
 	}
 	else 
-#endif /* defined(EXTRA_ABILITY) */
 	{
 		log_msg("Total of %" PRIu64 " messages sent in %.3lf sec\n",
 				sendCount, totalRunTime.toDecimalUsec()/1000000);

@@ -151,7 +151,6 @@ static inline int msg_sendto(int fd, uint8_t* buf, int nbytes, const struct sock
      */
 	flags = MSG_NOSIGNAL;
 
-#if defined(EXTRA_ABILITY) && (EXTRA_ABILITY==TRUE)
 	/*
 	 * MSG_DONTWAIT:
 	 * Enables non-blocking operation; if the operation would block,
@@ -215,29 +214,6 @@ static inline int msg_sendto(int fd, uint8_t* buf, int nbytes, const struct sock
 			break;
 		}
 	}
-#else
-	ret = sendto(fd, buf, nbytes, flags, (struct sockaddr*)sendto_addr, sizeof(struct sockaddr));
-
-#if defined(LOG_TRACE_SEND) && (LOG_TRACE_SEND==TRUE)
-	LOG_TRACE ("raw", "%s IP: %s:%d [fd=%d ret=%d] %s", __FUNCTION__,
-			                   inet_ntoa(sendto_addr->sin_addr),
-			                   ntohs(sendto_addr->sin_port),
-			                   fd,
-			                   ret,
-			                   strerror(errno));
-#endif /* LOG_TRACE_SEND */
-
-	if (ret == 0 || errno == EPIPE || errno == ECONNRESET) {
-		/* If no messages are available to be received and the peer has performed an orderly shutdown,
-		 * send()/sendto() shall return 0
-		 * */
-		ret = 0;
-		errno = 0;
-	}
-	else if (ret < 0 && errno && errno != EINTR) {
-		sendtoError(fd, nbytes, sendto_addr);
-	}
-#endif /* defined(EXTRA_ABILITY) */
 
 	return ret;
 }

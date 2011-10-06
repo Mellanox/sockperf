@@ -111,12 +111,10 @@ public:
 			m_pMsgRequest->getHeader()->setPongRequest();
 			g_pPacketTimes->setTxTime(m_pMsgRequest->getSequenceCounter());
 			int ret = ::msg_sendto(ifd, m_pMsgRequest->getBuf(), m_pMsgRequest->getLength(), &(g_fds_array[ifd]->addr));
-#if defined(EXTRA_ABILITY) && (EXTRA_ABILITY==TRUE)
 			/* check skip send operation case */
 			if (ret == RET_SOCKET_SKIPPED) {
 				g_pPacketTimes->clearTxTime(m_pMsgRequest->getSequenceCounter());
 			}
-#endif /* defined(EXTRA_ABILITY) */
 			m_pMsgRequest->getHeader()->resetPongRequest();
 			return ret;
 		}
@@ -142,12 +140,10 @@ public:
 	inline int msg_sendto(int ifd) {
 		g_pPacketTimes->setTxTime(m_pMsgRequest->getSequenceCounter());
 		int ret = ::msg_sendto(ifd, m_pMsgRequest->getBuf(), m_pMsgRequest->getLength(), &(g_fds_array[ifd]->addr));
-#if defined(EXTRA_ABILITY) && (EXTRA_ABILITY==TRUE)
 		/* check skip send operation case */
 		if (ret == RET_SOCKET_SKIPPED) {
 			g_pPacketTimes->clearTxTime(m_pMsgRequest->getSequenceCounter());
 		}
-#endif /* defined(EXTRA_ABILITY) */
 		return ret;
 	}
 

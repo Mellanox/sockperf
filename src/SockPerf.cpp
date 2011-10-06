@@ -183,12 +183,10 @@ static const AOPT_DESC  common_opt_desc[] =
 		OPT_TCP_NODELAY_OFF, AOPT_NOARG, aopt_set_literal( 0 ), aopt_set_string( "tcp-avoid-nodelay" ),
              "tcp-nodelay uses for delivering TCP Messages Immediately (default ON)."
 	},
-#if defined(EXTRA_ABILITY) && (EXTRA_ABILITY==TRUE)
 	{
 		OPT_NONBLOCKED_SEND, AOPT_NOARG, aopt_set_literal( 0 ), aopt_set_string( "tcp-skip-blocking-send" ),
              "Enables non-blocking send operation (default OFF)."
 	},
-#endif /* defined(EXTRA_ABILITY) */
 	{
 		OPT_RX_MC_IF, AOPT_ARG, aopt_set_literal( 0 ), aopt_set_string( "mc-rx-if" ),
              "<ip> address of interface on which to receive mulitcast messages (can be other then route table)."
@@ -1594,11 +1592,9 @@ static int parse_common_opt( const AOPT_OBJECT *common_obj )
 			s_user_params.is_blocked = false;
 		}
 
-#if defined(EXTRA_ABILITY) && (EXTRA_ABILITY==TRUE)
 		if ( !rc && aopt_check(common_obj, OPT_NONBLOCKED_SEND) ) {
 			s_user_params.is_nonblocked_send = true;
 		}
-#endif /* defined(EXTRA_ABILITY) */
 
 		if ( !rc && aopt_check(common_obj, OPT_DONTWARMUP) ) {
 			s_user_params.do_warmup = false;
