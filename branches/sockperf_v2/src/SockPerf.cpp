@@ -81,6 +81,7 @@
 #include "aopt.h"
 #include <dlfcn.h>
 #include <stdio.h>
+#include <sys/stat.h>
 
 // forward declarations from Client.cpp & Server.cpp
 extern void client_sig_handler(int signum);
@@ -2209,6 +2210,17 @@ static int set_mcgroups_fromfile(const char *mcg_filename)
 
 	regex_t regexpr;
 
+	struct stat st_buf;
+	const int status = stat (mcg_filename, &st_buf);
+	// Get the status of the file system object.
+	if (status != 0) {
+		log_msg("Can't open file: %s\n", mcg_filename);
+		return SOCKPERF_ERR_NOT_EXIST;
+	}
+	if (!S_ISREG (st_buf.st_mode)) {
+		log_msg("Can't open file: %s -not a regular file.\n", mcg_filename);
+		return SOCKPERF_ERR_NOT_EXIST;
+	 }
 	if ((file_fd = fopen(mcg_filename, "r")) == NULL) {
 		log_msg("Can't open file: %s\n", mcg_filename);
 		return SOCKPERF_ERR_NOT_EXIST;
