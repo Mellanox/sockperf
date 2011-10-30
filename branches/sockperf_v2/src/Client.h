@@ -165,6 +165,13 @@ private:
 				return (receiveCount);
 			}
 
+			if (m_pMsgReply->getSequenceCounter() > m_pMsgRequest->getSequenceCounter())
+			{
+				exit_with_err("Sequence Number received was higher then expected",SOCKPERF_ERR_FATAL);
+			}
+			if ( m_pMsgReply->getLength() > MAX_PAYLOAD_SIZE){
+				exit_with_err("Message received was larger than expected.",SOCKPERF_ERR_FATAL);
+			}
 			/* 2: message header is got, match message to cycle buffer */
 			m_pMsgReply->setBuf(g_fds_array[ifd]->recv.cur_addr);
 
@@ -206,8 +213,7 @@ private:
 			#if 0 //should be part of check-data-integrity
 			if (g_pApp->m_const_params.msg_size_range == 0) { //ABH: added 'if', otherwise, size check will not suit latency-under-load
 				if (nbytes != g_msg_size && errno != EINTR) {
-					log_msg("received message size test failed (sent:%d received:%d)", g_msg_size, nbytes);
-					exit_with_log(SOCKPERF_ERR_FATAL);
+					exit_with_log("received message size test failed (sent:%d received:%d)", g_msg_size, nbytes,SOCKPERF_ERR_FATAL);
 				}
 			}
 			#endif

@@ -1790,19 +1790,17 @@ static int st1, st2;
 //------------------------------------------------------------------------------
 void cleanup()
 {
-	{
-		int ifd;
-		for (ifd = 0; ifd <= s_fd_max; ifd++) {
-			if (g_fds_array[ifd]) {
-				close(ifd);
-				if (g_fds_array[ifd]->active_fd_list) {
-					FREE(g_fds_array[ifd]->active_fd_list);
-				}
-				FREE(g_fds_array[ifd]);
+	int ifd;
+	for (ifd = 0; ifd <= s_fd_max; ifd++) {
+		if (g_fds_array[ifd]) {
+			close(ifd);
+			if (g_fds_array[ifd]->active_fd_list) {
+				FREE(g_fds_array[ifd]->active_fd_list);
 			}
+			FREE(g_fds_array[ifd]);
 		}
-
 	}
+
 	if(s_user_params.select_timeout) {
 		FREE(s_user_params.select_timeout);
 	}
@@ -1812,8 +1810,9 @@ void cleanup()
 	}
 #endif
 
-	if (g_pPacketTimes) {
+	if (NULL != g_pPacketTimes) {
 		delete g_pPacketTimes;
+		g_pPacketTimes = NULL;
 	}
 	if (g_fds_array)
 	{
