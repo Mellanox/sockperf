@@ -1323,7 +1323,13 @@ static int proc_mode_server( int id, int argc, const char **argv )
 			s_user_params.b_server_reply_via_uc = true;
 		}
 		if ( !rc && aopt_check(server_obj, OPT_DONT_REPLY) ) {
-			s_user_params.b_server_dont_reply = true;
+			if ( aopt_check(common_obj, OPT_TCP) ) {
+				log_msg("--tcp conflicts with --dont-reply option");
+				rc = SOCKPERF_ERR_BAD_ARGUMENT;
+			}
+			else {
+				s_user_params.b_server_dont_reply = true;
+			}
 		}
 		if ( !rc && aopt_check(server_obj, 'm') ) {
 			const char* optarg = aopt_value(server_obj, 'm');

@@ -237,6 +237,14 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_t
 		g_receiveCount++; //// should move to setRxTime (once we use it in server side)
 
 		if (m_pMsgReply->getHeader()->isPongRequest()) {
+			/* if server in a no reply mode - shift to start of cycle buffer*/
+			if (g_pApp->m_const_params.b_server_dont_reply)
+			{
+				l_fds_ifd->recv.cur_addr = l_fds_ifd->recv.buf;
+				l_fds_ifd->recv.cur_size = l_fds_ifd->recv.max_size;
+				l_fds_ifd->recv.cur_offset = 0;
+				return (do_update);
+			}
 			/* prepare message header */
 			if (g_pApp->m_const_params.mode != MODE_BRIDGE) {
 				m_pMsgReply->setServer();
@@ -247,13 +255,7 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_t
 				/* get source addr to reply. memcpy is not used to improve performance */
 				sendto_addr = recvfrom_addr;
 			}
-			if (!g_pApp->m_const_params.b_server_dont_reply)
-			{
-				ret = msg_sendto(ifd, m_pMsgReply->getBuf(), m_pMsgReply->getLength(), &sendto_addr);
-			}
-			else{
-				ret = RET_SOCKET_SHUTDOWN;
-			}
+			ret = msg_sendto(ifd, m_pMsgReply->getBuf(), m_pMsgReply->getLength(), &sendto_addr);
 			if (ret == RET_SOCKET_SHUTDOWN) {
 				if (l_fds_ifd->sock_type == SOCK_STREAM) {
 					close_ifd( l_fds_ifd->next_fd,ifd,l_fds_ifd);
