@@ -74,7 +74,7 @@ AC_PROG_CXX
 #AC_PROG_LIBTOOL
 
 
-CXXFLAGS="-Werror -Winline -Wall  --param inline-unit-growth=200"
+CXXFLAGS="-Werror -Wall  --param inline-unit-growth=200"
 CXXFLAGS="$CXXFLAGS  -D__LINUX__  -DVERSION=$VERSION"
 
 
