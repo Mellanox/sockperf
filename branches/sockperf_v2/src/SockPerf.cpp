@@ -1816,13 +1816,14 @@ void cleanup()
 	}
 #endif
 
-	if (NULL != g_pPacketTimes) {
-		delete g_pPacketTimes;
-		g_pPacketTimes = NULL;
-	}
 	if (g_fds_array)
 	{
 		FREE(g_fds_array);
+	}
+
+	if (NULL != g_pPacketTimes) {
+		delete g_pPacketTimes;
+		g_pPacketTimes = NULL;
 	}
 }
 

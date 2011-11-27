@@ -57,7 +57,6 @@ PacketTimes::~PacketTimes() {
 }
 
 bool PacketTimes::verifyError(uint64_t _seqNo) {
-	log_err("_seqNo=%" PRIu64 " > m_maxSequenceNo=%" PRIu64 "", _seqNo, m_maxSequenceNo);
-	exit_with_log(SOCKPERF_ERR_FATAL);
+	exit_with_err("_seqN > m_maxSequenceNo", SOCKPERF_ERR_FATAL);
 	return false;
 }
