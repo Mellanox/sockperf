@@ -1117,26 +1117,7 @@ static int proc_mode_playback( int id, int argc, const char **argv )
 	}
 
 	/* Set command line specific values */
-	if (!rc && self_obj) {
-		if ( !rc && aopt_check(self_obj, OPT_REPLY_EVERY) ) {
-			const char* optarg = aopt_value(self_obj, OPT_REPLY_EVERY);
-			if (optarg) {
-				errno = 0;
-				long long value = strtol(optarg, NULL, 0);
-				if (errno != 0  || value <= 0 || value > 1<<30 ) {
-					log_msg("Invalid %d val: %s", OPT_REPLY_EVERY, optarg);
-					rc = SOCKPERF_ERR_BAD_ARGUMENT;
-				}
-				else {
-					s_user_params.reply_every = (uint32_t)value;
-				}
-			}
-			else {
-				log_msg("'-%d' Invalid value", OPT_REPLY_EVERY);
-				rc = SOCKPERF_ERR_BAD_ARGUMENT;
-			}
-		}
-
+	if (!rc && self_obj) {	
 		if ( !rc && aopt_check(self_obj, OPT_PLAYBACK_DATA) ) {
 			const char * optarg = aopt_value(self_obj, OPT_PLAYBACK_DATA);
 			if (optarg) {
@@ -1149,6 +1130,31 @@ static int proc_mode_playback( int id, int argc, const char **argv )
 				rc = SOCKPERF_ERR_BAD_ARGUMENT;
 			}
 		}
+
+	if ( !rc && aopt_check(self_obj, OPT_REPLY_EVERY) ) {
+				const char* optarg = aopt_value(self_obj, OPT_REPLY_EVERY);
+				if (optarg) {
+					errno = 0;
+					long long value = strtol(optarg, NULL, 0);
+					if (errno != 0  || value <= 0 || value > 1<<30 ) {
+						log_msg("Invalid %d val: %s", OPT_REPLY_EVERY, optarg);
+						rc = SOCKPERF_ERR_BAD_ARGUMENT;
+					}
+					else {
+						s_user_params.reply_every = (uint32_t)value;
+					}
+				}
+				else {
+					log_msg("'-%d' Invalid value", OPT_REPLY_EVERY);
+					rc = SOCKPERF_ERR_BAD_ARGUMENT;
+				}
+			}
+	}
+
+	/* force --data-file */
+	if (!rc && (!self_obj || (self_obj && !aopt_check(self_obj, OPT_PLAYBACK_DATA)))){
+		log_msg("--data-file must be used with playback mode");
+		rc = SOCKPERF_ERR_BAD_ARGUMENT;
 	}
 
 	if (rc) {
