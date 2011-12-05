@@ -182,7 +182,7 @@ static const AOPT_DESC  common_opt_desc[] =
 	},
 	{
 		OPT_TCP_NODELAY_OFF, AOPT_NOARG, aopt_set_literal( 0 ), aopt_set_string( "tcp-avoid-nodelay" ),
-             Stop delivering TCP Messages Immediately (Enable Nagel)."
+             "Stop delivering TCP Messages Immediately (Enable Nagel)."
 	},
 	{
 		OPT_NONBLOCKED_SEND, AOPT_NOARG, aopt_set_literal( 0 ), aopt_set_string( "tcp-skip-blocking-send" ),
