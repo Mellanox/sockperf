@@ -185,17 +185,25 @@ void Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::doLoop()
 				assert( g_fds_array[actual_fd] &&
 						"invalid fd");
 
-				accept_fd = server_accept(actual_fd);
-				if (accept_fd == actual_fd) {
-					if (server_receive_then_send(actual_fd)) {
+				if (!g_fds_array[actual_fd])
+				{
+					print_log("fd received was larger than expected, ignored.", actual_fd);
+					/* do nothing invalid fd*/
+				}
+				else
+				{
+					accept_fd = server_accept(actual_fd);
+					if (accept_fd == actual_fd) {
+						if (server_receive_then_send(actual_fd)) {
+							do_update = true;
+						}
+					}
+					else if (accept_fd != INVALID_SOCKET) {
 						do_update = true;
 					}
-				}
-				else if (accept_fd != INVALID_SOCKET) {
-					do_update = true;
-				}
-				else {
-					/* do nothing */
+					else {
+						/* do nothing */
+					}
 				}
 				numReady--;
 			}

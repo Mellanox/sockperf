@@ -110,6 +110,11 @@ void print_log(const char* error, fds_data* fds)
 			PRINT_PROTOCOL(fds->sock_type));
 				log_err("%s",error);
 }
+void print_log(const char* error, int fds)
+{
+	printf("actual_fd = %d ",fds);
+	log_err("%s",error);
+}
 //------------------------------------------------------------------------------
 /*
 ** when ret == RET_SOCKET_SHUTDOWN
