@@ -124,7 +124,7 @@ static inline int msg_recvfrom(int fd, uint8_t* buf, int nbytes, struct sockaddr
 	 * ret value less than MsgHeader::EFFECTIVE_SIZE
 	 * is bad case for UDP so error could be actual but it is possible value for TCP
 	 */
-	else if (ret < 0 && errno && errno != EAGAIN && errno != EINTR) {
+	else if (ret < 0 && errno != EAGAIN && errno != EINTR) {
 		recvfromError(fd);
 	}
 
