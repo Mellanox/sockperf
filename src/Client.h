@@ -270,7 +270,7 @@ private:
 		/* ready fds were found so receive from the relevant sockets*/
 		unsigned int recieved_packets_num = 0;
 		int actual_fd = 0;
-		for (int _fd = m_ioHandler.get_look_start(); _fd < m_ioHandler.get_look_end() ; _fd++) {
+		for (int _fd = m_ioHandler.get_look_start(); _fd < m_ioHandler.get_look_end() && !g_b_exit; _fd++) {
 			actual_fd = m_ioHandler.analyzeArrival(_fd);
 			if (actual_fd){
 				recieved_packets_num += client_receive_from_selected(actual_fd/*, packet_cnt_index*/);
