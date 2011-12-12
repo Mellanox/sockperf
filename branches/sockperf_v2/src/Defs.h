@@ -29,6 +29,12 @@
 #ifndef DEFS_H_
 #define DEFS_H_
 
+#include <features.h>
+#if  (__GLIBC__ > 2) || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 2)
+#include <bits/types.h>
+#undef __FD_SETSIZE
+#define __FD_SETSIZE 32768
+#endif
 
 #include "vma-redirect.h"
 
