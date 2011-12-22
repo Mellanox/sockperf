@@ -135,6 +135,7 @@ static const struct app_modes
    { NULL,   NULL,	aopt_set_string( NULL ),   NULL }
 };
 
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 static int parse_common_opt( const AOPT_OBJECT * );
 static int parse_client_opt( const AOPT_OBJECT * );
 static char* display_opt( int, char *, size_t );
@@ -1802,14 +1803,18 @@ static int st1, st2;
 //------------------------------------------------------------------------------
 void cleanup()
 {
+	pthread_mutex_lock( &mutex );
 	int ifd;
-	for (ifd = 0; ifd <= s_fd_max; ifd++) {
-		if (g_fds_array[ifd]) {
-			close(ifd);
-			if (g_fds_array[ifd]->active_fd_list) {
-				FREE(g_fds_array[ifd]->active_fd_list);
+	if (g_fds_array)
+	{
+		for (ifd = 0; ifd <= s_fd_max; ifd++) {
+			if (g_fds_array[ifd]) {
+				close(ifd);
+				if (g_fds_array[ifd]->active_fd_list) {
+					FREE(g_fds_array[ifd]->active_fd_list);
+				}
+				FREE(g_fds_array[ifd]);
 			}
-			FREE(g_fds_array[ifd]);
 		}
 	}
 
@@ -1831,6 +1836,7 @@ void cleanup()
 		delete g_pPacketTimes;
 		g_pPacketTimes = NULL;
 	}
+	pthread_mutex_unlock( &mutex );
 }
 
 //------------------------------------------------------------------------------
