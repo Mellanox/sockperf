@@ -194,8 +194,20 @@ void Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::doLoop()
 				{
 					accept_fd = server_accept(actual_fd);
 					if (accept_fd == actual_fd) {
-						if (server_receive_then_send(actual_fd)) {
-							do_update = true;
+						int m_recived = MAX_LOOPING_OVER_RECV;
+						while (( 0 != m_recived) && (!g_b_exit))
+						{
+							m_recived--;
+							if (server_receive_then_send(actual_fd)) {
+								do_update = true;
+							}
+							else
+							{
+								if (errno == EAGAIN)
+								{
+									break ;
+								}
+							}
 						}
 					}
 					else if (accept_fd != INVALID_SOCKET) {
@@ -226,6 +238,9 @@ int Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_accept(int ifd)
 	bool do_accept = false;
 	int active_ifd = ifd;
 
+	if (!g_fds_array[ifd]){
+		return INVALID_SOCKET;
+	}
 	if (g_fds_array[ifd]->sock_type == SOCK_STREAM && g_fds_array[ifd]->active_fd_list) {
 		struct sockaddr_in addr;
 		socklen_t addr_size = sizeof(addr);

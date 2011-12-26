@@ -222,6 +222,10 @@ static const AOPT_DESC  common_opt_desc[] =
              "Open non-blocked sockets."
 	},
 	{
+		OPT_RECV_LOOPING, AOPT_ARG, aopt_set_literal( 0 ), aopt_set_string( "recv_looping" ),
+	             "Set sockperf to loop over recvfrom() until EAGAIN or max N good received packets, must be used with --nonblocked (default = 1). "
+	},
+	{
 		OPT_DONTWARMUP, AOPT_NOARG, aopt_set_literal( 0 ), aopt_set_string( "dontwarmup" ),
              "Don't send warm up messages on start."
 	},
@@ -1610,6 +1614,34 @@ static int parse_common_opt( const AOPT_OBJECT *common_obj )
 			s_user_params.is_nonblocked_send = true;
 		}
 
+		if ( !rc && aopt_check(common_obj, OPT_RECV_LOOPING) ) {
+
+			const char* optarg = aopt_value(common_obj, OPT_RECV_LOOPING);
+			if (optarg) {
+				errno = 0;
+				int value = strtol(optarg, NULL, 0);
+				if (errno != 0) {
+					log_msg("Invalid number of loops - %d: %s", OPT_RECV_LOOPING, optarg);
+					rc = SOCKPERF_ERR_BAD_ARGUMENT;
+				}
+				else {
+					if ( 1 != value)
+					{
+						if (!aopt_check(common_obj, OPT_NONBLOCKED)) {
+							log_msg("recv_looping larger then one must be used in a none-blocked mode only. add --nonblocked.");
+							rc = SOCKPERF_ERR_BAD_ARGUMENT;
+						}
+					}
+					else {
+						MAX_LOOPING_OVER_RECV = value;
+					}
+				}
+			}
+			else {
+				log_msg("'-%d' Invalid value", OPT_RECV_LOOPING);
+				rc = SOCKPERF_ERR_BAD_ARGUMENT;
+			}
+		}
 		if ( !rc && aopt_check(common_obj, OPT_DONTWARMUP) ) {
 			s_user_params.do_warmup = false;
 		}
