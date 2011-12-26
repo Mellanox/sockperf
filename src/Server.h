@@ -146,6 +146,8 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_t
 	bool do_update = true;
 	int ret = 0;
 	fds_data* l_fds_ifd = g_fds_array[ifd];
+	if (!l_fds_ifd)
+		return (do_update);
 	ret = msg_recvfrom(ifd,
 			           l_fds_ifd->recv.cur_addr + l_fds_ifd->recv.cur_offset,
 			           l_fds_ifd->recv.cur_size,

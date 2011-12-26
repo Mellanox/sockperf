@@ -72,6 +72,8 @@
 #include "Playback.h"
 #include <sys/resource.h>
 
+extern int MAX_LOOPING_OVER_RECV;
+
 //#define USING_VMA_EXTRA_API
 #ifdef  USING_VMA_EXTRA_API
 #include <voltaire/vma_extra.h>
@@ -155,6 +157,7 @@ enum {
 	OPT_SOCK_ACCL,				//31
 	OPT_THREADS_AFFINITY,				//32
 	OPT_DONT_REPLY,		//33
+	OPT_RECV_LOOPING,	//34
 };
 
 #define MODULE_NAME			"sockperf"
