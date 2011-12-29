@@ -194,19 +194,19 @@ void Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::doLoop()
 				{
 					accept_fd = server_accept(actual_fd);
 					if (accept_fd == actual_fd) {
-						int m_recived = MAX_LOOPING_OVER_RECV;
+						int m_recived = g_pApp->m_const_params.max_looping_over_recv;
 						while (( 0 != m_recived) && (!g_b_exit))
 						{
-							m_recived--;
+							if (m_recived > 0)
+							{
+								m_recived--;
+							}
 							if (server_receive_then_send(actual_fd)) {
 								do_update = true;
 							}
-							else
+							else if (errno == EAGAIN)
 							{
-								if (errno == EAGAIN)
-								{
 									break ;
-								}
 							}
 						}
 					}

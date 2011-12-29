@@ -222,8 +222,8 @@ static const AOPT_DESC  common_opt_desc[] =
              "Open non-blocked sockets."
 	},
 	{
-		OPT_RECV_LOOPING, AOPT_ARG, aopt_set_literal( 0 ), aopt_set_string( "recv_looping" ),
-	             "Set sockperf to loop over recvfrom() until EAGAIN or max N good received packets, must be used with --nonblocked (default = 1). "
+		OPT_RECV_LOOPING, AOPT_ARG, aopt_set_literal( 0 ), aopt_set_string( "recv_looping_num" ),
+	             "Set sockperf to loop over recvfrom() until EAGAIN or <N> good received packets, -1 for infinite, must be used with --nonblocked (default 1). "
 	},
 	{
 		OPT_DONTWARMUP, AOPT_NOARG, aopt_set_literal( 0 ), aopt_set_string( "dontwarmup" ),
@@ -1628,12 +1628,17 @@ static int parse_common_opt( const AOPT_OBJECT *common_obj )
 					if ( 1 != value)
 					{
 						if (!aopt_check(common_obj, OPT_NONBLOCKED)) {
-							log_msg("recv_looping larger then one must be used in a none-blocked mode only. add --nonblocked.");
+							log_msg("recv_looping_num larger then one must be used in a none-blocked mode only. add --nonblocked.");
 							rc = SOCKPERF_ERR_BAD_ARGUMENT;
 						}
 					}
+					else if ( 0 == value)
+					{
+						log_msg("recv_looping_num cannot be equal to 0.");
+						rc = SOCKPERF_ERR_BAD_ARGUMENT;
+					}
 					else {
-						MAX_LOOPING_OVER_RECV = value;
+						s_user_params.max_looping_over_recv = value;
 					}
 				}
 			}
@@ -1943,6 +1948,7 @@ void set_defaults()
 	memset(s_user_params.threads_affinity, 0, sizeof(s_user_params.threads_affinity));
 	s_user_params.is_blocked = true;
 	s_user_params.is_nonblocked_send = false;
+	s_user_params.max_looping_over_recv = 1;
 	s_user_params.do_warmup = true;
 	s_user_params.pre_warmup_wait = 0;
 	s_user_params.is_vmarxfiltercb = false;

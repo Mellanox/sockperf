@@ -273,17 +273,17 @@ private:
 		for (int _fd = m_ioHandler.get_look_start(); _fd < m_ioHandler.get_look_end() && !g_b_exit; _fd++) {
 			actual_fd = m_ioHandler.analyzeArrival(_fd);
 			if (actual_fd){
-				int m_recived = MAX_LOOPING_OVER_RECV;
+				int m_recived = g_pApp->m_const_params.max_looping_over_recv;
 				while (( 0 != m_recived ) && (!g_b_exit))
 				{
-					m_recived--;
-					unsigned int recieved_packets = client_receive_from_selected(actual_fd/*, packet_cnt_index*/);
-					if ( 0 == recieved_packets )
+					if (m_recived > 0)
 					{
-						if (errno == EAGAIN)
-						{
-							break ;
-						}
+						m_recived--;
+					}
+					unsigned int recieved_packets = client_receive_from_selected(actual_fd/*, packet_cnt_index*/);
+					if ( (0 == recieved_packets) && (errno == EAGAIN))
+					{
+						break ;
 					}
 					recieved_packets_num += recieved_packets;
 				}

@@ -72,7 +72,6 @@
 #include "Playback.h"
 #include <sys/resource.h>
 
-extern int MAX_LOOPING_OVER_RECV;
 
 //#define USING_VMA_EXTRA_API
 #ifdef  USING_VMA_EXTRA_API
@@ -528,6 +527,7 @@ struct user_params_t {
 	int daemonize;
 	char mcg_filename[MAX_PATH_LENGTH];
 	bool withsock_accl;
+	int max_looping_over_recv;
 };
 
 struct mutable_params_t {
