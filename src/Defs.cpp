@@ -67,7 +67,6 @@ int get_max_active_fds_num() {
 const int MAX_FDS_NUM = get_max_active_fds_num();
 fds_data** g_fds_array = NULL;
 int MAX_PAYLOAD_SIZE = 65506;
-int MAX_LOOPING_OVER_RECV = 1; //TO-DO:move the parameter to s_user_params
 
 #ifdef  USING_VMA_EXTRA_API
 struct vma_api_t *g_vma_api;
