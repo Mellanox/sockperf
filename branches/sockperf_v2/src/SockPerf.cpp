@@ -167,7 +167,7 @@ static const AOPT_DESC  common_opt_desc[] =
 	},
 	{
 		'F', AOPT_ARG, aopt_set_literal( 'F' ), aopt_set_string( "iomux-type" ),
-             "Type of multiple file descriptors handle [s|select|p|poll|e|epoll](default select)."
+             "Type of multiple file descriptors handle [s|select|p|poll|e|epoll|r|recvfrom](default select)."
 	},
 	{
 		OPT_SELECT_TIMEOUT, AOPT_ARG, aopt_set_literal( 0 ), aopt_set_string( "timeout" ),
@@ -1458,7 +1458,7 @@ static int parse_common_opt( const AOPT_OBJECT *common_obj )
 				if (optarg) {
 					strncpy(mcg_filename, optarg, MAX_ARGV_SIZE);
 					mcg_filename[MAX_PATH_LENGTH - 1] = '\0';
-					s_user_params.fd_handler_type = RECVFROM;
+					s_user_params.fd_handler_type = SELECT;
 				}
 				else {
 					log_msg("'-%c' Invalid value", 'f');
@@ -1487,6 +1487,9 @@ static int parse_common_opt( const AOPT_OBJECT *common_obj )
 					}
 					else if (!strcmp( fd_handle_type, "select" ) || !strcmp( fd_handle_type, "s")) {
 						s_user_params.fd_handler_type = SELECT;
+					}
+					else if (!strcmp( fd_handle_type, "recvfrom" ) || !strcmp( fd_handle_type, "r")) {
+						s_user_params.fd_handler_type = RECVFROM;
 					}
 					else {
 						log_msg("'-%c' Invalid muliply io hanlde type: %s", 'F', optarg);
