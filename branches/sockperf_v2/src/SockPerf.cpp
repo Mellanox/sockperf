@@ -1458,7 +1458,7 @@ static int parse_common_opt( const AOPT_OBJECT *common_obj )
 				if (optarg) {
 					strncpy(mcg_filename, optarg, MAX_ARGV_SIZE);
 					mcg_filename[MAX_PATH_LENGTH - 1] = '\0';
-					s_user_params.fd_handler_type = SELECT;
+					s_user_params.fd_handler_type = RECVFROM;
 				}
 				else {
 					log_msg("'-%c' Invalid value", 'f');
