@@ -277,6 +277,10 @@ static const AOPT_DESC  client_opt_desc[] =
 		OPT_GIGA_SIZE, AOPT_NOARG,	aopt_set_literal( 0 ),	aopt_set_string( "giga-size" ),
 	             "Print sizes in GigaByte."
 	},
+	{
+			OPT_OUTPUT_PRECISION, AOPT_NOARG,	aopt_set_literal( 0 ),	aopt_set_string( "increase_output_precision" ),
+		             "Increase number of digits after decimal point of the throughput output (from 3 to 9). "
+		},
 	{ 0, AOPT_NOARG, aopt_set_literal( 0 ), aopt_set_string( NULL ), NULL }
 };
 
@@ -1797,6 +1801,9 @@ static int parse_client_opt( const AOPT_OBJECT *client_obj )
 		if ( !rc && aopt_check(client_obj, OPT_GIGA_SIZE) ) {
 			s_user_params.giga_size = true;
 		}
+		if ( !rc && aopt_check(client_obj, OPT_OUTPUT_PRECISION) ) {
+			s_user_params.increase_output_precision = true;
+		}
 	}
 
 	return rc;
@@ -1973,6 +1980,7 @@ void set_defaults()
 	s_user_params.fileFullLog = NULL;
 	s_user_params.b_stream = false;
 	s_user_params.giga_size = false;
+	s_user_params.increase_output_precision = false;
 	s_user_params.pPlaybackVector = NULL;
 
 	s_user_params.addr.sin_family = AF_INET;

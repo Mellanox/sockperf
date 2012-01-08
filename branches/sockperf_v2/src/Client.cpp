@@ -308,6 +308,9 @@ void stream_statistics(Message *pMsgRequest)
 	if (g_pApp->m_const_params.giga_size){
 		log_msg("Summary: BandWidth is %.3f GBps (%.3f Gbps)", MBps/1000, MBps*8/1000);
 	}
+	else if (g_pApp->m_const_params.increase_output_precision){
+			log_msg("Summary: BandWidth is %.9f GBps (%.9f Gbps)", MBps, MBps*8);
+	}
 	else{
 		log_msg("Summary: BandWidth is %.3f MBps (%.3f Mbps)", MBps, MBps*8);
 	}
