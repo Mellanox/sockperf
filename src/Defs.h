@@ -157,6 +157,7 @@ enum {
 	OPT_THREADS_AFFINITY,				//32
 	OPT_DONT_REPLY,		//33
 	OPT_RECV_LOOPING,	//34
+	OPT_OUTPUT_PRECISION, //35
 };
 
 #define MODULE_NAME			"sockperf"
@@ -517,6 +518,7 @@ struct user_params_t {
 	char receiver_affinity[MAX_ARGV_SIZE];
 	FILE* fileFullLog; //client side only
 	bool giga_size; //client side only
+	bool increase_output_precision; //client side only
 	bool b_stream; //client side only
 	PlaybackVector *pPlaybackVector; //client side only
 	struct sockaddr_in addr;
