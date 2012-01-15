@@ -10,7 +10,7 @@ clean-local:
 	@(rm $(bin_PROGRAMS)_$(PACKAGE_VERSION))
 
 install-data-local:
-	@(cp $(bin_PROGRAMS)_$(PACKAGE_VERSION) ${prefix}/bin/.)
+	@(cp $(bin_PROGRAMS)_$(PACKAGE_VERSION) ${prefix}/bin/. && cp $(bin_PROGRAMS) ${prefix}/bin/.)
 
 bin_PROGRAMS = sockperf
 INCLUDES := \
