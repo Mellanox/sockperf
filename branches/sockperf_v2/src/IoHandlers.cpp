@@ -84,6 +84,13 @@ int IoRecvfrom::prepareNetwork()
 					inet_ntoa(g_fds_array[ifd]->addr.sin_addr),
 					ntohs(g_fds_array[ifd]->addr.sin_port),
 					PRINT_PROTOCOL(g_fds_array[ifd]->sock_type));
+			for (int i=0; i< g_fds_array[ifd]->memberships_size; i++){
+				printf("[%2d] IP = %-15s PORT = %5d # %s\n",
+									list_count++,
+									inet_ntoa(g_fds_array[ifd]->memberships_addr[i].sin_addr),
+									ntohs(g_fds_array[ifd]->addr.sin_port),
+									PRINT_PROTOCOL(g_fds_array[ifd]->sock_type));
+			}
 		}
 	}
 
@@ -116,6 +123,13 @@ int IoSelect::prepareNetwork()
 					ntohs(g_fds_array[ifd]->addr.sin_port),
 					PRINT_PROTOCOL(g_fds_array[ifd]->sock_type));
 			FD_SET(ifd, &m_save_fds);
+			for (int i=0; i< g_fds_array[ifd]->memberships_size; i++){
+				printf("[%2d] IP = %-15s PORT = %5d # %s\n",
+						list_count++,
+						inet_ntoa(g_fds_array[ifd]->memberships_addr[i].sin_addr),
+						ntohs(g_fds_array[ifd]->addr.sin_port),
+						PRINT_PROTOCOL(g_fds_array[ifd]->sock_type));
+			}
 		}
 	}
 
@@ -159,6 +173,13 @@ int IoPoll::prepareNetwork()
 						inet_ntoa(g_fds_array[ifd]->addr.sin_addr),
 						ntohs(g_fds_array[ifd]->addr.sin_port),
 						PRINT_PROTOCOL(g_fds_array[ifd]->sock_type));
+				for (int i=0; i< g_fds_array[ifd]->memberships_size; i++){
+					printf("[%2d] IP = %-15s PORT = %5d # %s\n",
+							list_count++,
+							inet_ntoa(g_fds_array[ifd]->memberships_addr[i].sin_addr),
+							ntohs(g_fds_array[ifd]->addr.sin_port),
+							PRINT_PROTOCOL(g_fds_array[ifd]->sock_type));
+				}
 				mp_poll_fd_arr[fd_count].fd = ifd;
 				mp_poll_fd_arr[fd_count].events = POLLIN | POLLPRI;
 				fd_count++;
@@ -210,7 +231,13 @@ int IoEpoll::prepareNetwork()
 						inet_ntoa(g_fds_array[ifd]->addr.sin_addr),
 						ntohs(g_fds_array[ifd]->addr.sin_port),
 						PRINT_PROTOCOL(g_fds_array[ifd]->sock_type));
-
+				for (int i=0; i< g_fds_array[ifd]->memberships_size; i++){
+					printf("[%2d] IP = %-15s PORT = %5d # %s\n",
+							list_count++,
+							inet_ntoa(g_fds_array[ifd]->memberships_addr[i].sin_addr),
+							ntohs(g_fds_array[ifd]->addr.sin_port),
+							PRINT_PROTOCOL(g_fds_array[ifd]->sock_type));
+				}
 				ev.events = EPOLLIN | EPOLLPRI;
 				ev.data.fd = ifd;
 				epoll_ctl(m_epfd, EPOLL_CTL_ADD, ev.data.fd, &ev);

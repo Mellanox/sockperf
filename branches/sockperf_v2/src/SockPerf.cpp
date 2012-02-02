@@ -2292,6 +2292,7 @@ static int set_mcgroups_fromfile(const char *mcg_filename)
 		log_msg("Can't open file: %s\n", mcg_filename);
 		return SOCKPERF_ERR_NOT_EXIST;
 	}
+	std::tr1::unordered_map<in_port_t, int> fd_socket_map;
 
 	while (!rc && (res = fgets(line, MAX_MCFILE_LINE_LENGTH, file_fd))) {
 		if (!res) {
@@ -2400,17 +2401,29 @@ static int set_mcgroups_fromfile(const char *mcg_filename)
 
 			tmp->active_fd_count = 0;
 			tmp->active_fd_list = (int*)MALLOC(MAX_ACTIVE_FD_NUM * sizeof(int));
+			bool new_socket_flag = true;
 			if (!tmp->active_fd_list) {
 				log_err("Failed to allocate memory with malloc()");
 				rc = SOCKPERF_ERR_NO_MEMORY;
 			}
 			else {
-				/* create a socket */
-				if ((curr_fd = socket(AF_INET, tmp->sock_type, 0)) < 0) {
-					log_err("socket(AF_INET, SOCK_x)");
-					rc = SOCKPERF_ERR_SOCKET;
+ 				if (0 != fd_socket_map[tmp->addr.sin_port]) {
+ 					/* join socket */
+ 					curr_fd = fd_socket_map[tmp->addr.sin_port];
+ 					new_socket_flag = false;
+ 					g_fds_array[curr_fd]->memberships_addr[g_fds_array[curr_fd]->memberships_size]=tmp->addr;
+ 					g_fds_array[curr_fd]->memberships_size++;
 				}
 				else {
+					/* create a socket */
+					if ((curr_fd = socket(AF_INET, tmp->sock_type, 0)) < 0) {
+						log_err("socket(AF_INET, SOCK_x)");
+						rc = SOCKPERF_ERR_SOCKET;
+					}
+					fd_socket_map[tmp->addr.sin_port] = curr_fd;
+					tmp->memberships_size=0;
+				}
+				if ( curr_fd >=0 ) {
 					if ( (curr_fd >= MAX_FDS_NUM) ||
 						 (prepare_socket(tmp, curr_fd) == INVALID_SOCKET) ) {
 						log_err("Invalid socket");
@@ -2436,17 +2449,20 @@ static int set_mcgroups_fromfile(const char *mcg_filename)
 						tmp->recv.cur_offset = 0;
 						tmp->recv.cur_size = tmp->recv.max_size;
 
-						if (s_fd_num != 1) { /*it is not the first fd*/
+						if ((s_fd_num != 1) && (new_socket_flag)) { /*it is not the first fd*/
 							g_fds_array[last_fd]->next_fd = curr_fd;
 						}
 						else {
 							s_fd_min = curr_fd;
+						}					
+						if (new_socket_flag)
+						{
+							last_fd = curr_fd;
+							g_fds_array[curr_fd] = tmp;
+							s_fd_max = max(s_fd_max, curr_fd);
+							s_fd_min = min(s_fd_min, curr_fd);
 						}
 
-						last_fd = curr_fd;
-						g_fds_array[curr_fd] = tmp;
-						s_fd_max = max(s_fd_max, curr_fd);
-						s_fd_min = min(s_fd_min, curr_fd);
 					}
 				}
 			}
