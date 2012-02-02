@@ -82,7 +82,10 @@ int ServerBase::initBeforeLoop()
 			memset(&bind_addr, 0, sizeof(struct sockaddr_in));
 			bind_addr.sin_family = AF_INET;
 			bind_addr.sin_port = g_fds_array[ifd]->addr.sin_port;
-			bind_addr.sin_addr.s_addr = g_fds_array[ifd]->addr.sin_addr.s_addr;
+			bind_addr.sin_addr.s_addr = INADDR_ANY;
+			if (!g_fds_array[ifd]->memberships_size){ //if only one address on socket
+				bind_addr.sin_addr.s_addr = g_fds_array[ifd]->addr.sin_addr.s_addr;
+			}
 
 			if (bind(ifd, (struct sockaddr*)&bind_addr, sizeof(struct sockaddr)) < 0) {
 				log_err("Can`t bind socket\n");
