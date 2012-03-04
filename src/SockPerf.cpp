@@ -1415,7 +1415,13 @@ static int parse_common_opt( const AOPT_OBJECT *common_obj )
 
 		if ( !rc && aopt_check(common_obj, 'i') ) {
 			const char* optarg = aopt_value(common_obj, 'i');
+			int len;
 			if (!optarg) {	/* already in network byte order*/
+				log_msg("'-%c' Invalid address: %s", 'i', optarg);
+				rc = SOCKPERF_ERR_BAD_ARGUMENT;
+			}
+			else if(4 != sscanf (optarg,"%d.%d.%d.%d",&len,&len,&len,&len))
+			{
 				log_msg("'-%c' Invalid address: %s", 'i', optarg);
 				rc = SOCKPERF_ERR_BAD_ARGUMENT;
 			}
