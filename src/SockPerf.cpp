@@ -342,6 +342,10 @@ static int proc_mode_under_load( int id, int argc, const char **argv )
 	             "Run for <sec> seconds (default 1, max = 36000000)."
 		},
 		{
+				OPT_CLIENTPORT, AOPT_ARG,	aopt_set_literal( 0 ),	aopt_set_string( "client_port" ),
+			    	"Force the client side to bind to a specific port (default = 0). "
+		},
+		{
 			'b', AOPT_ARG,	aopt_set_literal( 'b' ),	aopt_set_string( "burst" ),
 	             "Control the client's number of a messages sent in every burst."
 		},
@@ -489,6 +493,26 @@ static int proc_mode_under_load( int id, int argc, const char **argv )
 			}
 		}
 
+		if ( !rc && aopt_check(self_obj, OPT_CLIENTPORT) ) {
+			const char* optarg = aopt_value(self_obj, OPT_CLIENTPORT);
+			if (optarg) {
+				errno = 0;
+				long value = strtol(optarg, NULL, 0);
+				/* strtol() returns 0 if there were no digits at all */
+				if (errno != 0) {
+					log_msg("'-%c' Invalid port: %s", OPT_CLIENTPORT, optarg);
+					rc = SOCKPERF_ERR_BAD_ARGUMENT;
+				}
+				else {
+					s_user_params.client_port = htons((uint16_t)value);
+				}
+			}
+			else {
+				log_msg("'-%c' Invalid value", OPT_CLIENTPORT);
+				rc = SOCKPERF_ERR_BAD_ARGUMENT;
+			}
+		}
+
 		if ( !rc && aopt_check(self_obj, 'm') ) {
 			const char* optarg = aopt_value(self_obj, 'm');
 			if (optarg) {
@@ -594,6 +618,10 @@ static int proc_mode_ping_pong( int id, int argc, const char **argv )
 		{
 			't', AOPT_ARG,	aopt_set_literal( 't' ),	aopt_set_string( "time" ),
 	             "Run for <sec> seconds (default 1, max = 36000000)."
+		},
+		{
+			OPT_CLIENTPORT, AOPT_ARG,	aopt_set_literal( 0 ),	aopt_set_string( "client_port" ),
+				"Force the client side to bind to a specific port (default = 0). "
 		},
 		{
 			'b', AOPT_ARG,	aopt_set_literal( 'b' ),	aopt_set_string( "burst" ),
@@ -724,6 +752,25 @@ static int proc_mode_ping_pong( int id, int argc, const char **argv )
 				rc = SOCKPERF_ERR_BAD_ARGUMENT;
 			}
 		}
+		if ( !rc && aopt_check(self_obj, OPT_CLIENTPORT) ) {
+			const char* optarg = aopt_value(self_obj, OPT_CLIENTPORT);
+			if (optarg) {
+				errno = 0;
+				long value = strtol(optarg, NULL, 0);
+				/* strtol() returns 0 if there were no digits at all */
+				if (errno != 0) {
+					log_msg("'-%c' Invalid port: %s", OPT_CLIENTPORT, optarg);
+					rc = SOCKPERF_ERR_BAD_ARGUMENT;
+				}
+				else {
+					s_user_params.client_port = htons((uint16_t)value);
+				}
+			}
+			else {
+				log_msg("'-%c' Invalid value", OPT_CLIENTPORT);
+				rc = SOCKPERF_ERR_BAD_ARGUMENT;
+			}
+		}
 
 		if ( !rc && aopt_check(self_obj, 'm') ) {
 			const char* optarg = aopt_value(self_obj, 'm');
@@ -849,6 +896,10 @@ static int proc_mode_throughput( int id, int argc, const char **argv )
 	             "Run for <sec> seconds (default 1, max = 36000000)."
 		},
 		{
+			OPT_CLIENTPORT, AOPT_ARG,	aopt_set_literal( 0 ),	aopt_set_string( "client_port" ),
+				"Force the client side to bind to a specific port (default = 0). "
+		},
+		{
 			'b', AOPT_ARG,	aopt_set_literal( 'b' ),	aopt_set_string( "burst" ),
 	             "Control the client's number of a messages sent in every burst."
 		},
@@ -970,6 +1021,25 @@ static int proc_mode_throughput( int id, int argc, const char **argv )
 			}
 			else {
 				log_msg("'-%d' Invalid value", OPT_MPS);
+				rc = SOCKPERF_ERR_BAD_ARGUMENT;
+			}
+		}
+		if ( !rc && aopt_check(self_obj, OPT_CLIENTPORT) ) {
+			const char* optarg = aopt_value(self_obj, OPT_CLIENTPORT);
+			if (optarg) {
+				errno = 0;
+				long value = strtol(optarg, NULL, 0);
+				/* strtol() returns 0 if there were no digits at all */
+				if (errno != 0) {
+					log_msg("'-%c' Invalid port: %s", OPT_CLIENTPORT, optarg);
+					rc = SOCKPERF_ERR_BAD_ARGUMENT;
+				}
+				else {
+					s_user_params.client_port = htons((uint16_t)value);
+				}
+			}
+			else {
+				log_msg("'-%c' Invalid value", OPT_CLIENTPORT);
 				rc = SOCKPERF_ERR_BAD_ARGUMENT;
 			}
 		}
@@ -1949,6 +2019,7 @@ void set_defaults()
 	s_user_params.rx_mc_if_addr.s_addr = htonl(INADDR_ANY);
 	s_user_params.tx_mc_if_addr.s_addr = htonl(INADDR_ANY);
 	s_user_params.sec_test_duration = DEFAULT_TEST_DURATION;
+	s_user_params.client_port = htons(DEFAULT_PORT);
 	s_user_params.mode = MODE_SERVER;
 	s_user_params.packetrate_stats_print_ratio = 0;
 	s_user_params.packetrate_stats_print_details = false;
@@ -2810,6 +2881,7 @@ b_server_reply_via_uc = %d \n\t\
 b_server_dont_reply = %d \n\t\
 b_server_detect_gaps = %d\n\t\
 mps = %d \n\t\
+client_port = %d \n\t\
 reply_every = %d \n\t\
 b_client_ping_pong = %d \n\t\
 b_no_rdtsc = %d \n\t\
@@ -2846,6 +2918,7 @@ s_user_params.b_server_reply_via_uc,
 s_user_params.b_server_dont_reply,
 s_user_params.b_server_detect_gaps,
 s_user_params.mps,
+s_user_params.client_port,
 s_user_params.reply_every,
 s_user_params.b_client_ping_pong,
 s_user_params.b_no_rdtsc,

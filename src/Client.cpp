@@ -470,7 +470,7 @@ int Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration,
 
 			if (g_fds_array[ifd]->sock_type == SOCK_DGRAM) {
 				bind_addr.sin_family = AF_INET;
-				bind_addr.sin_port = g_fds_array[ifd]->addr.sin_port;
+				bind_addr.sin_port = g_pApp->m_const_params.client_port;
 				bind_addr.sin_addr.s_addr = htonl(INADDR_ANY);
 				log_dbg ("binding to: %s:%d [%d]...", inet_ntoa(bind_addr.sin_addr), ntohs(bind_addr.sin_port), ifd);
 				if (bind(ifd, (struct sockaddr*)&bind_addr, sizeof(struct sockaddr)) < 0) {

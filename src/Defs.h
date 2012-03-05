@@ -158,6 +158,7 @@ enum {
 	OPT_DONT_REPLY,		//33
 	OPT_RECV_LOOPING,	//34
 	OPT_OUTPUT_PRECISION, //35
+	OPT_CLIENTPORT,			//36
 };
 
 #define MODULE_NAME			"sockperf"
@@ -513,6 +514,7 @@ struct user_params_t {
 	bool b_server_dont_reply;
 	bool b_server_detect_gaps;
 	uint32_t mps; //client side only
+	in_port_t client_port; //client side only
 	uint32_t reply_every; //client side only
 	bool b_client_ping_pong; //client side only
 	bool b_no_rdtsc;
