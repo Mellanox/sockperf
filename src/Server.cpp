@@ -88,7 +88,7 @@ int ServerBase::initBeforeLoop()
 			}
 
 			if (bind(ifd, (struct sockaddr*)&bind_addr, sizeof(struct sockaddr)) < 0) {
-				log_err("Can`t bind socket\n");
+				log_err("Can`t bind socket, IP to bind: %s : %d [%d] \n", inet_ntoa(bind_addr.sin_addr), ntohs(bind_addr.sin_port), ifd);
 				rc = SOCKPERF_ERR_SOCKET;
 				break;
 			}
