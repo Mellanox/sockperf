@@ -474,7 +474,7 @@ int Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration,
 				bind_addr.sin_addr.s_addr = htonl(INADDR_ANY);
 				log_dbg ("binding to: %s:%d [%d]...", inet_ntoa(bind_addr.sin_addr), ntohs(bind_addr.sin_port), ifd);
 				if (bind(ifd, (struct sockaddr*)&bind_addr, sizeof(struct sockaddr)) < 0) {
-					log_err("Can`t bind socket");
+					log_err("Can`t bind socket %s:%d [%d].", inet_ntoa(bind_addr.sin_addr), ntohs(bind_addr.sin_port), ifd);
 					rc = SOCKPERF_ERR_SOCKET;
 					break;
 				}
