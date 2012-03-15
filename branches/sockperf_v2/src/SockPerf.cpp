@@ -343,7 +343,7 @@ static int proc_mode_under_load( int id, int argc, const char **argv )
 		},
 		{
 				OPT_CLIENTPORT, AOPT_ARG,	aopt_set_literal( 0 ),	aopt_set_string( "client_port" ),
-			    	"Force the client side to bind to a specific port (default = 0). "
+			    	"Force the client side to bind to a specific port (UC UDP only, default = 0). "
 		},
 		{
 			'b', AOPT_ARG,	aopt_set_literal( 'b' ),	aopt_set_string( "burst" ),
@@ -621,7 +621,7 @@ static int proc_mode_ping_pong( int id, int argc, const char **argv )
 		},
 		{
 			OPT_CLIENTPORT, AOPT_ARG,	aopt_set_literal( 0 ),	aopt_set_string( "client_port" ),
-				"Force the client side to bind to a specific port (default = 0). "
+				"Force the client side to bind to a specific port (UC UDP only, default = 0). "
 		},
 		{
 			'b', AOPT_ARG,	aopt_set_literal( 'b' ),	aopt_set_string( "burst" ),
@@ -897,7 +897,7 @@ static int proc_mode_throughput( int id, int argc, const char **argv )
 		},
 		{
 			OPT_CLIENTPORT, AOPT_ARG,	aopt_set_literal( 0 ),	aopt_set_string( "client_port" ),
-				"Force the client side to bind to a specific port (default = 0). "
+				"Force the client side to bind to a specific port (UC UDP only, default = 0). "
 		},
 		{
 			'b', AOPT_ARG,	aopt_set_literal( 'b' ),	aopt_set_string( "burst" ),
