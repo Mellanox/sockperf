@@ -369,6 +369,10 @@ typedef struct spike{
    int next;
  }spike;
 
+typedef struct port_and_type{
+	int sock_type;				/**< SOCK_STREAM (tcp), SOCK_DGRAM (udp), SOCK_RAW (ip) */
+    in_port_t port;
+}port_type;
 
 /**
  * @struct fds_data
@@ -429,6 +433,16 @@ namespace std
 		};
 
 		template<>
+		struct hash<struct port_and_type> : public std::unary_function<struct port_and_type, int>
+		{
+			int operator()(struct port_and_type const &key) const
+			{
+				//XOR "a.b" part of "a.b.c.d" address with 16bit port; leave "c.d" part untouched for maximum hashing
+				return key.sock_type ^ key.port;
+			}
+		};
+
+		template<>
 		struct hash<struct in_addr> : public std::unary_function<struct in_addr, int>
 		    {
 			int operator()(struct in_addr const &key) const
@@ -446,6 +460,15 @@ namespace std
 			return key1.sin_port == key2.sin_port && key1.sin_addr.s_addr == key2.sin_addr.s_addr;
 		}
 	};
+
+	template<>
+	struct equal_to<struct port_and_type>: public std::binary_function<struct port_and_type, struct port_and_type, bool>
+		{
+			bool operator()(struct port_and_type const &key1, struct port_and_type const &key2) const
+			{
+				return key1.sock_type == key2.sock_type && key1.port == key2.port;
+			}
+		};
 
 	template<>
 	struct equal_to<struct in_addr>: public std::binary_function<struct in_addr, struct in_addr, bool>

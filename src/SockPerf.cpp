@@ -2369,7 +2369,8 @@ static int set_mcgroups_fromfile(const char *mcg_filename)
 		log_msg("Can't open file: %s\n", mcg_filename);
 		return SOCKPERF_ERR_NOT_EXIST;
 	}
-	std::tr1::unordered_map<in_port_t, int> fd_socket_map;
+	/* a map to keep records on the address we received */
+	std::tr1::unordered_map<port_and_type, int> fd_socket_map; //<port,fd>
 
 	while (!rc && (res = fgets(line, MAX_MCFILE_LINE_LENGTH, file_fd))) {
 		if (!res) {
@@ -2453,7 +2454,7 @@ static int set_mcgroups_fromfile(const char *mcg_filename)
 
 			/* Check if the same value exists */
 			bool is_exist = false;
-
+			port_and_type port_type_tmp = {tmp->sock_type,tmp->addr.sin_port};
 			for (int i = s_fd_min; i <= s_fd_max; i++) {
 				/* duplicated values are accepted in case client connection using TCP */
 				if (((s_user_params.mode == MODE_CLIENT)  && (tmp->sock_type == SOCK_STREAM))) {
@@ -2461,7 +2462,8 @@ static int set_mcgroups_fromfile(const char *mcg_filename)
 				}
 
 				if ( g_fds_array[i] &&
-					 !memcmp( &(g_fds_array[i]->addr), &(tmp->addr), sizeof(tmp->addr)) ) {
+					 !memcmp( &(g_fds_array[i]->addr), &(tmp->addr), sizeof(tmp->addr)) &&
+					 fd_socket_map[port_type_tmp] ) {
 					is_exist = true;
 					break;
 				}
@@ -2484,9 +2486,10 @@ static int set_mcgroups_fromfile(const char *mcg_filename)
 				rc = SOCKPERF_ERR_NO_MEMORY;
 			}
 			else {
- 				if (0 != fd_socket_map[tmp->addr.sin_port]) {
+				/* if this port already been received before, join socket - multicast only */
+ 				if (0 != fd_socket_map[port_type_tmp]) {
  					/* join socket */
- 					curr_fd = fd_socket_map[tmp->addr.sin_port];
+ 					curr_fd = fd_socket_map[port_type_tmp];
  					new_socket_flag = false;
  					g_fds_array[curr_fd]->memberships_addr[g_fds_array[curr_fd]->memberships_size]=tmp->addr;
  					g_fds_array[curr_fd]->memberships_size++;
@@ -2497,7 +2500,7 @@ static int set_mcgroups_fromfile(const char *mcg_filename)
 						log_err("socket(AF_INET, SOCK_x)");
 						rc = SOCKPERF_ERR_SOCKET;
 					}
-					fd_socket_map[tmp->addr.sin_port] = curr_fd;
+					fd_socket_map[port_type_tmp] = curr_fd;
 					tmp->memberships_size=0;
 				}
 				if ( curr_fd >=0 ) {
@@ -2526,18 +2529,18 @@ static int set_mcgroups_fromfile(const char *mcg_filename)
 						tmp->recv.cur_offset = 0;
 						tmp->recv.cur_size = tmp->recv.max_size;
 
-						if ((s_fd_num != 1) && (new_socket_flag)) { /*it is not the first fd*/
-							g_fds_array[last_fd]->next_fd = curr_fd;
-						}
-						else {
-							s_fd_min = curr_fd;
-						}					
-						if (new_socket_flag)
-						{
+						if (new_socket_flag) {
+							if (s_fd_num == 1){ /*it is the first fd*/
+								s_fd_min = curr_fd;
+								s_fd_max = curr_fd;
+							}
+							else {
+								g_fds_array[last_fd]->next_fd = curr_fd;
+								s_fd_min = min(s_fd_min, curr_fd);
+								s_fd_max = max(s_fd_max, curr_fd);
+							}
 							last_fd = curr_fd;
 							g_fds_array[curr_fd] = tmp;
-							s_fd_max = max(s_fd_max, curr_fd);
-							s_fd_min = min(s_fd_min, curr_fd);
 						}
 
 					}
