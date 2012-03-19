@@ -494,22 +494,28 @@ static int proc_mode_under_load( int id, int argc, const char **argv )
 		}
 
 		if ( !rc && aopt_check(self_obj, OPT_CLIENTPORT) ) {
-			const char* optarg = aopt_value(self_obj, OPT_CLIENTPORT);
-			if (optarg) {
-				errno = 0;
-				long value = strtol(optarg, NULL, 0);
-				/* strtol() returns 0 if there were no digits at all */
-				if (errno != 0) {
-					log_msg("'-%c' Invalid port: %s", OPT_CLIENTPORT, optarg);
-					rc = SOCKPERF_ERR_BAD_ARGUMENT;
+			if (aopt_check(common_obj, 'f')) {
+				log_msg("--client_port conflicts with -f option");
+				rc = SOCKPERF_ERR_BAD_ARGUMENT;
+			}
+			else{
+				const char* optarg = aopt_value(self_obj, OPT_CLIENTPORT);
+				if (optarg) {
+					errno = 0;
+					long value = strtol(optarg, NULL, 0);
+					/* strtol() returns 0 if there were no digits at all */
+					if (errno != 0) {
+						log_msg("'-%c' Invalid port: %s", OPT_CLIENTPORT, optarg);
+						rc = SOCKPERF_ERR_BAD_ARGUMENT;
+					}
+					else {
+						s_user_params.client_port = htons((uint16_t)value);
+					}
 				}
 				else {
-					s_user_params.client_port = htons((uint16_t)value);
+					log_msg("'-%c' Invalid value", OPT_CLIENTPORT);
+					rc = SOCKPERF_ERR_BAD_ARGUMENT;
 				}
-			}
-			else {
-				log_msg("'-%c' Invalid value", OPT_CLIENTPORT);
-				rc = SOCKPERF_ERR_BAD_ARGUMENT;
 			}
 		}
 
@@ -753,22 +759,28 @@ static int proc_mode_ping_pong( int id, int argc, const char **argv )
 			}
 		}
 		if ( !rc && aopt_check(self_obj, OPT_CLIENTPORT) ) {
-			const char* optarg = aopt_value(self_obj, OPT_CLIENTPORT);
-			if (optarg) {
-				errno = 0;
-				long value = strtol(optarg, NULL, 0);
-				/* strtol() returns 0 if there were no digits at all */
-				if (errno != 0) {
-					log_msg("'-%c' Invalid port: %s", OPT_CLIENTPORT, optarg);
-					rc = SOCKPERF_ERR_BAD_ARGUMENT;
+			if (aopt_check(common_obj, 'f')) {
+							log_msg("--client_port conflicts with -f option");
+							rc = SOCKPERF_ERR_BAD_ARGUMENT;
+			}
+			else{
+				const char* optarg = aopt_value(self_obj, OPT_CLIENTPORT);
+				if (optarg) {
+					errno = 0;
+					long value = strtol(optarg, NULL, 0);
+					/* strtol() returns 0 if there were no digits at all */
+					if (errno != 0) {
+						log_msg("'-%c' Invalid port: %s", OPT_CLIENTPORT, optarg);
+						rc = SOCKPERF_ERR_BAD_ARGUMENT;
+					}
+					else {
+						s_user_params.client_port = htons((uint16_t)value);
+					}
 				}
 				else {
-					s_user_params.client_port = htons((uint16_t)value);
+					log_msg("'-%c' Invalid value", OPT_CLIENTPORT);
+					rc = SOCKPERF_ERR_BAD_ARGUMENT;
 				}
-			}
-			else {
-				log_msg("'-%c' Invalid value", OPT_CLIENTPORT);
-				rc = SOCKPERF_ERR_BAD_ARGUMENT;
 			}
 		}
 
@@ -1025,22 +1037,28 @@ static int proc_mode_throughput( int id, int argc, const char **argv )
 			}
 		}
 		if ( !rc && aopt_check(self_obj, OPT_CLIENTPORT) ) {
-			const char* optarg = aopt_value(self_obj, OPT_CLIENTPORT);
-			if (optarg) {
-				errno = 0;
-				long value = strtol(optarg, NULL, 0);
-				/* strtol() returns 0 if there were no digits at all */
-				if (errno != 0) {
-					log_msg("'-%c' Invalid port: %s", OPT_CLIENTPORT, optarg);
-					rc = SOCKPERF_ERR_BAD_ARGUMENT;
+			if (aopt_check(common_obj, 'f')) {
+				log_msg("--client_port conflicts with -f option");
+				rc = SOCKPERF_ERR_BAD_ARGUMENT;
+			}
+			else{
+				const char* optarg = aopt_value(self_obj, OPT_CLIENTPORT);
+				if (optarg) {
+					errno = 0;
+					long value = strtol(optarg, NULL, 0);
+					/* strtol() returns 0 if there were no digits at all */
+					if (errno != 0) {
+						log_msg("'-%c' Invalid port: %s", OPT_CLIENTPORT, optarg);
+						rc = SOCKPERF_ERR_BAD_ARGUMENT;
+					}
+					else {
+						s_user_params.client_port = htons((uint16_t)value);
+					}
 				}
 				else {
-					s_user_params.client_port = htons((uint16_t)value);
+					log_msg("'-%c' Invalid value", OPT_CLIENTPORT);
+					rc = SOCKPERF_ERR_BAD_ARGUMENT;
 				}
-			}
-			else {
-				log_msg("'-%c' Invalid value", OPT_CLIENTPORT);
-				rc = SOCKPERF_ERR_BAD_ARGUMENT;
 			}
 		}
 
@@ -2019,7 +2037,7 @@ void set_defaults()
 	s_user_params.rx_mc_if_addr.s_addr = htonl(INADDR_ANY);
 	s_user_params.tx_mc_if_addr.s_addr = htonl(INADDR_ANY);
 	s_user_params.sec_test_duration = DEFAULT_TEST_DURATION;
-	s_user_params.client_port = htons(DEFAULT_PORT);
+	s_user_params.client_port = 0;//htons(DEFAULT_PORT);
 	s_user_params.mode = MODE_SERVER;
 	s_user_params.packetrate_stats_print_ratio = 0;
 	s_user_params.packetrate_stats_print_details = false;
