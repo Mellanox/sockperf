@@ -309,7 +309,7 @@ static int proc_mode_help( int id, int argc, const char **argv )
 	}
 
 	printf("\n");
-	printf("For additional information see README file, or Type \'sockperf <subcommand> --help\'.\n");
+	printf("For additional information visit our website http://code.google.com/p/sockperf , see README file, or Type \'sockperf <subcommand> --help\'.\n\n");
 
 	return -1;	/* this return code signals to do exit */
 }
