@@ -1,4 +1,4 @@
-Major changes from 2.5.156-
+Major changes from 2.5.156-2.5.167
 = Change log =
 
   * *BEHAVIORAL CHANGE:* When receiving multiple MC UDP groups feed file entries with the same UDP port, sockperf use a single socket.
