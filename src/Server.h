@@ -258,9 +258,14 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_t
 			}
 			/* get source addr to reply. memcpy is not used to improve performance */
 			sendto_addr =l_fds_ifd->addr;
+
 			if (l_fds_ifd->memberships_size || !l_fds_ifd->is_multicast || g_pApp->m_const_params.b_server_reply_via_uc) {// In unicast case reply to sender
 				/* get source addr to reply. memcpy is not used to improve performance */
 				sendto_addr = recvfrom_addr;
+			}else if (l_fds_ifd->is_multicast)
+			{
+				/* always send to the same port recved from */
+				sendto_addr.sin_port = recvfrom_addr.sin_port;
 			}
 			ret = msg_sendto(ifd, m_pMsgReply->getBuf(), m_pMsgReply->getLength(), &sendto_addr);
 			if (ret == RET_SOCKET_SHUTDOWN) {
