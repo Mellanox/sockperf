@@ -388,7 +388,7 @@ void *server_handler_for_multi_threaded(void *arg)
 		{
 			int i = p_info->id + 1;
 			if (p_info->id < g_pApp->m_const_params.threads_num) {
-				if (thread_pid_array[i] && (thread_pid_array[i] == pthread_self())) {
+				if (thread_pid_array && thread_pid_array[i] && (thread_pid_array[i] == pthread_self())) {
 					ENTER_CRITICAL(&thread_exit_lock);
 					thread_pid_array[i] = 0;
 					LEAVE_CRITICAL(&thread_exit_lock);
