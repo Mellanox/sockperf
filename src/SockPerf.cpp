@@ -1651,7 +1651,7 @@ static int parse_common_opt( const AOPT_OBJECT *common_obj )
 		if ( !rc && aopt_check(common_obj, OPT_TX_MC_IF) ) {
 			const char* optarg = aopt_value(common_obj, OPT_TX_MC_IF);
 			if (!optarg ||
-				((s_user_params.rx_mc_if_addr.s_addr = inet_addr(optarg)) == INADDR_NONE)) {	/* already in network byte order*/
+				((s_user_params.tx_mc_if_addr.s_addr = inet_addr(optarg)) == INADDR_NONE)) {	/* already in network byte order*/
 				log_msg("'-%d' Invalid address: %s", OPT_TX_MC_IF, optarg);
 				rc = SOCKPERF_ERR_BAD_ARGUMENT;
 			}
