@@ -216,6 +216,7 @@ const AOPT_OBJECT* aopt_init( int *argc, const char **argv, const AOPT_DESC *des
                                     {
                                         status = __LINE__;
                                         AOPT_TRACE("Option %s should have an argument\n", (*arg_p));
+                                        (*argc)--;
                                     }
                                 }
                                 else
@@ -224,6 +225,7 @@ const AOPT_OBJECT* aopt_init( int *argc, const char **argv, const AOPT_DESC *des
                                     {
                                         status = __LINE__;
                                         AOPT_TRACE("Option %s should not have an argument\n", (*arg_p));
+                                        (*argc)--;
                                     }
                                 }
                             }
