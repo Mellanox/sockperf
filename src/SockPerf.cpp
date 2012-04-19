@@ -2505,7 +2505,7 @@ static int set_mcgroups_fromfile(const char *mcg_filename)
 			}
 			else {
 				/* if this port already been received before, join socket - multicast only */
- 				if (0 != fd_socket_map[port_type_tmp]) {
+ 				if ((0 != fd_socket_map[port_type_tmp]) && (tmp->sock_type != SOCK_STREAM)) {
  					/* join socket */
  					curr_fd = fd_socket_map[port_type_tmp];
  					new_socket_flag = false;
