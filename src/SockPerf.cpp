@@ -183,7 +183,7 @@ static const AOPT_DESC  common_opt_desc[] =
 	},
 	{
 		OPT_TCP_NODELAY_OFF, AOPT_NOARG, aopt_set_literal( 0 ), aopt_set_string( "tcp-avoid-nodelay" ),
-             "Stop delivering TCP Messages Immediately (Enable Nagel)."
+             "Stop/Start delivering TCP Messages Immediately (Enable/Disable Nagel). Default is Nagel Disabled except in Throughput where the default is Nagel enabled."
 	},
 	{
 		OPT_NONBLOCKED_SEND, AOPT_NOARG, aopt_set_literal( 0 ), aopt_set_string( "tcp-skip-blocking-send" ),
@@ -1147,6 +1147,9 @@ static int proc_mode_throughput( int id, int argc, const char **argv )
 	aopt_exit((AOPT_OBJECT*)common_obj);
 	aopt_exit((AOPT_OBJECT*)client_obj);
 	aopt_exit((AOPT_OBJECT*)self_obj);
+
+	// In Throughput the default is nagel enabled while the rest mode uses nagel disabled.
+	s_user_params.tcp_nodelay = !s_user_params.tcp_nodelay;
 
 	return rc;
 }
