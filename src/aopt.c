@@ -81,6 +81,11 @@ const AOPT_OBJECT* aopt_init( int *argc, const char **argv, const AOPT_DESC *des
         const char* const *arg_p= argv + 1;
         size_t opt_count= 0;
 
+        if (*arg_p && '-' != (*arg_p)[0]) {
+        	*argc=0;
+        	return NULL;
+        }
+
         for( ; *arg_p; ++arg_p )
         {
             if( '-' == (*arg_p)[0] && (*arg_p)[1] )
