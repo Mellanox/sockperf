@@ -84,17 +84,11 @@ private:
 
 			addr_to_id::iterator itr = m_ServerList.find(recvfrom_addr->sin_addr);
 			if (itr == m_ServerList.end()) {
-				if ((int)m_ServerList.size() >= g_pApp->m_const_params.client_work_with_srv_num) {
-					/* To recognize case when more then expected servers are working */
+				serverNo = m_ServerList.size();
+				std::pair<addr_to_id::iterator, bool> ret = m_ServerList.insert(addr_to_id::value_type(recvfrom_addr->sin_addr, serverNo));
+				if (!ret.second) {
+					log_err("Failed to insert new server.");
 					serverNo = -1;
-				}
-				else {
-					serverNo = m_ServerList.size();
-					std::pair<addr_to_id::iterator, bool> ret = m_ServerList.insert(addr_to_id::value_type(recvfrom_addr->sin_addr, m_ServerList.size()));
-					if (!ret.second) {
-						log_err("Failed to insert new server.");
-						serverNo = -1;
-					}
 				}
 			}
 			else {
