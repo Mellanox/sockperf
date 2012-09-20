@@ -522,6 +522,7 @@ void server_select_per_thread(int _fd_num) {
 			find_min_max_fds(last_fds, cur_handler_info->fd_num, &(cur_handler_info->fd_min), &(cur_handler_info->fd_max));
 
 			/* Launch handler */
+			errno = 0;
 			int ret = pthread_create(&tid, 0, server_handler_for_multi_threaded, (void *)cur_handler_info);
 
 			/*
