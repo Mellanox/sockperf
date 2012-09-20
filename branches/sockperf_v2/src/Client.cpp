@@ -406,6 +406,7 @@ void Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration
 	if (m_receiverTid) {
 		pthread_kill(m_receiverTid, SIGINT);
 		//pthread_join(m_receiverTid, 0);
+		pthread_detach(m_receiverTid); // just for silenting valgrind's "possibly lost: 288 bytes" in pthread_create
 	}
 
 	log_msg("Test ended");
