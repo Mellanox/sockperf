@@ -2539,8 +2539,8 @@ static int set_mcgroups_fromfile(const char *mcg_filename)
 						for (i = 0; i < MAX_ACTIVE_FD_NUM; i++) {
 							tmp->active_fd_list[i] = INVALID_SOCKET;
 						}
-						# TODO: In the following malloc we have a one time memory allocation of 128KB that are not reclaimed
-						# This O(1) leak was introduced in revision 133
+						// TODO: In the following malloc we have a one time memory allocation of 128KB that are not reclaimed
+						// This O(1) leak was introduced in revision 133
 						tmp->recv.buf = (uint8_t*) malloc (sizeof(uint8_t)*2*MAX_PAYLOAD_SIZE);
 						if (!tmp->recv.buf) {
 							log_err("Failed to allocate memory with malloc()");
