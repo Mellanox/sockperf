@@ -168,7 +168,7 @@ enum {
 #define log_msg_file(file, log_fmt, log_args...)	fprintf(file, MODULE_NAME ": " log_fmt "\n", ##log_args)
 #define log_msg_file2(file, log_fmt, log_args...)	if (1) {log_msg(log_fmt, ##log_args); if (file) log_msg_file(file, log_fmt, ##log_args);} else
 
-#define log_err(log_fmt, log_args...)	printf("ERROR: " log_fmt " (errno=%d %s)\n", ##log_args, errno, strerror(errno))
+#define log_err(log_fmt, log_args...)	printf("sockperf: ERROR: " log_fmt " (errno=%d %s)\n", ##log_args, errno, strerror(errno))
 #ifdef DEBUG
 #undef log_err
 #define log_err(log_fmt, log_args...)	printf(MODULE_NAME ": " "%s:%d:ERROR: " log_fmt " (errno=%d %s)\n", __FILE__, __LINE__, ##log_args, errno, strerror(errno))

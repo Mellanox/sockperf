@@ -73,18 +73,14 @@ void printf_backtrace(void)
 //------------------------------------------------------------------------------
 void exit_with_log(int status)
 {
-	cleanup();
-	printf("sockperf: program exits because of an error.  current value of errno=%d (%m)\n", errno);
-#ifdef DEBUG
-	printf_backtrace();
-#endif
-	exit(status);
+	exit_with_log("program exits because of an error.", status);
 }
 
 //------------------------------------------------------------------------------
 void exit_with_log(const char* error, int status)
 {
 	log_err("%s",error);
+	g_b_exit = true;
 	cleanup();
 	#ifdef DEBUG
 		printf_backtrace();
