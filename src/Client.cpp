@@ -402,12 +402,14 @@ template <class IoType, class SwitchDataIntegrity, class SwitchActivityInfo, cla
 void Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration, SwitchMsgSize , PongModeCare>
 ::cleanupAfterLoop()
 {
-	usleep(100*1000);//0.1 sec
+	usleep(100*1000);//0.1 sec - wait for rx packets for last sends (in normal flow)
 	if (m_receiverTid) {
 		pthread_kill(m_receiverTid, SIGINT);
 		//pthread_join(m_receiverTid, 0);
 		pthread_detach(m_receiverTid); // just for silenting valgrind's "possibly lost: 288 bytes" in pthread_create
 	}
+
+	if (g_b_errorOccured) return;  // cleanup started in other thread and triggerd termination of this thread
 
 	log_msg("Test ended");
 

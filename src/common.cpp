@@ -80,6 +80,7 @@ void exit_with_log(int status)
 void exit_with_log(const char* error, int status)
 {
 	log_err("%s",error);
+	g_b_errorOccured = true;
 	g_b_exit = true;
 	cleanup();
 	#ifdef DEBUG
