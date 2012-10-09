@@ -341,6 +341,7 @@ typedef enum
 
 /* Global variables */
 extern bool g_b_exit;
+extern bool g_b_errorOccured;
 extern uint64_t g_receiveCount;
 extern uint64_t g_skipCount;
 
