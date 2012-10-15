@@ -276,6 +276,9 @@ int Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_accept(int ifd)
 			if (tmp->recv.buf){
         		FREE(tmp->recv.buf);
 			}
+			if (tmp->active_fd_list) {
+				FREE(tmp->active_fd_list);
+			}
             FREE(tmp);
             log_dbg("Can`t accept connection\n");
         }
@@ -308,6 +311,9 @@ int Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_accept(int ifd)
         		active_ifd = INVALID_SOCKET;
 				if (tmp->recv.buf){
         			FREE(tmp->recv.buf);
+				}
+				if (tmp->active_fd_list) {
+					FREE(tmp->active_fd_list);
 				}
         		FREE(tmp);
                 log_dbg ("peer address to refuse: %s:%d [%d]", inet_ntoa(addr.sin_addr), ntohs(addr.sin_port), active_ifd);

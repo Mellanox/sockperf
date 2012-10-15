@@ -128,6 +128,12 @@ void close_ifd(int fd,int ifd,fds_data* l_fds_ifd){
 			close(ifd);
 			l_next_fd->active_fd_count--;
 			l_next_fd->active_fd_list[i] = INVALID_SOCKET;
+			if (g_fds_array[ifd]->active_fd_list) {
+				FREE(g_fds_array[ifd]->active_fd_list);
+			}
+			if (g_fds_array[ifd]->recv.buf){
+				FREE(g_fds_array[ifd]->recv.buf);
+			}
 			free(g_fds_array[ifd]);
 			g_fds_array[ifd] = NULL;
 			break;

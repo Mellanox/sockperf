@@ -1957,6 +1957,9 @@ void cleanup()
 				if (g_fds_array[ifd]->active_fd_list) {
 					FREE(g_fds_array[ifd]->active_fd_list);
 				}
+				if (g_fds_array[ifd]->recv.buf){
+					FREE(g_fds_array[ifd]->recv.buf);
+			    }
 				FREE(g_fds_array[ifd]);
 			}
 		}
