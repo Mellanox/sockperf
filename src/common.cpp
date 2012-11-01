@@ -129,6 +129,7 @@ int set_affinity_list(pthread_t tid, const char * cpu_list)
 		/* Parse cpu list */
 		while (cur_buf) {
 			if (*cur_ptr == '\0') {
+				errno = 0;
 				cpu_cur = strtol(cur_buf, &end_ptr, 0);
 				if ( (errno != 0) || (cur_buf == end_ptr) ) {
 					log_err("Invalid argument: %s", cpu_list);
