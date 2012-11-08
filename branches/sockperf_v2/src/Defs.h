@@ -93,6 +93,7 @@ const uint32_t REPLY_EVERY_DEFAULT = 100;
 const uint32_t TEST_START_WARMUP_MSEC = 50;
 const uint32_t TEST_END_COOLDOWN_MSEC = 50;
 
+#define DEFAULT_CLIENT_WORK_WITH_SRV_NUM	1
 
 #define DEFAULT_TEST_DURATION		1	/* [sec] */
 #define DEFAULT_MC_ADDR				"0.0.0.0"

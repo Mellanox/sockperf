@@ -79,16 +79,26 @@ private:
 		int serverNo = 0;
 
 		assert( (g_fds_array[ifd]) && "invalid fd");
-
+		if (g_pApp->m_const_params.client_work_with_srv_num == DEFAULT_CLIENT_WORK_WITH_SRV_NUM) {
+			// if client_work_with_srv_num param is default- act as working with one server only
+			// (even if working with multiple multicast groups)
+			return serverNo;
+		}
 		if ( g_fds_array[ifd] && g_fds_array[ifd]->is_multicast ) {
 
 			addr_to_id::iterator itr = m_ServerList.find(recvfrom_addr->sin_addr);
 			if (itr == m_ServerList.end()) {
-				serverNo = m_ServerList.size();
-				std::pair<addr_to_id::iterator, bool> ret = m_ServerList.insert(addr_to_id::value_type(recvfrom_addr->sin_addr, serverNo));
-				if (!ret.second) {
-					log_err("Failed to insert new server.");
+				if ((int)m_ServerList.size() >= g_pApp->m_const_params.client_work_with_srv_num) {
+					/* To recognize case when more then expected servers are working */
 					serverNo = -1;
+				}
+				else {
+					serverNo = m_ServerList.size();
+					std::pair<addr_to_id::iterator, bool> ret = m_ServerList.insert(addr_to_id::value_type(recvfrom_addr->sin_addr, m_ServerList.size()));
+					if (!ret.second) {
+						log_err("Failed to insert new server.");
+						serverNo = -1;
+					}
 				}
 			}
 			else {
