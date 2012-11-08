@@ -2066,7 +2066,7 @@ void set_defaults()
 	s_user_params.is_vmazcopyread = false;
 	g_debug_level = LOG_LVL_INFO;
 	s_user_params.mc_loop_disable = true;
-	s_user_params.client_work_with_srv_num = 1;
+	s_user_params.client_work_with_srv_num = DEFAULT_CLIENT_WORK_WITH_SRV_NUM;
 	s_user_params.b_server_reply_via_uc = false;
 	s_user_params.b_server_dont_reply=false;
 	s_user_params.b_server_detect_gaps = false;
