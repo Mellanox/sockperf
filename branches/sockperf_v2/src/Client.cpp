@@ -170,34 +170,43 @@ void client_statistics(int serverNo, Message *pMsgRequest)
 	TicksTime endValidTime;
 	uint64_t startValidSeqNo = 0;
 	uint64_t endValidSeqNo = 0;
-	for (size_t i = 1; i < SIZE; i++) {
+	for (size_t i = 1; counter < SIZE; i++) {
 		uint64_t seqNo    = i * replyEvery;
 		const TicksTime & txTime   = g_pPacketTimes->getTxTime(seqNo);
 		const TicksTime & rxTime   = g_pPacketTimes->getRxTimeArray(seqNo)[SERVER_NO];
 
-		if (txTime < testStart || txTime > testEnd) {
+		if (txTime < testStart) {
 			continue;
+		}
+		if (txTime > testEnd) {
+			break;
 		}
 
 		if (startValidSeqNo == 0) {
 			startValidSeqNo = seqNo;
 			startValidTime = txTime;
 		}
-		endValidSeqNo = seqNo;
-		endValidTime = rxTime;
+
+		if (rxTime == TicksTime::TICKS0) {
+			g_pPacketTimes->incDroppedCount(SERVER_NO);
+			if(endValidTime < txTime) {
+				endValidSeqNo = seqNo;
+				endValidTime = txTime;
+			}
+			continue;
+		}
+
+		if (rxTime < prevRxTime) {
+			g_pPacketTimes->incOooCount(SERVER_NO);
+			continue;
+		}
 
 		pFullLog[lcounter][0] = txTime;
 		pFullLog[lcounter][1] = rxTime;
 		lcounter++;
 
-		if (rxTime == TicksTime::TICKS0) {
-			g_pPacketTimes->incDroppedCount(SERVER_NO);
-			continue;
-		}
-		if (rxTime < prevRxTime) {
-			g_pPacketTimes->incOooCount(SERVER_NO);
-			continue;
-		}
+		endValidSeqNo = seqNo;
+		endValidTime = rxTime;
 
 		rtt = rxTime - txTime;
 
