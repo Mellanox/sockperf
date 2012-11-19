@@ -56,7 +56,6 @@
 #endif /* _AOPT_CONF_TRACE */
 
 
-
 /**
  * aopt_init
  *
@@ -478,4 +477,15 @@ const char* aopt_help( const AOPT_DESC *desc )
     }
 
     return buf;
+}
+
+int isNumeric (const char* arg)
+{
+	while (*arg) {
+	    if(!isdigit(*arg)) {
+      		return 0;
+		}
+    	arg++;
+  	}
+	return 1;
 }

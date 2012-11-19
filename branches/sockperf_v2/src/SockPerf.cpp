@@ -549,7 +549,7 @@ static int proc_mode_under_load( int id, int argc, const char **argv )
 
 		if ( !rc && aopt_check(self_obj, 'r') ) {
 			const char* optarg = aopt_value(self_obj, 'r');
-			if (optarg) {
+			if (optarg && (isNumeric(optarg))) {
 				errno = 0;
 				int value = strtol(optarg, NULL, 0);
 				if (errno != 0 || value < 0) {
@@ -814,7 +814,7 @@ static int proc_mode_ping_pong( int id, int argc, const char **argv )
 
 		if ( !rc && aopt_check(self_obj, 'r') ) {
 			const char* optarg = aopt_value(self_obj, 'r');
-			if (optarg) {
+			if (optarg && (isNumeric(optarg))) {
 				errno = 0;
 				int value = strtol(optarg, NULL, 0);
 				if (errno != 0 || value < 0) {
@@ -1092,7 +1092,7 @@ static int proc_mode_throughput( int id, int argc, const char **argv )
 
 		if ( !rc && aopt_check(self_obj, 'r') ) {
 			const char* optarg = aopt_value(self_obj, 'r');
-			if (optarg) {
+			if (optarg   && (isNumeric(optarg))) {
 				errno = 0;
 				int value = strtol(optarg, NULL, 0);
 				if (errno != 0 || value < 0) {
@@ -1441,7 +1441,7 @@ static int proc_mode_server( int id, int argc, const char **argv )
 			const char* optarg = aopt_value(server_obj, 'm');
 			if (optarg) {
 				int value = strtol(optarg, NULL, 0);
-				if ( value > MAX_TCP_SIZE ) {
+				if ( (value > MAX_TCP_SIZE) || !(isNumeric(optarg))) {
 					log_msg("'-%c' Invalid message size: %s (max: %d)", 'm', optarg, MAX_TCP_SIZE);
 					rc = SOCKPERF_ERR_BAD_ARGUMENT;
 				}
@@ -1534,7 +1534,7 @@ static int parse_common_opt( const AOPT_OBJECT *common_obj )
 
 		if ( !rc && aopt_check(common_obj, 'p') ) {
 			const char* optarg = aopt_value(common_obj, 'p');
-			if (optarg) {
+			if (optarg && (isNumeric(optarg))) {
 				errno = 0;
 				long value = strtol(optarg, NULL, 0);
 				/* strtol() returns 0 if there were no digits at all */
