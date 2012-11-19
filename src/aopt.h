@@ -192,9 +192,24 @@ const char* aopt_value( const AOPT_OBJECT *aopt_obj, int key );
 const char* aopt_help( const AOPT_DESC *desc );
 
 
+/**
+ * isNumeric
+ *
+ * @brief
+ *    This function checks if the arg is from numeric type.
+ *
+ * @param[in]    arg           char*
+ *
+ * @retval 1 if numeric, 0 otherwise.
+ ***************************************************************************/
+int isNumeric (const char* arg);
+
+
 #ifdef __cplusplus
 }
 #endif
 
 
 #endif /* _AOPT_H_ */
+
+
