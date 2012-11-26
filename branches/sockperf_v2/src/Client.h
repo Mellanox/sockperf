@@ -211,6 +211,11 @@ private:
 				continue;
 			}
 
+			//should not count the warmup messages
+			if(m_pMsgReply->isWarmupMessage()){
+				continue;
+			}
+
 			receiveCount++;
 			rxTime.setNow();
 
