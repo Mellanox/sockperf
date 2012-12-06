@@ -251,3 +251,18 @@ const char* handler2str( fd_block_handler_t type )
 
 	return s_fds_handle_desc[type];
 }
+
+// Receives as input a path to a system file and returns the value stored in the file
+int read_int_from_sys_file(const char *path)
+{
+	int retVal;
+	FILE* file = fopen (path, "r");
+
+	if(!file)
+		return -1;
+
+	fscanf (file, "%d", &retVal);
+	fclose (file);
+
+	return retVal;
+}

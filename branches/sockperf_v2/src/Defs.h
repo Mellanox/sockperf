@@ -380,6 +380,7 @@ typedef struct port_and_type{
  * @struct fds_data
  * @brief Socket related info
  */
+
 typedef struct fds_data {
 	struct sockaddr_in addr;	/**< server address information */
 	int is_multicast;			/**< if this socket is multicast */
@@ -387,7 +388,7 @@ typedef struct fds_data {
 	int next_fd;
 	int active_fd_count;		/**< number of active connections (by default 1-for UDP; 0-for TCP) */
 	int *active_fd_list;		/**< list of fd related active connections (UDP has the same fd by default) */
-	struct sockaddr_in memberships_addr[IP_MAX_MEMBERSHIPS];	/**< more servers on the same socket information */
+	struct sockaddr_in *memberships_addr;	/**< more servers on the same socket information */
 	int memberships_size;	
 	struct {
 		uint8_t *buf;
@@ -486,6 +487,7 @@ typedef std::tr1::unordered_map<struct sockaddr_in, clt_session_info_t> seq_num_
 typedef std::tr1::unordered_map<struct in_addr, int> addr_to_id;
 
 extern fds_data** g_fds_array;
+extern int IGMP_MAX_MEMBERSHIPS;
 
 #ifdef  USING_VMA_EXTRA_API
 extern struct vma_api_t *g_vma_api;

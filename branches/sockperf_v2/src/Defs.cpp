@@ -68,6 +68,7 @@ int get_max_active_fds_num() {
 const int MAX_FDS_NUM = get_max_active_fds_num();
 fds_data** g_fds_array = NULL;
 int MAX_PAYLOAD_SIZE = 65506;
+int IGMP_MAX_MEMBERSHIPS = IP_MAX_MEMBERSHIPS;
 
 #ifdef  USING_VMA_EXTRA_API
 struct vma_api_t *g_vma_api;
