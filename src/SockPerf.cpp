@@ -1957,9 +1957,12 @@ void cleanup()
 				if (g_fds_array[ifd]->active_fd_list) {
 					FREE(g_fds_array[ifd]->active_fd_list);
 				}
-				if (g_fds_array[ifd]->recv.buf){
+				if (g_fds_array[ifd]->recv.buf) {
 					FREE(g_fds_array[ifd]->recv.buf);
-			    }
+				}
+				if(g_fds_array[ifd]->is_multicast) {
+					FREE(g_fds_array[ifd]->memberships_addr);
+				}
 				FREE(g_fds_array[ifd]);
 			}
 		}
@@ -2038,6 +2041,10 @@ void set_defaults()
 		log_err("Failed to allocate memory for global pointer fds_array");
 		exit_with_log(SOCKPERF_ERR_NO_MEMORY);
 	}
+	int igmp_max_memberships = read_int_from_sys_file("/proc/sys/net/ipv4/igmp_max_memberships");
+	if (igmp_max_memberships != -1)
+		IGMP_MAX_MEMBERSHIPS = igmp_max_memberships;
+
 	memset(&s_user_params, 0, sizeof(struct user_params_t));
 	memset(g_fds_array, 0, sizeof(fds_data*)*MAX_FDS_NUM);
 	s_user_params.rx_mc_if_addr.s_addr = htonl(INADDR_ANY);
@@ -2295,7 +2302,10 @@ int prepare_socket(struct fds_data *p_data, int fd)
 			mreq.imr_multiaddr = p_addr->sin_addr;
 			mreq.imr_interface.s_addr = s_user_params.rx_mc_if_addr.s_addr;
 			if (setsockopt(fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq)) < 0) {
-				log_err("setsockopt(IP_ADD_MEMBERSHIP)");
+				if(errno == 105)
+					log_err("setsockopt(IP_ADD_MEMBERSHIP) - Maximum multicast addresses that can join same group is limited by /proc/sys/net/ipv4/igmp_max_memberships");
+				else
+					log_err("setsockopt(IP_ADD_MEMBERSHIP)");
 				rc = SOCKPERF_ERR_SOCKET;
 			}
 		}
@@ -2511,7 +2521,7 @@ static int set_mcgroups_fromfile(const char *mcg_filename)
 			}
 			else {
 				/* if this port already been received before, join socket - multicast only */
- 				if ((0 != fd_socket_map[port_type_tmp]) && (tmp->sock_type != SOCK_STREAM)) {
+ 				if ((0 != fd_socket_map[port_type_tmp]) && (tmp->is_multicast)) {
  					/* join socket */
  					curr_fd = fd_socket_map[port_type_tmp];
  					new_socket_flag = false;
@@ -2525,6 +2535,12 @@ static int set_mcgroups_fromfile(const char *mcg_filename)
 						rc = SOCKPERF_ERR_SOCKET;
 					}
 					fd_socket_map[port_type_tmp] = curr_fd;
+					if(tmp->is_multicast) {
+						tmp->memberships_addr = (struct sockaddr_in*) MALLOC(IGMP_MAX_MEMBERSHIPS * sizeof(struct sockaddr_in));
+					}
+					else {
+						tmp->memberships_addr = NULL;
+					}
 					tmp->memberships_size=0;
 				}
 				if ( curr_fd >=0 ) {

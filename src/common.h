@@ -48,6 +48,7 @@ int set_affinity_list(pthread_t tid, const char * cpu_list);
 int set_affinity(pthread_t tid, int cpu);
 void hexdump(void *ptr, int buflen);
 const char* handler2str( fd_block_handler_t type );
+int read_int_from_sys_file(const char *path);
 
 //inline functions
 //------------------------------------------------------------------------------
