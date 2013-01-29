@@ -126,40 +126,41 @@ extern const int MAX_FDS_NUM;
 
 enum {
 	OPT_RX_MC_IF 			 = 1,
-	OPT_TX_MC_IF,			// 2
-	OPT_SELECT_TIMEOUT,		// 3
-	OPT_THREADS_NUM, 	// 4
-	OPT_CLIENT_CYCLE_DURATION,	// 5
-	OPT_BUFFER_SIZE,		// 6
-	OPT_DATA_INTEGRITY, 		// 7
-	OPT_DAEMONIZE,			// 8
-	OPT_NONBLOCKED,			// 9
-	OPT_DONTWARMUP,			//10
-	OPT_PREWARMUPWAIT,		//11
-	OPT_VMARXFILTERCB,		//12
-	OPT_VMAZCOPYREAD,            //13
-	OPT_MC_LOOPBACK_ENABLE,     //14
-	OPT_CLIENT_WORK_WITH_SRV_NUM,//15
-	OPT_FORCE_UC_REPLY,          //16
-	OPT_MPS,                     //17
-	OPT_REPLY_EVERY,             //18
-	OPT_NO_RDTSC,                //20
-	OPT_SENDER_AFFINITY,         //21
-	OPT_RECEIVER_AFFINITY,       //22
-	OPT_LOAD_VMA,                //23
-	OPT_FULL_LOG,                //24
-	OPT_GIGA_SIZE,				//25
-	OPT_PLAYBACK_DATA,                  //26
-	OPT_TCP,					//27
-	OPT_TCP_NODELAY_OFF,		//28
-	OPT_NONBLOCKED_SEND,		//29
-	OPT_IP_MULTICAST_TTL,			//30
-	OPT_SOCK_ACCL,				//31
-	OPT_THREADS_AFFINITY,				//32
-	OPT_DONT_REPLY,		//33
-	OPT_RECV_LOOPING,	//34
-	OPT_OUTPUT_PRECISION, //35
-	OPT_CLIENTPORT,			//36
+	OPT_TX_MC_IF,                   // 2
+	OPT_SELECT_TIMEOUT,             // 3
+	OPT_THREADS_NUM,                // 4
+	OPT_CLIENT_CYCLE_DURATION,      // 5
+	OPT_BUFFER_SIZE,                // 6
+	OPT_DATA_INTEGRITY,             // 7
+	OPT_DAEMONIZE,                  // 8
+	OPT_NONBLOCKED,                 // 9
+	OPT_DONTWARMUP,                 //10
+	OPT_PREWARMUPWAIT,              //11
+	OPT_VMARXFILTERCB,              //12
+	OPT_VMAZCOPYREAD,               //13
+	OPT_MC_LOOPBACK_ENABLE,         //14
+	OPT_CLIENT_WORK_WITH_SRV_NUM,   //15
+	OPT_FORCE_UC_REPLY,             //16
+	OPT_MPS,                        //17
+	OPT_REPLY_EVERY,                //18
+	OPT_NO_RDTSC,                   //20
+	OPT_SENDER_AFFINITY,            //21
+	OPT_RECEIVER_AFFINITY,          //22
+	OPT_LOAD_VMA,                   //23
+	OPT_FULL_LOG,                   //24
+	OPT_GIGA_SIZE,                  //25
+	OPT_PLAYBACK_DATA,              //26
+	OPT_TCP,                        //27
+	OPT_TCP_NODELAY_OFF,            //28
+	OPT_NONBLOCKED_SEND,            //29
+	OPT_IP_MULTICAST_TTL,           //30
+	OPT_SOCK_ACCL,                  //31
+	OPT_THREADS_AFFINITY,           //32
+	OPT_DONT_REPLY,                 //33
+	OPT_RECV_LOOPING,               //34
+	OPT_OUTPUT_PRECISION,           //35
+	OPT_CLIENTPORT,                 //36
+	OPT_CLIENTIP,                   //37
 };
 
 #define MODULE_NAME			"sockperf"
@@ -541,7 +542,7 @@ struct user_params_t {
 	bool b_server_dont_reply;
 	bool b_server_detect_gaps;
 	uint32_t mps; //client side only
-	in_port_t client_port; //client side only
+	struct sockaddr_in client_bind_info;
 	uint32_t reply_every; //client side only
 	bool b_client_ping_pong; //client side only
 	bool b_no_rdtsc;

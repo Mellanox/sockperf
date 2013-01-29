@@ -147,107 +147,107 @@ static const AOPT_DESC  common_opt_desc[] =
 {
 	{
 		'h', AOPT_NOARG,	aopt_set_literal( 'h', '?' ),	aopt_set_string( "help", "usage" ),
-             "Show the help message and exit."
+		"Show the help message and exit."
 	},
 	{
 		OPT_TCP, AOPT_NOARG, aopt_set_literal( 0 ), aopt_set_string( "tcp" ),
-             "Use TCP protocol (default UDP)."
+		"Use TCP protocol (default UDP)."
 	},
 	{
 		'i', AOPT_ARG, aopt_set_literal( 'i' ), aopt_set_string( "ip" ),
-             "Listen on/send to ip <ip>."
+		"Listen on/send to ip <ip>."
 	},
 	{
 		'p', AOPT_ARG, aopt_set_literal( 'p' ), aopt_set_string( "port" ),
-             "Listen on/connect to port <port> (default 11111)."
+		"Listen on/connect to port <port> (default 11111)."
 	},
 	{
 		'f', AOPT_ARG, aopt_set_literal( 'f' ), aopt_set_string( "file" ),
-             "Tread multiple ip+port combinations from file <file> (server uses select)."
+		"Tread multiple ip+port combinations from file <file> (server uses select)."
 	},
 	{
 		'F', AOPT_ARG, aopt_set_literal( 'F' ), aopt_set_string( "iomux-type" ),
-             "Type of multiple file descriptors handle [s|select|p|poll|e|epoll|r|recvfrom](default select)."
+		"Type of multiple file descriptors handle [s|select|p|poll|e|epoll|r|recvfrom](default select)."
 	},
 	{
 		OPT_SELECT_TIMEOUT, AOPT_ARG, aopt_set_literal( 0 ), aopt_set_string( "timeout" ),
-             "Set select/poll/epoll timeout to <msec>, -1 for infinite (default is 10 msec)."
+		"Set select/poll/epoll timeout to <msec>, -1 for infinite (default is 10 msec)."
 	},
 	{
 		'a', AOPT_ARG, aopt_set_literal( 'a' ), aopt_set_string( "activity" ),
-             "Measure activity by printing a '.' for the last <N> messages processed."
+		"Measure activity by printing a '.' for the last <N> messages processed."
 	},
 	{
 		'A', AOPT_ARG, aopt_set_literal( 'A' ), aopt_set_string( "Activity" ),
-             "Measure activity by printing the duration for last <N>  messages processed."
+		"Measure activity by printing the duration for last <N>  messages processed."
 	},
 	{
 		OPT_TCP_NODELAY_OFF, AOPT_NOARG, aopt_set_literal( 0 ), aopt_set_string( "tcp-avoid-nodelay" ),
-             "Stop/Start delivering TCP Messages Immediately (Enable/Disable Nagel). Default is Nagel Disabled except in Throughput where the default is Nagel enabled."
+		"Stop/Start delivering TCP Messages Immediately (Enable/Disable Nagel). Default is Nagel Disabled except in Throughput where the default is Nagel enabled."
 	},
 	{
 		OPT_NONBLOCKED_SEND, AOPT_NOARG, aopt_set_literal( 0 ), aopt_set_string( "tcp-skip-blocking-send" ),
-             "Enables non-blocking send operation (default OFF)."
+		"Enables non-blocking send operation (default OFF)."
 	},
 	{
 		OPT_RX_MC_IF, AOPT_ARG, aopt_set_literal( 0 ), aopt_set_string( "mc-rx-if" ),
-             "<ip> address of interface on which to receive mulitcast messages (can be other then route table)."
+		"<ip> address of interface on which to receive mulitcast messages (can be other then route table)."
 	},
 	{
 		OPT_TX_MC_IF, AOPT_ARG, aopt_set_literal( 0 ), aopt_set_string( "mc-tx-if" ),
-             "<ip> address of interface on which to transmit mulitcast messages (can be other then route table)."
+		"<ip> address of interface on which to transmit mulitcast messages (can be other then route table)."
 	},
 	{
 		OPT_MC_LOOPBACK_ENABLE, AOPT_NOARG, aopt_set_literal( 0 ), aopt_set_string( "mc-loopback-enable" ),
-             "Enables mc loopback (default disabled)."
+		"Enables mc loopback (default disabled)."
 	},
 	{
 		OPT_IP_MULTICAST_TTL, AOPT_ARG, aopt_set_literal( 0 ), aopt_set_string( "mc-ttl" ),
-             "Limit the lifetime of the message (default 2)."
+		"Limit the lifetime of the message (default 2)."
 	},
 	{
 		OPT_BUFFER_SIZE, AOPT_ARG, aopt_set_literal( 0 ), aopt_set_string( "buffer-size" ),
-             "Set total socket receive/send buffer <size> in bytes (system defined by default)."
+		"Set total socket receive/send buffer <size> in bytes (system defined by default)."
 	},
 	{
 		OPT_VMAZCOPYREAD, AOPT_NOARG, aopt_set_literal( 0 ), aopt_set_string( "vmazcopyread" ),
-             "If possible use VMA's zero copy reads API (See VMA's readme)."
+		"If possible use VMA's zero copy reads API (See VMA's readme)."
 	},
 	{
 		OPT_DAEMONIZE, AOPT_NOARG, aopt_set_literal( 0 ), aopt_set_string( "daemonize" ),
-             "Run as daemon."
+		"Run as daemon."
 	},
 	{
 		OPT_NONBLOCKED, AOPT_NOARG, aopt_set_literal( 0 ), aopt_set_string( "nonblocked" ),
-             "Open non-blocked sockets."
+		"Open non-blocked sockets."
 	},
 	{
 		OPT_RECV_LOOPING, AOPT_ARG, aopt_set_literal( 0 ), aopt_set_string( "recv_looping_num" ),
-	             "Set sockperf to loop over recvfrom() until EAGAIN or <N> good received packets, -1 for infinite, must be used with --nonblocked (default 1). "
+		"Set sockperf to loop over recvfrom() until EAGAIN or <N> good received packets, -1 for infinite, must be used with --nonblocked (default 1). "
 	},
 	{
 		OPT_DONTWARMUP, AOPT_NOARG, aopt_set_literal( 0 ), aopt_set_string( "dontwarmup" ),
-             "Don't send warm up messages on start."
+		"Don't send warm up messages on start."
 	},
 	{
 		OPT_PREWARMUPWAIT, AOPT_ARG, aopt_set_literal( 0 ), aopt_set_string( "pre-warmup-wait" ),
-             "Time to wait before sending warm up messages (seconds)."
+		"Time to wait before sending warm up messages (seconds)."
 	},
 	{
 		OPT_NO_RDTSC, AOPT_NOARG,	aopt_set_literal( 0 ),	aopt_set_string( "no-rdtsc" ),
-             "Don't use register when taking time; instead use monotonic clock."
+		"Don't use register when taking time; instead use monotonic clock."
 	},
 	{
 		OPT_SOCK_ACCL, AOPT_NOARG,	aopt_set_literal( 0 ),	aopt_set_string( "set-sock-accl" ),
-             "Set socket accleration before run (available for some of Mellanox systems)"
+		"Set socket accleration before run (available for some of Mellanox systems)"
 	},
 	{
 		OPT_LOAD_VMA, AOPT_OPTARG,	aopt_set_literal( 0 ),	aopt_set_string( "load-vma" ),
-             "Load VMA dynamically even when LD_PRELOAD was not used."
+		"Load VMA dynamically even when LD_PRELOAD was not used."
 	},
 	{
 		'd', AOPT_NOARG, aopt_set_literal( 'd' ),	aopt_set_string( "debug" ),
-             "Print extra debug information."
+		"Print extra debug information."
 	},
 	{ 0, AOPT_NOARG, aopt_set_literal( 0 ), aopt_set_string( NULL ), NULL }
 };
@@ -259,28 +259,28 @@ static const AOPT_DESC  client_opt_desc[] =
 {
 	{
 		OPT_CLIENT_WORK_WITH_SRV_NUM, AOPT_ARG,	aopt_set_literal( 0 ),	aopt_set_string( "srv-num" ),
-             "Set num of servers the client works with to N."
+		"Set num of servers the client works with to N."
 	},
 	{
 		OPT_SENDER_AFFINITY, AOPT_ARG,	aopt_set_literal( 0 ),	aopt_set_string( "sender-affinity" ),
-             "Set sender thread affinity to the given core ids in list format (see: cat /proc/cpuinfo)."
+		"Set sender thread affinity to the given core ids in list format (see: cat /proc/cpuinfo)."
 	},
 	{
 		OPT_RECEIVER_AFFINITY, AOPT_ARG,	aopt_set_literal( 0 ),	aopt_set_string( "receiver-affinity" ),
-             "Set receiver thread affinity to the given core ids in list format (see: cat /proc/cpuinfo)."
+		"Set receiver thread affinity to the given core ids in list format (see: cat /proc/cpuinfo)."
 	},
 	{
 		OPT_FULL_LOG, AOPT_ARG,	aopt_set_literal( 0 ),	aopt_set_string( "full-log" ),
-             "Dump full log of all messages send/receive time to the given file in CSV format."
+		"Dump full log of all messages send/receive time to the given file in CSV format."
 	},
 	{
 		OPT_GIGA_SIZE, AOPT_NOARG,	aopt_set_literal( 0 ),	aopt_set_string( "giga-size" ),
-	             "Print sizes in GigaByte."
+		"Print sizes in GigaByte."
 	},
 	{
-			OPT_OUTPUT_PRECISION, AOPT_NOARG,	aopt_set_literal( 0 ),	aopt_set_string( "increase_output_precision" ),
-		             "Increase number of digits after decimal point of the throughput output (from 3 to 9). "
-		},
+		OPT_OUTPUT_PRECISION, AOPT_NOARG,	aopt_set_literal( 0 ),	aopt_set_string( "increase_output_precision" ),
+		"Increase number of digits after decimal point of the throughput output (from 3 to 9). "
+	},
 	{ 0, AOPT_NOARG, aopt_set_literal( 0 ), aopt_set_string( NULL ), NULL }
 };
 
@@ -344,6 +344,10 @@ static int proc_mode_under_load( int id, int argc, const char **argv )
 		{
 			OPT_CLIENTPORT, AOPT_ARG,	aopt_set_literal( 0 ),	aopt_set_string( "client_port" ),
 			"Force the client side to bind to a specific port (default = 0). "
+		},
+		{
+			OPT_CLIENTIP, AOPT_ARG,		aopt_set_literal( 0 ),	aopt_set_string( "client_ip" ),
+			"Force the client side to bind to a specific ip address (default = 0). "
 		},
 		{
 			'b', AOPT_ARG,	aopt_set_literal( 'b' ),	aopt_set_string( "burst" ),
@@ -509,13 +513,31 @@ static int proc_mode_under_load( int id, int argc, const char **argv )
 						rc = SOCKPERF_ERR_BAD_ARGUMENT;
 					}
 					else {
-						s_user_params.client_port = htons((uint16_t)value);
+						s_user_params.client_bind_info.sin_port = htons((uint16_t)value);
 					}
 				}
 				else {
 					log_msg("'-%c' Invalid value", OPT_CLIENTPORT);
 					rc = SOCKPERF_ERR_BAD_ARGUMENT;
 				}
+			}
+		}
+
+		if ( !rc && aopt_check(self_obj, OPT_CLIENTIP) ) {
+			int len;
+			const char* optarg = aopt_value(self_obj, OPT_CLIENTIP);
+			if (!optarg) {	/* already in network byte order*/
+				log_msg("'-%c' Invalid address: %s", OPT_CLIENTIP, optarg);
+				rc = SOCKPERF_ERR_BAD_ARGUMENT;
+			}
+			else if(4 != sscanf (optarg,"%d.%d.%d.%d",&len,&len,&len,&len))
+			{
+				log_msg("'-%c' Invalid address: %s", OPT_CLIENTIP, optarg);
+				rc = SOCKPERF_ERR_BAD_ARGUMENT;
+			}
+			else if (!inet_aton(optarg, &s_user_params.client_bind_info.sin_addr)) {
+				log_msg("'-%c' Invalid address: %s", OPT_CLIENTIP, optarg);
+				rc = SOCKPERF_ERR_BAD_ARGUMENT;
 			}
 		}
 
@@ -630,6 +652,10 @@ static int proc_mode_ping_pong( int id, int argc, const char **argv )
 			"Force the client side to bind to a specific port (default = 0). "
 		},
 		{
+			OPT_CLIENTIP, AOPT_ARG,		aopt_set_literal( 0 ),	aopt_set_string( "client_ip" ),
+			"Force the client side to bind to a specific ip address (default = 0). "
+		},
+		{
 			'b', AOPT_ARG,	aopt_set_literal( 'b' ),	aopt_set_string( "burst" ),
 			"Control the client's number of a messages sent in every burst."
 		},
@@ -690,7 +716,7 @@ static int proc_mode_ping_pong( int id, int argc, const char **argv )
 		rc = parse_common_opt(common_obj);
 	}
 
-	/* Set command line specific values */
+	/* Set command line client values */
 	if (!rc && client_obj) {
 		rc = parse_client_opt(client_obj);
 	}
@@ -758,6 +784,7 @@ static int proc_mode_ping_pong( int id, int argc, const char **argv )
 				rc = SOCKPERF_ERR_BAD_ARGUMENT;
 			}
 		}
+
 		if ( !rc && aopt_check(self_obj, OPT_CLIENTPORT) ) {
 			if (aopt_check(common_obj, 'f')) {
 				log_msg("--client_port conflicts with -f option");
@@ -774,13 +801,31 @@ static int proc_mode_ping_pong( int id, int argc, const char **argv )
 						rc = SOCKPERF_ERR_BAD_ARGUMENT;
 					}
 					else {
-						s_user_params.client_port = htons((uint16_t)value);
+						s_user_params.client_bind_info.sin_port = htons((uint16_t)value);
 					}
 				}
 				else {
 					log_msg("'-%c' Invalid value", OPT_CLIENTPORT);
 					rc = SOCKPERF_ERR_BAD_ARGUMENT;
 				}
+			}
+		}
+
+		if ( !rc && aopt_check(self_obj, OPT_CLIENTIP) ) {
+			int len;
+			const char* optarg = aopt_value(self_obj, OPT_CLIENTIP);
+			if (!optarg) {	/* already in network byte order*/
+				log_msg("'-%c' Invalid address: %s", OPT_CLIENTIP, optarg);
+				rc = SOCKPERF_ERR_BAD_ARGUMENT;
+			}
+			else if(4 != sscanf (optarg,"%d.%d.%d.%d",&len,&len,&len,&len))
+			{
+				log_msg("'-%c' Invalid address: %s", OPT_CLIENTIP, optarg);
+				rc = SOCKPERF_ERR_BAD_ARGUMENT;
+			}
+			else if (!inet_aton(optarg, &s_user_params.client_bind_info.sin_addr)) {
+				log_msg("'-%c' Invalid address: %s", OPT_CLIENTIP, optarg);
+				rc = SOCKPERF_ERR_BAD_ARGUMENT;
 			}
 		}
 
@@ -912,6 +957,10 @@ static int proc_mode_throughput( int id, int argc, const char **argv )
 			"Force the client side to bind to a specific port (default = 0). "
 		},
 		{
+			OPT_CLIENTIP, AOPT_ARG,		aopt_set_literal( 0 ),	aopt_set_string( "client_ip" ),
+			"Force the client side to bind to a specific ip address (default = 0). "
+		},
+		{
 			'b', AOPT_ARG,	aopt_set_literal( 'b' ),	aopt_set_string( "burst" ),
 			"Control the client's number of a messages sent in every burst."
 		},
@@ -968,7 +1017,7 @@ static int proc_mode_throughput( int id, int argc, const char **argv )
 		rc = parse_common_opt(common_obj);
 	}
 
-	/* Set command line specific values */
+	/* Set command line client values */
 	if (!rc && client_obj) {
 		rc = parse_client_opt(client_obj);
 	}
@@ -1036,6 +1085,7 @@ static int proc_mode_throughput( int id, int argc, const char **argv )
 				rc = SOCKPERF_ERR_BAD_ARGUMENT;
 			}
 		}
+
 		if ( !rc && aopt_check(self_obj, OPT_CLIENTPORT) ) {
 			if (aopt_check(common_obj, 'f')) {
 				log_msg("--client_port conflicts with -f option");
@@ -1052,13 +1102,31 @@ static int proc_mode_throughput( int id, int argc, const char **argv )
 						rc = SOCKPERF_ERR_BAD_ARGUMENT;
 					}
 					else {
-						s_user_params.client_port = htons((uint16_t)value);
+						s_user_params.client_bind_info.sin_port = htons((uint16_t)value);
 					}
 				}
 				else {
 					log_msg("'-%c' Invalid value", OPT_CLIENTPORT);
 					rc = SOCKPERF_ERR_BAD_ARGUMENT;
 				}
+			}
+		}
+
+		if ( !rc && aopt_check(self_obj, OPT_CLIENTIP) ) {
+			int len;
+			const char* optarg = aopt_value(self_obj, OPT_CLIENTIP);
+			if (!optarg) {	/* already in network byte order*/
+				log_msg("'-%c' Invalid address: %s", OPT_CLIENTIP, optarg);
+				rc = SOCKPERF_ERR_BAD_ARGUMENT;
+			}
+			else if(4 != sscanf (optarg,"%d.%d.%d.%d",&len,&len,&len,&len))
+			{
+				log_msg("'-%c' Invalid address: %s", OPT_CLIENTIP, optarg);
+				rc = SOCKPERF_ERR_BAD_ARGUMENT;
+			}
+			else if (!inet_aton(optarg, &s_user_params.client_bind_info.sin_addr)) {
+				log_msg("'-%c' Invalid address: %s", OPT_CLIENTIP, optarg);
+				rc = SOCKPERF_ERR_BAD_ARGUMENT;
 			}
 		}
 
@@ -2050,7 +2118,9 @@ void set_defaults()
 	s_user_params.rx_mc_if_addr.s_addr = htonl(INADDR_ANY);
 	s_user_params.tx_mc_if_addr.s_addr = htonl(INADDR_ANY);
 	s_user_params.sec_test_duration = DEFAULT_TEST_DURATION;
-	s_user_params.client_port = 0;//htons(DEFAULT_PORT);
+	s_user_params.client_bind_info.sin_family = AF_INET;
+	s_user_params.client_bind_info.sin_addr.s_addr = INADDR_ANY;
+	s_user_params.client_bind_info.sin_port = 0;
 	s_user_params.mode = MODE_SERVER;
 	s_user_params.packetrate_stats_print_ratio = 0;
 	s_user_params.packetrate_stats_print_details = false;
@@ -2926,7 +2996,7 @@ b_server_reply_via_uc = %d \n\t\
 b_server_dont_reply = %d \n\t\
 b_server_detect_gaps = %d\n\t\
 mps = %d \n\t\
-client_port = %d \n\t\
+client_bind_info = %s:%d \n\t\
 reply_every = %d \n\t\
 b_client_ping_pong = %d \n\t\
 b_no_rdtsc = %d \n\t\
@@ -2934,7 +3004,7 @@ sender_affinity = %s \n\t\
 receiver_affinity = %s \n\t\
 b_stream = %d \n\t\
 daemonize = %d \n\t\
-mcg_filename = %s \n",
+feedfile_name = %s \n",
 s_user_params.mode,
 s_user_params.withsock_accl,
 s_user_params.msg_size,
@@ -2963,7 +3033,8 @@ s_user_params.b_server_reply_via_uc,
 s_user_params.b_server_dont_reply,
 s_user_params.b_server_detect_gaps,
 s_user_params.mps,
-s_user_params.client_port,
+inet_ntoa(s_user_params.client_bind_info.sin_addr),
+ntohs(s_user_params.client_bind_info.sin_port),
 s_user_params.reply_every,
 s_user_params.b_client_ping_pong,
 s_user_params.b_no_rdtsc,
