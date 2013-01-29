@@ -471,34 +471,27 @@ int Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration,
 	/* bind/connect socket */
 	if (rc == SOCKPERF_ERR_NONE)
 	{
-		struct sockaddr_in saddr;
-
 		// cycle through all set fds in the array (with wrap around to beginning)
 		for (int ifd = m_ioHandler.m_fd_min; ifd <= m_ioHandler.m_fd_max; ifd++) {
 
 			if (!(g_fds_array[ifd] && (g_fds_array[ifd]->active_fd_list))) continue;
 
-			memset(&saddr, 0, sizeof(struct sockaddr_in));
-
-			saddr.sin_family = AF_INET;
-			if (g_pApp->m_const_params.client_port) {
-				saddr.sin_port = g_pApp->m_const_params.client_port;
-				saddr.sin_addr.s_addr = htonl(INADDR_ANY);
-				log_dbg ("[fd=%d] Binding to: %s:%d...", ifd, inet_ntoa(saddr.sin_addr), ntohs(saddr.sin_port));
-				if (bind(ifd, (struct sockaddr*)&saddr, sizeof(struct sockaddr)) < 0) {
-					log_err("[fd=%d] Can`t bind socket %s:%d", ifd, inet_ntoa(saddr.sin_addr), ntohs(saddr.sin_port));
+			struct sockaddr_in* p_client_bind_addr = (struct sockaddr_in*)&g_pApp->m_const_params.client_bind_info;
+			if (p_client_bind_addr->sin_port || p_client_bind_addr->sin_addr.s_addr) {
+				log_dbg ("[fd=%d] Binding to: %s:%d...", ifd, inet_ntoa(p_client_bind_addr->sin_addr), ntohs(p_client_bind_addr->sin_port));
+				if (bind(ifd, (struct sockaddr*)p_client_bind_addr, sizeof(struct sockaddr)) < 0) {
+					log_err("[fd=%d] Can`t bind socket %s:%d", ifd, inet_ntoa(p_client_bind_addr->sin_addr), ntohs(p_client_bind_addr->sin_port));
 					rc = SOCKPERF_ERR_SOCKET;
 					break;
 				}
 			}
 			else {
-				log_dbg ("[fd=%d] binding to: %s:%d...", ifd, inet_ntoa(saddr.sin_addr), ntohs(saddr.sin_port));
+				log_dbg ("[fd=%d] Binding to: %s:%d...", ifd, inet_ntoa(p_client_bind_addr->sin_addr), ntohs(p_client_bind_addr->sin_port));
 			}
 
 			if (g_fds_array[ifd]->sock_type == SOCK_STREAM) {
-				memcpy(&saddr, &(g_fds_array[ifd]->addr), sizeof(struct sockaddr_in));
-				log_dbg ("[fd=%d] Connecting to: %s:%d...", ifd, inet_ntoa(saddr.sin_addr), ntohs(saddr.sin_port));
-				if (connect(ifd, (struct sockaddr*)&saddr, sizeof(struct sockaddr)) < 0) {
+				log_dbg ("[fd=%d] Connecting to: %s:%d...", ifd, inet_ntoa(g_fds_array[ifd]->addr.sin_addr), ntohs(g_fds_array[ifd]->addr.sin_port));
+				if (connect(ifd, (struct sockaddr*)&(g_fds_array[ifd]->addr), sizeof(struct sockaddr)) < 0) {
 					if (errno == EINPROGRESS) {
 						fd_set rfds, wfds;
 						struct timeval tv;
