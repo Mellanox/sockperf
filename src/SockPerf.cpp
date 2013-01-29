@@ -97,7 +97,7 @@ static struct user_params_t    s_user_params;
 static struct mutable_params_t s_mutable_params;
 
 static void set_select_timeout(int time_out_msec);
-static int set_mcgroups_fromfile(const char *mcg_filename);
+static int set_sockets_from_feedfile(const char *feedfile_name);
 #ifdef ST_TEST
 int prepare_socket(struct fds_data *p_data, int fd, bool stTest = false);
 #else
@@ -1498,7 +1498,7 @@ static int parse_common_opt( const AOPT_OBJECT *common_obj )
 	if (common_obj) {
 		struct sockaddr_in *p_addr = &s_user_params.addr;
 		int *p_daemonize = &s_user_params.daemonize;
-		char *mcg_filename = s_user_params.mcg_filename;
+		char *feedfile_name = s_user_params.feedfile_name;
 
 		if ( !rc && aopt_check(common_obj, 'd') ) {
 			g_debug_level = LOG_LVL_DEBUG;
@@ -1557,8 +1557,8 @@ static int parse_common_opt( const AOPT_OBJECT *common_obj )
 			if (!aopt_check(common_obj, 'i') && !aopt_check(common_obj, 'p')) {
 				const char* optarg = aopt_value(common_obj, 'f');
 				if (optarg) {
-					strncpy(mcg_filename, optarg, MAX_ARGV_SIZE);
-					mcg_filename[MAX_PATH_LENGTH - 1] = '\0';
+					strncpy(feedfile_name, optarg, MAX_ARGV_SIZE);
+					feedfile_name[MAX_PATH_LENGTH - 1] = '\0';
 					s_user_params.fd_handler_type = SELECT;
 				}
 				else {
@@ -2101,7 +2101,7 @@ void set_defaults()
 	s_user_params.daemonize = false;
 
 	s_user_params.withsock_accl = false;
-	memset(s_user_params.mcg_filename, 0, sizeof(s_user_params.mcg_filename));
+	memset(s_user_params.feedfile_name, 0, sizeof(s_user_params.feedfile_name));
 }
 
 //------------------------------------------------------------------------------
@@ -2373,7 +2373,7 @@ int prepare_socket(struct fds_data *p_data, int fd)
 
 //------------------------------------------------------------------------------
 /* get IP:port pairs from the file and initialize the list */
-static int set_mcgroups_fromfile(const char *mcg_filename)
+static int set_sockets_from_feedfile(const char *feedfile_name)
 {
 	int rc = SOCKPERF_ERR_NONE;
 	FILE *file_fd = NULL;
@@ -2389,18 +2389,18 @@ static int set_mcgroups_fromfile(const char *mcg_filename)
 	regex_t regexpr;
 
 	struct stat st_buf;
-	const int status = stat (mcg_filename, &st_buf);
+	const int status = stat (feedfile_name, &st_buf);
 	// Get the status of the file system object.
 	if (status != 0) {
-		log_msg("Can't open file: %s\n", mcg_filename);
+		log_msg("Can't open file: %s\n", feedfile_name);
 		return SOCKPERF_ERR_NOT_EXIST;
 	}
 	if (!S_ISREG (st_buf.st_mode)) {
-		log_msg("Can't open file: %s -not a regular file.\n", mcg_filename);
+		log_msg("Can't open file: %s -not a regular file.\n", feedfile_name);
 		return SOCKPERF_ERR_NOT_EXIST;
 	 }
-	if ((file_fd = fopen(mcg_filename, "r")) == NULL) {
-		log_msg("Can't open file: %s\n", mcg_filename);
+	if ((file_fd = fopen(feedfile_name, "r")) == NULL) {
+		log_msg("Can't open file: %s\n", feedfile_name);
 		return SOCKPERF_ERR_NOT_EXIST;
 	}
 	/* a map to keep records on the address we received */
@@ -2665,8 +2665,8 @@ int bringup(const int *p_daemonize)
 		setbuf(stdout, NULL);
 
 		/* initialize g_fds_array array */
-		if (strlen(s_user_params.mcg_filename)) {
-			rc = set_mcgroups_fromfile(s_user_params.mcg_filename);
+		if (strlen(s_user_params.feedfile_name)) {
+			rc = set_sockets_from_feedfile(s_user_params.feedfile_name);
 		}
 		else {
 			int curr_fd = INVALID_SOCKET;
@@ -2971,7 +2971,7 @@ s_user_params.b_no_rdtsc,
 (strlen(s_user_params.receiver_affinity) ? s_user_params.receiver_affinity : "<empty>"),
 s_user_params.b_stream,
 s_user_params.daemonize,
-(strlen(s_user_params.mcg_filename) ? s_user_params.mcg_filename : "<empty>"));
+(strlen(s_user_params.feedfile_name) ? s_user_params.feedfile_name : "<empty>"));
 
 		// Display application version
 		log_msg("\e[2;35m == version #%s == \e[0m", STR(VERSION));
