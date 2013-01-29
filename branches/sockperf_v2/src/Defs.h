@@ -558,7 +558,7 @@ struct user_params_t {
 	bool is_nonblocked_send;
 	int mc_ttl;
 	int daemonize;
-	char mcg_filename[MAX_PATH_LENGTH];
+	char feedfile_name[MAX_PATH_LENGTH];
 	bool withsock_accl;
 	int max_looping_over_recv;
 };
