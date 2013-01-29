@@ -339,35 +339,35 @@ static int proc_mode_under_load( int id, int argc, const char **argv )
 	{
 		{
 			't', AOPT_ARG,	aopt_set_literal( 't' ),	aopt_set_string( "time" ),
-	             "Run for <sec> seconds (default 1, max = 36000000)."
+			"Run for <sec> seconds (default 1, max = 36000000)."
 		},
 		{
-				OPT_CLIENTPORT, AOPT_ARG,	aopt_set_literal( 0 ),	aopt_set_string( "client_port" ),
-			    	"Force the client side to bind to a specific port (UDP only, default = 0). "
+			OPT_CLIENTPORT, AOPT_ARG,	aopt_set_literal( 0 ),	aopt_set_string( "client_port" ),
+			"Force the client side to bind to a specific port (default = 0). "
 		},
 		{
 			'b', AOPT_ARG,	aopt_set_literal( 'b' ),	aopt_set_string( "burst" ),
-	             "Control the client's number of a messages sent in every burst."
+			"Control the client's number of a messages sent in every burst."
 		},
 		{
 			OPT_REPLY_EVERY, AOPT_ARG,	aopt_set_literal( 0 ),	aopt_set_string( "reply-every" ),
-	             "Set number of send messages between reply messages (default = 100)."
+			"Set number of send messages between reply messages (default = 100)."
 		},
 		{
-				OPT_MPS, AOPT_ARG,	aopt_set_literal( 0 ),	aopt_set_string( "mps" ),
-			      "Set number of messages-per-second (default = 10000 - for under-load mode, or max - for ping-pong and throughput modes; for maximum use --mps=max; \n\t\t\t\t support --pps for old compatibility)."
+			OPT_MPS, AOPT_ARG,	aopt_set_literal( 0 ),	aopt_set_string( "mps" ),
+			"Set number of messages-per-second (default = 10000 - for under-load mode, or max - for ping-pong and throughput modes; for maximum use --mps=max; \n\t\t\t\t support --pps for old compatibility)."
 		},
 		{
-				OPT_MPS, AOPT_ARG,	aopt_set_literal( 0 ),	aopt_set_string( "pps"),
-					NULL
+			OPT_MPS, AOPT_ARG,	aopt_set_literal( 0 ),	aopt_set_string( "pps"),
+			NULL
 		},
 		{
 			'm', AOPT_ARG, aopt_set_literal( 'm' ), aopt_set_string( "msg-size" ),
-	             "Use messages of size <size> bytes (minimum default 12)."
+			"Use messages of size <size> bytes (minimum default 12)."
 		},
 		{
 			'r', AOPT_ARG,	aopt_set_literal( 'r' ),	aopt_set_string( "range" ),
-	             "comes with -m <size>, randomly change the messages size in range: <size> +- <N>."
+			"comes with -m <size>, randomly change the messages size in range: <size> +- <N>."
 		},
 		{ 0, AOPT_NOARG, aopt_set_literal( 0 ), aopt_set_string( NULL ), NULL }
 	};
@@ -623,35 +623,35 @@ static int proc_mode_ping_pong( int id, int argc, const char **argv )
 	{
 		{
 			't', AOPT_ARG,	aopt_set_literal( 't' ),	aopt_set_string( "time" ),
-	             "Run for <sec> seconds (default 1, max = 36000000)."
+			"Run for <sec> seconds (default 1, max = 36000000)."
 		},
 		{
 			OPT_CLIENTPORT, AOPT_ARG,	aopt_set_literal( 0 ),	aopt_set_string( "client_port" ),
-				"Force the client side to bind to a specific port (UDP only, default = 0). "
+			"Force the client side to bind to a specific port (default = 0). "
 		},
 		{
 			'b', AOPT_ARG,	aopt_set_literal( 'b' ),	aopt_set_string( "burst" ),
-	             "Control the client's number of a messages sent in every burst."
+			"Control the client's number of a messages sent in every burst."
 		},
 		{
 			OPT_MPS, AOPT_ARG,	aopt_set_literal( 0 ),	aopt_set_string( "mps"),
-		         "Set number of messages-per-second (default = 10000 - for under-load mode, or max - for ping-pong and throughput modes; for maximum use --mps=max; \n\t\t\t\t support --pps for old compatibility)."
+			"Set number of messages-per-second (default = 10000 - for under-load mode, or max - for ping-pong and throughput modes; for maximum use --mps=max; \n\t\t\t\t support --pps for old compatibility)."
 		},
 		{
 			OPT_MPS, AOPT_ARG,	aopt_set_literal( 0 ),	aopt_set_string( "pps"),
-		         NULL
+			NULL
 		},
 		{
 			'm', AOPT_ARG, aopt_set_literal( 'm' ), aopt_set_string( "msg-size" ),
-	             "Use messages of size <size> bytes (minimum default 12)."
+			"Use messages of size <size> bytes (minimum default 12)."
 		},
 		{
 			'r', AOPT_ARG,	aopt_set_literal( 'r' ),	aopt_set_string( "range" ),
-	             "comes with -m <size>, randomly change the messages size in range: <size> +- <N>."
+			"comes with -m <size>, randomly change the messages size in range: <size> +- <N>."
 		},
 		{
 			OPT_DATA_INTEGRITY, AOPT_NOARG,	aopt_set_literal( 0 ),	aopt_set_string( "data-integrity" ),
-	             "Perform data integrity test."
+			"Perform data integrity test."
 		},
 		{ 0, AOPT_NOARG, aopt_set_literal( 0 ), aopt_set_string( NULL ), NULL }
 	};
@@ -760,10 +760,10 @@ static int proc_mode_ping_pong( int id, int argc, const char **argv )
 		}
 		if ( !rc && aopt_check(self_obj, OPT_CLIENTPORT) ) {
 			if (aopt_check(common_obj, 'f')) {
-							log_msg("--client_port conflicts with -f option");
-							rc = SOCKPERF_ERR_BAD_ARGUMENT;
+				log_msg("--client_port conflicts with -f option");
+				rc = SOCKPERF_ERR_BAD_ARGUMENT;
 			}
-			else{
+			else {
 				const char* optarg = aopt_value(self_obj, OPT_CLIENTPORT);
 				if (optarg) {
 					errno = 0;
@@ -905,31 +905,31 @@ static int proc_mode_throughput( int id, int argc, const char **argv )
 	{
 		{
 			't', AOPT_ARG,	aopt_set_literal( 't' ),	aopt_set_string( "time" ),
-	             "Run for <sec> seconds (default 1, max = 36000000)."
+			"Run for <sec> seconds (default 1, max = 36000000)."
 		},
 		{
 			OPT_CLIENTPORT, AOPT_ARG,	aopt_set_literal( 0 ),	aopt_set_string( "client_port" ),
-				"Force the client side to bind to a specific port (UDP only, default = 0). "
+			"Force the client side to bind to a specific port (default = 0). "
 		},
 		{
 			'b', AOPT_ARG,	aopt_set_literal( 'b' ),	aopt_set_string( "burst" ),
-	             "Control the client's number of a messages sent in every burst."
+			"Control the client's number of a messages sent in every burst."
 		},
 		{
-				OPT_MPS, AOPT_ARG,	aopt_set_literal( 0 ),	aopt_set_string( "mps" ),
-		             "Set number of messages-per-second (default = 10000 - for under-load mode, or max - for ping-pong and throughput modes; for maximum use --mps=max; \n\t\t\t\t support --pps for old compatibility)."
+			OPT_MPS, AOPT_ARG,	aopt_set_literal( 0 ),	aopt_set_string( "mps" ),
+			"Set number of messages-per-second (default = 10000 - for under-load mode, or max - for ping-pong and throughput modes; for maximum use --mps=max; \n\t\t\t\t support --pps for old compatibility)."
 		},
 		{
-				OPT_MPS, AOPT_ARG,	aopt_set_literal( 0 ),	aopt_set_string( "pps"),
-					NULL
+			OPT_MPS, AOPT_ARG,	aopt_set_literal( 0 ),	aopt_set_string( "pps"),
+			NULL
 		},
 		{
 			'm', AOPT_ARG, aopt_set_literal( 'm' ), aopt_set_string( "msg-size" ),
-	             "Use messages of size <size> bytes (minimum default 12)."
+			"Use messages of size <size> bytes (minimum default 12)."
 		},
 		{
 			'r', AOPT_ARG,	aopt_set_literal( 'r' ),	aopt_set_string( "range" ),
-	             "comes with -m <size>, randomly change the messages size in range: <size> +- <N>."
+			"comes with -m <size>, randomly change the messages size in range: <size> +- <N>."
 		},
 		{ 0, AOPT_NOARG, aopt_set_literal( 0 ), aopt_set_string( NULL ), NULL }
 	};
