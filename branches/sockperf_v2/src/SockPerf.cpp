@@ -99,9 +99,9 @@ static struct mutable_params_t s_mutable_params;
 static void set_select_timeout(int time_out_msec);
 static int set_sockets_from_feedfile(const char *feedfile_name);
 #ifdef ST_TEST
-int prepare_socket(struct fds_data *p_data, int fd, bool stTest = false);
+int prepare_socket(int fd, struct fds_data *p_data, bool stTest = false);
 #else
-int prepare_socket(struct fds_data *p_data, int fd);
+int prepare_socket(int fd, struct fds_data *p_data);
 #endif
 void cleanup();
 
@@ -2251,54 +2251,199 @@ vma_recv_callback_retval_t myapp_vma_recv_pkt_filter_callback(
 }
 #endif
 
+int sock_set_non_blocking(int fd)
+{
+	/* change socket to non-blocking */
+
+	int rc = SOCKPERF_ERR_NONE;
+	int flags = fcntl(fd, F_GETFL);
+	if (flags < 0) {
+		log_err("fcntl(F_GETFL)");
+		rc = SOCKPERF_ERR_SOCKET;
+	}
+	flags |=  O_NONBLOCK;
+	int ret = fcntl(fd, F_SETFL, flags);
+	if (ret < 0) {
+		log_err("fcntl(F_SETFL)");
+		rc = SOCKPERF_ERR_SOCKET;
+	}
+	//log_msg("fd %d is non-blocked now", fd);
+	return rc;
+}
+
+int sock_set_accl(int fd)
+{
+	int rc = SOCKPERF_ERR_NONE;
+	if (setsockopt(fd, SOL_SOCKET, 100, NULL, 0) < 0) {
+		log_err("setsockopt(100), set sock-accl failed.  It could be that this option is not supported in your system");
+		rc = SOCKPERF_ERR_SOCKET;
+	}
+	log_msg("succeed to set sock-accl");
+	return rc;
+}
+
+int sock_set_reuseaddr(int fd)
+{
+	int rc = SOCKPERF_ERR_NONE;
+	u_int reuseaddr_true = 1;
+	if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &reuseaddr_true, sizeof(reuseaddr_true)) < 0) {
+		log_err("setsockopt(SO_REUSEADDR) failed");
+		rc = SOCKPERF_ERR_SOCKET;
+	}
+	return rc;
+}
+
+int sock_set_snd_rcv_bufs(int fd)
+{
+	/*
+	 * Sets or gets the maximum socket receive buffer in bytes. The kernel
+	 * doubles this value (to allow space for bookkeeping overhead) when it
+	 * is set using setsockopt(), and this doubled value is returned by
+	 * getsockopt().
+	 */
+
+	int rc = SOCKPERF_ERR_NONE;
+	int size = sizeof(int);
+	int rcv_buff_size = 0;
+	int snd_buff_size = 0;
+
+	if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &(s_user_params.sock_buff_size), sizeof(s_user_params.sock_buff_size)) < 0) {
+		log_err("setsockopt(SO_RCVBUF) failed");
+		rc = SOCKPERF_ERR_SOCKET;
+	}
+	if (!rc &&
+			(getsockopt(fd, SOL_SOCKET, SO_RCVBUF, &rcv_buff_size,(socklen_t *)&size) < 0)){
+		log_err("getsockopt(SO_RCVBUF) failed");
+		rc = SOCKPERF_ERR_SOCKET;
+	}
+	/*
+	 * Sets or gets the maximum socket send buffer in bytes. The kernel
+	 * doubles this value (to allow space for bookkeeping overhead) when it
+	 * is set using setsockopt(), and this doubled value is returned by
+	 * getsockopt().
+	 */
+	if (!rc &&
+			(setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &(s_user_params.sock_buff_size), sizeof(s_user_params.sock_buff_size)) < 0)) {
+		log_err("setsockopt(SO_SNDBUF) failed");
+		rc = SOCKPERF_ERR_SOCKET;
+	}
+	if (!rc &&
+			(getsockopt(fd, SOL_SOCKET, SO_SNDBUF, &snd_buff_size, (socklen_t *)&size) < 0)) {
+		log_err("getsockopt(SO_SNDBUF) failed");
+		rc = SOCKPERF_ERR_SOCKET;
+	}
+	if (!rc) {
+		log_msg("Socket buffers sizes of fd %d: RX: %d Byte, TX: %d Byte", fd, rcv_buff_size, snd_buff_size);
+		if (rcv_buff_size < s_user_params.sock_buff_size*2 ||
+				snd_buff_size < s_user_params.sock_buff_size*2  ) {
+			log_msg("WARNING: Failed setting receive or send socket buffer size to %d bytes (check 'sysctl net.core.rmem_max' value)", s_user_params.sock_buff_size);
+		}
+	}
+
+	return rc;
+}
+
+int sock_set_tcp_nodelay(int fd)
+{
+	int rc = SOCKPERF_ERR_NONE;
+	if (s_user_params.tcp_nodelay) {
+		/* set Delivering Messages Immediately */
+		int tcp_nodelay = 1;
+		if (setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (char*)&tcp_nodelay, sizeof(tcp_nodelay)) < 0) {
+			log_err("setsockopt(TCP_NODELAY)");
+			rc = SOCKPERF_ERR_SOCKET;
+		}
+	}
+	return rc;
+}
+
+int sock_set_multicast(int fd, struct fds_data *p_data)
+{
+	int rc = SOCKPERF_ERR_NONE;
+	struct sockaddr_in* p_addr = NULL;
+	p_addr = &(p_data->addr);
+
+	struct ip_mreq mreq;
+	memset(&mreq,0,sizeof(struct ip_mreq));
+
+	/* use setsockopt() to request that the kernel join a multicast group */
+	/* and specify a specific interface address on which to receive the packets of this socket */
+	/* NOTE: we don't do this if case of client (sender) in stream mode */
+	if (!s_user_params.b_stream || s_user_params.mode != MODE_CLIENT) {
+		mreq.imr_multiaddr = p_addr->sin_addr;
+		mreq.imr_interface.s_addr = s_user_params.rx_mc_if_addr.s_addr;
+		if (setsockopt(fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq)) < 0) {
+			if(errno == 105)
+				log_err("setsockopt(IP_ADD_MEMBERSHIP) - Maximum multicast addresses that can join same group is limited by /proc/sys/net/ipv4/igmp_max_memberships");
+			else
+				log_err("setsockopt(IP_ADD_MEMBERSHIP)");
+			rc = SOCKPERF_ERR_SOCKET;
+		}
+	}
+
+	/* specify a specific interface address on which to transmitted the multicast packets of this socket */
+	if (!rc && (s_user_params.tx_mc_if_addr.s_addr != INADDR_ANY)) {
+		if (setsockopt(fd, IPPROTO_IP, IP_MULTICAST_IF, &s_user_params.tx_mc_if_addr, sizeof(s_user_params.tx_mc_if_addr)) < 0) {
+			log_err("setsockopt(IP_MULTICAST_IF)");
+			rc = SOCKPERF_ERR_SOCKET;
+		}
+	}
+
+	if (!rc && (s_user_params.mc_loop_disable)) {
+		/* disable multicast loop of all transmitted packets */
+		u_char loop_disabled = 0;
+		if (setsockopt(fd, IPPROTO_IP, IP_MULTICAST_LOOP, &loop_disabled, sizeof(loop_disabled)) < 0) {
+			log_err("setsockopt(IP_MULTICAST_LOOP)");
+			rc = SOCKPERF_ERR_SOCKET;
+		}
+	}
+
+	if (!rc)
+	{
+		/* the IP_MULTICAST_TTL socket option allows the application to primarily
+		 * limit the lifetime of the packet in the Internet and prevent it from
+		 * circulating
+		 */
+		int value = s_user_params.mc_ttl;
+		if (setsockopt(fd, IPPROTO_IP, IP_MULTICAST_TTL, (char*)&value, sizeof(value)) < 0) {
+			log_err("setsockopt(IP_MULTICAST_TTL)");
+			rc = SOCKPERF_ERR_SOCKET;
+		}
+	}
+
+	return rc;
+}
+
+
 //------------------------------------------------------------------------------
 /* returns the new socket fd
  or exit with error code */
 #ifdef ST_TEST
-int prepare_socket(struct fds_data *p_data, int fd, bool stTest = false)
+int prepare_socket(int fd, struct fds_data *p_data, bool stTest = false)
 #else
-int prepare_socket(struct fds_data *p_data, int fd)
+int prepare_socket(int fd, struct fds_data *p_data)
 #endif
 {
 	int rc = SOCKPERF_ERR_NONE;
-	int flags, ret;
-	struct sockaddr_in* p_addr = NULL;
 
 	if (!p_data) {
 		return INVALID_SOCKET;
 	}
 
-	p_addr = &(p_data->addr);
-
-	if (!rc && !s_user_params.is_blocked) {
+	if (!rc && !s_user_params.is_blocked)
+	{
 		/*Uncomment to test FIONBIO command of ioctl
 		 * int opt = 1;
 		 * ioctl(fd, FIONBIO, &opt);
 		*/
 
-		/* change socket to non-blocking */
-		flags = fcntl(fd, F_GETFL);
-		if (flags < 0) {
-			log_err("fcntl(F_GETFL)");
-			rc = SOCKPERF_ERR_SOCKET;
-		}
-		flags |=  O_NONBLOCK;
-		ret = fcntl(fd, F_SETFL, flags);
-		if (ret < 0) {
-			log_err("fcntl(F_SETFL)");
-			rc = SOCKPERF_ERR_SOCKET;
-		}
-		//log_msg("fd %d is non-blocked now", fd);
+		rc = sock_set_non_blocking(fd);
 	}
 
 	if (!rc &&
 			(s_user_params.withsock_accl == true))
 	{
-		if (setsockopt(fd, SOL_SOCKET, 100, NULL, 0) < 0) {
-			log_err("setsockopt(100), set sock-accl failed.  It could be that this option is not supported in your system");
-			rc = SOCKPERF_ERR_SOCKET;
-		}
-		log_msg("succeed to set sock-accl");
+		rc = sock_set_accl(fd);
 	}
 
 	/* allow multiple sockets to use the same PORT number
@@ -2307,120 +2452,24 @@ int prepare_socket(struct fds_data *p_data, int fd)
 	if (!rc &&
 			(p_data->sock_type == SOCK_STREAM || p_data->is_multicast))
 	{
-	    u_int reuseaddr_true = 1;
-
-	    if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &reuseaddr_true, sizeof(reuseaddr_true)) < 0) {
-		    log_err("setsockopt(SO_REUSEADDR) failed");
-		    rc = SOCKPERF_ERR_SOCKET;
-	    }
+		rc = sock_set_reuseaddr(fd);
 	}
 
 	if (!rc &&
-			(s_user_params.sock_buff_size > 0)) {
-		int size = sizeof(int);
-		int rcv_buff_size = 0;
-		int snd_buff_size = 0;
-
-		/*
-		 * Sets or gets the maximum socket receive buffer in bytes. The kernel
-		 * doubles this value (to allow space for bookkeeping overhead) when it
-		 * is set using setsockopt(), and this doubled value is returned by
-		 * getsockopt().
-		 */
-		if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &(s_user_params.sock_buff_size), sizeof(s_user_params.sock_buff_size)) < 0) {
-			log_err("setsockopt(SO_RCVBUF) failed");
-			rc = SOCKPERF_ERR_SOCKET;
-		}
-		if (!rc &&
-				(getsockopt(fd, SOL_SOCKET, SO_RCVBUF, &rcv_buff_size,(socklen_t *)&size) < 0)){
-			log_err("getsockopt(SO_RCVBUF) failed");
-			rc = SOCKPERF_ERR_SOCKET;
-		}
-		/*
-		 * Sets or gets the maximum socket send buffer in bytes. The kernel
-		 * doubles this value (to allow space for bookkeeping overhead) when it
-		 * is set using setsockopt(), and this doubled value is returned by
-		 * getsockopt().
-		 */
-		if (!rc &&
-				(setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &(s_user_params.sock_buff_size), sizeof(s_user_params.sock_buff_size)) < 0)) {
-			log_err("setsockopt(SO_SNDBUF) failed");
-			rc = SOCKPERF_ERR_SOCKET;
-		}
-		if (!rc &&
-				(getsockopt(fd, SOL_SOCKET, SO_SNDBUF, &snd_buff_size, (socklen_t *)&size) < 0)) {
-			log_err("getsockopt(SO_SNDBUF) failed");
-			rc = SOCKPERF_ERR_SOCKET;
-		}
-		if (!rc) {
-			log_msg("Socket buffers sizes of fd %d: RX: %d Byte, TX: %d Byte", fd, rcv_buff_size, snd_buff_size);
-			if (rcv_buff_size < s_user_params.sock_buff_size*2 ||
-				snd_buff_size < s_user_params.sock_buff_size*2  ) {
-				log_msg("WARNING: Failed setting receive or send socket buffer size to %d bytes (check 'sysctl net.core.rmem_max' value)", s_user_params.sock_buff_size);
-			}
-		}
+			(s_user_params.sock_buff_size > 0))
+	{
+		rc = sock_set_snd_rcv_bufs(fd);
 	}
 
-	if (!rc && (p_data->is_multicast)) {
-		struct ip_mreq mreq;
-		memset(&mreq,0,sizeof(struct ip_mreq));
-
-		/* use setsockopt() to request that the kernel join a multicast group */
-		/* and specify a specific interface address on which to receive the packets of this socket */
-		/* NOTE: we don't do this if case of client (sender) in stream mode */
-		if (!s_user_params.b_stream || s_user_params.mode != MODE_CLIENT) {
-			mreq.imr_multiaddr = p_addr->sin_addr;
-			mreq.imr_interface.s_addr = s_user_params.rx_mc_if_addr.s_addr;
-			if (setsockopt(fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq)) < 0) {
-				if(errno == 105)
-					log_err("setsockopt(IP_ADD_MEMBERSHIP) - Maximum multicast addresses that can join same group is limited by /proc/sys/net/ipv4/igmp_max_memberships");
-				else
-					log_err("setsockopt(IP_ADD_MEMBERSHIP)");
-				rc = SOCKPERF_ERR_SOCKET;
-			}
-		}
-
-		/* specify a specific interface address on which to transmitted the multicast packets of this socket */
-		if (!rc && (s_user_params.tx_mc_if_addr.s_addr != INADDR_ANY)) {
-			if (setsockopt(fd, IPPROTO_IP, IP_MULTICAST_IF, &s_user_params.tx_mc_if_addr, sizeof(s_user_params.tx_mc_if_addr)) < 0) {
-				log_err("setsockopt(IP_MULTICAST_IF)");
-				rc = SOCKPERF_ERR_SOCKET;
-			}
-		}
-
-		if (!rc && (s_user_params.mc_loop_disable)) {
-			/* disable multicast loop of all transmitted packets */
-			u_char loop_disabled = 0;
-			if (setsockopt(fd, IPPROTO_IP, IP_MULTICAST_LOOP, &loop_disabled, sizeof(loop_disabled)) < 0) {
-				log_err("setsockopt(IP_MULTICAST_LOOP)");
-				rc = SOCKPERF_ERR_SOCKET;
-			}
-		}
-
-		if (!rc)
-		{
-			/* the IP_MULTICAST_TTL socket option allows the application to primarily
-			 * limit the lifetime of the packet in the Internet and prevent it from
-			 * circulating
-			 */
-			int value = s_user_params.mc_ttl;
-			if (setsockopt(fd, IPPROTO_IP, IP_MULTICAST_TTL, (char*)&value, sizeof(value)) < 0) {
-				log_err("setsockopt(IP_MULTICAST_TTL)");
-				rc = SOCKPERF_ERR_SOCKET;
-			}
-		}
+	if (!rc && (p_data->is_multicast))
+	{
+		rc = sock_set_multicast(fd, p_data);
 	}
 
 	if (!rc &&
-			(p_data->sock_type == SOCK_STREAM)) {
-		if (s_user_params.tcp_nodelay) {
-			/* set Delivering Messages Immediately */
-			int tcp_nodelay = 1;
-			if (setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (char*)&tcp_nodelay, sizeof(tcp_nodelay)) < 0) {
-				log_err("setsockopt(TCP_NODELAY)");
-				rc = SOCKPERF_ERR_SOCKET;
-			}
-		}
+			(p_data->sock_type == SOCK_STREAM))
+	{
+		rc = sock_set_tcp_nodelay(fd);
 	}
 
 #ifdef  USING_VMA_EXTRA_API
@@ -2615,7 +2664,7 @@ static int set_sockets_from_feedfile(const char *feedfile_name)
 				}
 				if ( curr_fd >=0 ) {
 					if ( (curr_fd >= MAX_FDS_NUM) ||
-						 (prepare_socket(tmp, curr_fd) == INVALID_SOCKET) ) {
+						 (prepare_socket(curr_fd, tmp) == INVALID_SOCKET) ) {
 						log_err("Invalid socket");
 						close(curr_fd);
 						rc = SOCKPERF_ERR_SOCKET;
@@ -2766,7 +2815,7 @@ int bringup(const int *p_daemonize)
 					}
 					else {
 						if ( (curr_fd >= MAX_FDS_NUM) ||
-							 (prepare_socket(tmp, curr_fd) == INVALID_SOCKET) ) {
+							 (prepare_socket(curr_fd, tmp) == INVALID_SOCKET) ) {
 							log_err("Invalid socket");
 							close(curr_fd);
 							rc = SOCKPERF_ERR_SOCKET;

@@ -32,9 +32,9 @@
 #include "common.h"
 
 #ifdef ST_TEST
-extern int prepare_socket(struct fds_data *p_data, int fd, bool stTest = false);
+extern int prepare_socket(int fd, struct fds_data *p_data, bool stTest = false);
 #else
-extern int prepare_socket(struct fds_data *p_data, int fd);
+extern int prepare_socket(int fd, struct fds_data *p_data);
 #endif
 
 
