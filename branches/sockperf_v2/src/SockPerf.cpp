@@ -2450,7 +2450,7 @@ int prepare_socket(int fd, struct fds_data *p_data)
 	 * set SO_REUSEADDR for TCP and multicast sockets only
 	 */
 	if (!rc &&
-			(p_data->sock_type == SOCK_STREAM || p_data->is_multicast))
+			(p_data->sock_type == SOCK_STREAM))
 	{
 		rc = sock_set_reuseaddr(fd);
 	}
