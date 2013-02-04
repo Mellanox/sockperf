@@ -1,5 +1,5 @@
 #labels Phase-Deploy,Download,package,tar.gz
-HowTo: Add Download Package (tar.gz)
+How To: Add Download Package (tar.gz)
 
  # Commit changes to sockperf on google code: 'svn ci'
  # Check out clean sockperf: 'svn co https://sockperf.googlecode.com/svn/branches/sockperf_v2 sockperf'
