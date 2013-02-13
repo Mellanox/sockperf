@@ -383,7 +383,7 @@ typedef struct port_and_type{
  */
 
 typedef struct fds_data {
-	struct sockaddr_in addr;	/**< server address information */
+	struct sockaddr_in server_addr;	/**< server address information */
 	int is_multicast;			/**< if this socket is multicast */
 	int sock_type;				/**< SOCK_STREAM (tcp), SOCK_DGRAM (udp), SOCK_RAW (ip) */
 	int next_fd;

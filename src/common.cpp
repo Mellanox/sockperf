@@ -93,11 +93,13 @@ void exit_with_log(const char* error, int status)
 void exit_with_log(const char* error, int status, fds_data* fds)
 {
 	printf("IP = %-15s PORT = %5d # %s ",
-			inet_ntoa(fds->addr.sin_addr),
-			ntohs(fds->addr.sin_port),
+			inet_ntoa(fds->server_addr.sin_addr),
+			ntohs(fds->server_addr.sin_port),
 			PRINT_PROTOCOL(fds->sock_type));
 	exit_with_log(error, status);
 }
+
+//------------------------------------------------------------------------------
 void exit_with_err(const char* error, int status)
 {
 	log_err("%s",error);
@@ -106,10 +108,13 @@ void exit_with_err(const char* error, int status)
 	#endif
 	exit(status);
 }
+
+//------------------------------------------------------------------------------
 void print_log_dbg ( struct in_addr sin_addr,in_port_t sin_port, int ifd)
 {
 	log_dbg ("peer address to close: %s:%d [%d]",inet_ntoa(sin_addr), ntohs(sin_port), ifd);
 }
+
 //------------------------------------------------------------------------------
 int set_affinity_list(pthread_t tid, const char * cpu_list)
 {

@@ -1,4 +1,4 @@
- /*
+/*
  * Copyright (c) 2011 Mellanox Technologies Ltd.
  * All rights reserved.
  *
@@ -119,20 +119,21 @@ static int proc_mode_server( int, int, const char ** );
 
 static const struct app_modes
 {
-   int (*func)(int, int, const char **); 	/* proc function */
-   const char* name;   					/* mode name to use from command line as an argument */
-   const char* const shorts[4];   		/* short name */
-   const char* note;                    /* mode description */
+	int (*func)(int, int, const char **); 	/* proc function */
+	const char* name;   					/* mode name to use from command line as an argument */
+	const char* const shorts[4];   		/* short name */
+	const char* note;                    /* mode description */
 } sockperf_modes[] =
+
 {
-   { proc_mode_help,  		"help",			aopt_set_string( "h", "?" ), 	"Display list of supported commands."},
-   { proc_mode_version,		"--version",	aopt_set_string( NULL ),		"Tool version information."},
-   { proc_mode_under_load, 	"under-load",	aopt_set_string( "ul" ),   		"Run " MODULE_NAME " client for latency under load test."},
-   { proc_mode_ping_pong, 	"ping-pong",	aopt_set_string( "pp" ),   		"Run " MODULE_NAME " client for latency test in ping pong mode."},
-   { proc_mode_playback, 	"playback",		aopt_set_string( "pb" ),   		"Run " MODULE_NAME " client for latency test using playback of predefined traffic, based on timeline and message size."},
-   { proc_mode_throughput,	"throughput",	aopt_set_string( "tp" ),   		"Run " MODULE_NAME " client for one way throughput test."},
-   { proc_mode_server, 		"server",   	aopt_set_string( "sr" ),		"Run " MODULE_NAME " as a server."},
-   { NULL,   NULL,	aopt_set_string( NULL ),   NULL }
+	{ proc_mode_help,       "help",       aopt_set_string( "h", "?" ), "Display list of supported commands."},
+	{ proc_mode_version,    "--version",  aopt_set_string( NULL ), "Tool version information."},
+	{ proc_mode_under_load, "under-load", aopt_set_string( "ul" ), "Run " MODULE_NAME " client for latency under load test."},
+	{ proc_mode_ping_pong,  "ping-pong",  aopt_set_string( "pp" ), "Run " MODULE_NAME " client for latency test in ping pong mode."},
+	{ proc_mode_playback,   "playback",   aopt_set_string( "pb" ), "Run " MODULE_NAME " client for latency test using playback of predefined traffic, based on timeline and message size."},
+	{ proc_mode_throughput, "throughput", aopt_set_string( "tp" ), "Run " MODULE_NAME " client for one way throughput test."},
+	{ proc_mode_server,     "server",     aopt_set_string( "sr" ), "Run " MODULE_NAME " as a server."},
+	{ NULL,                 NULL,         aopt_set_string( NULL ), NULL }
 };
 
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -590,8 +591,8 @@ static int proc_mode_under_load( int id, int argc, const char **argv )
 	}
 
 	if (rc) {
-	    const char* help_str = NULL;
-	    char temp_buf[30];
+		const char* help_str = NULL;
+		char temp_buf[30];
 
 		printf("%s: %s\n", display_opt(id, temp_buf, sizeof(temp_buf)), sockperf_modes[id].note);
 		printf("\n");
@@ -601,25 +602,25 @@ static int proc_mode_under_load( int id, int argc, const char **argv )
 		printf("\n");
 		printf("Options:\n");
 		help_str = aopt_help(common_opt_desc);
-	    if (help_str)
-	    {
-	        printf("%s\n", help_str);
-	        free((void*)help_str);
-	    }
+		if (help_str)
+		{
+			printf("%s\n", help_str);
+			free((void*)help_str);
+		}
 		printf("Valid arguments:\n");
 		help_str = aopt_help(client_opt_desc);
-	    if (help_str)
-	    {
-	        printf("%s", help_str);
-	        free((void*)help_str);
+		if (help_str)
+		{
+			printf("%s", help_str);
+			free((void*)help_str);
 			help_str = aopt_help(self_opt_desc);
-		    if (help_str)
-		    {
-		        printf("%s", help_str);
-		        free((void*)help_str);
-		    }
-		    printf("\n");
-	    }
+			if (help_str)
+			{
+				printf("%s", help_str);
+				free((void*)help_str);
+			}
+			printf("\n");
+		}
 	}
 
 	/* Destroy option objects */
@@ -888,8 +889,8 @@ static int proc_mode_ping_pong( int id, int argc, const char **argv )
 	}
 
 	if (rc) {
-	    const char* help_str = NULL;
-	    char temp_buf[30];
+		const char* help_str = NULL;
+		char temp_buf[30];
 
 		printf("%s: %s\n", display_opt(id, temp_buf, sizeof(temp_buf)), sockperf_modes[id].note);
 		printf("\n");
@@ -899,25 +900,25 @@ static int proc_mode_ping_pong( int id, int argc, const char **argv )
 		printf("\n");
 		printf("Options:\n");
 		help_str = aopt_help(common_opt_desc);
-	    if (help_str)
-	    {
-	        printf("%s\n", help_str);
-	        free((void*)help_str);
-	    }
+		if (help_str)
+		{
+			printf("%s\n", help_str);
+			free((void*)help_str);
+		}
 		printf("Valid arguments:\n");
 		help_str = aopt_help(client_opt_desc);
-	    if (help_str)
-	    {
-	        printf("%s", help_str);
-	        free((void*)help_str);
+		if (help_str)
+		{
+			printf("%s", help_str);
+			free((void*)help_str);
 			help_str = aopt_help(self_opt_desc);
-		    if (help_str)
-		    {
-		        printf("%s", help_str);
-		        free((void*)help_str);
-		    }
-		    printf("\n");
-	    }
+			if (help_str)
+			{
+				printf("%s", help_str);
+				free((void*)help_str);
+			}
+			printf("\n");
+		}
 	}
 
 	/* Destroy option objects */
@@ -1179,8 +1180,8 @@ static int proc_mode_throughput( int id, int argc, const char **argv )
 	}
 
 	if (rc) {
-	    const char* help_str = NULL;
-	    char temp_buf[30];
+		const char* help_str = NULL;
+		char temp_buf[30];
 
 		printf("%s: %s\n", display_opt(id, temp_buf, sizeof(temp_buf)), sockperf_modes[id].note);
 		printf("\n");
@@ -1190,25 +1191,25 @@ static int proc_mode_throughput( int id, int argc, const char **argv )
 		printf("\n");
 		printf("Options:\n");
 		help_str = aopt_help(common_opt_desc);
-	    if (help_str)
-	    {
-	        printf("%s\n", help_str);
-	        free((void*)help_str);
-	    }
+		if (help_str)
+		{
+			printf("%s\n", help_str);
+			free((void*)help_str);
+		}
 		printf("Valid arguments:\n");
 		help_str = aopt_help(client_opt_desc);
-	    if (help_str)
-	    {
-	        printf("%s", help_str);
-	        free((void*)help_str);
+		if (help_str)
+		{
+			printf("%s", help_str);
+			free((void*)help_str);
 			help_str = aopt_help(self_opt_desc);
-		    if (help_str)
-		    {
-		        printf("%s", help_str);
-		        free((void*)help_str);
-		    }
-		    printf("\n");
-	    }
+			if (help_str)
+			{
+				printf("%s", help_str);
+				free((void*)help_str);
+			}
+			printf("\n");
+		}
 	}
 
 	/* Destroy option objects */
@@ -1237,11 +1238,11 @@ static int proc_mode_playback( int id, int argc, const char **argv )
 	{
 		{
 			OPT_REPLY_EVERY, AOPT_ARG,	aopt_set_literal( 0 ),	aopt_set_string( "reply-every" ),
-	             "Set number of send messages between reply messages (default = 100)."
+			"Set number of send messages between reply messages (default = 100)."
 		},
 		{
 			OPT_PLAYBACK_DATA, AOPT_ARG, aopt_set_literal( 0 ), aopt_set_string( "data-file" ),
-	             "Pre-prepared CSV file with timestamps and message sizes."
+			"Pre-prepared CSV file with timestamps and message sizes."
 		},
 		{ 0, AOPT_NOARG, aopt_set_literal( 0 ), aopt_set_string( NULL ), NULL }
 	};
@@ -1299,24 +1300,24 @@ static int proc_mode_playback( int id, int argc, const char **argv )
 			}
 		}
 
-	if ( !rc && aopt_check(self_obj, OPT_REPLY_EVERY) ) {
-				const char* optarg = aopt_value(self_obj, OPT_REPLY_EVERY);
-				if (optarg) {
-					errno = 0;
-					long long value = strtol(optarg, NULL, 0);
-					if (errno != 0  || value <= 0 || value > 1<<30 ) {
-						log_msg("Invalid %d val: %s", OPT_REPLY_EVERY, optarg);
-						rc = SOCKPERF_ERR_BAD_ARGUMENT;
-					}
-					else {
-						s_user_params.reply_every = (uint32_t)value;
-					}
-				}
-				else {
-					log_msg("'-%d' Invalid value", OPT_REPLY_EVERY);
+		if ( !rc && aopt_check(self_obj, OPT_REPLY_EVERY) ) {
+			const char* optarg = aopt_value(self_obj, OPT_REPLY_EVERY);
+			if (optarg) {
+				errno = 0;
+				long long value = strtol(optarg, NULL, 0);
+				if (errno != 0  || value <= 0 || value > 1<<30 ) {
+					log_msg("Invalid %d val: %s", OPT_REPLY_EVERY, optarg);
 					rc = SOCKPERF_ERR_BAD_ARGUMENT;
 				}
+				else {
+					s_user_params.reply_every = (uint32_t)value;
+				}
 			}
+			else {
+				log_msg("'-%d' Invalid value", OPT_REPLY_EVERY);
+				rc = SOCKPERF_ERR_BAD_ARGUMENT;
+			}
+		}
 	}
 
 	/* force --data-file */
@@ -1326,8 +1327,8 @@ static int proc_mode_playback( int id, int argc, const char **argv )
 	}
 
 	if (rc) {
-	    const char* help_str = NULL;
-	    char temp_buf[30];
+		const char* help_str = NULL;
+		char temp_buf[30];
 
 		printf("%s: %s\n", display_opt(id, temp_buf, sizeof(temp_buf)), sockperf_modes[id].note);
 		printf("\n");
@@ -1336,25 +1337,25 @@ static int proc_mode_playback( int id, int argc, const char **argv )
 		printf("\n");
 		printf("Options:\n");
 		help_str = aopt_help(common_opt_desc);
-	    if (help_str)
-	    {
-	        printf("%s\n", help_str);
-	        free((void*)help_str);
-	    }
+		if (help_str)
+		{
+			printf("%s\n", help_str);
+			free((void*)help_str);
+		}
 		printf("Valid arguments:\n");
 		help_str = aopt_help(client_opt_desc);
-	    if (help_str)
-	    {
-	        printf("%s", help_str);
-	        free((void*)help_str);
+		if (help_str)
+		{
+			printf("%s", help_str);
+			free((void*)help_str);
 			help_str = aopt_help(self_opt_desc);
-		    if (help_str)
-		    {
-		        printf("%s", help_str);
-		        free((void*)help_str);
-		    }
-		    printf("\n");
-	    }
+			if (help_str)
+			{
+				printf("%s", help_str);
+				free((void*)help_str);
+			}
+			printf("\n");
+		}
 	}
 
 	/* Destroy option objects */
@@ -1377,39 +1378,41 @@ static int proc_mode_server( int id, int argc, const char **argv )
 	 */
 	static const AOPT_DESC  server_opt_desc[] =
 	{
-/*		{
+/*
+		{
 			'B', AOPT_NOARG,	aopt_set_literal( 'B' ),	aopt_set_string( "Bridge" ),
-	             "Run in Bridge mode."
-		},
-*/		{
-			OPT_THREADS_NUM, AOPT_ARG, aopt_set_literal( 0 ), aopt_set_string( "threads-num" ),
-	             "Run <N> threads on server side (requires '-f' option)."
-		},
+			"Run in Bridge mode."
+		}, 
+*/		
 		{
-			OPT_THREADS_AFFINITY, AOPT_ARG,	aopt_set_literal( 0 ),	aopt_set_string( "cpu-affinity" ),
-	             "Set threads affinity to the given core ids in list format (see: cat /proc/cpuinfo)."
-		},
-		{
-			OPT_VMARXFILTERCB, AOPT_NOARG,	aopt_set_literal( 0 ),	aopt_set_string( "vmarxfiltercb" ),
-	             "If possible use VMA's receive path message filter callback API (See VMA's readme)."
-		},
-		{
-			OPT_FORCE_UC_REPLY, AOPT_NOARG,	aopt_set_literal( 0 ),	aopt_set_string( "force-unicast-reply" ),
-	             "Force server to reply via unicast."
-		},
-		{
-				OPT_DONT_REPLY, AOPT_NOARG,	aopt_set_literal( 0 ),	aopt_set_string( "dont-reply" ),
-					"Server won't reply to the client messages."
-		},
-		{
-				'm', AOPT_ARG, aopt_set_literal( 'm' ), aopt_set_string( "msg-size" ),
-				"Set maximum message size that the server can receive <size> bytes (default 65506)."
-		},
-		{
-			'g', AOPT_NOARG,	aopt_set_literal( 'g' ),	aopt_set_string( "gap-detection" ),
-	             "Enable gap-detection."
-		},
-		{ 0, AOPT_NOARG, aopt_set_literal( 0 ), aopt_set_string( NULL ), NULL }
+			 OPT_THREADS_NUM, AOPT_ARG, aopt_set_literal( 0 ), aopt_set_string( "threads-num" ),
+			 "Run <N> threads on server side (requires '-f' option)."
+		 },
+		 {
+			 OPT_THREADS_AFFINITY, AOPT_ARG,	aopt_set_literal( 0 ),	aopt_set_string( "cpu-affinity" ),
+			 "Set threads affinity to the given core ids in list format (see: cat /proc/cpuinfo)."
+		 },
+		 {
+			 OPT_VMARXFILTERCB, AOPT_NOARG,	aopt_set_literal( 0 ),	aopt_set_string( "vmarxfiltercb" ),
+			 "If possible use VMA's receive path message filter callback API (See VMA's readme)."
+		 },
+		 {
+			 OPT_FORCE_UC_REPLY, AOPT_NOARG,	aopt_set_literal( 0 ),	aopt_set_string( "force-unicast-reply" ),
+			 "Force server to reply via unicast."
+		 },
+		 {
+			 OPT_DONT_REPLY, AOPT_NOARG,	aopt_set_literal( 0 ),	aopt_set_string( "dont-reply" ),
+			 "Server won't reply to the client messages."
+		 },
+		 {
+			 'm', AOPT_ARG, aopt_set_literal( 'm' ), aopt_set_string( "msg-size" ),
+			 "Set maximum message size that the server can receive <size> bytes (default 65506)."
+		 },
+		 {
+			 'g', AOPT_NOARG,	aopt_set_literal( 'g' ),	aopt_set_string( "gap-detection" ),
+			 "Enable gap-detection."
+		 },
+		 { 0, AOPT_NOARG, aopt_set_literal( 0 ), aopt_set_string( NULL ), NULL }
 	};
 
 	/* Load supported option and create option objects */
@@ -1525,8 +1528,8 @@ static int proc_mode_server( int id, int argc, const char **argv )
 	}
 
 	if (rc) {
-	    const char* help_str = NULL;
-	    char temp_buf[30];
+		const char* help_str = NULL;
+		char temp_buf[30];
 
 		printf("%s: %s\n", display_opt(id, temp_buf, sizeof(temp_buf)), sockperf_modes[id].note);
 		printf("\n");
@@ -1537,18 +1540,18 @@ static int proc_mode_server( int id, int argc, const char **argv )
 		printf("\n");
 		printf("Options:\n");
 		help_str = aopt_help(common_opt_desc);
-	    if (help_str)
-	    {
-	        printf("%s\n", help_str);
-	        free((void*)help_str);
-	    }
+		if (help_str)
+		{
+			printf("%s\n", help_str);
+			free((void*)help_str);
+		}
 		printf("Valid arguments:\n");
 		help_str = aopt_help(server_opt_desc);
-	    if (help_str)
-	    {
-	        printf("%s\n", help_str);
-	        free((void*)help_str);
-	    }
+		if (help_str)
+		{
+			printf("%s\n", help_str);
+			free((void*)help_str);
+		}
 	}
 
 	/* Destroy option objects */
@@ -1713,7 +1716,7 @@ static int parse_common_opt( const AOPT_OBJECT *common_obj )
 		if ( !rc && aopt_check(common_obj, OPT_RX_MC_IF) ) {
 			const char* optarg = aopt_value(common_obj, OPT_RX_MC_IF);
 			if (!optarg ||
-				((s_user_params.rx_mc_if_addr.s_addr = inet_addr(optarg)) == INADDR_NONE)) {	/* already in network byte order*/
+					((s_user_params.rx_mc_if_addr.s_addr = inet_addr(optarg)) == INADDR_NONE)) {	/* already in network byte order*/
 				log_msg("'-%d' Invalid address: %s", OPT_RX_MC_IF, optarg);
 				rc = SOCKPERF_ERR_BAD_ARGUMENT;
 			}
@@ -1722,7 +1725,7 @@ static int parse_common_opt( const AOPT_OBJECT *common_obj )
 		if ( !rc && aopt_check(common_obj, OPT_TX_MC_IF) ) {
 			const char* optarg = aopt_value(common_obj, OPT_TX_MC_IF);
 			if (!optarg ||
-				((s_user_params.tx_mc_if_addr.s_addr = inet_addr(optarg)) == INADDR_NONE)) {	/* already in network byte order*/
+					((s_user_params.tx_mc_if_addr.s_addr = inet_addr(optarg)) == INADDR_NONE)) {	/* already in network byte order*/
 				log_msg("'-%d' Invalid address: %s", OPT_TX_MC_IF, optarg);
 				rc = SOCKPERF_ERR_BAD_ARGUMENT;
 			}
@@ -1977,30 +1980,30 @@ static int parse_client_opt( const AOPT_OBJECT *client_obj )
 //------------------------------------------------------------------------------
 static char* display_opt( int id, char *buf, size_t buf_size )
 {
-    char *cur_ptr = buf;
+	char *cur_ptr = buf;
 
 	if ( buf && buf_size ) {
-        int cur_len = 0;
-        int ret = 0;
-        int j = 0;
+		int cur_len = 0;
+		int ret = 0;
+		int j = 0;
 
-        ret = snprintf( (cur_ptr + cur_len), (buf_size - cur_len), "%s", sockperf_modes[id].name );
-        cur_len += (ret < 0 ? 0 : ret );
+		ret = snprintf( (cur_ptr + cur_len), (buf_size - cur_len), "%s", sockperf_modes[id].name );
+		cur_len += (ret < 0 ? 0 : ret );
 
-	    for ( j = 0; (ret >= 0) && (sockperf_modes[id].shorts[j] != NULL); j++ ) {
-	    	if (j == 0) {
-	    		ret = snprintf( (cur_ptr + cur_len), (buf_size - cur_len), " (%s", sockperf_modes[id].shorts[j] );
-	    	}
-	    	else {
-	    		ret = snprintf( (cur_ptr + cur_len), (buf_size - cur_len), " ,%s", sockperf_modes[id].shorts[j] );
-	    	}
-	    	cur_len += (ret < 0 ? 0 : ret );
-	    }
+		for ( j = 0; (ret >= 0) && (sockperf_modes[id].shorts[j] != NULL); j++ ) {
+			if (j == 0) {
+				ret = snprintf( (cur_ptr + cur_len), (buf_size - cur_len), " (%s", sockperf_modes[id].shorts[j] );
+			}
+			else {
+				ret = snprintf( (cur_ptr + cur_len), (buf_size - cur_len), " ,%s", sockperf_modes[id].shorts[j] );
+			}
+			cur_len += (ret < 0 ? 0 : ret );
+		}
 
-	    if ((j > 0) && (ret >= 0)) {
-	        ret = snprintf( (cur_ptr + cur_len), (buf_size - cur_len), ")" );
-	        cur_len += (ret < 0 ? 0 : ret );
-	    }
+		if ((j > 0) && (ret >= 0)) {
+			ret = snprintf( (cur_ptr + cur_len), (buf_size - cur_len), ")" );
+			cur_len += (ret < 0 ? 0 : ret );
+		}
 	}
 
 	return (cur_ptr ? cur_ptr : (char *)"");
@@ -2177,7 +2180,7 @@ void set_defaults()
 //------------------------------------------------------------------------------
 #ifdef  USING_VMA_EXTRA_API
 vma_recv_callback_retval_t myapp_vma_recv_pkt_filter_callback(
-	int fd, size_t iov_sz, struct iovec iov[], struct vma_info_t* vma_info, void *context)
+		int fd, size_t iov_sz, struct iovec iov[], struct vma_info_t* vma_info, void *context)
 {
 #ifdef ST_TEST
 	if (st1) {
@@ -2207,12 +2210,12 @@ vma_recv_callback_retval_t myapp_vma_recv_pkt_filter_callback(
 
 	}
 
-/*
+	/*
 	if ("rule to check if packet should be dropped")
 		return VMA_PACKET_DROP;
-*/
+	 */
 
-/*
+	/*
 	if ("Do we support zero copy logic?") {
 		// Application must duplicate the iov' & 'vma_info' parameters for later usage
 		struct iovec* my_iov = calloc(iov_sz, sizeof(struct iovec));
@@ -2220,7 +2223,7 @@ vma_recv_callback_retval_t myapp_vma_recv_pkt_filter_callback(
 		myapp_queue_task_new_rcv_pkt(my_iov, iov_sz, vma_info->pkt_desc_id);
 		return VMA_PACKET_HOLD;
 	}
-*/
+	 */
 	/* This does the server_recev_then_send all in the VMA's callback */
 
 	MsgHeader* pHeader = (MsgHeader*) recvbuf;
@@ -2235,7 +2238,7 @@ vma_recv_callback_retval_t myapp_vma_recv_pkt_filter_callback(
 
 	if (pHeader->isPongRequest()) {
 		/* get source addr to reply to */
-		struct sockaddr_in sendto_addr = g_fds_array[fd]->addr;
+		struct sockaddr_in sendto_addr = g_fds_array[fd]->server_addr;
 		if (!g_fds_array[fd]->is_multicast)  /* In unicast case reply to sender*/
 			sendto_addr.sin_addr = vma_info->src->sin_addr;
 		msg_sendto(fd, recvbuf, recvsize, &sendto_addr);
@@ -2361,7 +2364,7 @@ int sock_set_multicast(int fd, struct fds_data *p_data)
 {
 	int rc = SOCKPERF_ERR_NONE;
 	struct sockaddr_in* p_addr = NULL;
-	p_addr = &(p_data->addr);
+	p_addr = &(p_data->server_addr);
 
 	struct ip_mreq mreq;
 	memset(&mreq,0,sizeof(struct ip_mreq));
@@ -2435,7 +2438,7 @@ int prepare_socket(int fd, struct fds_data *p_data)
 		/*Uncomment to test FIONBIO command of ioctl
 		 * int opt = 1;
 		 * ioctl(fd, FIONBIO, &opt);
-		*/
+		 */
 
 		rc = sock_set_non_blocking(fd);
 	}
@@ -2476,15 +2479,15 @@ int prepare_socket(int fd, struct fds_data *p_data)
 #ifdef ST_TEST
 	if (!stTest)
 #endif
-	if (!rc && (s_user_params.is_vmarxfiltercb && g_vma_api)) {
-		// Try to register application with VMA's special receive notification callback logic
-		if (g_vma_api->register_recv_callback(fd, myapp_vma_recv_pkt_filter_callback, &fd) < 0) {
-			log_err("vma_api->register_recv_callback failed. Try running without option 'vmarxfiltercb'");
+		if (!rc && (s_user_params.is_vmarxfiltercb && g_vma_api)) {
+			// Try to register application with VMA's special receive notification callback logic
+			if (g_vma_api->register_recv_callback(fd, myapp_vma_recv_pkt_filter_callback, &fd) < 0) {
+				log_err("vma_api->register_recv_callback failed. Try running without option 'vmarxfiltercb'");
+			}
+			else {
+				log_dbg("vma_api->register_recv_callback successful registered");
+			}
 		}
-		else {
-			log_dbg("vma_api->register_recv_callback successful registered");
-		}
-	}
 #endif
 
 	return (!rc ? fd : INVALID_SOCKET);
@@ -2517,7 +2520,7 @@ static int set_sockets_from_feedfile(const char *feedfile_name)
 	if (!S_ISREG (st_buf.st_mode)) {
 		log_msg("Can't open file: %s -not a regular file.\n", feedfile_name);
 		return SOCKPERF_ERR_NOT_EXIST;
-	 }
+	}
 	if ((file_fd = fopen(feedfile_name, "r")) == NULL) {
 		log_msg("Can't open file: %s\n", feedfile_name);
 		return SOCKPERF_ERR_NOT_EXIST;
@@ -2533,14 +2536,14 @@ static int set_sockets_from_feedfile(const char *feedfile_name)
 				return -1;
 			}
 			else {
-			    fclose(file_fd);
+				fclose(file_fd);
 				return 0;	/* encountered EOF */
 			}
 		}
 
 		/* skip empty lines and comments */
 		if (line[0] == ' ' || line[0] == '\r' || line[0] == '\n' || line[0] == '#') {
-		    continue;
+			continue;
 		}
 
 		regexpres = regcomp(&regexpr, IP_PORT_FORMAT_REG_EXP, REG_EXTENDED|REG_NOSUB);
@@ -2554,8 +2557,8 @@ static int set_sockets_from_feedfile(const char *feedfile_name)
 			regfree(&regexpr);
 			if (regexpres) {
 				log_msg("Invalid input in line %s: "
-					"each line must have the following format: ip:port or type:ip:port",
-					line);
+						"each line must have the following format: ip:port or type:ip:port",
+						line);
 				rc = SOCKPERF_ERR_INCORRECT;
 				break;
 			}
@@ -2563,7 +2566,7 @@ static int set_sockets_from_feedfile(const char *feedfile_name)
 
 		/* this code support backward compatibility with old format of file */
 		if (line[0] == 'U' || line[0] == 'u' ||
-			line[0] == 'T' || line[0] == 't') {
+				line[0] == 'T' || line[0] == 't') {
 			sock_type = (line[0] == 'T' || line[0] == 't' ? SOCK_STREAM : SOCK_DGRAM);
 			strtok(line, ":");
 			ip = strtok(NULL, ":");
@@ -2575,8 +2578,8 @@ static int set_sockets_from_feedfile(const char *feedfile_name)
 		port = strtok(NULL, ":\n");
 		if (!ip || !port) {
 			log_msg("Invalid input in line %s: "
-				"each line must have the following format: ip:port or type:ip:port",
-				line);
+					"each line must have the following format: ip:port or type:ip:port",
+					line);
 			rc = SOCKPERF_ERR_INCORRECT;
 			break;
 		}
@@ -2588,12 +2591,12 @@ static int set_sockets_from_feedfile(const char *feedfile_name)
 		}
 		else {
 			memset(tmp,0,sizeof(struct fds_data));
-			tmp->addr.sin_family = AF_INET;
-			tmp->addr.sin_port = htons(atoi(port));
-			if (!inet_aton(ip, &tmp->addr.sin_addr)) {
+			tmp->server_addr.sin_family = AF_INET;
+			tmp->server_addr.sin_port = htons(atoi(port));
+			if (!inet_aton(ip, &tmp->server_addr.sin_addr)) {
 				struct hostent *hostip = gethostbyname(ip);
 				if(hostip) {
-					memcpy(&(tmp->addr.sin_addr), hostip->h_addr_list[0], hostip->h_length);
+					memcpy(&(tmp->server_addr.sin_addr), hostip->h_addr_list[0], hostip->h_length);
 				}
 				else {
 					log_msg("Invalid address in line %s: '%s:%s'", line, ip, port);
@@ -2602,12 +2605,12 @@ static int set_sockets_from_feedfile(const char *feedfile_name)
 					break;
 				}
 			}
-			tmp->is_multicast = IN_MULTICAST(ntohl(tmp->addr.sin_addr.s_addr));
+			tmp->is_multicast = IN_MULTICAST(ntohl(tmp->server_addr.sin_addr.s_addr));
 			tmp->sock_type = sock_type;
 
 			/* Check if the same value exists */
 			bool is_exist = false;
-			port_and_type port_type_tmp = {tmp->sock_type,tmp->addr.sin_port};
+			port_and_type port_type_tmp = {tmp->sock_type,tmp->server_addr.sin_port};
 			for (int i = s_fd_min; i <= s_fd_max; i++) {
 				/* duplicated values are accepted in case client connection using TCP */
 				if (((s_user_params.mode == MODE_CLIENT)  && (tmp->sock_type == SOCK_STREAM))) {
@@ -2615,8 +2618,8 @@ static int set_sockets_from_feedfile(const char *feedfile_name)
 				}
 
 				if ( g_fds_array[i] &&
-					 !memcmp( &(g_fds_array[i]->addr), &(tmp->addr), sizeof(tmp->addr)) &&
-					 fd_socket_map[port_type_tmp] ) {
+						!memcmp( &(g_fds_array[i]->server_addr), &(tmp->server_addr), sizeof(tmp->server_addr)) &&
+						fd_socket_map[port_type_tmp] ) {
 					is_exist = true;
 					break;
 				}
@@ -2640,12 +2643,12 @@ static int set_sockets_from_feedfile(const char *feedfile_name)
 			}
 			else {
 				/* if this port already been received before, join socket - multicast only */
- 				if ((0 != fd_socket_map[port_type_tmp]) && (tmp->is_multicast)) {
- 					/* join socket */
- 					curr_fd = fd_socket_map[port_type_tmp];
- 					new_socket_flag = false;
- 					g_fds_array[curr_fd]->memberships_addr[g_fds_array[curr_fd]->memberships_size]=tmp->addr;
- 					g_fds_array[curr_fd]->memberships_size++;
+				if ((0 != fd_socket_map[port_type_tmp]) && (tmp->is_multicast)) {
+					/* join socket */
+					curr_fd = fd_socket_map[port_type_tmp];
+					new_socket_flag = false;
+					g_fds_array[curr_fd]->memberships_addr[g_fds_array[curr_fd]->memberships_size]=tmp->server_addr;
+					g_fds_array[curr_fd]->memberships_size++;
 				}
 				else {
 					/* create a socket */
@@ -2664,7 +2667,7 @@ static int set_sockets_from_feedfile(const char *feedfile_name)
 				}
 				if ( curr_fd >=0 ) {
 					if ( (curr_fd >= MAX_FDS_NUM) ||
-						 (prepare_socket(curr_fd, tmp) == INVALID_SOCKET) ) {
+							(prepare_socket(curr_fd, tmp) == INVALID_SOCKET) ) {
 						log_err("Invalid socket");
 						close(curr_fd);
 						rc = SOCKPERF_ERR_SOCKET;
@@ -2734,26 +2737,26 @@ static int set_sockets_from_feedfile(const char *feedfile_name)
 
 			tmp = &data1;
 			memset(tmp,0,sizeof(struct fds_data));
-			tmp->addr.sin_family = AF_INET;
-			tmp->addr.sin_port = htons(atoi(port));
-			if (!inet_aton(ip, &tmp->addr.sin_addr)) {
+			tmp->server_addr.sin_family = AF_INET;
+			tmp->server_addr.sin_port = htons(atoi(port));
+			if (!inet_aton(ip, &tmp->server_addr.sin_addr)) {
 				log_msg("Invalid input: '%s:%s'", ip, port);
 				exit_with_log(SOCKPERF_ERR_INCORRECT);
 			}
 			tmp->sock_type = sock_type;
-			tmp->is_multicast = IN_MULTICAST(ntohl(tmp->addr.sin_addr.s_addr));
+			tmp->is_multicast = IN_MULTICAST(ntohl(tmp->server_addr.sin_addr.s_addr));
 			st1 = prepare_socket(tmp, true);
 
 			tmp = &data2;
 			memset(tmp,0,sizeof(struct fds_data));
-			tmp->addr.sin_family = AF_INET;
-			tmp->addr.sin_port = htons(atoi(port));
-			if (!inet_aton(ip, &tmp->addr.sin_addr)) {
+			tmp->server_addr.sin_family = AF_INET;
+			tmp->server_addr.sin_port = htons(atoi(port));
+			if (!inet_aton(ip, &tmp->server_addr.sin_addr)) {
 				log_msg("Invalid input: '%s:%s'", ip, port);
 				exit_with_log(SOCKPERF_ERR_INCORRECT);
 			}
 			tmp->sock_type = sock_type;
-			tmp->is_multicast = IN_MULTICAST(ntohl(tmp->addr.sin_addr.s_addr));
+			tmp->is_multicast = IN_MULTICAST(ntohl(tmp->server_addr.sin_addr.s_addr));
 			st2 = prepare_socket(tmp, true);
 
 		}
@@ -2775,7 +2778,9 @@ int bringup(const int *p_daemonize)
 			log_err("Failed to daemonize");
 			rc = SOCKPERF_ERR_FATAL;
 		}
-		log_msg("Running as daemon");
+		else {
+			log_msg("Running as daemon");
+		}
 	}
 
 	/* Create and initialize sockets */
@@ -2796,9 +2801,9 @@ int bringup(const int *p_daemonize)
 			}
 			else {
 				memset(tmp, 0, sizeof(struct fds_data));
-				memcpy(&tmp->addr, &(s_user_params.addr), sizeof(struct sockaddr_in));
+				memcpy(&tmp->server_addr, &(s_user_params.addr), sizeof(struct sockaddr_in));
 
-				tmp->is_multicast = IN_MULTICAST(ntohl(tmp->addr.sin_addr.s_addr));
+				tmp->is_multicast = IN_MULTICAST(ntohl(tmp->server_addr.sin_addr.s_addr));
 				tmp->sock_type = s_user_params.sock_type;
 
 				tmp->active_fd_count = 0;
@@ -2815,7 +2820,7 @@ int bringup(const int *p_daemonize)
 					}
 					else {
 						if ( (curr_fd >= MAX_FDS_NUM) ||
-							 (prepare_socket(curr_fd, tmp) == INVALID_SOCKET) ) {
+								(prepare_socket(curr_fd, tmp) == INVALID_SOCKET) ) {
 							log_err("Invalid socket");
 							close(curr_fd);
 							rc = SOCKPERF_ERR_SOCKET;
@@ -2891,7 +2896,7 @@ int bringup(const int *p_daemonize)
 
 #ifdef  USING_VMA_EXTRA_API
 		if (s_user_params.is_vmazcopyread && g_vma_api){
-			   g_dgram_buf = (unsigned char*)MALLOC(_max_buff_size);
+			g_dgram_buf = (unsigned char*)MALLOC(_max_buff_size);
 		}
 #endif
 
@@ -2922,8 +2927,8 @@ int bringup(const int *p_daemonize)
 
 		if (!s_user_params.b_stream && !s_user_params.mode == MODE_SERVER) {
 			g_pPacketTimes = new PacketTimes(_maxSequenceNo,
-											 s_user_params.reply_every,
-											 s_user_params.client_work_with_srv_num);
+					s_user_params.reply_every,
+					s_user_params.client_work_with_srv_num);
 		}
 
 		set_signal_action();
@@ -2947,13 +2952,13 @@ void do_test()
 		client_handler(&info);
 		break;
 	case MODE_SERVER:
-	   if (s_user_params.mthread_server) {
-		   server_select_per_thread(s_fd_num);
-	   }
-	   else {
-		   server_handler(&info);
-	   }
-	   break;
+		if (s_user_params.mthread_server) {
+			server_select_per_thread(s_fd_num);
+		}
+		else {
+			server_handler(&info);
+		}
+		break;
 	case MODE_BRIDGE:
 		server_handler(&info);
 		break;
@@ -2977,41 +2982,41 @@ int main(int argc, char *argv[])
 			int j = 0;
 			int found = 0;
 
-		    for (i = 0; sockperf_modes[i].name != NULL; i++) {
-		         if (strcmp(sockperf_modes[i].name, argv[1]) == 0) {
-					 found = 1;
-		         }
-		         else {
-		        	 for ( j = 0; sockperf_modes[i].shorts[j] != NULL; j++ ) {
-						 if (strcmp(sockperf_modes[i].shorts[j], argv[1]) == 0) {
-							 found = 1;
-							 break;
-						 }
-		        	 }
-		         }
+			for (i = 0; sockperf_modes[i].name != NULL; i++) {
+				if (strcmp(sockperf_modes[i].name, argv[1]) == 0) {
+					found = 1;
+				}
+				else {
+					for ( j = 0; sockperf_modes[i].shorts[j] != NULL; j++ ) {
+						if (strcmp(sockperf_modes[i].shorts[j], argv[1]) == 0) {
+							found = 1;
+							break;
+						}
+					}
+				}
 
-		         if (found) {
-		        	 rc = sockperf_modes[i].func(i, argc - 1, (const char**)(argv + 1));
-		        	 break;
-		         }
-		    }
-		    /*  check if the first option is invalid or rc > 0 */
-		    if ((sockperf_modes[i].name == NULL) ||
-		    	(rc > 0)) {
-		    	rc = proc_mode_help(0, 0, NULL);
-		    }
+				if (found) {
+					rc = sockperf_modes[i].func(i, argc - 1, (const char**)(argv + 1));
+					break;
+				}
+			}
+			/*  check if the first option is invalid or rc > 0 */
+			if ((sockperf_modes[i].name == NULL) ||
+					(rc > 0)) {
+				rc = proc_mode_help(0, 0, NULL);
+			}
 		}
 		else {
 			rc = proc_mode_help(0, 0, NULL);
 		}
 
-	    if (rc) {
+		if (rc) {
 			cleanup();
-	    	exit(0);
-	    }
+			exit(0);
+		}
 
 		// Prepare application to start
-	    rc = bringup(&s_user_params.daemonize);
+		rc = bringup(&s_user_params.daemonize);
 		if (rc) {
 			exit_with_log(rc);  // will also perform cleanup
 		}
@@ -3135,12 +3140,12 @@ s_user_params.daemonize,
 
 		// step #6: do run the test
 		/*
-		** TEST START
-		*/
+		 ** TEST START
+		 */
 		do_test();
 		/*
-		** TEST END
-		*/
+		 ** TEST END
+		 */
 
 	}
 	catch (const std::exception & e) {

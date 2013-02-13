@@ -105,8 +105,8 @@ private:
 void print_log(const char* error, fds_data* fds)
 {
 	printf("IP = %-15s PORT = %5d # %s ",
-			inet_ntoa(fds->addr.sin_addr),
-			ntohs(fds->addr.sin_port),
+			inet_ntoa(fds->server_addr.sin_addr),
+			ntohs(fds->server_addr.sin_port),
 			PRINT_PROTOCOL(fds->sock_type));
 				log_err("%s",error);
 }
@@ -124,7 +124,7 @@ void close_ifd(int fd,int ifd,fds_data* l_fds_ifd){
 	fds_data* l_next_fd =  g_fds_array[fd];
 	for (int i = 0; i < MAX_ACTIVE_FD_NUM; i++) {
 		if (l_next_fd->active_fd_list[i] == ifd) {
-			print_log_dbg( l_fds_ifd->addr.sin_addr, l_fds_ifd->addr.sin_port, ifd);
+			print_log_dbg( l_fds_ifd->server_addr.sin_addr, l_fds_ifd->server_addr.sin_port, ifd);
 			close(ifd);
 			l_next_fd->active_fd_count--;
 			l_next_fd->active_fd_list[i] = INVALID_SOCKET;
@@ -263,7 +263,7 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_t
 				m_pMsgReply->setServer();
 			}
 			/* get source addr to reply. memcpy is not used to improve performance */
-			sendto_addr =l_fds_ifd->addr;
+			sendto_addr =l_fds_ifd->server_addr;
 
 			if (l_fds_ifd->memberships_size || !l_fds_ifd->is_multicast || g_pApp->m_const_params.b_server_reply_via_uc) {// In unicast case reply to sender
 				/* get source addr to reply. memcpy is not used to improve performance */
