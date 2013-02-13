@@ -110,7 +110,7 @@ public:
 		if (m_pMsgRequest->getSequenceCounter() % g_pApp->m_const_params.reply_every == 0) {
 			m_pMsgRequest->getHeader()->setPongRequest();
 			g_pPacketTimes->setTxTime(m_pMsgRequest->getSequenceCounter());
-			int ret = ::msg_sendto(ifd, m_pMsgRequest->getBuf(), m_pMsgRequest->getLength(), &(g_fds_array[ifd]->addr));
+			int ret = ::msg_sendto(ifd, m_pMsgRequest->getBuf(), m_pMsgRequest->getLength(), &(g_fds_array[ifd]->server_addr));
 			/* check skip send operation case */
 			if (ret == RET_SOCKET_SKIPPED) {
 				g_pPacketTimes->clearTxTime(m_pMsgRequest->getSequenceCounter());
@@ -120,7 +120,7 @@ public:
 		}
 		else
 		{
-			return ::msg_sendto(ifd, m_pMsgRequest->getBuf(), m_pMsgRequest->getLength(), &(g_fds_array[ifd]->addr));
+			return ::msg_sendto(ifd, m_pMsgRequest->getBuf(), m_pMsgRequest->getLength(), &(g_fds_array[ifd]->server_addr));
 		}
 	}
 
@@ -139,7 +139,7 @@ public:
 
 	inline int msg_sendto(int ifd) {
 		g_pPacketTimes->setTxTime(m_pMsgRequest->getSequenceCounter());
-		int ret = ::msg_sendto(ifd, m_pMsgRequest->getBuf(), m_pMsgRequest->getLength(), &(g_fds_array[ifd]->addr));
+		int ret = ::msg_sendto(ifd, m_pMsgRequest->getBuf(), m_pMsgRequest->getLength(), &(g_fds_array[ifd]->server_addr));
 		/* check skip send operation case */
 		if (ret == RET_SOCKET_SKIPPED) {
 			g_pPacketTimes->clearTxTime(m_pMsgRequest->getSequenceCounter());
@@ -161,7 +161,7 @@ public:
 	}
 
 	inline int msg_sendto(int ifd) {
-		return ::msg_sendto(ifd, m_pMsgRequest->getBuf(), m_pMsgRequest->getLength(), &(g_fds_array[ifd]->addr));
+		return ::msg_sendto(ifd, m_pMsgRequest->getBuf(), m_pMsgRequest->getLength(), &(g_fds_array[ifd]->server_addr));
 	}
 
 private:

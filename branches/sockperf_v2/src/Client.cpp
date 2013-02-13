@@ -490,8 +490,8 @@ int Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration,
 			}
 
 			if (g_fds_array[ifd]->sock_type == SOCK_STREAM) {
-				log_dbg ("[fd=%d] Connecting to: %s:%d...", ifd, inet_ntoa(g_fds_array[ifd]->addr.sin_addr), ntohs(g_fds_array[ifd]->addr.sin_port));
-				if (connect(ifd, (struct sockaddr*)&(g_fds_array[ifd]->addr), sizeof(struct sockaddr)) < 0) {
+				log_dbg ("[fd=%d] Connecting to: %s:%d...", ifd, inet_ntoa(g_fds_array[ifd]->server_addr.sin_addr), ntohs(g_fds_array[ifd]->server_addr.sin_port));
+				if (connect(ifd, (struct sockaddr*)&(g_fds_array[ifd]->server_addr), sizeof(struct sockaddr)) < 0) {
 					if (errno == EINPROGRESS) {
 						fd_set rfds, wfds;
 						struct timeval tv;
@@ -512,7 +512,7 @@ int Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration,
 							int error;
 
 							err_len = sizeof(error);
-							if(getsockopt(ifd, SOL_SOCKET, SO_ERROR, &error, &err_len) < 0 || error != 0) {
+							if (getsockopt(ifd, SOL_SOCKET, SO_ERROR, &error, &err_len) < 0 || error != 0) {
 								log_err("Can`t connect socket");
 								rc = SOCKPERF_ERR_SOCKET;
 								break;

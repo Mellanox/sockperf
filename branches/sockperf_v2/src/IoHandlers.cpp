@@ -53,7 +53,7 @@ void IoHandler::warmup(Message *pMsgRequest) const
 	for (int ifd = m_fd_min; ifd <= m_fd_max; ifd++) {
 		if (g_fds_array[ifd] && g_fds_array[ifd]->is_multicast) {
 			for (int count=0; count<2; count++) {
-				msg_sendto(ifd, pMsgRequest->getBuf(), pMsgRequest->getLength(), &(g_fds_array[ifd]->addr));
+				msg_sendto(ifd, pMsgRequest->getBuf(), pMsgRequest->getLength(), &(g_fds_array[ifd]->server_addr));
 			}
 		}
 	}
@@ -81,14 +81,14 @@ int IoRecvfrom::prepareNetwork()
 		if (g_fds_array[ifd]) {
 			printf("[%2d] IP = %-15s PORT = %5d # %s\n",
 					list_count++,
-					inet_ntoa(g_fds_array[ifd]->addr.sin_addr),
-					ntohs(g_fds_array[ifd]->addr.sin_port),
+					inet_ntoa(g_fds_array[ifd]->server_addr.sin_addr),
+					ntohs(g_fds_array[ifd]->server_addr.sin_port),
 					PRINT_PROTOCOL(g_fds_array[ifd]->sock_type));
 			for (int i=0; i< g_fds_array[ifd]->memberships_size; i++){
 				printf("[%2d] IP = %-15s PORT = %5d # %s\n",
 						list_count++,
 						inet_ntoa(g_fds_array[ifd]->memberships_addr[i].sin_addr),
-						ntohs(g_fds_array[ifd]->addr.sin_port),
+						ntohs(g_fds_array[ifd]->server_addr.sin_port),
 						PRINT_PROTOCOL(g_fds_array[ifd]->sock_type));
 			}
 		}
@@ -119,15 +119,15 @@ int IoSelect::prepareNetwork()
 		if (g_fds_array[ifd]) {
 			printf("[%2d] IP = %-15s PORT = %5d # %s\n",
 					list_count++,
-					inet_ntoa(g_fds_array[ifd]->addr.sin_addr),
-					ntohs(g_fds_array[ifd]->addr.sin_port),
+					inet_ntoa(g_fds_array[ifd]->server_addr.sin_addr),
+					ntohs(g_fds_array[ifd]->server_addr.sin_port),
 					PRINT_PROTOCOL(g_fds_array[ifd]->sock_type));
 			FD_SET(ifd, &m_save_fds);
 			for (int i=0; i< g_fds_array[ifd]->memberships_size; i++){
 				printf("[%2d] IP = %-15s PORT = %5d # %s\n",
 						list_count++,
 						inet_ntoa(g_fds_array[ifd]->memberships_addr[i].sin_addr),
-						ntohs(g_fds_array[ifd]->addr.sin_port),
+						ntohs(g_fds_array[ifd]->server_addr.sin_port),
 						PRINT_PROTOCOL(g_fds_array[ifd]->sock_type));
 			}
 		}
@@ -170,14 +170,14 @@ int IoPoll::prepareNetwork()
 			if (g_fds_array[ifd]) {
 				printf("[%2d] IP = %-15s PORT = %5d # %s\n",
 						list_count++,
-						inet_ntoa(g_fds_array[ifd]->addr.sin_addr),
-						ntohs(g_fds_array[ifd]->addr.sin_port),
+						inet_ntoa(g_fds_array[ifd]->server_addr.sin_addr),
+						ntohs(g_fds_array[ifd]->server_addr.sin_port),
 						PRINT_PROTOCOL(g_fds_array[ifd]->sock_type));
 				for (int i=0; i< g_fds_array[ifd]->memberships_size; i++){
 					printf("[%2d] IP = %-15s PORT = %5d # %s\n",
 							list_count++,
 							inet_ntoa(g_fds_array[ifd]->memberships_addr[i].sin_addr),
-							ntohs(g_fds_array[ifd]->addr.sin_port),
+							ntohs(g_fds_array[ifd]->server_addr.sin_port),
 							PRINT_PROTOCOL(g_fds_array[ifd]->sock_type));
 				}
 				mp_poll_fd_arr[fd_count].fd = ifd;
@@ -228,14 +228,14 @@ int IoEpoll::prepareNetwork()
 			if (g_fds_array[ifd]) {
 				printf("[%2d] IP = %-15s PORT = %5d # %s\n",
 						list_count++,
-						inet_ntoa(g_fds_array[ifd]->addr.sin_addr),
-						ntohs(g_fds_array[ifd]->addr.sin_port),
+						inet_ntoa(g_fds_array[ifd]->server_addr.sin_addr),
+						ntohs(g_fds_array[ifd]->server_addr.sin_port),
 						PRINT_PROTOCOL(g_fds_array[ifd]->sock_type));
 				for (int i=0; i< g_fds_array[ifd]->memberships_size; i++){
 					printf("[%2d] IP = %-15s PORT = %5d # %s\n",
 							list_count++,
 							inet_ntoa(g_fds_array[ifd]->memberships_addr[i].sin_addr),
-							ntohs(g_fds_array[ifd]->addr.sin_port),
+							ntohs(g_fds_array[ifd]->server_addr.sin_port),
 							PRINT_PROTOCOL(g_fds_array[ifd]->sock_type));
 				}
 				ev.events = EPOLLIN | EPOLLPRI;

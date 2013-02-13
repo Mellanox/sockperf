@@ -69,8 +69,6 @@ int ServerBase::initBeforeLoop()
 	/* bind socket */
 	if (rc == SOCKPERF_ERR_NONE)
 	{
-		struct sockaddr_in bind_addr;
-
 		log_dbg("thread %d: fd_min: %d, fd_max : %d, fd_num: %d"
 				, gettid(), m_ioHandlerRef.m_fd_min, m_ioHandlerRef.m_fd_max, m_ioHandlerRef.m_fd_num);
 
@@ -79,29 +77,28 @@ int ServerBase::initBeforeLoop()
 
 			if (!(g_fds_array[ifd] && (g_fds_array[ifd]->active_fd_list))) continue;
 
-			memset(&bind_addr, 0, sizeof(struct sockaddr_in));
-			bind_addr.sin_family = AF_INET;
-			bind_addr.sin_port = g_fds_array[ifd]->addr.sin_port;
-			bind_addr.sin_addr.s_addr = INADDR_ANY;
-			if (!g_fds_array[ifd]->memberships_size){ //if only one address on socket
-				bind_addr.sin_addr.s_addr = g_fds_array[ifd]->addr.sin_addr.s_addr;
+			struct sockaddr_in* p_bind_addr = &g_fds_array[ifd]->server_addr;
+
+			struct sockaddr_in bind_addr;
+			if (g_fds_array[ifd]->memberships_size) { // if more then one address on socket (for multiple MC join case oon same port)
+				memcpy(&bind_addr, p_bind_addr, sizeof(struct sockaddr_in));
+				bind_addr.sin_addr.s_addr = INADDR_ANY;
+				p_bind_addr = &bind_addr;
 			}
 
-			if (bind(ifd, (struct sockaddr*)&bind_addr, sizeof(struct sockaddr)) < 0) {
-				log_err("Can`t bind socket, IP to bind: %s : %d [%d] \n", inet_ntoa(bind_addr.sin_addr), ntohs(bind_addr.sin_port), ifd);
+			log_dbg ("[fd=%d] Binding to: %s:%d...", ifd, inet_ntoa(p_bind_addr->sin_addr), ntohs(p_bind_addr->sin_port));
+			if (bind(ifd, (struct sockaddr*)p_bind_addr, sizeof(struct sockaddr)) < 0) {
+				log_err("[fd=%d] Can`t bind socket, IP to bind: %s:%d\n", ifd, inet_ntoa(p_bind_addr->sin_addr), ntohs(p_bind_addr->sin_port));
 				rc = SOCKPERF_ERR_SOCKET;
 				break;
 			}
-			else {
-				log_dbg ("IP to bind: %s : %d [%d]", inet_ntoa(bind_addr.sin_addr), ntohs(bind_addr.sin_port), ifd);
 
-				if ((g_fds_array[ifd]->sock_type == SOCK_STREAM) &&
-					(listen(ifd, 10) < 0))
-				{
-					log_err("Can`t listen connection\n");
-					rc = SOCKPERF_ERR_SOCKET;
-					break;
-				}
+			if ((g_fds_array[ifd]->sock_type == SOCK_STREAM) &&
+				(listen(ifd, 10) < 0))
+			{
+				log_err("Failed listen() for connection\n");
+				rc = SOCKPERF_ERR_SOCKET;
+				break;
 			}
 		}
 	}
