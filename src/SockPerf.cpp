@@ -2451,7 +2451,7 @@ int prepare_socket(int fd, struct fds_data *p_data)
 
 	if (!rc &&
 			((s_user_params.mode == MODE_SERVER && p_data->server_addr.sin_port) ||
-			 (s_user_params.mode == MODE_CLIENT && g_pApp->m_const_params.client_bind_info.sin_port)))
+			 (s_user_params.mode == MODE_CLIENT && s_user_params.client_bind_info.sin_port)))
 	{
 		/* allow multiple sockets to use the same PORT (SO_REUSEADDR) number
 		 * only if it is a well know L4 port (TCP or UDP MC/UC)
