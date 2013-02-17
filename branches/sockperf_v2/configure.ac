@@ -125,11 +125,11 @@ AC_ARG_ENABLE(
 if test x$enable_debug = xyes; then
     TARGET_BUILD=dbg
     CXXFLAGS="$CXXFLAGS -g -D_DEBUG -DDEBUG"
-	CFLAGS="$CFLAGS -g -O3"
+	CFLAGS="$CFLAGS -g -D_DEBUG -DDEBUG"
 else
     TARGET_BUILD=rls
     CXXFLAGS="$CXXFLAGS -O3 -DNDEBUG"
-	CFLAGS="$CFLAGS -O3"
+	CFLAGS="$CFLAGS -O3 -DNDEBUG"
 fi
 
 
@@ -141,8 +141,8 @@ AC_ARG_ENABLE(
     AC_HELP_STRING([--enable-debuginfo],
                    [SOCKPERF: include debug information (default=no)]))
 if test x$enable_debuginfo = xyes; then
-    CXXFLAGS="$CXXFLAGS -g"
-	CFLAGS="$CFLAGS -g"
+    CXXFLAGS="$CXXFLAGS -g -O3"
+	CFLAGS="$CFLAGS -g -O3"
 fi
 
 ##########################
