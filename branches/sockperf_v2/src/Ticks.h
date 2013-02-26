@@ -99,30 +99,16 @@ with simple integral values. The following describes these calculations:
 #include <stdint.h>// for int64_t
 #include <stdlib.h>// for qsort
 
-typedef int64_t ticks_t;
+#include "ticks_os.h"
 
 // usefull constants
-static const int64_t NSEC_IN_SEC  = 1000*1000*1000;
 static const int64_t USEC_IN_SEC  = 1000*1000;
 static const int64_t NSEC_IN_MSEC = 1000*1000;
 
 //------------------------------------------------------------------------------
 // utility functions
 inline static int64_t timeval2nsec (const struct timeval  &_val) { return NSEC_IN_SEC*_val.tv_sec + 1000*_val.tv_usec; }
-inline static int64_t timespec2nsec(const struct timespec &_val) { return NSEC_IN_SEC*_val.tv_sec + _val.tv_nsec; }
-typedef unsigned long long tscval_t;
-tscval_t get_tsc_rate_per_second();
-static inline tscval_t gettimeoftsc()
-{
-	register uint32_t upper_32, lower_32;
-
-	// ReaD Time Stamp Counter (RDTCS)
-	__asm__ __volatile__("rdtsc" : "=a" (lower_32), "=d" (upper_32));
-
-	// Return to user
-	return (((tscval_t)upper_32) << 32) | lower_32;
-}
-
+ticks_t get_tsc_rate_per_second();
 
 //------------------------------------------------------------------------------
 // forward declaration of classes in this file
@@ -156,7 +142,7 @@ protected:
 	virtual ~TicksImplRdtsc() {}
 	static ticks_t nsec2ticks(int64_t _val) {if (_val < MAX_MSEC_CONVERT) return nsec2ticks_smallNamubers(_val); else return (ticks_t)_val/NSEC_IN_MSEC*TICKS_PER_MSEC + nsec2ticks_smallNamubers(_val%NSEC_IN_MSEC);}
 	static int64_t ticks2nsec(ticks_t _val) {if (_val < MAX_MSEC_CONVERT) return ticks2nsec_smallNamubers(_val); else return (int64_t)_val/TICKS_PER_MSEC*NSEC_IN_MSEC + ticks2nsec_smallNamubers(_val%TICKS_PER_MSEC);}
-	static ticks_t getCurrentTicks()  {return (ticks_t)gettimeoftsc() - BASE_TICKS;}
+	static ticks_t getCurrentTicks()  {return os_gettimeoftsc() - BASE_TICKS;}
 
 	//these methods may overflow in conversions for values greater than 1 million seconds ( > 10 days)
 	inline static ticks_t nsec2ticks_smallNamubers(int64_t _val) {return (ticks_t)_val*TICKS_PER_MSEC/NSEC_IN_MSEC;}
@@ -176,13 +162,7 @@ protected:
 	virtual ~TicksImplClock() {}
 	static ticks_t nsec2ticks(int64_t _val) {return (ticks_t) _val;}
 	static int64_t ticks2nsec(ticks_t _val) {return (int64_t) _val;}
-	static ticks_t getCurrentTicks()  /* may throw exception in case clock_gettime fail */  {
-		struct timespec ts;
-		if (clock_gettime(CLOCK_MONOTONIC, &ts)) {
-			doThrow("clock_gettime", __FILE__, __LINE__);
-		}
-		return (ticks_t)timespec2nsec(ts);
-	}
+	static ticks_t getCurrentTicks()  {return os_gettimeofclock();}
 
 	//------------------------------------------------------------------------------
 	//utility function for throwing exception related to this class (no need to inline it)
@@ -280,14 +260,14 @@ public:
 	//------------------------------------------------------------------------------
 	inline void toTimespec(struct timespec &_val) const {
 		int64_t nsec = toNsec();
-		_val.tv_sec  = nsec / NSEC_IN_SEC;
-		_val.tv_nsec = nsec % NSEC_IN_SEC;
+		_val.tv_sec  = (long)(nsec / NSEC_IN_SEC);
+		_val.tv_nsec = (long)(nsec % NSEC_IN_SEC);
 	}
 	//------------------------------------------------------------------------------
 	inline void toTimeval(struct timeval &_val) const {
 		int64_t usec  = toUsec();
-		_val.tv_sec   = usec / (USEC_IN_SEC);
-		_val.tv_usec  = usec % (USEC_IN_SEC);
+		_val.tv_sec   = (long)(usec / (USEC_IN_SEC));
+		_val.tv_usec  = (long)(usec % (USEC_IN_SEC));
 	}
 
 	//------------------------------------------------------------------------------

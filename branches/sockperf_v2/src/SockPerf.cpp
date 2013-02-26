@@ -3121,10 +3121,10 @@ s_user_params.daemonize,
 		for (int i = 0; i < SIZE; i++)
 			end.setNow();
 		log_dbg("+INFO: taking time, using the given settings, consumes %.3lf nsec", (double)(end-start).toNsec()/SIZE);
-		tscval_t tstart, tend;
-		tstart = gettimeoftsc();
+		ticks_t tstart, tend;
+		tstart = os_gettimeoftsc();
 		for (int i = 0; i < SIZE; i++)
-			tend = gettimeoftsc();
+			tend = os_gettimeoftsc();
 		double tdelta = (double)tend - (double)tstart;
 		double ticks_per_second = get_tsc_rate_per_second();
 		log_dbg("+INFO: taking rdtsc directly consumes %.3lf nsec", tdelta / SIZE * 1000*1000*1000 / ticks_per_second );
