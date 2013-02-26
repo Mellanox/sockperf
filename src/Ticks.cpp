@@ -42,7 +42,9 @@
 
 
 #include "clock.h"
+#ifndef WIN32
 #include <unistd.h> // for usleep
+#endif
 /**
  * RDTSC extensions
  */
@@ -57,20 +59,20 @@
  * Calibrate RDTSC with CPU speed
  * @return number of tsc ticks per second
  */
-tscval_t get_tsc_rate_per_second()
+ticks_t get_tsc_rate_per_second()
 {
-	static tscval_t tsc_per_second = TSCVAL_INITIALIZER;
+	static ticks_t tsc_per_second = TSCVAL_INITIALIZER;
 	if (!tsc_per_second) {
 		uint64_t delta_usec;
 		timespec ts_before, ts_after, ts_delta;
-		tscval_t tsc_before, tsc_after, tsc_delta;
+		ticks_t tsc_before, tsc_after, tsc_delta;
 
 		// Measure the time actually slept because usleep() is very inaccurate.
-		clock_gettime(CLOCK_MONOTONIC, &ts_before);
-		tsc_before = gettimeoftsc();
+		os_ts_gettimeofclock(&ts_before);
+		tsc_before = os_gettimeoftsc();
 		usleep(100000);//0.1 sec
-		clock_gettime(CLOCK_MONOTONIC, &ts_after);
-		tsc_after = gettimeoftsc();
+		os_ts_gettimeofclock(&ts_after);
+		tsc_after = os_gettimeoftsc();
 
 		// Calc delta's
 		tsc_delta = tsc_after - tsc_before;
@@ -89,7 +91,7 @@ tscval_t get_tsc_rate_per_second()
 const int64_t TicksImplRdtsc::TICKS_PER_SEC = get_tsc_rate_per_second();
 const int64_t TicksImplRdtsc::TICKS_PER_MSEC = (TicksImplRdtsc::TICKS_PER_SEC+500)/1000;
 const int64_t TicksImplRdtsc::MAX_MSEC_CONVERT = TICKS_PER_MSEC > NSEC_IN_MSEC  ? INT64_MAX / TICKS_PER_MSEC : INT64_MAX / NSEC_IN_MSEC;
-const ticks_t TicksImplRdtsc::BASE_TICKS = gettimeoftsc();
+const ticks_t TicksImplRdtsc::BASE_TICKS = os_gettimeoftsc();
 
 const TicksDuration TicksDuration::TICKS0(0, 0); //call the non inline CTOR from slow path
 const TicksDuration TicksDuration::TICKS1USEC (1000, 0); //call the non inline CTOR from slow path
@@ -150,7 +152,7 @@ public:
 	double ticks = 0;
 
 	for (size_t i = 0; i < size; i++) {
-		ticks = pArr[i].m_ticks;
+		ticks = (double)pArr[i].m_ticks;
 		sum += ticks;
 		sum_sqr += ticks*ticks;
 	}

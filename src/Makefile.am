@@ -30,6 +30,7 @@ noinst_HEADERS = \
 	Playback.h \
 	Server.h \
 	Ticks.h \
+	ticks_os.h \
 	vma-redirect.h
 
 sockperf_SOURCES = \
@@ -59,4 +60,5 @@ EXTRA_DIST = \
 	Playback.h \
 	Server.h \
 	Ticks.h \
+	ticks_os.h \
 	vma-redirect.h
