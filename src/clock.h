@@ -32,16 +32,6 @@
 
 #include <sys/time.h>
 
-static inline int gettime(struct timespec *ts)
-{
-	return clock_gettime(CLOCK_MONOTONIC, ts);
-}
-
-static inline int gettime(struct timeval *tv)
-{
-	return gettimeofday(tv, NULL);
-}
-
 
 /* 
  * Parameters used to convert the time values:
