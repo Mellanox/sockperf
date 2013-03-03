@@ -33,6 +33,7 @@
 #include <stdexcept>
 #include <cassert>
 #include <stdint.h>// for uint64_t
+#include "os_abstract.h"
 
 // Using pack() pragma set needed alignment
 #pragma pack( push, 2 )

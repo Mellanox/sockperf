@@ -135,7 +135,7 @@ int IoSelect::prepareNetwork()
 
 	return rc;
 }
-
+#ifndef WIN32
 //==============================================================================
 //------------------------------------------------------------------------------
 IoPoll::IoPoll(int _fd_min, int _fd_max, int _fd_num) : IoHandler(_fd_min, _fd_max, _fd_num, 0, _fd_num)
@@ -248,3 +248,4 @@ int IoEpoll::prepareNetwork()
 
 	return rc;
 }
+#endif
