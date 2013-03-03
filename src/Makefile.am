@@ -24,6 +24,7 @@ noinst_HEADERS = \
 	Client.h \
 	common.h \
 	Defs.h \
+	os_abstract.h \
 	IoHandlers.h \
 	Message.h \
 	PacketTimes.h \
@@ -38,6 +39,7 @@ sockperf_SOURCES = \
 	Client.cpp \
 	common.cpp \
 	Defs.cpp \
+	os_abstract.cpp \
 	IoHandlers.cpp \
 	Message.cpp \
 	PacketTimes.cpp \
@@ -54,6 +56,7 @@ EXTRA_DIST = \
 	Client.h \
 	common.h \
 	Defs.h \
+	os_abstract.h \
 	IoHandlers.h \
 	Message.h \
 	PacketTimes.h \
