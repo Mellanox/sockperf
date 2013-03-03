@@ -99,7 +99,7 @@ public:
 					/* process active sockets in case TCP (listen sockets are set in prepareNetwork()) and
 					 * skip active socket in case UDP (it is the same with set in prepareNetwork())
 					 */
-					if (active_fd_list[i] != INVALID_SOCKET) {
+					if (active_fd_list[i] != (int)INVALID_SOCKET) {
 						if (active_fd_list[i] != ifd) {
 							FD_SET(active_fd_list[i], &m_save_fds);
 							m_look_start = min(m_look_start, active_fd_list[i]);
@@ -141,6 +141,7 @@ private:
 	fd_set m_readfds, m_save_fds;
 };
 
+#ifndef WIN32
 //==============================================================================
 class IoPoll: public IoHandler {
 public:
@@ -167,7 +168,7 @@ public:
             			/* process active sockets in case TCP (listen sockets are set in prepareNetwork()) and
              	 	 	 * skip active socket in case UDP (it is the same with set in prepareNetwork())
              		 	 */
-            			if (active_fd_list[i] != INVALID_SOCKET) {
+            			if (active_fd_list[i] != (int)INVALID_SOCKET) {
                 			if (active_fd_list[i] != ifd) {
                     				mp_poll_fd_arr[m_look_end].fd = active_fd_list[i];
                     				mp_poll_fd_arr[m_look_end].events = POLLIN | POLLPRI;
@@ -243,7 +244,7 @@ public:
             		/* process active sockets in case TCP (listen sockets are set in prepareNetwork()) and
             		 * skip active socket in case UDP (it is the same with set in prepareNetwork())
             		 */
-            		if (active_fd_list[i] != INVALID_SOCKET) {
+            		if (active_fd_list[i] != (int)INVALID_SOCKET) {
                 		if (active_fd_list[i] != ifd) {
                     		ev.data.fd = active_fd_list[i];
                     		ev.events = EPOLLIN | EPOLLPRI;
@@ -290,5 +291,6 @@ private:
 	int m_epfd;
 	int m_max_events;
 };
+#endif
 
 #endif /* IOHANDLERS_H_ */
