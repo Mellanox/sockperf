@@ -30,9 +30,6 @@
 #ifndef V_CLOCK_H
 #define V_CLOCK_H
 
-#include <sys/time.h>
-
-
 /* 
  * Parameters used to convert the time values:
  */

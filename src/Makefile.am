@@ -35,7 +35,7 @@ noinst_HEADERS = \
 	vma-redirect.h
 
 sockperf_SOURCES = \
-	aopt.c \
+	aopt.cpp \
 	Client.cpp \
 	common.cpp \
 	Defs.cpp \
