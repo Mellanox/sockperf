@@ -102,8 +102,8 @@ public:
 					if (active_fd_list[i] != (int)INVALID_SOCKET) {
 						if (active_fd_list[i] != ifd) {
 							FD_SET(active_fd_list[i], &m_save_fds);
-							m_look_start = min(m_look_start, active_fd_list[i]);
-							m_look_end = max(m_look_end, active_fd_list[i]);
+							m_look_start = _min(m_look_start, active_fd_list[i]);
+							m_look_end = _max(m_look_end, active_fd_list[i]);
 
 							/* it is possible to set the same socket */
 							errno = 0;

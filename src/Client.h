@@ -50,7 +50,7 @@ protected:
 template <class IoType, class SwitchDataIntegrity, class SwitchActivityInfo, class SwitchCycleDuration, class SwitchMsgSize , class PongModeCare >
 class Client : public ClientBase{
 private:
-	pthread_t m_receiverTid;
+	os_thread_t m_receiverTid;
 	IoType m_ioHandler;
 	addr_to_id   m_ServerList;
 
@@ -93,7 +93,7 @@ private:
 					serverNo = -1;
 				}
 				else {
-					serverNo = m_ServerList.size();
+					serverNo = (int)m_ServerList.size();
 					std::pair<addr_to_id::iterator, bool> ret = m_ServerList.insert(addr_to_id::value_type(recvfrom_addr->sin_addr, m_ServerList.size()));
 					if (!ret.second) {
 						log_err("Failed to insert new server.");
@@ -102,7 +102,7 @@ private:
 				}
 			}
 			else {
-				serverNo = itr->second;
+				serverNo = (int)itr->second;
 			}
 		}
 
@@ -290,7 +290,7 @@ private:
 						m_recived--;
 					}
 					unsigned int recieved_packets = client_receive_from_selected(actual_fd/*, packet_cnt_index*/);
-					if ( (0 == recieved_packets) && (errno == EAGAIN))
+					if ( (0 == recieved_packets) && (os_err_eagain()))
 					{
 						break ;
 					}

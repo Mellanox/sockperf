@@ -127,7 +127,7 @@ void close_ifd(int fd,int ifd,fds_data* l_fds_ifd){
 			print_log_dbg( l_fds_ifd->server_addr.sin_addr, l_fds_ifd->server_addr.sin_port, ifd);
 			close(ifd);
 			l_next_fd->active_fd_count--;
-			l_next_fd->active_fd_list[i] = INVALID_SOCKET;
+			l_next_fd->active_fd_list[i] = (int)INVALID_SOCKET;// TODO: use SOCKET all over the way and avoid this cast
 			if (g_fds_array[ifd]->active_fd_list) {
 				FREE(g_fds_array[ifd]->active_fd_list);
 			}

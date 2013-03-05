@@ -29,6 +29,34 @@
 #ifndef DEFS_H_
 #define DEFS_H_
 
+#include <stdlib.h>		/* random()*/
+#include <string.h>
+#include <stdio.h>
+#include <stdarg.h>
+#include <assert.h>
+#include <signal.h>
+#include <time.h>		/* clock_gettime()*/
+#include <ctype.h>		/* isprint()*/
+#include <errno.h>
+#include <fcntl.h>
+#include <sys/types.h>		/* sockets*/
+
+#include "Ticks.h"
+#include "Message.h"
+#include "Playback.h"
+
+#define __STDC_FORMAT_MACROS
+
+#ifdef WIN32
+#include <WS2tcpip.h>
+#include <sys/types.h>
+#include <unordered_map>
+#include <Winbase.h>
+
+typedef uint16_t in_port_t;
+
+#else
+
 #include <features.h>
 #if  (__GLIBC__ > 2) || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 2)
 #include <bits/types.h>
@@ -37,27 +65,14 @@
 #endif
 
 #include "vma-redirect.h"
-
 #include <stdbool.h>
 #include <stdint.h>
 #include <tr1/unordered_map>
-#include <stdlib.h>		/* random()*/
-#include <string.h>
-#include <stdio.h>
-#include <stdarg.h>
-#include <assert.h>
-#include <signal.h>
-#include <time.h>		/* clock_gettime()*/
 #include <unistd.h>		/* getopt() and sleep()*/
-#define __STDC_FORMAT_MACROS
-#include <inttypes.h>	/* printf PRItn */
-#include <ctype.h>		/* isprint()*/
+#include <inttypes.h>		/* printf PRItn */
 #include <regex.h>
 #include <poll.h>
-#include <errno.h>
-#include <fcntl.h>
 #include <pthread.h>
-#include <sys/types.h>		/* sockets*/
 #include <sys/time.h>		/* timers*/
 #include <sys/socket.h>		/* sockets*/
 #include <sys/select.h>		/* select() According to POSIX 1003.1-2001 */
@@ -65,12 +80,11 @@
 #include <sys/syscall.h>
 #include <arpa/inet.h>		/* internet address manipulation */
 #include <netinet/in.h>		/* internet address manipulation */
-#include <netdb.h>			/* gethostbyname() */
+#include <netdb.h>		/* gethostbyname() */
 #include <netinet/tcp.h>	/* tcp specific */
-#include "Ticks.h"
-#include "Message.h"
-#include "Playback.h"
 #include <sys/resource.h>
+
+#endif
 
 
 //#define USING_VMA_EXTRA_API
@@ -122,7 +136,7 @@ extern const int MAX_FDS_NUM;
 #define SOCK_BUFF_DEFAULT_SIZE 		0
 #define DEFAULT_SELECT_TIMEOUT_MSEC	10
 #define DEFAULT_DEBUG_LEVEL			0
-#define INVALID_SOCKET 				(-1)
+
 
 enum {
 	OPT_RX_MC_IF 			 = 1,
@@ -166,19 +180,19 @@ enum {
 #define MODULE_NAME			"sockperf"
 #define MODULE_COPYRIGHT	"Copyright (C) 2011 Mellanox Technologies Ltd." \
 	"\nSockPerf is open source software, see http://sockperf.googlecode.com/"
-#define log_msg(log_fmt, log_args...)	printf(MODULE_NAME ": " log_fmt "\n", ##log_args)
-#define log_msg_file(file, log_fmt, log_args...)	fprintf(file, MODULE_NAME ": " log_fmt "\n", ##log_args)
-#define log_msg_file2(file, log_fmt, log_args...)	if (1) {log_msg(log_fmt, ##log_args); if (file) log_msg_file(file, log_fmt, ##log_args);} else
+#define log_msg(log_fmt, ...)	printf(MODULE_NAME ": " log_fmt "\n", ##__VA_ARGS__)
+#define log_msg_file(file, log_fmt, ...)	fprintf(file, MODULE_NAME ": " log_fmt "\n", ##__VA_ARGS__)
+#define log_msg_file2(file, log_fmt, ...)	if (1) {log_msg(log_fmt, ##__VA_ARGS__); if (file) log_msg_file(file, log_fmt, ##__VA_ARGS__);} else
 
-#define log_err(log_fmt, log_args...)	printf("sockperf: ERROR: " log_fmt " (errno=%d %s)\n", ##log_args, errno, strerror(errno))
+#define log_err(log_fmt, ...)	printf("sockperf: ERROR: " log_fmt " (errno=%d %s)\n", ##__VA_ARGS__, errno, strerror(errno))
 #ifdef DEBUG
 #undef log_err
-#define log_err(log_fmt, log_args...)	printf(MODULE_NAME ": " "%s:%d:ERROR: " log_fmt " (errno=%d %s)\n", __FILE__, __LINE__, ##log_args, errno, strerror(errno))
+#define log_err(log_fmt, ...)	printf(MODULE_NAME ": " "%s:%d:ERROR: " log_fmt " (errno=%d %s)\n", __FILE__, __LINE__, ##__VA_ARGS__, errno, strerror(errno))
 #endif
-#define log_dbg(log_fmt, log_args...)	if (g_debug_level >= LOG_LVL_DEBUG) { printf(MODULE_NAME ": " log_fmt "\n", ##log_args); } else
+#define log_dbg(log_fmt, ...)	if (g_debug_level >= LOG_LVL_DEBUG) { printf(MODULE_NAME ": " log_fmt "\n", ##__VA_ARGS__); } else
 
 #define TRACE(msg) log_msg("TRACE <%s>: %s() %s:%d\n", msg, __func__, __FILE__, __LINE__)
-#define ERROR(msg) if (1) {TRACE(msg); exit_with_log (-1);} else
+#define ERROR_MSG(msg) if (1) {TRACE(msg); exit_with_log (-1);} else
 
 #define QUOTE(name) #name
 #define STR(macro) QUOTE(macro)
@@ -306,22 +320,22 @@ typedef enum
  * @brief Multi-threading Synchronization operations.
  */
 /** @{ */
-	#define CRITICAL_SECTION        pthread_mutex_t
+	#define CRITICAL_SECTION        os_mutex_t
 	#if defined(_GNU_SOURCE)
 		#define INIT_CRITICAL(x)    \
 									{ \
 										pthread_mutexattr_t attr; \
 										pthread_mutexattr_init(&attr); \
 										pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_DEFAULT); \
-										pthread_mutex_init(x, &attr); \
+										pthread_mutex_init(x.mutex, &attr); \
 										pthread_mutexattr_destroy(&attr); \
 									}
 	#else
-		#define INIT_CRITICAL(x)    pthread_mutex_init(x, NULL)
+		#define INIT_CRITICAL(x)    os_mutex_init(x)
 	#endif
-	#define DELETE_CRITICAL(x)      pthread_mutex_destroy(x)
-	#define DBG_ENTER_CRITICAL(x)   pthread_mutex_lock(x)
-	#define DBG_LEAVE_CRITICAL(x)   pthread_mutex_unlock(x)
+	#define DELETE_CRITICAL(x)      os_mutex_close(x)
+	#define DBG_ENTER_CRITICAL(x)   os_mutex_lock(x)
+	#define DBG_LEAVE_CRITICAL(x)   os_mutex_unlock(x)
 
     /* Debugging Multi-threading operations. */
 	#if defined(LOG_LOCK_CHECK) && (LOG_LOCK_CHECK==TRUE)
@@ -424,8 +438,10 @@ typedef struct clt_session_info {
 //hash/equal_to functions, by ourself.
 namespace std
 {
+#ifndef WIN32
 	namespace tr1
 	{
+#endif
 		template<>
 		struct hash<struct sockaddr_in> : public std::unary_function<struct sockaddr_in, int>
 		    {
@@ -454,8 +470,9 @@ namespace std
 				return key.s_addr & 0xFF;
 			}
 		};
-	}
-
+#ifndef WIN32
+	} // closes namespace tr1
+#endif
 	template<>
 	struct equal_to<struct sockaddr_in>: public std::binary_function<struct sockaddr_in, struct sockaddr_in, bool>
 	{
@@ -485,7 +502,7 @@ namespace std
 }
 
 typedef std::tr1::unordered_map<struct sockaddr_in, clt_session_info_t> seq_num_map;
-typedef std::tr1::unordered_map<struct in_addr, int> addr_to_id;
+typedef std::tr1::unordered_map<struct in_addr, size_t> addr_to_id;
 
 extern fds_data** g_fds_array;
 extern int IGMP_MAX_MEMBERSHIPS;
@@ -493,9 +510,6 @@ extern int IGMP_MAX_MEMBERSHIPS;
 #ifdef  USING_VMA_EXTRA_API
 extern struct vma_api_t *g_vma_api;
 #endif
-
-#define max(x,y)	({typeof(x) _x = (x); typeof(y) _y = (y); (void)(&_x == &_y); _x > _y ? _x : _y; })
-#define min(x,y)	({typeof(x) _x = (x); typeof(y) _y = (y); (void)(&_x == &_y); _x < _y ? _x : _y; })
 
 typedef enum {
 	MODE_CLIENT = 0,

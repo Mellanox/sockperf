@@ -61,9 +61,9 @@ public:
 	SwitchOnMsgSize() {
 		assert(g_pApp);
 
-	    m_min_msg_size = max(MIN_PAYLOAD_SIZE,
+	    m_min_msg_size = _max(MIN_PAYLOAD_SIZE,
 	    		g_pApp->m_const_params.msg_size - g_pApp->m_const_params.msg_size_range);
-	    m_range_msg_size = min(MAX_PAYLOAD_SIZE,
+	    m_range_msg_size = _min(MAX_PAYLOAD_SIZE,
 	    		g_pApp->m_const_params.msg_size + g_pApp->m_const_params.msg_size_range) -
 	    		m_min_msg_size + 1;
 	}
@@ -71,7 +71,7 @@ public:
 
 private:
 	inline void client_update_msg_size(Message *pMsgRequest) {
-	    int m_msg_size = min(MAX_PAYLOAD_SIZE, (m_min_msg_size + (int)(rand() % m_range_msg_size)));
+	    int m_msg_size = _min(MAX_PAYLOAD_SIZE, (m_min_msg_size + (int)(rand() % m_range_msg_size)));
 	    pMsgRequest->setLength(m_msg_size);
 	}
 	int m_min_msg_size;

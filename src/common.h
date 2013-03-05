@@ -36,16 +36,13 @@
 //------------------------------------------------------------------------------
 void recvfromError(int fd);//take out error code from inline function
 void sendtoError(int fd, int nbytes, const struct sockaddr_in *sendto_addr);//take out error code from inline function
-void printf_backtrace(void);
-pid_t gettid(void);
 void exit_with_log(int status);
 void exit_with_log(const char* error,int status);
 void exit_with_log(const char* error, int status, fds_data* fds);
 void exit_with_err(const char* error, int status);
 void print_log_dbg(struct in_addr sin_addr,in_port_t sin_port, int ifd);
 
-int set_affinity_list(pthread_t tid, const char * cpu_list);
-int set_affinity(pthread_t tid, int cpu);
+int set_affinity_list(os_thread_t thread, const char * cpu_list);
 void hexdump(void *ptr, int buflen);
 const char* handler2str( fd_block_handler_t type );
 int read_int_from_sys_file(const char *path);
@@ -95,7 +92,9 @@ static inline int msg_recvfrom(int fd, uint8_t* buf, int nbytes, struct sockaddr
 	        the MSG_NOSIGNAL flag.
 	        Note: another way is call signal (SIGPIPE,SIG_IGN);
 	     */
+#ifndef WIN32
 		flags = MSG_NOSIGNAL;
+#endif
 
 		ret = recvfrom(fd, buf, nbytes, flags, (struct sockaddr*)recvfrom_addr, &size);
 
@@ -114,7 +113,7 @@ static inline int msg_recvfrom(int fd, uint8_t* buf, int nbytes, struct sockaddr
 #endif /* LOG_TRACE_RECV */
 	}
 
-	if (ret == 0 || errno == EPIPE || errno == ECONNRESET) {
+	if (ret == 0 || errno == EPIPE || os_err_conn_reset()) {
 		/* If no messages are available to be received and the peer has performed an orderly shutdown,
 		 * recv()/recvfrom() shall return 0
 		 * */
@@ -125,7 +124,7 @@ static inline int msg_recvfrom(int fd, uint8_t* buf, int nbytes, struct sockaddr
 	 * ret value less than MsgHeader::EFFECTIVE_SIZE
 	 * is bad case for UDP so error could be actual but it is possible value for TCP
 	 */
-	else if (ret < 0 && errno != EAGAIN && errno != EINTR) {
+	else if (ret < 0 && !os_err_eagain() && errno != EINTR) {
 		recvfromError(fd);
 	}
 
@@ -151,6 +150,7 @@ static inline int msg_sendto(int fd, uint8_t* buf, int nbytes, const struct sock
 	 * the MSG_NOSIGNAL flag.
 	 * Note: another way is call signal (SIGPIPE,SIG_IGN);
      */
+#ifndef WIN32
 	flags = MSG_NOSIGNAL;
 
 	/*
@@ -162,6 +162,7 @@ static inline int msg_sendto(int fd, uint8_t* buf, int nbytes, const struct sock
 	if (g_pApp->m_const_params.is_nonblocked_send) {
 		flags |= MSG_DONTWAIT;
 	}
+#endif
 
     int size = nbytes;
 
@@ -182,7 +183,7 @@ static inline int msg_sendto(int fd, uint8_t* buf, int nbytes, const struct sock
 			buf += ret;
 			ret = size;
 		}
-		else if (ret == 0 || errno == EPIPE || errno == ECONNRESET) {
+		else if (ret == 0 || errno == EPIPE || os_err_conn_reset()) {
 			/* If no messages are available to be received and the peer has performed an orderly shutdown,
 			 * send()/sendto() shall return (RET_SOCKET_SHUTDOWN)
 			 */
@@ -190,7 +191,7 @@ static inline int msg_sendto(int fd, uint8_t* buf, int nbytes, const struct sock
 			ret = RET_SOCKET_SHUTDOWN;
 			break;
 		}
-		else if (ret < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
+		else if (ret < 0 && (os_err_eagain() || errno == EWOULDBLOCK)) {
 			/* If space is not available at the sending socket to hold the message to be transmitted and
 			 * the socket file descriptor does have O_NONBLOCK set and
 			 * no bytes related message sent before
