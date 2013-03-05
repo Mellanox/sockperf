@@ -73,7 +73,7 @@ void printPercentiles(FILE* f, TicksDuration* pLat, size_t size)
 	int num = sizeof(percentile)/sizeof(percentile[0]);
 	double observationsInPercentile = (double)size/100;
 
-	log_msg_file2(f, "\e[2;35mTotal %lu observations\e[0m; each percentile contains %.2lf observations", (long unsigned)size, observationsInPercentile);
+	log_msg_file2(f, MAGNETA "Total %lu observations" ENDCOLOR "; each percentile contains %.2lf observations", (long unsigned)size, observationsInPercentile);
 
 	log_msg_file2(f, "---> <MAX> observation = %8.3lf", pLat[size-1].toDecimalUsec());
 	for (int i = 0; i < num; i++) {
@@ -230,18 +230,18 @@ void client_statistics(int serverNo, Message *pMsgRequest)
 		log_msg_file2(f, "[Valid Duration] RunTime=%.3lf sec; SentMessages=%" PRIu64 "; ReceivedMessages=%" PRIu64 "",
 				validRunTime.toDecimalUsec()/1000000, (endValidSeqNo - startValidSeqNo + 1), (uint64_t)counter);
 
-		TicksDuration avgRtt = counter ? sumRtt / counter : TicksDuration::TICKS0 ;
+		TicksDuration avgRtt = counter ? sumRtt / (int)counter : TicksDuration::TICKS0 ;
 		TicksDuration avgLatency = avgRtt / 2;
 
 		TicksDuration stdDev = TicksDuration::stdDev(pLat, counter);
-		log_msg_file2(f, "\e[2;35m====> avg-lat=%7.3lf (std-dev=%.3lf)\e[0m", avgLatency.toDecimalUsec(), stdDev.toDecimalUsec());
+		log_msg_file2(f, MAGNETA "====> avg-lat=%7.3lf (std-dev=%.3lf)" ENDCOLOR, avgLatency.toDecimalUsec(), stdDev.toDecimalUsec());
 
 		/* Display ERROR statistic */
 		bool isColor = (g_pPacketTimes->getDroppedCount(SERVER_NO) ||
 				        g_pPacketTimes->getDupCount(SERVER_NO) ||
 				        g_pPacketTimes->getOooCount(SERVER_NO));
-		const char* colorRedStr   = isColor ? "\e[0;31m" : "";
-		const char* colorResetStr = isColor ? "\e[0m" : "";
+		const char* colorRedStr   = isColor ? RED : "";
+		const char* colorResetStr = isColor ? ENDCOLOR : "";
 		log_msg_file2(f, "%s# dropped messages = %lu; # duplicated messages = %lu; # out-of-order messages = %lu%s"
 				, colorRedStr
 				, (long unsigned)g_pPacketTimes->getDroppedCount(SERVER_NO)
@@ -285,22 +285,22 @@ void stream_statistics(Message *pMsgRequest)
 	}
 	if (g_pApp->m_const_params.mps != MPS_MAX) {
 		if (g_pApp->m_const_params.msg_size_range)
-			log_msg("\e[2;35mNOTE: test was performed, using average msg-size=%d (+/-%d), mps=%u. For getting maximum throughput use --mps=max (and consider --msg-size=1472 or --msg-size=4096)\e[0m",
+			log_msg( MAGNETA "NOTE: test was performed, using average msg-size=%d (+/-%d), mps=%u. For getting maximum throughput use --mps=max (and consider --msg-size=1472 or --msg-size=4096" ENDCOLOR,
 					g_pApp->m_const_params.msg_size,
 					g_pApp->m_const_params.msg_size_range,
 					g_pApp->m_const_params.mps);
 		else
-			log_msg("\e[2;35mNOTE: test was performed, using msg-size=%d, mps=%u. For getting maximum throughput use --mps=max (and consider --msg-size=1472 or --msg-size=4096)\e[0m",
+			log_msg( MAGNETA "NOTE: test was performed, using msg-size=%d, mps=%u. For getting maximum throughput use --mps=max (and consider --msg-size=1472 or --msg-size=4096)" ENDCOLOR,
 					g_pApp->m_const_params.msg_size,
 					g_pApp->m_const_params.mps);
 	}
 	else if (g_pApp->m_const_params.msg_size != 1472) {
 		if (g_pApp->m_const_params.msg_size_range)
-			log_msg("\e[2;35mNOTE: test was performed, using average msg-size=%d (+/-%d). For getting maximum throughput consider using --msg-size=1472\e[0m",
+			log_msg( MAGNETA "NOTE: test was performed, using average msg-size=%d (+/-%d). For getting maximum throughput consider using --msg-size=1472" ENDCOLOR,
 					g_pApp->m_const_params.msg_size,
 					g_pApp->m_const_params.msg_size_range);
 		else
-			log_msg("\e[2;35mNOTE: test was performed, using msg-size=%d. For getting maximum throughput consider using --msg-size=1472\e[0m",
+			log_msg( MAGNETA "NOTE: test was performed, using msg-size=%d. For getting maximum throughput consider using --msg-size=1472" ENDCOLOR,
 					g_pApp->m_const_params.msg_size);
 	}
 
@@ -377,10 +377,10 @@ ClientBase::~ClientBase()
 template <class IoType, class SwitchDataIntegrity, class SwitchActivityInfo, class SwitchCycleDuration, class SwitchMsgSize , class PongModeCare >
 Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration, SwitchMsgSize , PongModeCare>::Client(int _fd_min, int _fd_max, int _fd_num):
 	ClientBase(),
-	m_receiverTid(0),
 	m_ioHandler(_fd_min, _fd_max, _fd_num),
 	m_pongModeCare(m_pMsgRequest)
 {
+	os_thread_init (&m_receiverTid);
 }
 
 //------------------------------------------------------------------------------
@@ -412,10 +412,11 @@ void Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration
 ::cleanupAfterLoop()
 {
 	usleep(100*1000);//0.1 sec - wait for rx packets for last sends (in normal flow)
-	if (m_receiverTid) {
-		pthread_kill(m_receiverTid, SIGINT);
-		//pthread_join(m_receiverTid, 0);
-		pthread_detach(m_receiverTid); // just for silenting valgrind's "possibly lost: 288 bytes" in pthread_create
+	if (m_receiverTid.tid) {
+		os_thread_kill(&m_receiverTid);
+		//os_thread_join(&m_receiverTid);
+		os_thread_detach(&m_receiverTid); // just for silenting valgrind's "possibly lost: 288 bytes" in pthread_create
+		os_thread_close(&m_receiverTid);
 	}
 
 	if (g_b_errorOccured) return;  // cleanup started in other thread and triggerd termination of this thread
@@ -492,7 +493,7 @@ int Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration,
 			if (g_fds_array[ifd]->sock_type == SOCK_STREAM) {
 				log_dbg ("[fd=%d] Connecting to: %s:%d...", ifd, inet_ntoa(g_fds_array[ifd]->server_addr.sin_addr), ntohs(g_fds_array[ifd]->server_addr.sin_port));
 				if (connect(ifd, (struct sockaddr*)&(g_fds_array[ifd]->server_addr), sizeof(struct sockaddr)) < 0) {
-					if (errno == EINPROGRESS) {
+					if (os_err_in_progress()) {
 						fd_set rfds, wfds;
 						struct timeval tv;
 						tv.tv_sec = 0; tv.tv_usec = 500;
@@ -549,11 +550,11 @@ int Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration,
 
 			if (g_b_exit) return rc;
 
-			rc = set_affinity_list(pthread_self(), g_pApp->m_const_params.sender_affinity);
+			rc = set_affinity_list(os_getthread(), g_pApp->m_const_params.sender_affinity);
 			if (rc == SOCKPERF_ERR_NONE) {
 				if (!g_pApp->m_const_params.b_client_ping_pong && !g_pApp->m_const_params.b_stream) { // latency_under_load
-					if (0 != pthread_create(&m_receiverTid, 0, ::client_receiver_thread, this)){
-						log_err("pthread_create has failed");
+					if (0 != os_thread_exec(&m_receiverTid, ::client_receiver_thread, this)){
+						log_err("Creating thread has failed");
 						rc = SOCKPERF_ERR_FATAL;
 					}
 					else {
@@ -567,9 +568,8 @@ int Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration,
 					if (!g_pApp->m_const_params.pPlaybackVector) {
 						struct itimerval timer;
 						set_client_timer(&timer);
-						int ret = setitimer(ITIMER_REAL, &timer, NULL);
-						if (ret) {
-							log_err("setitimer()");
+						if (os_set_duration_timer(timer, client_sig_handler)) {
+							log_err("Failed setting test duration timer");
 							rc = SOCKPERF_ERR_FATAL;
 						}
 					}
@@ -745,6 +745,7 @@ void client_handler(handler_info *p_info)
 				client_handler<IoRecvfrom> (p_info->fd_min, p_info->fd_max, p_info->fd_num);
 				break;
 			}
+#ifndef WIN32
 			case POLL:
 			{
 				client_handler<IoPoll> (p_info->fd_min, p_info->fd_max, p_info->fd_num);
@@ -755,9 +756,10 @@ void client_handler(handler_info *p_info)
 				client_handler<IoEpoll> (p_info->fd_min, p_info->fd_max, p_info->fd_num);
 				break;
 			}
+#endif
 			default:
 			{
-				ERROR("unknown file handler");
+				ERROR_MSG("unknown file handler");
 				break;
 			}
 		}

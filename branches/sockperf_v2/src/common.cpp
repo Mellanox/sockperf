@@ -27,7 +27,6 @@
  *
  */
 #include "common.h"
-#include <execinfo.h>  // for backtrace
 
 extern void cleanup();
 
@@ -52,25 +51,6 @@ void sendtoError(int fd, int nbytes, const struct sockaddr_in *sendto_addr) {
 }
 
 //------------------------------------------------------------------------------
-pid_t gettid(void)
-{
-	return syscall(__NR_gettid);
-}
-
-//------------------------------------------------------------------------------
-void printf_backtrace(void)
-{
-	char **strings;
-	void* m_backtrace[25];
-	int m_backtrace_size = backtrace(m_backtrace, 25);
-	printf("sockperf: [tid: %d] ------\n", gettid());
-	strings = backtrace_symbols(m_backtrace, m_backtrace_size);
-	for (int i = 0; i < m_backtrace_size; i++)
-		printf("sockperf: [%i] %p: %s\n", i, m_backtrace[i], strings[i]);
-	free(strings);
-}
-
-//------------------------------------------------------------------------------
 void exit_with_log(int status)
 {
 	exit_with_log("program exits because of an error.", status);
@@ -83,9 +63,9 @@ void exit_with_log(const char* error, int status)
 	g_b_errorOccured = true;
 	g_b_exit = true;
 	cleanup();
-	#ifdef DEBUG
-		printf_backtrace();
-	#endif
+#ifdef DEBUG
+	os_printf_backtrace();
+#endif
 	exit(status);
 }
 
@@ -103,9 +83,9 @@ void exit_with_log(const char* error, int status, fds_data* fds)
 void exit_with_err(const char* error, int status)
 {
 	log_err("%s",error);
-	#ifdef DEBUG
-		printf_backtrace();
-	#endif
+#ifdef DEBUG
+	os_printf_backtrace();
+#endif
 	exit(status);
 }
 
@@ -116,7 +96,7 @@ void print_log_dbg ( struct in_addr sin_addr,in_port_t sin_port, int ifd)
 }
 
 //------------------------------------------------------------------------------
-int set_affinity_list(pthread_t tid, const char * cpu_list)
+int set_affinity_list(os_thread_t thread, const char * cpu_list)
 {
 	int rc = SOCKPERF_ERR_NONE;
 
@@ -127,9 +107,9 @@ int set_affinity_list(pthread_t tid, const char * cpu_list)
     	char * cur_buf = buf;
     	char * cur_ptr = buf;
     	char * end_ptr = NULL;
-    	cpu_set_t cpuset;
 
-		CPU_ZERO(&cpuset);
+    	os_cpuset_t mycpuset;
+    	os_init_cpuset(&mycpuset);
 
 		/* Parse cpu list */
 		while (cur_buf) {
@@ -174,10 +154,8 @@ int set_affinity_list(pthread_t tid, const char * cpu_list)
 			if ((cpu_from <= cpu_cur) && (cpu_cur < CPU_SETSIZE)) {
 				if (cpu_from == -1) cpu_from = cpu_cur;
 
-				while ((cpu_from <= cpu_cur)) {
-					CPU_SET(cpu_from, &cpuset);
-					cpu_from++;
-				}
+				os_cpu_set(&mycpuset, cpu_from, cpu_cur);
+
 				cpu_from = -1;
 			}
 			else {
@@ -186,35 +164,14 @@ int set_affinity_list(pthread_t tid, const char * cpu_list)
 				break;
 			}
 		}
-
-		if ( (rc == SOCKPERF_ERR_NONE) &&
-			 (0 != pthread_setaffinity_np(tid, sizeof(cpu_set_t), &cpuset)) )
+		if ( (rc == SOCKPERF_ERR_NONE) && os_set_affinity(thread, mycpuset))
 		{
-			log_err("pthread_setaffinity_np failed to set tid(%lu) to cpu(%s)", tid, cpu_list);
+			log_err("Set thread affinity failed to set tid(%lu) to cpu(%s)", thread.tid, cpu_list);
 			rc = SOCKPERF_ERR_FATAL;
 		}
 
 		if (buf) {
 			free(buf);
-		}
-	}
-
-	return rc;
-}
-
-//------------------------------------------------------------------------------
-int set_affinity(pthread_t tid, int cpu)
-{
-	int rc = SOCKPERF_ERR_NONE;
-
-	if (cpu != -1) {
-		cpu_set_t cpuset;
-		CPU_ZERO(&cpuset);
-		CPU_SET(cpu, &cpuset);
-		if (0 != pthread_setaffinity_np(tid, sizeof(cpu_set_t), &cpuset))
-		{
-			log_err("pthread_setaffinity_np failed to set tid(%lu) to cpu(%d)", tid, cpu);
-			rc = SOCKPERF_ERR_FATAL;
 		}
 	}
 
@@ -249,9 +206,12 @@ const char* handler2str( fd_block_handler_t type )
 	static const char* s_fds_handle_desc[FD_HANDLE_MAX] =
 	{
 		"recvfrom",
-		"select",
+		"select"
+#ifndef WIN32
+		,
 		"poll",
 		"epoll"
+#endif
 	};
 
 	return s_fds_handle_desc[type];

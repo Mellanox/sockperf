@@ -79,9 +79,12 @@
 #include "PacketTimes.h"
 #include "Switches.h"
 #include "aopt.h"
-#include <dlfcn.h>
 #include <stdio.h>
 #include <sys/stat.h>
+
+#ifndef WIN32
+#include <dlfcn.h>
+#endif
 
 // forward declarations from Client.cpp & Server.cpp
 extern void client_sig_handler(int signum);
@@ -90,6 +93,7 @@ extern void server_sig_handler(int signum);
 extern void server_handler(handler_info *);
 extern void server_select_per_thread(int fd_num);
 
+static bool sock_lib_started = 0; // 
 static int s_fd_max = 0;
 static int s_fd_min = 0;	/* used as THE fd when single mc group is given (RECVFROM blocked mode) */
 static int s_fd_num = 0;
@@ -136,7 +140,7 @@ static const struct app_modes
 	{ NULL,                 NULL,         aopt_set_string( NULL ), NULL }
 };
 
-pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+os_mutex_t _mutex;
 static int parse_common_opt( const AOPT_OBJECT * );
 static int parse_client_opt( const AOPT_OBJECT * );
 static char* display_opt( int, char *, size_t );
@@ -168,11 +172,19 @@ static const AOPT_DESC  common_opt_desc[] =
 	},
 	{
 		'F', AOPT_ARG, aopt_set_literal( 'F' ), aopt_set_string( "iomux-type" ),
+#ifndef WIN32
 		"Type of multiple file descriptors handle [s|select|p|poll|e|epoll|r|recvfrom](default select)."
+#else
+		"Type of multiple file descriptors handle [s|select|r|recvfrom](default select)."
+#endif
 	},
 	{
 		OPT_SELECT_TIMEOUT, AOPT_ARG, aopt_set_literal( 0 ), aopt_set_string( "timeout" ),
+#ifndef WIN32
 		"Set select/poll/epoll timeout to <msec>, -1 for infinite (default is 10 msec)."
+#else
+		"Set select timeout to <msec>, -1 for infinite (default is 10 msec)."
+#endif
 	},
 	{
 		'a', AOPT_ARG, aopt_set_literal( 'a' ), aopt_set_string( "activity" ),
@@ -211,14 +223,6 @@ static const AOPT_DESC  common_opt_desc[] =
 		"Set total socket receive/send buffer <size> in bytes (system defined by default)."
 	},
 	{
-		OPT_VMAZCOPYREAD, AOPT_NOARG, aopt_set_literal( 0 ), aopt_set_string( "vmazcopyread" ),
-		"If possible use VMA's zero copy reads API (See VMA's readme)."
-	},
-	{
-		OPT_DAEMONIZE, AOPT_NOARG, aopt_set_literal( 0 ), aopt_set_string( "daemonize" ),
-		"Run as daemon."
-	},
-	{
 		OPT_NONBLOCKED, AOPT_NOARG, aopt_set_literal( 0 ), aopt_set_string( "nonblocked" ),
 		"Open non-blocked sockets."
 	},
@@ -234,17 +238,27 @@ static const AOPT_DESC  common_opt_desc[] =
 		OPT_PREWARMUPWAIT, AOPT_ARG, aopt_set_literal( 0 ), aopt_set_string( "pre-warmup-wait" ),
 		"Time to wait before sending warm up messages (seconds)."
 	},
+#ifndef WIN32
+	{
+		OPT_VMAZCOPYREAD, AOPT_NOARG, aopt_set_literal( 0 ), aopt_set_string( "vmazcopyread" ),
+		"If possible use VMA's zero copy reads API (See VMA's readme)."
+	},
+	{
+		OPT_DAEMONIZE, AOPT_NOARG, aopt_set_literal( 0 ), aopt_set_string( "daemonize" ),
+		"Run as daemon."
+	},
 	{
 		OPT_NO_RDTSC, AOPT_NOARG,	aopt_set_literal( 0 ),	aopt_set_string( "no-rdtsc" ),
 		"Don't use register when taking time; instead use monotonic clock."
 	},
 	{
-		OPT_SOCK_ACCL, AOPT_NOARG,	aopt_set_literal( 0 ),	aopt_set_string( "set-sock-accl" ),
-		"Set socket accleration before run (available for some of Mellanox systems)"
-	},
-	{
 		OPT_LOAD_VMA, AOPT_OPTARG,	aopt_set_literal( 0 ),	aopt_set_string( "load-vma" ),
 		"Load VMA dynamically even when LD_PRELOAD was not used."
+	},
+#endif
+	{
+		OPT_SOCK_ACCL, AOPT_NOARG,	aopt_set_literal( 0 ),	aopt_set_string( "set-sock-accl" ),
+		"Set socket accleration before run (available for some of Mellanox systems)"
 	},
 	{
 		'd', AOPT_NOARG, aopt_set_literal( 'd' ),	aopt_set_string( "debug" ),
@@ -1392,10 +1406,12 @@ static int proc_mode_server( int id, int argc, const char **argv )
 			 OPT_THREADS_AFFINITY, AOPT_ARG,	aopt_set_literal( 0 ),	aopt_set_string( "cpu-affinity" ),
 			 "Set threads affinity to the given core ids in list format (see: cat /proc/cpuinfo)."
 		 },
+#ifndef WIN32
 		 {
 			 OPT_VMARXFILTERCB, AOPT_NOARG,	aopt_set_literal( 0 ),	aopt_set_string( "vmarxfiltercb" ),
 			 "If possible use VMA's receive path message filter callback API (See VMA's readme)."
 		 },
+#endif
 		 {
 			 OPT_FORCE_UC_REPLY, AOPT_NOARG,	aopt_set_literal( 0 ),	aopt_set_string( "force-unicast-reply" ),
 			 "Force server to reply via unicast."
@@ -1491,10 +1507,11 @@ static int proc_mode_server( int id, int argc, const char **argv )
 				rc = SOCKPERF_ERR_BAD_ARGUMENT;
 			}
 		}
-
+#ifndef WIN32
 		if ( !rc && aopt_check(server_obj, OPT_VMARXFILTERCB) ) {
 			s_user_params.is_vmarxfiltercb = true;
 		}
+#endif
 
 		if ( !rc && aopt_check(server_obj, OPT_FORCE_UC_REPLY) ) {
 			s_user_params.b_server_reply_via_uc = true;
@@ -1517,7 +1534,7 @@ static int proc_mode_server( int id, int argc, const char **argv )
 					rc = SOCKPERF_ERR_BAD_ARGUMENT;
 				}
 				else{
-					MAX_PAYLOAD_SIZE = max(MAX_PAYLOAD_SIZE,value);
+					MAX_PAYLOAD_SIZE = _max(MAX_PAYLOAD_SIZE,value);
 				}
 			}
 		}
@@ -1536,7 +1553,11 @@ static int proc_mode_server( int id, int argc, const char **argv )
 		printf("Usage: " MODULE_NAME " %s [options] [args]...\n", sockperf_modes[id].name);
 		printf(" " MODULE_NAME " %s\n", sockperf_modes[id].name);
 		printf(" " MODULE_NAME " %s [-i ip] [-p port] [--rx-mc-if ip] [--tx-mc-if ip]\n", sockperf_modes[id].name);
+#ifndef WIN32
 		printf(" " MODULE_NAME " %s -f file [-F s/p/e] [--rx-mc-if ip] [--tx-mc-if ip]\n", sockperf_modes[id].name);
+#else
+		printf(" " MODULE_NAME " %s -f file [-F s] [--rx-mc-if ip] [--tx-mc-if ip]\n", sockperf_modes[id].name);
+#endif
 		printf("\n");
 		printf("Options:\n");
 		help_str = aopt_help(common_opt_desc);
@@ -1651,13 +1672,16 @@ static int parse_common_opt( const AOPT_OBJECT *common_obj )
 
 					strncpy(fd_handle_type, optarg, MAX_ARGV_SIZE);
 					fd_handle_type[MAX_ARGV_SIZE - 1] = '\0';
+#ifndef WIN32
 					if (!strcmp( fd_handle_type, "epoll" ) || !strcmp( fd_handle_type, "e")) {
 						s_user_params.fd_handler_type = EPOLL;
 					}
 					else if (!strcmp( fd_handle_type, "poll" )|| !strcmp( fd_handle_type, "p")) {
 						s_user_params.fd_handler_type = POLL;
 					}
-					else if (!strcmp( fd_handle_type, "select" ) || !strcmp( fd_handle_type, "s")) {
+					else
+#endif
+						if (!strcmp( fd_handle_type, "select" ) || !strcmp( fd_handle_type, "s")) {
 						s_user_params.fd_handler_type = SELECT;
 					}
 					else if (!strcmp( fd_handle_type, "recvfrom" ) || !strcmp( fd_handle_type, "r")) {
@@ -1737,7 +1761,11 @@ static int parse_common_opt( const AOPT_OBJECT *common_obj )
 				errno = 0;
 				int value = strtol(optarg, NULL, 0);
 				if (errno != 0  || value < -1) {
+#ifndef WIN32
 					log_msg("'-%d' Invalid select/poll/epoll timeout val: %s", OPT_SELECT_TIMEOUT, optarg);
+#else
+					log_msg("'-%d' Invalid select timeout val: %s", OPT_SELECT_TIMEOUT, optarg);
+#endif
 					rc = SOCKPERF_ERR_BAD_ARGUMENT;
 				}
 				else {
@@ -1771,14 +1799,6 @@ static int parse_common_opt( const AOPT_OBJECT *common_obj )
 				log_msg("'-%d' Invalid value", OPT_BUFFER_SIZE);
 				rc = SOCKPERF_ERR_BAD_ARGUMENT;
 			}
-		}
-
-		if ( !rc && aopt_check(common_obj, OPT_VMAZCOPYREAD) ) {
-			s_user_params.is_vmazcopyread = true;
-		}
-
-		if ( !rc && aopt_check(common_obj, OPT_DAEMONIZE) ) {
-			*p_daemonize = true;
 		}
 
 		if ( !rc && aopt_check(common_obj, OPT_NONBLOCKED) ) {
@@ -1845,12 +1865,21 @@ static int parse_common_opt( const AOPT_OBJECT *common_obj )
 			}
 		}
 
-		if ( !rc && aopt_check(common_obj, OPT_NO_RDTSC) ) {
-			s_user_params.b_no_rdtsc = true;
-		}
-
 		if ( !rc && aopt_check(common_obj, OPT_SOCK_ACCL) ) {
 			s_user_params.withsock_accl = true;
+		}
+#ifndef WIN32
+
+		if ( !rc && aopt_check(common_obj, OPT_VMAZCOPYREAD) ) {
+			s_user_params.is_vmazcopyread = true;
+		}
+
+		if ( !rc && aopt_check(common_obj, OPT_DAEMONIZE) ) {
+			*p_daemonize = true;
+		}
+
+		if ( !rc && aopt_check(common_obj, OPT_NO_RDTSC) ) {
+			s_user_params.b_no_rdtsc = true;
 		}
 
 		if ( !rc && aopt_check(common_obj, OPT_LOAD_VMA) ) {
@@ -1864,6 +1893,7 @@ static int parse_common_opt( const AOPT_OBJECT *common_obj )
 				rc = SOCKPERF_ERR_BAD_ARGUMENT;
 			}
 		}
+#endif
 
 		if ( !rc && aopt_check(common_obj, OPT_TCP) ) {
 			if (!aopt_check(common_obj, 'f')) {
@@ -2018,7 +2048,7 @@ static int st1, st2;
 //------------------------------------------------------------------------------
 void cleanup()
 {
-	pthread_mutex_lock( &mutex );
+	os_mutex_lock ( &_mutex );
 	int ifd;
 	if (g_fds_array)
 	{
@@ -2057,23 +2087,11 @@ void cleanup()
 		delete g_pPacketTimes;
 		g_pPacketTimes = NULL;
 	}
-	pthread_mutex_unlock( &mutex );
-}
+	os_mutex_unlock( &_mutex );
 
-//------------------------------------------------------------------------------
-/* set the action taken when signal received */
-void set_signal_action()
-{
-	static struct sigaction sigact;//Avner: is 'static' needed?
-
-	sigact.sa_handler = s_user_params.mode ? server_sig_handler : client_sig_handler;
-	sigemptyset(&sigact.sa_mask);
-	sigact.sa_flags = 0;
-
-	sigaction(SIGINT, &sigact, NULL);
-
-	if (s_user_params.mode == MODE_CLIENT)
-		sigaction(SIGALRM, &sigact, NULL);
+	if (sock_lib_started && !os_sock_cleanup()) {
+		log_err("Failed to cleanup WSA"); // Only relevant for Windows
+	}
 }
 
 //------------------------------------------------------------------------------
@@ -2101,11 +2119,13 @@ static void set_select_timeout(int time_out_msec)
 //------------------------------------------------------------------------------
 void set_defaults()
 {
+#ifndef WIN32
 	bool success = vma_set_func_pointers(false);
 	if (!success) {
 		log_msg("failed to set function pointers for system functions");
 		exit (SOCKPERF_ERR_FATAL);
 	}
+#endif
 
 	g_fds_array = (fds_data**) MALLOC(MAX_FDS_NUM *sizeof(fds_data*));
 	if (!g_fds_array) {
@@ -2253,26 +2273,6 @@ vma_recv_callback_retval_t myapp_vma_recv_pkt_filter_callback(
 	return VMA_PACKET_DROP;
 }
 #endif
-
-int sock_set_non_blocking(int fd)
-{
-	/* change socket to non-blocking */
-
-	int rc = SOCKPERF_ERR_NONE;
-	int flags = fcntl(fd, F_GETFL);
-	if (flags < 0) {
-		log_err("fcntl(F_GETFL)");
-		rc = SOCKPERF_ERR_SOCKET;
-	}
-	flags |=  O_NONBLOCK;
-	int ret = fcntl(fd, F_SETFL, flags);
-	if (ret < 0) {
-		log_err("fcntl(F_SETFL)");
-		rc = SOCKPERF_ERR_SOCKET;
-	}
-	//log_msg("fd %d is non-blocked now", fd);
-	return rc;
-}
 
 int sock_set_accl(int fd)
 {
@@ -2430,7 +2430,7 @@ int prepare_socket(int fd, struct fds_data *p_data)
 	int rc = SOCKPERF_ERR_NONE;
 
 	if (!p_data) {
-		return INVALID_SOCKET;
+		return (int)INVALID_SOCKET; // TODO: use SOCKET all over the way and avoid this cast
 	}
 
 	if (!rc && !s_user_params.is_blocked)
@@ -2440,7 +2440,12 @@ int prepare_socket(int fd, struct fds_data *p_data)
 		 * ioctl(fd, FIONBIO, &opt);
 		 */
 
-		rc = sock_set_non_blocking(fd);
+		/* change socket to non-blocking */
+		if (os_set_nonblocking_socket(fd))
+		{
+			log_err("failed setting socket as nonblocking\n");
+			rc = SOCKPERF_ERR_SOCKET;
+		}
 	}
 
 	if (!rc &&
@@ -2491,7 +2496,7 @@ int prepare_socket(int fd, struct fds_data *p_data)
 		}
 #endif
 
-	return (!rc ? fd : INVALID_SOCKET);
+	return (!rc ? fd : (int)INVALID_SOCKET); // TODO: use SOCKET all over the way and avoid this cast
 }
 
 //------------------------------------------------------------------------------
@@ -2507,9 +2512,10 @@ static int set_sockets_from_feedfile(const char *feedfile_name)
 	char *port = NULL;
 	fds_data *tmp;
 	int curr_fd = 0, last_fd = 0;
+#ifndef WIN32
 	int regexpres;
-
 	regex_t regexpr;
+#endif
 
 	struct stat st_buf;
 	const int status = stat (feedfile_name, &st_buf);
@@ -2518,10 +2524,12 @@ static int set_sockets_from_feedfile(const char *feedfile_name)
 		log_msg("Can't open file: %s\n", feedfile_name);
 		return SOCKPERF_ERR_NOT_EXIST;
 	}
+#ifndef WIN32
 	if (!S_ISREG (st_buf.st_mode)) {
 		log_msg("Can't open file: %s -not a regular file.\n", feedfile_name);
 		return SOCKPERF_ERR_NOT_EXIST;
 	}
+#endif
 	if ((file_fd = fopen(feedfile_name, "r")) == NULL) {
 		log_msg("Can't open file: %s\n", feedfile_name);
 		return SOCKPERF_ERR_NOT_EXIST;
@@ -2546,7 +2554,7 @@ static int set_sockets_from_feedfile(const char *feedfile_name)
 		if (line[0] == ' ' || line[0] == '\r' || line[0] == '\n' || line[0] == '#') {
 			continue;
 		}
-
+#ifndef WIN32
 		regexpres = regcomp(&regexpr, IP_PORT_FORMAT_REG_EXP, REG_EXTENDED|REG_NOSUB);
 		if (regexpres) {
 			log_msg("Failed to compile regexp");
@@ -2564,6 +2572,7 @@ static int set_sockets_from_feedfile(const char *feedfile_name)
 				break;
 			}
 		}
+#endif
 
 		/* this code support backward compatibility with old format of file */
 		if (line[0] == 'U' || line[0] == 'u' ||
@@ -2653,7 +2662,7 @@ static int set_sockets_from_feedfile(const char *feedfile_name)
 				}
 				else {
 					/* create a socket */
-					if ((curr_fd = socket(AF_INET, tmp->sock_type, 0)) < 0) {
+					if ((curr_fd = (int)socket(AF_INET, tmp->sock_type, 0)) < 0) { // TODO: use SOCKET all over the way and avoid this cast
 						log_err("socket(AF_INET, SOCK_x)");
 						rc = SOCKPERF_ERR_SOCKET;
 					}
@@ -2668,7 +2677,7 @@ static int set_sockets_from_feedfile(const char *feedfile_name)
 				}
 				if ( curr_fd >=0 ) {
 					if ( (curr_fd >= MAX_FDS_NUM) ||
-							(prepare_socket(curr_fd, tmp) == INVALID_SOCKET) ) {
+							(prepare_socket(curr_fd, tmp) == (int)INVALID_SOCKET) ) { // TODO: use SOCKET all over the way and avoid this cast
 						log_err("Invalid socket");
 						close(curr_fd);
 						rc = SOCKPERF_ERR_SOCKET;
@@ -2679,7 +2688,7 @@ static int set_sockets_from_feedfile(const char *feedfile_name)
 						s_fd_num++;
 
 						for (i = 0; i < MAX_ACTIVE_FD_NUM; i++) {
-							tmp->active_fd_list[i] = INVALID_SOCKET;
+							tmp->active_fd_list[i] = (int)INVALID_SOCKET; // TODO: use SOCKET all over the way and avoid this cast
 						}
 						// TODO: In the following malloc we have a one time memory allocation of 128KB that are not reclaimed
 						// This O(1) leak was introduced in revision 133
@@ -2701,8 +2710,8 @@ static int set_sockets_from_feedfile(const char *feedfile_name)
 							}
 							else {
 								g_fds_array[last_fd]->next_fd = curr_fd;
-								s_fd_min = min(s_fd_min, curr_fd);
-								s_fd_max = max(s_fd_max, curr_fd);
+								s_fd_min = _min(s_fd_min, curr_fd);
+								s_fd_max = _max(s_fd_max, curr_fd);
 							}
 							last_fd = curr_fd;
 							g_fds_array[curr_fd] = tmp;
@@ -2773,13 +2782,21 @@ int bringup(const int *p_daemonize)
 {
 	int rc = SOCKPERF_ERR_NONE;
 
+	os_mutex_init ( &_mutex );
+
+	if (os_sock_startup() == false) { // Only relevant for Windows
+		log_err("Failed to initialize WSA");
+		rc = SOCKPERF_ERR_FATAL;
+	} else {
+		sock_lib_started = 1;
+	}
+
 
 	if (*p_daemonize) {
-		if (daemon(1, 1)) {
+		if (os_daemonize()) {
 			log_err("Failed to daemonize");
 			rc = SOCKPERF_ERR_FATAL;
-		}
-		else {
+		} else {
 			log_msg("Running as daemon");
 		}
 	}
@@ -2794,7 +2811,7 @@ int bringup(const int *p_daemonize)
 			rc = set_sockets_from_feedfile(s_user_params.feedfile_name);
 		}
 		else {
-			int curr_fd = INVALID_SOCKET;
+			int curr_fd = (int)INVALID_SOCKET; // TODO: use SOCKET all over the way and avoid this cast
 			fds_data *tmp = (struct fds_data *)MALLOC(sizeof(struct fds_data));
 			if (!tmp) {
 				log_err("Failed to allocate memory with malloc()");
@@ -2815,13 +2832,13 @@ int bringup(const int *p_daemonize)
 				}
 				else {
 					/* create a socket */
-					if ((curr_fd = socket(AF_INET, tmp->sock_type, 0)) < 0) {
+					if ((curr_fd = (int)socket(AF_INET, tmp->sock_type, 0)) < 0) { // TODO: use SOCKET all over the way and avoid this cast
 						log_err("socket(AF_INET, SOCK_x)");
 						rc = SOCKPERF_ERR_SOCKET;
 					}
 					else {
 						if ( (curr_fd >= MAX_FDS_NUM) ||
-								(prepare_socket(curr_fd, tmp) == INVALID_SOCKET) ) {
+								(prepare_socket(curr_fd, tmp) == (int)INVALID_SOCKET) ) { // TODO: use SOCKET all over the way and avoid this cast
 							log_err("Invalid socket");
 							close(curr_fd);
 							rc = SOCKPERF_ERR_SOCKET;
@@ -2832,7 +2849,7 @@ int bringup(const int *p_daemonize)
 							s_fd_num = 1;
 
 							for (i = 0; i < MAX_ACTIVE_FD_NUM; i++) {
-								tmp->active_fd_list[i] = INVALID_SOCKET;
+								tmp->active_fd_list[i] = (int)INVALID_SOCKET;
 							}
 							tmp->recv.buf = (uint8_t*) malloc (sizeof(uint8_t)*2*MAX_PAYLOAD_SIZE);
 							if (!tmp->recv.buf){
@@ -2892,8 +2909,8 @@ int bringup(const int *p_daemonize)
 
 	/* Setup internal data */
 	if (!rc) {
-		int _max_buff_size = max(s_user_params.msg_size + 1, _vma_dgram_desc_size);
-		_max_buff_size = max(_max_buff_size, MAX_PAYLOAD_SIZE);
+		int _max_buff_size = _max(s_user_params.msg_size + 1, _vma_dgram_desc_size);
+		_max_buff_size = _max(_max_buff_size, MAX_PAYLOAD_SIZE);
 
 #ifdef  USING_VMA_EXTRA_API
 		if (s_user_params.is_vmazcopyread && g_vma_api){
@@ -2932,7 +2949,7 @@ int bringup(const int *p_daemonize)
 					s_user_params.client_work_with_srv_num);
 		}
 
-		set_signal_action();
+			os_set_signal_action(SIGINT, s_user_params.mode ? server_sig_handler : client_sig_handler);
 	}
 
 	return rc;
@@ -3100,7 +3117,7 @@ s_user_params.daemonize,
 (strlen(s_user_params.feedfile_name) ? s_user_params.feedfile_name : "<empty>"));
 
 		// Display application version
-		log_msg("\e[2;35m == version #%s == \e[0m", STR(VERSION));
+		log_msg( MAGNETA "== version #%s == " ENDCOLOR, STR(VERSION));
 
 		// Display VMA version
 #ifdef VMA_LIBRARY_MAJOR
@@ -3121,12 +3138,14 @@ s_user_params.daemonize,
 		for (int i = 0; i < SIZE; i++)
 			end.setNow();
 		log_dbg("+INFO: taking time, using the given settings, consumes %.3lf nsec", (double)(end-start).toNsec()/SIZE);
-		ticks_t tstart, tend;
+
+		ticks_t tstart = 0 , tend = 0;
 		tstart = os_gettimeoftsc();
+
 		for (int i = 0; i < SIZE; i++)
 			tend = os_gettimeoftsc();
 		double tdelta = (double)tend - (double)tstart;
-		double ticks_per_second = get_tsc_rate_per_second();
+		double ticks_per_second = (double)get_tsc_rate_per_second();
 		log_dbg("+INFO: taking rdtsc directly consumes %.3lf nsec", tdelta / SIZE * 1000*1000*1000 / ticks_per_second );
 
 

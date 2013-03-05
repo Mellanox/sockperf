@@ -33,7 +33,7 @@
 // static members initialization
 /*static*/ seq_num_map SwitchOnCalcGaps::ms_seq_num_map;
 static CRITICAL_SECTION	thread_exit_lock;
-static pthread_t *thread_pid_array = NULL;
+static os_thread_t *thread_pid_array = NULL;
 
 
 //==============================================================================
@@ -62,15 +62,15 @@ int ServerBase::initBeforeLoop()
 {
 	int rc = SOCKPERF_ERR_NONE;
 
-	rc = set_affinity_list(pthread_self(), g_pApp->m_const_params.threads_affinity);
+	rc = set_affinity_list(os_getthread(), g_pApp->m_const_params.threads_affinity);
 
 	if (g_b_exit) return rc;
 
 	/* bind socket */
 	if (rc == SOCKPERF_ERR_NONE)
 	{
-		log_dbg("thread %d: fd_min: %d, fd_max : %d, fd_num: %d"
-				, gettid(), m_ioHandlerRef.m_fd_min, m_ioHandlerRef.m_fd_max, m_ioHandlerRef.m_fd_num);
+		log_dbg("thread %lu: fd_min: %d, fd_max : %d, fd_num: %d"
+				, os_getthread().tid, m_ioHandlerRef.m_fd_min, m_ioHandlerRef.m_fd_max, m_ioHandlerRef.m_fd_num);
 
 		// cycle through all set fds in the array (with wrap around to beginning)
 		for (int ifd = m_ioHandlerRef.m_fd_min; ifd <= m_ioHandlerRef.m_fd_max; ifd++) {
@@ -80,7 +80,9 @@ int ServerBase::initBeforeLoop()
 			struct sockaddr_in* p_bind_addr = &g_fds_array[ifd]->server_addr;
 
 			struct sockaddr_in bind_addr;
-			if (g_fds_array[ifd]->memberships_size) { // if more then one address on socket (for multiple MC join case oon same port)
+			//Meny: Can't bind to a multicast addr in Windows
+			if (g_fds_array[ifd]->memberships_size || IN_MULTICAST(ntohl(p_bind_addr->sin_addr.s_addr))) {
+				// if more then one address on socket (for multiple MC join case oon same port)
 				memcpy(&bind_addr, p_bind_addr, sizeof(struct sockaddr_in));
 				bind_addr.sin_addr.s_addr = INADDR_ANY;
 				p_bind_addr = &bind_addr;
@@ -119,7 +121,7 @@ int ServerBase::initBeforeLoop()
 		if (rc == SOCKPERF_ERR_NONE) {
 			sleep(g_pApp->m_const_params.pre_warmup_wait);
 			m_ioHandlerRef.warmup(m_pMsgRequest);
-			log_msg("[tid %d] using %s() to block on socket(s)", gettid(), handler2str(g_pApp->m_const_params.fd_handler_type));
+			log_msg("[tid %lu] using %s() to block on socket(s)", os_getthread().tid, handler2str(g_pApp->m_const_params.fd_handler_type));
 		}
 	}
 
@@ -129,7 +131,7 @@ int ServerBase::initBeforeLoop()
 //------------------------------------------------------------------------------
 void ServerBase::cleanupAfterLoop() {
 	// cleanup
-	log_dbg("thread %d released allocations",gettid());
+	log_dbg("thread %lu released allocations",os_getthread().tid);
 
 	if (!g_pApp->m_const_params.mthread_server) {
 		log_msg("%s() exit", __func__);
@@ -176,7 +178,7 @@ void Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::doLoop()
 		}
 
 		// handle arrival and response
-		int accept_fd = INVALID_SOCKET;
+		int accept_fd = (int)INVALID_SOCKET; // TODO: use SOCKET all over the way and avoid this cast
 		bool do_update = false;
 		for (int ifd = m_ioHandler.get_look_start(); (numReady) && (ifd < m_ioHandler.get_look_end()); ifd++) {
 			actual_fd = m_ioHandler.analyzeArrival(ifd);
@@ -204,13 +206,13 @@ void Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::doLoop()
 							if (server_receive_then_send(actual_fd)) {
 								do_update = true;
 							}
-							else if (errno == EAGAIN)
+							else if (os_err_eagain())
 							{
 									break ;
 							}
 						}
 					}
-					else if (accept_fd != INVALID_SOCKET) {
+					else if (accept_fd != (int)INVALID_SOCKET) { // TODO: use SOCKET all over the way and avoid this cast
 						do_update = true;
 					}
 					else {
@@ -239,7 +241,7 @@ int Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_accept(int ifd)
 	int active_ifd = ifd;
 
 	if (!g_fds_array[ifd]){
-		return INVALID_SOCKET;
+		return (int)INVALID_SOCKET; // TODO: use SOCKET all over the way and avoid this cast
 	}
 	if (g_fds_array[ifd]->sock_type == SOCK_STREAM && g_fds_array[ifd]->active_fd_list) {
 		struct sockaddr_in addr;
@@ -249,7 +251,7 @@ int Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_accept(int ifd)
 		tmp = (struct fds_data *)MALLOC(sizeof(struct fds_data));
 		if (!tmp) {
 			log_err("Failed to allocate memory with malloc()");
-			return INVALID_SOCKET;
+			return (int)INVALID_SOCKET; // TODO: use SOCKET all over the way and avoid this cast
 		}
 		memcpy(tmp, g_fds_array[ifd], sizeof(struct fds_data));
 		tmp->recv.buf = (uint8_t*) malloc (sizeof(uint8_t)*2*MAX_PAYLOAD_SIZE);
@@ -266,10 +268,10 @@ int Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_accept(int ifd)
 		tmp->recv.cur_offset = 0;
 		tmp->recv.cur_size = tmp->recv.max_size;
 
-		active_ifd = accept(ifd, (struct sockaddr *)&addr, (socklen_t*)&addr_size);
+		active_ifd = (int)accept(ifd, (struct sockaddr *)&addr, (socklen_t*)&addr_size); // TODO: use SOCKET all over the way and avoid this cast
         if (active_ifd < 0)
         {
-        	active_ifd = INVALID_SOCKET;
+        	active_ifd = (int)INVALID_SOCKET; // TODO: use SOCKET all over the way and avoid this cast
 			if (tmp->recv.buf){
         		FREE(tmp->recv.buf);
 			}
@@ -285,12 +287,12 @@ int Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_accept(int ifd)
     		 */
     		if ( (active_ifd < MAX_FDS_NUM) &&
         	     (g_fds_array[ifd]->active_fd_count < (MAX_ACTIVE_FD_NUM - 1)) ) {
-            	if (prepare_socket(active_ifd, tmp) != INVALID_SOCKET) {
+            	if (prepare_socket(active_ifd, tmp) != (int)INVALID_SOCKET) { // TODO: use SOCKET all over the way and avoid this cast
         			int *active_fd_list = g_fds_array[ifd]->active_fd_list;
         			int i = 0;
 
         			for (i = 0; i < MAX_ACTIVE_FD_NUM; i++) {
-        				if (active_fd_list[i] == INVALID_SOCKET) {
+        				if (active_fd_list[i] == (int)INVALID_SOCKET) { // TODO: use SOCKET all over the way and avoid this cast
         					active_fd_list[i] = active_ifd;
         					g_fds_array[ifd]->active_fd_count++;
         					g_fds_array[active_ifd] = tmp;
@@ -305,7 +307,7 @@ int Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_accept(int ifd)
 
         	if (!do_accept) {
         		close(active_ifd);
-        		active_ifd = INVALID_SOCKET;
+        		active_ifd = (int)INVALID_SOCKET; // TODO: use SOCKET all over the way and avoid this cast
 				if (tmp->recv.buf){
         			FREE(tmp->recv.buf);
 				}
@@ -362,6 +364,7 @@ void server_handler(handler_info *p_info)
 			server_handler<IoSelect>(p_info->fd_min, p_info->fd_max, p_info->fd_num);
 			break;
 		}
+#ifndef WIN32
 		case POLL:
 		{
 			server_handler<IoPoll>(p_info->fd_min, p_info->fd_max, p_info->fd_num);
@@ -372,8 +375,9 @@ void server_handler(handler_info *p_info)
 			server_handler<IoEpoll>(p_info->fd_min, p_info->fd_max, p_info->fd_num);
 			break;
 		}
+#endif
 		default:
-			ERROR("unknown file handler");
+			ERROR_MSG("unknown file handler");
 		}
 	}
 }
@@ -391,9 +395,9 @@ void *server_handler_for_multi_threaded(void *arg)
 		{
 			int i = p_info->id + 1;
 			if (p_info->id < g_pApp->m_const_params.threads_num) {
-				if (thread_pid_array && thread_pid_array[i] && (thread_pid_array[i] == pthread_self())) {
+				if (thread_pid_array && thread_pid_array[i].tid && (thread_pid_array[i].tid == os_getthread().tid)) {
 					ENTER_CRITICAL(&thread_exit_lock);
-					thread_pid_array[i] = 0;
+					thread_pid_array[i].tid = 0;
 					LEAVE_CRITICAL(&thread_exit_lock);
 				}
 			}
@@ -425,7 +429,7 @@ void find_min_max_fds(int start_look_from, int len, int* p_fd_min, int* p_fd_max
 void server_sig_handler(int signum) {
 	if (g_b_exit) {
 		log_msg("Test end (interrupted by signal %d)", signum);
-		log_dbg("thread %d - exiting", gettid());
+		log_dbg("thread %lu - exiting", os_getthread().tid);
 		return;
 	}
 
@@ -435,16 +439,16 @@ void server_sig_handler(int signum) {
 		printf("\n");
 
 	if (g_pApp->m_const_params.mthread_server) {
-		if ((pthread_t)gettid() == thread_pid_array[0]) {  //main thread
+		if (os_getthread().tid == thread_pid_array[0].tid) {  //main thread
 			if (g_debug_level >= LOG_LVL_DEBUG) {
-				log_dbg("Main thread %d got signal %d - exiting",gettid(),signum);
+				log_dbg("Main thread %lu got signal %d - exiting",os_getthread().tid,signum);
 			}
 			else {
 				log_msg("Got signal %d - exiting", signum);
 			}
 		}
 		else {
-			log_dbg("Secondary thread %d got signal %d - exiting", gettid(),signum);
+			log_dbg("Secondary thread %lu got signal %d - exiting", os_getthread().tid,signum);
 		}
 	}
 	else {
@@ -474,7 +478,7 @@ void server_sig_handler(int signum) {
 void server_select_per_thread(int _fd_num) {
 	int rc = SOCKPERF_ERR_NONE;
 	int i;
-	pthread_t tid;
+	os_thread_t thread;
 	int fd_num;
 	int num_of_remainded_fds;
 	int last_fds = 0;
@@ -488,13 +492,13 @@ void server_select_per_thread(int _fd_num) {
 	}
 
 	if (rc == SOCKPERF_ERR_NONE) {
-		thread_pid_array = (pthread_t*)MALLOC(sizeof(pthread_t)*(g_pApp->m_const_params.threads_num + 1));
+		thread_pid_array = (os_thread_t*)MALLOC(sizeof(os_thread_t)*(g_pApp->m_const_params.threads_num + 1));
 		if(!thread_pid_array) {
 			log_err("Failed to allocate memory for pid array");
 			rc = SOCKPERF_ERR_NO_MEMORY;
 		}
 		else {
-			memset(thread_pid_array, 0, sizeof(pthread_t)*(g_pApp->m_const_params.threads_num + 1));
+			memset(thread_pid_array, 0, sizeof(os_thread_t)*(g_pApp->m_const_params.threads_num + 1));
 			log_msg("Running %d threads to manage %d sockets", g_pApp->m_const_params.threads_num, _fd_num);
 		}
 	}
@@ -502,7 +506,7 @@ void server_select_per_thread(int _fd_num) {
 	if (rc == SOCKPERF_ERR_NONE) {
 		INIT_CRITICAL(&thread_exit_lock);
 
-		thread_pid_array[0] = (pthread_t)gettid();
+		thread_pid_array[0].tid = os_getthread().tid;
 
 		/* Divide fds_arr between threads */
 		num_of_remainded_fds = _fd_num % g_pApp->m_const_params.threads_num;
@@ -526,7 +530,7 @@ void server_select_per_thread(int _fd_num) {
 
 			/* Launch handler */
 			errno = 0;
-			int ret = pthread_create(&tid, 0, server_handler_for_multi_threaded, (void *)cur_handler_info);
+			int ret = os_thread_exec(&thread, server_handler_for_multi_threaded, (void *)cur_handler_info);
 
 			/*
 			 * There is undocumented behaviour for early versions of libc (for example libc 2.5, 2.6, 2.7)
@@ -534,11 +538,11 @@ void server_select_per_thread(int _fd_num) {
 			 * Note: libc-2.9 demonstrates expected behaivour
 			 */
 			if ( (ret != 0) || (errno == ENOMEM) ) {
-				log_err("pthread_create has failed");
+				log_err("create thread has failed");
 				rc = SOCKPERF_ERR_FATAL;
 				break;
 			}
-			thread_pid_array[i + 1] = tid;
+			thread_pid_array[i + 1].tid = thread.tid;
 			last_fds = cur_handler_info->fd_max + 1;
 		}
 
@@ -549,16 +553,17 @@ void server_select_per_thread(int _fd_num) {
 
 		/* Stop all launched threads (the first index is reserved for main thread) */
 		for (i = 1; i <= g_pApp->m_const_params.threads_num; i++) {
-			pthread_t cur_thread_pid = 0;
+			os_thread_t cur_thread_pid;
+			cur_thread_pid.tid = 0;
 
 			ENTER_CRITICAL(&thread_exit_lock);
-			cur_thread_pid = thread_pid_array[i];
-			if (cur_thread_pid && (pthread_kill(cur_thread_pid, 0) == 0)) {
-				pthread_kill(cur_thread_pid, SIGINT);
+			cur_thread_pid.tid = thread_pid_array[i].tid;
+			if (cur_thread_pid.tid) {
+				os_thread_kill(&cur_thread_pid);
 			}
 			LEAVE_CRITICAL(&thread_exit_lock);
-			if (cur_thread_pid) {
-				pthread_join(cur_thread_pid,0);
+			if (cur_thread_pid.tid) {
+				os_thread_join(&cur_thread_pid);
 			}
 		}
 

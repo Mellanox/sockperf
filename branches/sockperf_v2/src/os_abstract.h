@@ -109,6 +109,8 @@ void* win_set_timer(void *p_timer);
 #include <sys/resource.h>
 #include "vma-redirect.h"
 
+#define INVALID_SOCKET 		(-1)
+
 #endif
 
 /***********************************************************************************
@@ -215,6 +217,14 @@ inline bool os_err_conn_reset()
 	return (errno == ECONNRESET);
 #endif
 }
+
+#ifdef WIN32
+#define _max(x,y)	max(x,y)
+#define _min(x,y)	min(x,y)
+#else
+#define _max(x,y)	({typeof(x) _x = (x); typeof(y) _y = (y); (void)(&_x == &_y); _x > _y ? _x : _y; })
+#define _min(x,y)	({typeof(x) _x = (x); typeof(y) _y = (y); (void)(&_x == &_y); _x < _y ? _x : _y; })
+#endif
 
 
 #endif /*_OS_ABSTRACT_H_*/
