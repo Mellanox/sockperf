@@ -1,4 +1,4 @@
-= Not supported features: =
+== Not supported features: ==
 * Poll/Epoll.
 * RDTSC - Unlike in Linux, there's only one option for time handling. 
 It is done using QueryPerformanceFrequency() and QueryPerformanceCounter() methoods.
@@ -7,8 +7,8 @@ It is done using QueryPerformanceFrequency() and QueryPerformanceCounter() metho
 Message flags: MSG_DONTWAIT, MSG_NOSIGNAL.
 
 
-= Notes/TODO's: =
-* Modify int to 'SOCK' type in relavant parts of code.
+== Notes/TODO's: ==
+* Modify int to 'SOCK' type in relevant parts of code.
 * Add windows installer.
 * Split os_abstact to os_win and os_linux.
 * Add regular expression check for the feed file.
