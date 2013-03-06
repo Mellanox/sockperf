@@ -7,8 +7,8 @@
 
 
 === Notes/TODO's: ===
- * Modify int to 'SOCK' type in relevant parts of code.
+ * Modify type 'int' to type 'SOCK'.
  * Add windows installer.
  * Split os_abstact to os_win and os_linux.
- * Add regular expression check for the feed file.
+ * Add regular expression check for feed files.
  * Add colors (drops, errors, etc.)
