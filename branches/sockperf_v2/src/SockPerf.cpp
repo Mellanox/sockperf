@@ -2122,9 +2122,8 @@ void set_defaults()
 #ifndef WIN32
 	bool success = vma_set_func_pointers(false);
 	if (!success) {
-		log_msg("Failed to set function pointers for system functions.");
-		log_msg("Check vma-redirect.cpp for functions which your OS implementation is missing. Re-compile sockperf without them.");
-		exit (SOCKPERF_ERR_FATAL);
+		log_dbg("Failed to set function pointers for system functions.");
+		log_dbg("Check vma-redirect.cpp for functions which your OS implementation is missing. Re-compile sockperf without them.");
 	}
 #endif
 
