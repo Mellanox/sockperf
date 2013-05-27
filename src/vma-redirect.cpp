@@ -117,60 +117,62 @@ static bool vma_set_func_pointers_internal(void *libHandle)
 	// Set pointers to functions
 	#define SET_FUNC_POINTER(libHandle, func)   (fn_##func = (func##_fptr_t)dlsym(libHandle, #func))
 
-	if (! SET_FUNC_POINTER(libHandle, socket))       return false;
-	if (! SET_FUNC_POINTER(libHandle, close))        return false;
-	if (! SET_FUNC_POINTER(libHandle, shutdown))     return false;
+	bool ret = true;
 
-	if (! SET_FUNC_POINTER(libHandle, accept))       return false;
-	if (! SET_FUNC_POINTER(libHandle, bind))         return false;
-	if (! SET_FUNC_POINTER(libHandle, connect))      return false;
-	if (! SET_FUNC_POINTER(libHandle, listen))      return false;
+	if (! SET_FUNC_POINTER(libHandle, socket))       ret = false;
+	if (! SET_FUNC_POINTER(libHandle, close))        ret = false;
+	if (! SET_FUNC_POINTER(libHandle, shutdown))     ret = false;
 
-	if (! SET_FUNC_POINTER(libHandle, setsockopt))   return false;
-	if (! SET_FUNC_POINTER(libHandle, getsockopt))   return false;
-	if (! SET_FUNC_POINTER(libHandle, fcntl))        return false;
-	if (! SET_FUNC_POINTER(libHandle, ioctl))        return false;
-	if (! SET_FUNC_POINTER(libHandle, getsockname))  return false;
-	if (! SET_FUNC_POINTER(libHandle, getpeername))  return false;
+	if (! SET_FUNC_POINTER(libHandle, accept))       ret = false;
+	if (! SET_FUNC_POINTER(libHandle, bind))         ret = false;
+	if (! SET_FUNC_POINTER(libHandle, connect))      ret = false;
+	if (! SET_FUNC_POINTER(libHandle, listen))       ret = false;
 
-	if (! SET_FUNC_POINTER(libHandle, read))         return false;
-	if (! SET_FUNC_POINTER(libHandle, readv))        return false;
-	if (! SET_FUNC_POINTER(libHandle, recv))         return false;
-	if (! SET_FUNC_POINTER(libHandle, recvmsg))      return false;
-	if (! SET_FUNC_POINTER(libHandle, recvmmsg))     return false;
-	if (! SET_FUNC_POINTER(libHandle, recvfrom))     return false;
+	if (! SET_FUNC_POINTER(libHandle, setsockopt))   ret = false;
+	if (! SET_FUNC_POINTER(libHandle, getsockopt))   ret = false;
+	if (! SET_FUNC_POINTER(libHandle, fcntl))        ret = false;
+	if (! SET_FUNC_POINTER(libHandle, ioctl))        ret = false;
+	if (! SET_FUNC_POINTER(libHandle, getsockname))  ret = false;
+	if (! SET_FUNC_POINTER(libHandle, getpeername))  ret = false;
 
-	if (! SET_FUNC_POINTER(libHandle, write))        return false;
-	if (! SET_FUNC_POINTER(libHandle, writev))       return false;
-	if (! SET_FUNC_POINTER(libHandle, send))         return false;
-	if (! SET_FUNC_POINTER(libHandle, sendmsg))      return false;
-	//if (! SET_FUNC_POINTER(libHandle, sendmmsg))     return false;
-	if (! SET_FUNC_POINTER(libHandle, sendto))       return false;
+	if (! SET_FUNC_POINTER(libHandle, read))         ret = false;
+	if (! SET_FUNC_POINTER(libHandle, readv))        ret = false;
+	if (! SET_FUNC_POINTER(libHandle, recv))         ret = false;
+	if (! SET_FUNC_POINTER(libHandle, recvmsg))      ret = false;
+	if (! SET_FUNC_POINTER(libHandle, recvmmsg))     ret = false;
+	if (! SET_FUNC_POINTER(libHandle, recvfrom))     ret = false;
 
-	if (! SET_FUNC_POINTER(libHandle, select))       return false;
-	if (! SET_FUNC_POINTER(libHandle, pselect))      return false;
-	if (! SET_FUNC_POINTER(libHandle, poll))         return false;
-	if (! SET_FUNC_POINTER(libHandle, ppoll))        return false;
-	if (! SET_FUNC_POINTER(libHandle, epoll_create)) return false;
-	if (! SET_FUNC_POINTER(libHandle, epoll_create1))return false;
-	if (! SET_FUNC_POINTER(libHandle, epoll_ctl))    return false;
-	if (! SET_FUNC_POINTER(libHandle, epoll_wait))   return false;
-	if (! SET_FUNC_POINTER(libHandle, epoll_pwait))  return false;
+	if (! SET_FUNC_POINTER(libHandle, write))        ret = false;
+	if (! SET_FUNC_POINTER(libHandle, writev))       ret = false;
+	if (! SET_FUNC_POINTER(libHandle, send))         ret = false;
+	if (! SET_FUNC_POINTER(libHandle, sendmsg))      ret = false;
+	if (! SET_FUNC_POINTER(libHandle, sendmmsg))     ret = false;
+	if (! SET_FUNC_POINTER(libHandle, sendto))       ret = false;
 
-	if (! SET_FUNC_POINTER(libHandle, socketpair))   return false;
-	if (! SET_FUNC_POINTER(libHandle, pipe))         return false;
-	if (! SET_FUNC_POINTER(libHandle, open))         return false;
-	if (! SET_FUNC_POINTER(libHandle, creat))        return false;
-	if (! SET_FUNC_POINTER(libHandle, dup))          return false;
-	if (! SET_FUNC_POINTER(libHandle, dup2))         return false;
+	if (! SET_FUNC_POINTER(libHandle, select))       ret = false;
+	if (! SET_FUNC_POINTER(libHandle, pselect))      ret = false;
+	if (! SET_FUNC_POINTER(libHandle, poll))         ret = false;
+	if (! SET_FUNC_POINTER(libHandle, ppoll))        ret = false;
+	if (! SET_FUNC_POINTER(libHandle, epoll_create)) ret = false;
+	if (! SET_FUNC_POINTER(libHandle, epoll_create1))ret = false;
+	if (! SET_FUNC_POINTER(libHandle, epoll_ctl))    ret = false;
+	if (! SET_FUNC_POINTER(libHandle, epoll_wait))   ret = false;
+	if (! SET_FUNC_POINTER(libHandle, epoll_pwait))  ret = false;
 
-	if (! SET_FUNC_POINTER(libHandle, clone))        return false;
-	if (! SET_FUNC_POINTER(libHandle, fork))         return false;
-	if (! SET_FUNC_POINTER(libHandle, vfork))        return false;
-	if (! SET_FUNC_POINTER(libHandle, daemon))       return false;
-	if (! SET_FUNC_POINTER(libHandle, sigaction))    return false;
+	if (! SET_FUNC_POINTER(libHandle, socketpair))   ret = false;
+	if (! SET_FUNC_POINTER(libHandle, pipe))         ret = false;
+	if (! SET_FUNC_POINTER(libHandle, open))         ret = false;
+	if (! SET_FUNC_POINTER(libHandle, creat))        ret = false;
+	if (! SET_FUNC_POINTER(libHandle, dup))          ret = false;
+	if (! SET_FUNC_POINTER(libHandle, dup2))         ret = false;
 
-	return true;
+	if (! SET_FUNC_POINTER(libHandle, clone))        ret = false;
+	if (! SET_FUNC_POINTER(libHandle, fork))         ret = false;
+	if (! SET_FUNC_POINTER(libHandle, vfork))        ret = false;
+	if (! SET_FUNC_POINTER(libHandle, daemon))       ret = false;
+	if (! SET_FUNC_POINTER(libHandle, sigaction))    ret = false;
+
+	return ret;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
