@@ -111,20 +111,26 @@ typedef ssize_t (*read_fptr_t)    (int __fd, void *__buf, size_t __nbytes);
 typedef ssize_t (*readv_fptr_t)   (int __fd, const struct iovec *iov, int iovcnt);
 typedef ssize_t (*recv_fptr_t)    (int __fd, void *__buf, size_t __n, int __flags);
 typedef ssize_t (*recvmsg_fptr_t) (int __fd, struct msghdr *__message, int __flags);
+typedef ssize_t (*recvmmsg_fptr_t)(int __fd, struct mmsghdr *__mmsghdr, unsigned int __vlen, int __flags, const struct timespec *__timeout);
 typedef ssize_t (*recvfrom_fptr_t)(int __fd, void *__restrict __buf, size_t __n, int __flags, struct sockaddr *__from, socklen_t *__fromlen);
 
 typedef ssize_t (*write_fptr_t)   (int __fd, __const void *__buf, size_t __n);
 typedef ssize_t (*writev_fptr_t)  (int __fd, const struct iovec *iov, int iovcnt);
 typedef ssize_t (*send_fptr_t)    (int __fd, __const void *__buf, size_t __n, int __flags);
 typedef ssize_t (*sendmsg_fptr_t) (int __fd, __const struct msghdr *__message, int __flags);
+typedef ssize_t (*sendmmsg_fptr_t)(int __fd, struct mmsghdr *__mmsghdr, unsigned int __vlen, int __flags);
 typedef ssize_t (*sendto_fptr_t)  (int __fd, __const void *__buf, size_t __n,int __flags, const struct sockaddr *__to, socklen_t __tolen);
 
 typedef int (*select_fptr_t)      (int __nfds, fd_set *__readfds, fd_set *__writefds, fd_set *__exceptfds, struct timeval *__timeout);
+typedef int (*pselect_fptr_t)     (int __nfds, fd_set *__readfds, fd_set *__writefds, fd_set *__errorfds, const struct timespec *__timeout, const sigset_t *__sigmask);
 
 typedef int (*poll_fptr_t)        (struct pollfd *__fds, nfds_t __nfds, int __timeout);
+typedef int (*ppoll_fptr_t)       (struct pollfd *__fds, nfds_t __nfds, const struct timespec *__timeout, const sigset_t *__sigmask);
 typedef int (*epoll_create_fptr_t)(int __size);
+typedef int (*epoll_create1_fptr_t)(int __flags);
 typedef int (*epoll_ctl_fptr_t)   (int __epfd, int __op, int __fd, struct epoll_event *__event);
 typedef int (*epoll_wait_fptr_t)  (int __epfd, struct epoll_event *__events, int __maxevents, int __timeout);
+typedef int (*epoll_pwait_fptr_t) (int __epfd, struct epoll_event *__events, int __maxevents, int __timeout, const sigset_t *sigmask);
 
 typedef int (*socketpair_fptr_t)  (int __domain, int __type, int __protocol, int __sv[2]);
 typedef int (*pipe_fptr_t)        (int __filedes[2]);
@@ -135,6 +141,7 @@ typedef int (*dup2_fptr_t)        (int fildes, int fildes2);
 
 typedef int (*clone_fptr_t)       (int (*__fn)(void *), void *__child_stack, int __flags, void *__arg);
 typedef pid_t (*fork_fptr_t)      (void);
+typedef pid_t (*vfork_fptr_t)     (void);
 typedef int (*daemon_fptr_t)      (int __nochdir, int __noclose);
 typedef int (*sigaction_fptr_t)   (int signum, const struct sigaction *act, struct sigaction *oldact);
 
@@ -161,17 +168,23 @@ extern read_fptr_t          fn_read;
 extern readv_fptr_t         fn_readv;
 extern recv_fptr_t          fn_recv;
 extern recvmsg_fptr_t       fn_recvmsg;
+extern recvmmsg_fptr_t      fn_recvmmsg;
 extern recvfrom_fptr_t      fn_recvfrom;
 extern write_fptr_t         fn_write;
 extern writev_fptr_t        fn_writev;
 extern send_fptr_t          fn_send;
 extern sendmsg_fptr_t       fn_sendmsg;
+extern sendmmsg_fptr_t      fn_sendmmsg;
 extern sendto_fptr_t        fn_sendto;
 extern select_fptr_t        fn_select;
+extern pselect_fptr_t       fn_pselect;
 extern poll_fptr_t          fn_poll;
+extern ppoll_fptr_t         fn_ppoll;
 extern epoll_create_fptr_t  fn_epoll_create;
+extern epoll_create1_fptr_t fn_epoll_create1;
 extern epoll_ctl_fptr_t     fn_epoll_ctl;
 extern epoll_wait_fptr_t    fn_epoll_wait;
+extern epoll_pwait_fptr_t   fn_epoll_pwait;
 extern socketpair_fptr_t    fn_socketpair;
 extern pipe_fptr_t          fn_pipe;
 extern open_fptr_t          fn_open;
@@ -180,6 +193,7 @@ extern dup_fptr_t           fn_dup;
 extern dup2_fptr_t          fn_dup2;
 extern clone_fptr_t         fn_clone;
 extern fork_fptr_t          fn_fork;
+extern vfork_fptr_t         fn_vfork;
 extern daemon_fptr_t        fn_daemon;
 extern sigaction_fptr_t     fn_sigaction;
 
@@ -208,19 +222,25 @@ extern sigaction_fptr_t     fn_sigaction;
 #define readv(...)        fn_readv (__VA_ARGS__)
 #define recv(...)         fn_recv (__VA_ARGS__)
 #define recvmsg(...)      fn_recvmsg (__VA_ARGS__)
+#define recvmmsg(...)     fn_recvmmsg (__VA_ARGS__)
 #define recvfrom(...)     fn_recvfrom (__VA_ARGS__)
 
 #define write(...)        fn_write (__VA_ARGS__)
 #define writev(...)       fn_writev (__VA_ARGS__)
 #define send(...)         fn_send (__VA_ARGS__)
 #define sendmsg(...)      fn_sendmsg (__VA_ARGS__)
+#define sendmmsg(...)     fn_sendmmsg (__VA_ARGS__)
 #define sendto(...)       fn_sendto (__VA_ARGS__)
 
 #define select(...)       fn_select (__VA_ARGS__)
+#define pselect(...)      fn_pselect (__VA_ARGS__)
 #define poll(...)         fn_poll (__VA_ARGS__)
+#define ppoll(...)        fn_ppoll (__VA_ARGS__)
 #define epoll_create(...) fn_epoll_create (__VA_ARGS__)
+#define epoll_create1(...) fn_epoll_create1 (__VA_ARGS__)
 #define epoll_ctl(...)    fn_epoll_ctl (__VA_ARGS__)
 #define epoll_wait(...)   fn_epoll_wait (__VA_ARGS__)
+#define epoll_pwait(...)  fn_epoll_pwait (__VA_ARGS__)
 
 #define socketpair(...)   fn_socketpair (__VA_ARGS__)
 #define pipe(...)         fn_pipe (__VA_ARGS__)
@@ -231,6 +251,7 @@ extern sigaction_fptr_t     fn_sigaction;
 
 #define clone(...)        fn_clone (__VA_ARGS__)
 #define fork(...)         fn_fork (__VA_ARGS__)
+#define vfork(...)        fn_vfork (__VA_ARGS__)
 #define daemon(...)       fn_daemon (__VA_ARGS__)
 #define sigaction(...)    fn_sigaction(__VA_ARGS__)
 
