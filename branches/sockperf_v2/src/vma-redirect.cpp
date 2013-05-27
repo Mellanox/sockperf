@@ -49,17 +49,23 @@ read_fptr_t          fn_read         = NULL;
 readv_fptr_t         fn_readv        = NULL;
 recv_fptr_t          fn_recv         = NULL;
 recvmsg_fptr_t       fn_recvmsg      = NULL;
+recvmmsg_fptr_t      fn_recvmmsg     = NULL;
 recvfrom_fptr_t      fn_recvfrom     = NULL;
 write_fptr_t         fn_write        = NULL;
 writev_fptr_t        fn_writev       = NULL;
 send_fptr_t          fn_send         = NULL;
 sendmsg_fptr_t       fn_sendmsg      = NULL;
+sendmmsg_fptr_t      fn_sendmmsg     = NULL;
 sendto_fptr_t        fn_sendto       = NULL;
 select_fptr_t        fn_select       = NULL;
+pselect_fptr_t       fn_pselect      = NULL;
 poll_fptr_t          fn_poll         = NULL;
+ppoll_fptr_t         fn_ppoll        = NULL;
 epoll_create_fptr_t  fn_epoll_create = NULL;
+epoll_create1_fptr_t fn_epoll_create1= NULL;
 epoll_ctl_fptr_t     fn_epoll_ctl    = NULL;
 epoll_wait_fptr_t    fn_epoll_wait   = NULL;
+epoll_pwait_fptr_t   fn_epoll_pwait  = NULL;
 
 socketpair_fptr_t    fn_socketpair   = NULL;
 pipe_fptr_t          fn_pipe         = NULL;
@@ -70,6 +76,7 @@ dup_fptr_t           fn_dup          = NULL;
 dup2_fptr_t          fn_dup2         = NULL;
 clone_fptr_t         fn_clone        = NULL;
 fork_fptr_t          fn_fork         = NULL;
+vfork_fptr_t         fn_vfork        = NULL;
 daemon_fptr_t        fn_daemon       = NULL;
 sigaction_fptr_t     fn_sigaction    = NULL;
 
@@ -130,19 +137,25 @@ static bool vma_set_func_pointers_internal(void *libHandle)
 	if (! SET_FUNC_POINTER(libHandle, readv))        return false;
 	if (! SET_FUNC_POINTER(libHandle, recv))         return false;
 	if (! SET_FUNC_POINTER(libHandle, recvmsg))      return false;
+	if (! SET_FUNC_POINTER(libHandle, recvmmsg))     return false;
 	if (! SET_FUNC_POINTER(libHandle, recvfrom))     return false;
 
 	if (! SET_FUNC_POINTER(libHandle, write))        return false;
 	if (! SET_FUNC_POINTER(libHandle, writev))       return false;
 	if (! SET_FUNC_POINTER(libHandle, send))         return false;
 	if (! SET_FUNC_POINTER(libHandle, sendmsg))      return false;
+	//if (! SET_FUNC_POINTER(libHandle, sendmmsg))     return false;
 	if (! SET_FUNC_POINTER(libHandle, sendto))       return false;
 
 	if (! SET_FUNC_POINTER(libHandle, select))       return false;
+	if (! SET_FUNC_POINTER(libHandle, pselect))      return false;
 	if (! SET_FUNC_POINTER(libHandle, poll))         return false;
+	if (! SET_FUNC_POINTER(libHandle, ppoll))        return false;
 	if (! SET_FUNC_POINTER(libHandle, epoll_create)) return false;
+	if (! SET_FUNC_POINTER(libHandle, epoll_create1))return false;
 	if (! SET_FUNC_POINTER(libHandle, epoll_ctl))    return false;
 	if (! SET_FUNC_POINTER(libHandle, epoll_wait))   return false;
+	if (! SET_FUNC_POINTER(libHandle, epoll_pwait))  return false;
 
 	if (! SET_FUNC_POINTER(libHandle, socketpair))   return false;
 	if (! SET_FUNC_POINTER(libHandle, pipe))         return false;
@@ -153,6 +166,7 @@ static bool vma_set_func_pointers_internal(void *libHandle)
 
 	if (! SET_FUNC_POINTER(libHandle, clone))        return false;
 	if (! SET_FUNC_POINTER(libHandle, fork))         return false;
+	if (! SET_FUNC_POINTER(libHandle, vfork))        return false;
 	if (! SET_FUNC_POINTER(libHandle, daemon))       return false;
 	if (! SET_FUNC_POINTER(libHandle, sigaction))    return false;
 
