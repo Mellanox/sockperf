@@ -203,6 +203,10 @@ static const AOPT_DESC  common_opt_desc[] =
 		"Enables non-blocking send operation (default OFF)."
 	},
 	{
+		OPT_TOS, AOPT_ARG, aopt_set_literal( 0 ), aopt_set_string("tos"),
+		"Allows setting tos"
+	},
+	{
 		OPT_RX_MC_IF, AOPT_ARG, aopt_set_literal( 0 ), aopt_set_string( "mc-rx-if" ),
 		"<ip> address of interface on which to receive mulitcast messages (can be other then route table)."
 	},
@@ -1804,6 +1808,20 @@ static int parse_common_opt( const AOPT_OBJECT *common_obj )
 		if ( !rc && aopt_check(common_obj, OPT_NONBLOCKED) ) {
 			s_user_params.is_blocked = false;
 		}
+        
+		if ( !rc && aopt_check(common_obj, OPT_TOS) ) {
+			const char * optarg = aopt_value(common_obj, OPT_TOS);
+			if (optarg)
+			{
+#if defined (WIN32) || defined (_WIN32)
+				log_msg("TOS option not supported for Windows");
+				rc = SOCKPERF_ERR_UNSUPPORTED;
+#else
+				int value = strtol(optarg, NULL, 0);
+				s_user_params.tos = value;
+#endif
+			}
+		}
 
 		if ( !rc && aopt_check(common_obj, OPT_NONBLOCKED_SEND) ) {
 			s_user_params.is_nonblocked_send = true;
@@ -2195,6 +2213,7 @@ void set_defaults()
 
 	s_user_params.withsock_accl = false;
 	memset(s_user_params.feedfile_name, 0, sizeof(s_user_params.feedfile_name));
+	s_user_params.tos = 0x00;
 }
 
 //------------------------------------------------------------------------------
@@ -2360,6 +2379,19 @@ int sock_set_tcp_nodelay(int fd)
 	return rc;
 }
 
+int sock_set_tos(int fd)
+{
+	int rc = SOCKPERF_ERR_NONE;
+	if (s_user_params.tos) {
+		size_t len = sizeof(s_user_params.tos);
+		if (setsockopt(fd, IPPROTO_IP, IP_TOS, (char*)&s_user_params.tos, len) < 0) {
+			log_err("setsockopt(TOS), set  failed.  It could be that this option is not supported in your system");
+			rc = SOCKPERF_ERR_SOCKET;
+		}
+	}
+	return rc;
+}
+
 int sock_set_multicast(int fd, struct fds_data *p_data)
 {
 	int rc = SOCKPERF_ERR_NONE;
@@ -2479,6 +2511,12 @@ int prepare_socket(int fd, struct fds_data *p_data)
 			(p_data->sock_type == SOCK_STREAM))
 	{
 		rc = sock_set_tcp_nodelay(fd);
+	}
+
+	if (!rc &&
+			(s_user_params.tos))
+	{
+		rc = sock_set_tos(fd);
 	}
 
 #ifdef  USING_VMA_EXTRA_API
@@ -3076,7 +3114,8 @@ sender_affinity = %s \n\t\
 receiver_affinity = %s \n\t\
 b_stream = %d \n\t\
 daemonize = %d \n\t\
-feedfile_name = %s \n",
+feedfile_name = %s \n\t\
+tos = %d \n",
 s_user_params.mode,
 s_user_params.withsock_accl,
 s_user_params.msg_size,
@@ -3114,7 +3153,8 @@ s_user_params.b_no_rdtsc,
 (strlen(s_user_params.receiver_affinity) ? s_user_params.receiver_affinity : "<empty>"),
 s_user_params.b_stream,
 s_user_params.daemonize,
-(strlen(s_user_params.feedfile_name) ? s_user_params.feedfile_name : "<empty>"));
+(strlen(s_user_params.feedfile_name) ? s_user_params.feedfile_name : "<empty>"),
+s_user_params.tos);
 
 		// Display application version
 		log_msg( MAGNETA "== version #%s == " ENDCOLOR, STR(VERSION));
