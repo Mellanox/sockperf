@@ -226,7 +226,8 @@ int read_int_from_sys_file(const char *path)
 	if(!file)
 		return -1;
 
-	fscanf (file, "%d", &retVal);
+	if (1 != fscanf (file, "%d", &retVal))
+        retVal = 0;
 	fclose (file);
 
 	return retVal;
