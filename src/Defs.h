@@ -176,6 +176,7 @@ enum {
 	OPT_CLIENTPORT,                 //36
 	OPT_CLIENTIP,                   //37
 	OPT_TOS,                        //38
+	OPT_LLS,                        //39
 };
 
 #define MODULE_NAME			"sockperf"
@@ -577,7 +578,9 @@ struct user_params_t {
 	char feedfile_name[MAX_PATH_LENGTH];
 	bool withsock_accl;
 	int max_looping_over_recv;
-    int tos;
+	int tos;
+	unsigned int lls_usecs;
+	bool lls_is_set;
 };
 
 struct mutable_params_t {

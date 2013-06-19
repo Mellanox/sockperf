@@ -223,6 +223,10 @@ static const AOPT_DESC  common_opt_desc[] =
 		"Limit the lifetime of the message (default 2)."
 	},
 	{
+		OPT_LLS, AOPT_ARG, aopt_set_literal( 0 ), aopt_set_string( "lls" ),
+		"Turn on LLS via socket option (value = usec to poll)."
+	},
+	{
 		OPT_BUFFER_SIZE, AOPT_ARG, aopt_set_literal( 0 ), aopt_set_string( "buffer-size" ),
 		"Set total socket receive/send buffer <size> in bytes (system defined by default)."
 	},
@@ -1823,6 +1827,31 @@ static int parse_common_opt( const AOPT_OBJECT *common_obj )
 			}
 		}
 
+		if ( !rc && aopt_check(common_obj, OPT_LLS) ) {
+			const char* optarg = aopt_value(common_obj, OPT_LLS);
+			if (optarg) {
+#if defined (WIN32) || defined (_WIN32)
+				log_msg("LLS option not supported for Windows");
+				rc = SOCKPERF_ERR_UNSUPPORTED;
+#else
+				errno = 0;
+				int value = strtoul(optarg, NULL, 0);
+				if (errno != 0 || value < 0) {
+					log_msg("'-%d' Invalid LLS value: %s", OPT_LLS, optarg);
+					rc = SOCKPERF_ERR_BAD_ARGUMENT;
+				}
+				else {
+					s_user_params.lls_usecs = value;
+					s_user_params.lls_is_set = true;
+				}
+			}
+			else {
+				log_msg("'-%d' Invalid value", OPT_LLS);
+				rc = SOCKPERF_ERR_BAD_ARGUMENT;
+#endif
+			}
+		}
+
 		if ( !rc && aopt_check(common_obj, OPT_NONBLOCKED_SEND) ) {
 			s_user_params.is_nonblocked_send = true;
 		}
@@ -2315,6 +2344,19 @@ int sock_set_reuseaddr(int fd)
 	return rc;
 }
 
+#ifndef SO_LL
+#define SO_LL 46
+#endif
+int sock_set_lls(int fd)
+{
+	int rc = SOCKPERF_ERR_NONE;
+	if (setsockopt(fd, SOL_SOCKET, SO_LL, &(s_user_params.lls_usecs), sizeof(s_user_params.lls_usecs)) < 0) {
+		log_err("setsockopt(SO_LL) failed");
+		rc = SOCKPERF_ERR_SOCKET;
+	}
+	return rc;
+}
+
 int sock_set_snd_rcv_bufs(int fd)
 {
 	/*
@@ -2494,6 +2536,12 @@ int prepare_socket(int fd, struct fds_data *p_data)
 		 * only if it is a well know L4 port (TCP or UDP MC/UC)
 		 */
 		rc = sock_set_reuseaddr(fd);
+	}
+
+	if (!rc &&
+			(s_user_params.lls_is_set == true))
+	{
+		rc = sock_set_lls(fd);
 	}
 
 	if (!rc &&
