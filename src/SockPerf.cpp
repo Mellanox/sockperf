@@ -2743,6 +2743,9 @@ static int set_sockets_from_feedfile(const char *feedfile_name)
 					/* join socket */
 					curr_fd = fd_socket_map[port_type_tmp];
 					new_socket_flag = false;
+					if (g_fds_array[curr_fd]->memberships_addr == NULL) {
+						g_fds_array[curr_fd]->memberships_addr = (struct sockaddr_in*) MALLOC(IGMP_MAX_MEMBERSHIPS * sizeof(struct sockaddr_in));
+					}
 					g_fds_array[curr_fd]->memberships_addr[g_fds_array[curr_fd]->memberships_size]=tmp->server_addr;
 					g_fds_array[curr_fd]->memberships_size++;
 				}
