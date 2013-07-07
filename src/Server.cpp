@@ -359,6 +359,11 @@ void server_handler(handler_info *p_info)
 			server_handler<IoRecvfrom>(p_info->fd_min, p_info->fd_max, p_info->fd_num);
 			break;
 		}
+		case RECVFROMMUX:
+		{
+			server_handler<IoRecvfromMUX>(p_info->fd_min, p_info->fd_max, p_info->fd_num);
+			break;
+		}
 		case SELECT:
 		{
 			server_handler<IoSelect>(p_info->fd_min, p_info->fd_max, p_info->fd_num);

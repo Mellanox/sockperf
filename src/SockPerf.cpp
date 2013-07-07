@@ -1693,7 +1693,7 @@ static int parse_common_opt( const AOPT_OBJECT *common_obj )
 						s_user_params.fd_handler_type = SELECT;
 					}
 					else if (!strcmp( fd_handle_type, "recvfrom" ) || !strcmp( fd_handle_type, "r")) {
-						s_user_params.fd_handler_type = RECVFROM;
+						s_user_params.fd_handler_type = RECVFROMMUX;
 					}
 					else {
 						log_msg("'-%c' Invalid muliply io hanlde type: %s", 'F', optarg);

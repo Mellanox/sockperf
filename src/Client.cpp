@@ -745,6 +745,11 @@ void client_handler(handler_info *p_info)
 				client_handler<IoRecvfrom> (p_info->fd_min, p_info->fd_max, p_info->fd_num);
 				break;
 			}
+			case RECVFROMMUX:
+			{
+				client_handler<IoRecvfromMUX> (p_info->fd_min, p_info->fd_max, p_info->fd_num);
+				break;
+			}
 #ifndef WIN32
 			case POLL:
 			{
