@@ -72,6 +72,87 @@ public:
 };
 
 //==============================================================================
+/*
+ * limitations (due to no real iomux):
+ * 1. client must open sockets and send packets in the same order as the server try to receive them (client and server feed files must have the same order).
+ * 2. no support for multiple clients (parallel/serial) for the same server (except for TCP serial clients).
+ * 3. no support for TCP listen socket to accept more than one connection (e.g. identical two lines in feed file).
+ *
+ * In order to overcome this limitations we must know the state of each socket at every iteration (like real iomux).
+ * It can be done by loop of non-blocking recvfrom with MSG_PEEK over all sockets at each iteration (similar to select internal implementation).
+ *
+ * NOTE: currently, IoRecvfromMUX can replace IoRecvfrom, but it is less efficient.
+ */
+class IoRecvfromMUX: public IoHandler {
+public:
+	IoRecvfromMUX(int _fd_min, int _fd_max, int _fd_num);
+	virtual ~IoRecvfromMUX();
+
+	inline void update() {
+		m_fd_min_all = m_fd_min;
+		m_fd_max_all = m_fd_max;
+		for (int ifd = m_fd_min; ifd <= m_fd_max; ifd++ ) {
+			if (g_fds_array[ifd]) {
+				int i = 0;
+				int active_fd_count = g_fds_array[ifd]->active_fd_count;
+				int *active_fd_list = g_fds_array[ifd]->active_fd_list;
+
+				assert( active_fd_list &&
+						"corrupted fds_data object" );
+
+				while (active_fd_count) {
+					/* process active sockets in case TCP (listen sockets are set in prepareNetwork()) and
+					 * skip active socket in case UDP (it is the same with set in prepareNetwork())
+					 */
+					if (active_fd_list[i] != (int)INVALID_SOCKET) {
+						if (active_fd_list[i] != ifd) {
+							m_fd_min_all = _min(m_fd_min_all, active_fd_list[i]);
+							m_fd_max_all = _max(m_fd_max_all, active_fd_list[i]);
+
+							/* it is possible to set the same socket */
+							errno = 0;
+						}
+						active_fd_count--;
+					}
+					i++;
+
+					assert((i < MAX_ACTIVE_FD_NUM) &&
+							"maximum number of active connection to the single TCP addr:port");
+				}
+			}
+		}
+
+		if (m_look_start > m_fd_max || m_look_start < m_fd_min) m_look_start = m_fd_max;
+		else if (m_look_start == m_fd_max) m_look_start = m_fd_min_all-1;
+	}
+
+	inline int waitArrival() {
+		do {
+			m_look_start++;
+			if (m_look_start > m_fd_max_all) m_look_start = m_fd_min_all;
+		} while (!g_fds_array[m_look_start] || g_fds_array[m_look_start]->active_fd_count);
+		m_look_end = m_look_start + 1;
+		return 1;
+	}
+
+	inline int analyzeArrival(int ifd) const {
+		assert( g_fds_array[ifd] && "invalid fd");
+
+		int active_fd_count = g_fds_array[ifd]->active_fd_count;
+		int *active_fd_list = g_fds_array[ifd]->active_fd_list;
+
+		assert( active_fd_list &&
+				"corrupted fds_data object");
+
+		return (active_fd_count ? active_fd_list[0] : ifd);
+	}
+
+	virtual int prepareNetwork();
+
+	int m_fd_min_all, m_fd_max_all;
+};
+
+//==============================================================================
 class IoSelect: public IoHandler {
 public:
 	IoSelect(int _fd_min, int _fd_max, int _fd_num);

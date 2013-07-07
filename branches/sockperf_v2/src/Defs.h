@@ -521,6 +521,7 @@ typedef enum {
 
 typedef enum {
 	RECVFROM = 0,
+	RECVFROMMUX,
 	SELECT,
 	POLL,
 	EPOLL,
