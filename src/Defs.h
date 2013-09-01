@@ -29,22 +29,6 @@
 #ifndef DEFS_H_
 #define DEFS_H_
 
-#include <stdlib.h>		/* random()*/
-#include <string.h>
-#include <stdio.h>
-#include <stdarg.h>
-#include <assert.h>
-#include <signal.h>
-#include <time.h>		/* clock_gettime()*/
-#include <ctype.h>		/* isprint()*/
-#include <errno.h>
-#include <fcntl.h>
-#include <sys/types.h>		/* sockets*/
-
-#include "Ticks.h"
-#include "Message.h"
-#include "Playback.h"
-
 #define __STDC_FORMAT_MACROS
 
 #ifdef WIN32
@@ -64,7 +48,6 @@ typedef uint16_t in_port_t;
 #define __FD_SETSIZE 32768
 #endif
 
-#include "vma-redirect.h"
 #include <stdbool.h>
 #include <stdint.h>
 #include <tr1/unordered_map>
@@ -86,10 +69,28 @@ typedef uint16_t in_port_t;
 
 #endif
 
+#include <stdlib.h>		/* random()*/
+#include <string.h>
+#include <stdio.h>
+#include <stdarg.h>
+#include <assert.h>
+#include <signal.h>
+#include <time.h>		/* clock_gettime()*/
+#include <ctype.h>		/* isprint()*/
+#include <errno.h>
+#include <fcntl.h>
+#include <sys/types.h>		/* sockets*/
 
-//#define USING_VMA_EXTRA_API
-#ifdef  USING_VMA_EXTRA_API
-#include <voltaire/vma_extra.h>
+#include "Ticks.h"
+#include "Message.h"
+#include "Playback.h"
+
+#ifndef WIN32
+	#include "vma-redirect.h"
+	//#define USING_VMA_EXTRA_API
+	#ifdef  USING_VMA_EXTRA_API
+	#include <mellanox/vma_extra.h>
+	#endif
 #endif
 
 #define MIN_PAYLOAD_SIZE        	(MsgHeader::EFFECTIVE_SIZE)
