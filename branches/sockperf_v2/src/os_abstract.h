@@ -107,7 +107,7 @@ void* win_set_timer(void *p_timer);
 #include <stdlib.h>
 #include <errno.h>
 #include <sys/resource.h>
-#include "vma-redirect.h"
+#include <fcntl.h>
 
 #define INVALID_SOCKET 		(-1)
 
