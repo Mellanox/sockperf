@@ -99,7 +99,7 @@ extern int MAX_PAYLOAD_SIZE;
 #define MAX_TCP_SIZE				((1<<20)-1)
 
 const uint32_t MPS_MAX_UL          = 10*1000*1000; //  10 M MPS is 4 times the maximum possible under VMA today
-const uint32_t MPS_MAX_PP          = 400*1000;     // 400 K MPS for ping-pong will be break only when we reach RTT of 2.5 usec
+const uint32_t MPS_MAX_PP          = 600*1000;     // 600 K MPS for ping-pong will be break only when we reach RTT of 1.667 usec
 extern uint32_t MPS_MAX;
 
 const uint32_t MPS_DEFAULT         = 10*1000;
