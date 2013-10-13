@@ -2763,6 +2763,8 @@ static int set_sockets_from_feedfile(const char *feedfile_name)
 						tmp->memberships_addr = NULL;
 					}
 					tmp->memberships_size=0;
+
+					s_fd_num++;
 				}
 				if ( curr_fd >=0 ) {
 					if ( (curr_fd >= MAX_FDS_NUM) ||
@@ -2773,8 +2775,6 @@ static int set_sockets_from_feedfile(const char *feedfile_name)
 					}
 					else {
 						int i = 0;
-
-						s_fd_num++;
 
 						for (i = 0; i < MAX_ACTIVE_FD_NUM; i++) {
 							tmp->active_fd_list[i] = (int)INVALID_SOCKET; // TODO: use SOCKET all over the way and avoid this cast
