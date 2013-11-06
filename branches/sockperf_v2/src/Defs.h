@@ -36,6 +36,7 @@
 #include <sys/types.h>
 #include <unordered_map>
 #include <Winbase.h>
+#include <stdint.h>
 
 typedef uint16_t in_port_t;
 
