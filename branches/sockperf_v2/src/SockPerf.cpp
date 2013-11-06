@@ -2425,7 +2425,7 @@ int sock_set_tos(int fd)
 {
 	int rc = SOCKPERF_ERR_NONE;
 	if (s_user_params.tos) {
-		size_t len = sizeof(s_user_params.tos);
+		socklen_t len = sizeof(s_user_params.tos);
 		if (setsockopt(fd, IPPROTO_IP, IP_TOS, (char*)&s_user_params.tos, len) < 0) {
 			log_err("setsockopt(TOS), set  failed.  It could be that this option is not supported in your system");
 			rc = SOCKPERF_ERR_SOCKET;
