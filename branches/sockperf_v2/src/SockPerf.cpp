@@ -3236,6 +3236,7 @@ s_user_params.tos);
 			end.setNow();
 		log_dbg("+INFO: taking time, using the given settings, consumes %.3lf nsec", (double)(end-start).toNsec()/SIZE);
 
+#if !defined(__arm__)
 		ticks_t tstart = 0 , tend = 0;
 		tstart = os_gettimeoftsc();
 
@@ -3244,7 +3245,7 @@ s_user_params.tos);
 		double tdelta = (double)tend - (double)tstart;
 		double ticks_per_second = (double)get_tsc_rate_per_second();
 		log_dbg("+INFO: taking rdtsc directly consumes %.3lf nsec", tdelta / SIZE * 1000*1000*1000 / ticks_per_second );
-
+#endif
 
 		// step #5: check is user defined a specific SEED value to be used in all rand() calls
 		// if no seed value is provided, the rand() function is automatically seeded with a value of 1.
