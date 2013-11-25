@@ -1928,6 +1928,12 @@ static int parse_common_opt( const AOPT_OBJECT *common_obj )
 		if ( !rc && aopt_check(common_obj, OPT_NO_RDTSC) ) {
 			s_user_params.b_no_rdtsc = true;
 		}
+#if defined (__arm__)	
+		if (s_user_params.b_no_rdtsc == false) {
+			log_msg("ARM target build does not support rdtsc, use --no-rdtsc");
+			rc = SOCKPERF_ERR_BAD_ARGUMENT;
+		}
+#endif
 
 		if ( !rc && aopt_check(common_obj, OPT_LOAD_VMA) ) {
 			const char* optarg = aopt_value(common_obj, OPT_LOAD_VMA);

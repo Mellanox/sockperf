@@ -43,4 +43,18 @@ This is the distribution of sockperf
    specific options are prefixed with "SOCKPERF:" in the help text.
 
 
+* To build for ARM
+
+1) Define CROSS_COMPILE in the environment to point to the cross compilation tools, e.g.
+set CROSS_COMPILE=/opt/gcc-linaro-arm-linux-gnueabihf-4.7-2012.11-20121123_linux/bin/arm-linux-gnueabihf-
+
+2) Use ./autogen.sh to create the configure script.
+
+3) Invoke ./configure with the following options:
+$ ./configure CXX=${CROSS_COMPILE}g++ STRIP=${CROSS_COMPILE}strip
+LD=${CROSS_COMPILE}ld CC=${CROSS_COMPILE}gcc --host i386
+
+4) Invoke make
+
+
 Good luck!
