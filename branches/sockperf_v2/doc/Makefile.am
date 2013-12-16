@@ -21,7 +21,7 @@ doxygen: Doxyfile main.dox
 
 install-data-local:
 	$(mkinstalldirs) $(docdir)
-	cp -rf man/man/ ${DESTDIR}$(prefix)/share/man/
+	cp -rf man/man/ ${DESTDIR}$(prefix)/share/
 	cp -rf man/* $(docdir)
 	cp -rf ${docfiles} $(docdir)
 
