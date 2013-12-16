@@ -1,4 +1,4 @@
-testdir = $(prefix)/etc
+testdir = $(prefix)/etc/sockperf/
 
 test_SCRIPTS = \
 	avner-analyze.awk \
