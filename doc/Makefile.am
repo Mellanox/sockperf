@@ -1,4 +1,4 @@
-docdir   = $(prefix)/share
+docdir   = ${DESTDIR}$(prefix)/share/sockperf/
 docfiles = \
 	$(top_srcdir)/readme \
 	$(top_srcdir)/authors \
@@ -21,8 +21,9 @@ doxygen: Doxyfile main.dox
 
 install-data-local:
 	$(mkinstalldirs) $(docdir)
+	cp -rf man/man/ ${DESTDIR}$(prefix)/share/man/
 	cp -rf man/* $(docdir)
-	cp ${docfiles} ${prefix}/
+	cp -rf ${docfiles} $(docdir)
 
 uninstall-local:
 	$(RM) -rf $(docdir)/*

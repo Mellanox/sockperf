@@ -1,3 +1,5 @@
+tooldir = $(prefix)/sbin/sockperf/
+
 sbin_SCRIPTS = \
 	filter.awk \
 	gen1.awk \
