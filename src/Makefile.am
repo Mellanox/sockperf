@@ -4,13 +4,13 @@
 AM_LDFLAGS = -rdynamic
 
 all:
-	@(cp ${DESTDIR}$(bin_PROGRAMS) ${DESTDIR}$(bin_PROGRAMS)_$(PACKAGE_VERSION))
+	@(cp $(DESTDIR)$(bin_PROGRAMS) $(DESTDIR)$(bin_PROGRAMS)_$(PACKAGE_VERSION))
 
 clean-local:
-	@(rm ${DESTDIR}$(bin_PROGRAMS)_$(PACKAGE_VERSION))
+	@(rm $(DESTDIR)$(bin_PROGRAMS)_$(PACKAGE_VERSION))
 
 install-data-local:
-	@(cp $(bin_PROGRAMS)_$(PACKAGE_VERSION) ${DESTDIR}${prefix}/bin/. && cp $(bin_PROGRAMS) ${DESTDIR}${prefix}/bin/.)
+	@(cp $(bin_PROGRAMS)_$(PACKAGE_VERSION) $(DESTDIR)${prefix}/bin/. && cp $(bin_PROGRAMS) $(DESTDIR)${prefix}/bin/.)
 
 bin_PROGRAMS = sockperf
 INCLUDES := \
