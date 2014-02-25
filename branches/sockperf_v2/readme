@@ -19,8 +19,7 @@ This is the distribution of sockperf
   The sockperf package uses the GNU autotools compilation and installation
   framework.
    
-    $ ./autogen.sh
-    $ ./configure --prefix=<path to install>
+    $ ./configure
     $ make
     $ make install
 
