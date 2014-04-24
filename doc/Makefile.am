@@ -1,4 +1,3 @@
-docdir   = ${DESTDIR}$(prefix)/share/sockperf/
 docfiles = \
 	$(top_srcdir)/readme \
 	$(top_srcdir)/authors \
@@ -20,13 +19,13 @@ doxygen: Doxyfile main.dox
 	( cat Doxyfile ; echo "PROJECT_NUMBER=`cat ../version`" ) | doxygen -
 
 install-data-local:
-	$(mkinstalldirs) $(docdir)
+	$(mkinstalldirs) ${DESTDIR}$(docdir)
 	cp -rf man/man/ ${DESTDIR}$(prefix)/share/
-	cp -rf man/* $(docdir)
-	cp -rf ${docfiles} $(docdir)
+	cp -rf man/html/ ${DESTDIR}$(docdir)
+	cp -rf ${docfiles} ${DESTDIR}$(docdir)
 
 uninstall-local:
-	$(RM) -rf $(docdir)/*
+	$(RM) -rf ${DESTDIR}$(docdir)/*
 
 clean-local:
 	$(RM) -r man doxygen.log
