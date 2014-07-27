@@ -1928,7 +1928,7 @@ static int parse_common_opt( const AOPT_OBJECT *common_obj )
 		if ( !rc && aopt_check(common_obj, OPT_NO_RDTSC) ) {
 			s_user_params.b_no_rdtsc = true;
 		}
-#if defined (__arm__)	
+#if defined (__arm__) || defined(__aarch64__)
 		if (s_user_params.b_no_rdtsc == false) {
 			log_msg("ARM target build does not support rdtsc, use --no-rdtsc");
 			rc = SOCKPERF_ERR_BAD_ARGUMENT;
@@ -2227,7 +2227,11 @@ void set_defaults()
 	s_user_params.mps = MPS_DEFAULT;
 	s_user_params.reply_every = REPLY_EVERY_DEFAULT;
 	s_user_params.b_client_ping_pong = false;
+#if defined (__arm__) || defined(__aarch64__)
+	s_user_params.b_no_rdtsc = true;
+#else
 	s_user_params.b_no_rdtsc = false;
+#endif
 	memset(s_user_params.sender_affinity, 0, sizeof(s_user_params.sender_affinity));
 	memset(s_user_params.receiver_affinity, 0, sizeof(s_user_params.receiver_affinity));
 	//s_user_params.b_load_vma = false;
@@ -3236,7 +3240,7 @@ s_user_params.tos);
 			end.setNow();
 		log_dbg("+INFO: taking time, using the given settings, consumes %.3lf nsec", (double)(end-start).toNsec()/SIZE);
 
-#if !defined(__arm__)
+#if !defined(__arm__) && !defined(__aarch64__)
 		ticks_t tstart = 0 , tend = 0;
 		tstart = os_gettimeoftsc();
 
