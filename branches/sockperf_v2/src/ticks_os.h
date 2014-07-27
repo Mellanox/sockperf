@@ -89,12 +89,12 @@ inline ticks_t os_gettimeoftsc()
 #else
 	register uint32_t upper_32, lower_32;
 
-#if defined(__arm__)
+#if defined(__arm__) || defined(__aarch64__)
 	// so the compiler will not complain. for
 	// arm compile, this inline is not used 
 	// since no rdtsc supported on most arm processors
 	upper_32 = lower_32 = 0;
-	throw("rdtsc not supported in arm");
+	/*throw("rdtsc not supported in arm");*/
 #else
 	// ReaD Time Stamp Counter (RDTCS)
 	__asm__ __volatile__("rdtsc" : "=a" (lower_32), "=d" (upper_32));
