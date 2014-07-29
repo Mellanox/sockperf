@@ -89,7 +89,11 @@ inline ticks_t os_gettimeoftsc()
 #else
 	register uint32_t upper_32, lower_32;
 
-#if defined(__arm__) || defined(__aarch64__)
+#if defined (__powerpc64__)
+	unsigned long long ret;
+	asm volatile ("mftb %0" : "=r" (ret) : );
+	return (ticks_t)ret;
+#elif defined(__arm__) || defined(__aarch64__)
 	// so the compiler will not complain. for
 	// arm compile, this inline is not used 
 	// since no rdtsc supported on most arm processors
