@@ -93,6 +93,10 @@ inline ticks_t os_gettimeoftsc()
 	unsigned long long ret;
 	asm volatile ("mftb %0" : "=r" (ret) : );
 	return (ticks_t)ret;
+#elif defined (__s390__)
+	unsigned long long ret;
+	asm volatile ("stck %0" : "=Q" (ret) : : "cc");
+	return (ticks_t)ret;
 #elif defined(__arm__) || defined(__aarch64__)
 	// so the compiler will not complain. for
 	// arm compile, this inline is not used 
