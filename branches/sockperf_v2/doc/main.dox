@@ -115,7 +115,7 @@ sockperf: [tid 4857] using select() to block on socket(s)
  -d      --debug              	Print extra debug information.
  -i      --ip                 	Listen on/send to ip <ip>.
  -p      --port               	Listen on/connect to port <port> (default 11111).
- -m      --msg-size           	Use messages of size <size> bytes (minimum default 12).
+ -m      --msg-size           	Use messages of size <size> bytes (minimum default 14).
  -f      --file               	Tread multiple ip+port combinations from file <file> 
                                 (server uses select).
  -F      --io-hanlder-type    	Type of multiple file descriptors handle 
@@ -414,13 +414,13 @@ sockperf: [tid 29483] using recvfrom() to block on socket(s)
 
 - Run the client as follows:
 @code
-$$LD_PRELOAD=libvma.so sockperf ping-pong -i 224.18.7.81 -p 5001 -t 10 -m 12 --pps=max --dontwarmup --mc-loopback-enable
+$$LD_PRELOAD=libvma.so sockperf ping-pong -i 224.18.7.81 -p 5001 -t 10 -m 14 --pps=max --dontwarmup --mc-loopback-enable
  VMA INFO   : -------------------------------------------------
  VMA INFO   : Version: 4.0.3.0
  VMA INFO   : Revision: 2087
  VMA INFO   : Build Date: 2010-03-10-13:32:26
  VMA INFO   : Current Time: Fri Feb 25 15:50:51 2011
- VMA INFO   : Cmd Line: sockperf ping-pong -i 224.18.7.81 -p 5001 -t 10 -m 12 --pps=max --dontwarmup --mc-loopback-enable
+ VMA INFO   : Cmd Line: sockperf ping-pong -i 224.18.7.81 -p 5001 -t 10 -m 14 --pps=max --dontwarmup --mc-loopback-enable
  VMA INFO   : Pid:  3690
  VMA INFO   : System: 2.6.18-164.el5
  VMA INFO   : Architecture: x86_64

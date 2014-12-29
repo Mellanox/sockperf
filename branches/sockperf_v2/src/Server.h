@@ -182,10 +182,14 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_t
 				l_fds_ifd->recv.cur_size = MsgHeader::EFFECTIVE_SIZE - l_fds_ifd->recv.cur_offset;
 			}
 			return (!do_update);
+		} else if (l_fds_ifd->recv.cur_offset < MsgHeader::EFFECTIVE_SIZE) {
+		  /* 2: message header is got, match message to cycle buffer */
+		  m_pMsgReply->setBuf(l_fds_ifd->recv.cur_addr);
+		  m_pMsgReply->setHeaderToHost();
+		  } else {
+		  /* 2: message header is got, match message to cycle buffer */
+		  m_pMsgReply->setBuf(l_fds_ifd->recv.cur_addr);
 		}
-
-		/* 2: message header is got, match message to cycle buffer */
-		m_pMsgReply->setBuf(l_fds_ifd->recv.cur_addr);
 
 		if ( m_pMsgReply->getLength() > MAX_PAYLOAD_SIZE){
 			//Message received was larger than expected, message ignored. - only on stream mode.
@@ -273,13 +277,16 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_t
 				/* always send to the same port recved from */
 				sendto_addr.sin_port = recvfrom_addr.sin_port;
 			}
-			ret = msg_sendto(ifd, m_pMsgReply->getBuf(), m_pMsgReply->getLength(), &sendto_addr);
+			int length = m_pMsgReply->getLength();
+			m_pMsgReply->setHeaderToNetwork();
+			ret = msg_sendto(ifd, m_pMsgReply->getBuf(), length, &sendto_addr);
 			if (ret == RET_SOCKET_SHUTDOWN) {
 				if (l_fds_ifd->sock_type == SOCK_STREAM) {
 					close_ifd( l_fds_ifd->next_fd,ifd,l_fds_ifd);
 				}
 				return (do_update);
 			}
+			m_pMsgReply->setHeaderToHost();
 		}
 
 		m_switchCalcGaps.execute(&recvfrom_addr, m_pMsgReply->getSequenceCounter(), false);

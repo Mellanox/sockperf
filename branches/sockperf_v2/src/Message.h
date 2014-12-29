@@ -61,17 +61,28 @@ public:
 	void setWarmupMessage()   {m_flags_and_length.m_flags |=  MASK_WARMUP_MSG;}
 	void resetWarmupMessage() {m_flags_and_length.m_flags &= ~MASK_WARMUP_MSG;}
 
+	void hton() {
+	  m_sequence_number = htonll(m_sequence_number);
+	  m_flags_and_length.m_flags = htons(m_flags_and_length.m_flags);
+	  m_flags_and_length.length = htonl(m_flags_and_length.length);
+	  }
+	
+	  void ntoh() {
+	  m_sequence_number = ntohll(m_sequence_number);
+	  m_flags_and_length.m_flags = ntohs(m_flags_and_length.m_flags);
+	  m_flags_and_length.length = ntohl(m_flags_and_length.length);
+	  }
 	// this is different than sizeof(MsgHeader) and safe only for the current implementation of the class
-	static const int EFFECTIVE_SIZE = (int)( sizeof(uint64_t) + sizeof(uint16_t) + sizeof(uint16_t) );
+	static const int EFFECTIVE_SIZE = (int)( sizeof(uint64_t) + sizeof(uint16_t) + sizeof(uint32_t) );
 //	static const int EFFECTIVE_SIZE = 16;
 
 private:
 	typedef struct
 	{
-		uint32_t m_flags:8;
-		int length:24;
+		uint16_t m_flags;
+		uint32_t length;
 	}s_flags_and_length;
-	// NOTE: m_sequence_number must be the 1st field, because we want EFFECTIVE_SIZE of header to be 12 bytes
+	// NOTE: m_sequence_number must be the 1st field, because we want EFFECTIVE_SIZE of header to be 14 bytes
 	// hence we need the padding (to 16 bytes) to be after last field and not between fields
 	// pack() pragma can be added to set needed alignment
 	uint64_t m_sequence_number;
@@ -143,6 +154,9 @@ public:
 	uint16_t isWarmupMessage() const {return m_header->isWarmupMessage();}
 	void setWarmupMessage()   {m_header->setWarmupMessage();}
 	void resetWarmupMessage() {m_header->resetWarmupMessage();}
+
+	void setHeaderToHost() {m_header->ntoh();}
+	void setHeaderToNetwork() {m_header->hton();}
 
 	uint16_t getFlags() const {return (m_header->m_flags_and_length.m_flags);}
 

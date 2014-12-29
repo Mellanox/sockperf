@@ -107,10 +107,13 @@ public:
 
 	inline int msg_sendto(int ifd)
 	{
+	  int length = m_pMsgRequest->getLength();
 		if (m_pMsgRequest->getSequenceCounter() % g_pApp->m_const_params.reply_every == 0) {
 			m_pMsgRequest->getHeader()->setPongRequest();
 			g_pPacketTimes->setTxTime(m_pMsgRequest->getSequenceCounter());
-			int ret = ::msg_sendto(ifd, m_pMsgRequest->getBuf(), m_pMsgRequest->getLength(), &(g_fds_array[ifd]->server_addr));
+			m_pMsgRequest->setHeaderToNetwork();
+			int ret = ::msg_sendto(ifd, m_pMsgRequest->getBuf(), length, &(g_fds_array[ifd]->server_addr));
+			m_pMsgRequest->setHeaderToHost();
 			/* check skip send operation case */
 			if (ret == RET_SOCKET_SKIPPED) {
 				g_pPacketTimes->clearTxTime(m_pMsgRequest->getSequenceCounter());
@@ -120,7 +123,10 @@ public:
 		}
 		else
 		{
-			return ::msg_sendto(ifd, m_pMsgRequest->getBuf(), m_pMsgRequest->getLength(), &(g_fds_array[ifd]->server_addr));
+		  m_pMsgRequest->setHeaderToNetwork();
+		  int ret = ::msg_sendto(ifd, m_pMsgRequest->getBuf(), length, &(g_fds_array[ifd]->server_addr));
+		  m_pMsgRequest->setHeaderToHost();
+		  return ret;
 		}
 	}
 
@@ -138,8 +144,11 @@ public:
 	}
 
 	inline int msg_sendto(int ifd) {
+	  int length = m_pMsgRequest->getLength();
 		g_pPacketTimes->setTxTime(m_pMsgRequest->getSequenceCounter());
-		int ret = ::msg_sendto(ifd, m_pMsgRequest->getBuf(), m_pMsgRequest->getLength(), &(g_fds_array[ifd]->server_addr));
+		m_pMsgRequest->setHeaderToNetwork();
+		int ret = ::msg_sendto(ifd, m_pMsgRequest->getBuf(), length, &(g_fds_array[ifd]->server_addr));
+		m_pMsgRequest->setHeaderToHost();
 		/* check skip send operation case */
 		if (ret == RET_SOCKET_SKIPPED) {
 			g_pPacketTimes->clearTxTime(m_pMsgRequest->getSequenceCounter());
@@ -161,7 +170,11 @@ public:
 	}
 
 	inline int msg_sendto(int ifd) {
-		return ::msg_sendto(ifd, m_pMsgRequest->getBuf(), m_pMsgRequest->getLength(), &(g_fds_array[ifd]->server_addr));
+	  int length = m_pMsgRequest->getLength();
+	  m_pMsgRequest->setHeaderToNetwork();
+	  int ret = ::msg_sendto(ifd, m_pMsgRequest->getBuf(), length, &(g_fds_array[ifd]->server_addr));
+	  m_pMsgRequest->setHeaderToHost();
+	  return ret;
 	}
 
 private:

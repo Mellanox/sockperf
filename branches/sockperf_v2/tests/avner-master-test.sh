@@ -36,11 +36,11 @@ function run_test()
 #export VMA_PATH=/volt/avnerb/vma/libvma.so-nosend
 #export VMA_PATH=/volt/avnerb/vma/libvma.so-nosend-norecv-nobind
 
-#export BASE_ARG="-c -t 4 -m 12" 
+#export BASE_ARG="-c -t 4 -m 14" 
 
 
 export VMA_RX_OFFLOAD=0 VMA_UC_OFFLOAD=1
-export BASE_ARG="-c -t 4 -m 12 --ping-pong --pps=max" 
+export BASE_ARG="-c -t 4 -m 14 --ping-pong --pps=max" 
 export VMA_PATH=/volt/avnerb/vma/libvma.so-4.5
 RUNTIME=300s
 LOG_FILE=0.eth_server_ucoff-0.pingmax.rx0ff-0.ucoff-1.server-vma-custom-mc-reply-uc-client-vma4.5
@@ -48,7 +48,7 @@ MSG="ETH Server-Command: VMA_IGMP=0 VMA_RX_OFFLOAD=1 VMA_UC_OFFLOAD=0 LD_PRELOAD
 #run_test
 
 export VMA_RX_OFFLOAD=1 VMA_UC_OFFLOAD=1
-export BASE_ARG="-c -t 4 -m 12 --ping-pong --pps=max" 
+export BASE_ARG="-c -t 4 -m 14 --ping-pong --pps=max" 
 export VMA_PATH=/volt/avnerb/vma/libvma.so-4.5
 RUNTIME=300s
 LOG_FILE=1.eth_server_ucoff-0.pingmax.rx0ff-1.ucoff-1.server-vma-custom-mc-reply-uc-client-vma4.5
@@ -56,7 +56,7 @@ MSG="ETH Server-Command: VMA_IGMP=0 VMA_RX_OFFLOAD=1 VMA_UC_OFFLOAD=0 LD_PRELOAD
 #run_test
 
 export VMA_RX_OFFLOAD=0 VMA_UC_OFFLOAD=1
-export BASE_ARG="-c -t 4 -m 12 --ping-pong --pps=max" 
+export BASE_ARG="-c -t 4 -m 14 --ping-pong --pps=max" 
 export VMA_PATH=/volt/avnerb/vma/libvma.so-norecv
 RUNTIME=300s
 LOG_FILE=2.eth_server_ucoff-0.pingmax.rx0ff-0.ucoff-1.server-vma-custom-mc-reply-uc-client-vma-norecv
@@ -65,7 +65,7 @@ MSG="ETH Server-Command: VMA_IGMP=0 VMA_RX_OFFLOAD=1 VMA_UC_OFFLOAD=0 LD_PRELOAD
 
 
 export VMA_RX_OFFLOAD=0 VMA_UC_OFFLOAD=1
-export BASE_ARG="-c -t 4 -m 12 --ping-pong --pps=max" 
+export BASE_ARG="-c -t 4 -m 14 --ping-pong --pps=max" 
 export VMA_PATH=/volt/avnerb/vma/libvma.so-4.5
 RUNTIME=300s
 LOG_FILE=3.eth_server_ucoff-1.pingmax.rx0ff-0.ucoff-1.server-vma-custom-mc-reply-uc-client-vma4.5
@@ -73,7 +73,7 @@ MSG="ETH Server-Command: VMA_IGMP=0 VMA_RX_OFFLOAD=1 VMA_UC_OFFLOAD=1 LD_PRELOAD
 run_test
 
 export VMA_RX_OFFLOAD=1 VMA_UC_OFFLOAD=1
-export BASE_ARG="-c -t 4 -m 12 --ping-pong --pps=max" 
+export BASE_ARG="-c -t 4 -m 14 --ping-pong --pps=max" 
 export VMA_PATH=/volt/avnerb/vma/libvma.so-4.5
 RUNTIME=300s
 LOG_FILE=4.eth_server_ucoff-1.pingmax.rx0ff-1.ucoff-1.server-vma-custom-mc-reply-uc-client-vma4.5
@@ -81,7 +81,7 @@ MSG="ETH Server-Command: VMA_IGMP=0 VMA_RX_OFFLOAD=1 VMA_UC_OFFLOAD=1 LD_PRELOAD
 run_test
 
 export VMA_RX_OFFLOAD=0 VMA_UC_OFFLOAD=1
-export BASE_ARG="-c -t 4 -m 12 --ping-pong --pps=max" 
+export BASE_ARG="-c -t 4 -m 14 --ping-pong --pps=max" 
 export VMA_PATH=/volt/avnerb/vma/libvma.so-norecv
 RUNTIME=300s
 LOG_FILE=5.eth_server_ucoff-1.pingmax.rx0ff-0.ucoff-1.server-vma-custom-mc-reply-uc-client-vma-norecv
