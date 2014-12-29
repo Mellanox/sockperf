@@ -110,6 +110,23 @@ void* win_set_timer(void *p_timer);
 #include <sys/resource.h>
 #include <fcntl.h>
 #include <netinet/in.h>
+#include <endian.h>
+
+#ifndef htobe64
+#ifdef __USE_BSD
+/* Conversion interfaces.  */
+# include <bits/byteswap.h>
+
+# if __BYTE_ORDER == __LITTLE_ENDIAN
+#  define htobe64(x) __bswap_64 (x)
+#  define be64toh(x) __bswap_64 (x)
+# else
+#  define htobe64(x) (x)
+#  define be64toh(x) (x)
+# endif
+#endif
+#endif
+
 
 #define INVALID_SOCKET 		(-1)
 #ifndef htonll
