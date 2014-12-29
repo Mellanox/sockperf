@@ -53,7 +53,10 @@ void IoHandler::warmup(Message *pMsgRequest) const
 	for (int ifd = m_fd_min; ifd <= m_fd_max; ifd++) {
 		if (g_fds_array[ifd] && g_fds_array[ifd]->is_multicast) {
 			for (int count=0; count<2; count++) {
-				msg_sendto(ifd, pMsgRequest->getBuf(), pMsgRequest->getLength(), &(g_fds_array[ifd]->server_addr));
+			  int length = pMsgRequest->getLength();
+			  pMsgRequest->setHeaderToNetwork();
+			  msg_sendto(ifd, pMsgRequest->getBuf(), length, &(g_fds_array[ifd]->server_addr));
+			  pMsgRequest->setHeaderToHost();
 			}
 		}
 	}

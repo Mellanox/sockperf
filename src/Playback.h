@@ -36,7 +36,7 @@
 struct PlaybackItem {
   TicksDuration duration;
   int size;
-  bool isValid() {return duration > TicksDuration::TICKS0 && size >= 12 && size <= 64000;}
+  bool isValid() {return duration > TicksDuration::TICKS0 && size >= 14 && size <= 64000;}
 };
 
 typedef std::vector<PlaybackItem> PlaybackVector;

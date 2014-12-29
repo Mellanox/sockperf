@@ -390,7 +390,7 @@ static int proc_mode_under_load( int id, int argc, const char **argv )
 		},
 		{
 			'm', AOPT_ARG, aopt_set_literal( 'm' ), aopt_set_string( "msg-size" ),
-			"Use messages of size <size> bytes (minimum default 12)."
+			"Use messages of size <size> bytes (minimum default 14)."
 		},
 		{
 			'r', AOPT_ARG,	aopt_set_literal( 'r' ),	aopt_set_string( "range" ),
@@ -692,7 +692,7 @@ static int proc_mode_ping_pong( int id, int argc, const char **argv )
 		},
 		{
 			'm', AOPT_ARG, aopt_set_literal( 'm' ), aopt_set_string( "msg-size" ),
-			"Use messages of size <size> bytes (minimum default 12)."
+			"Use messages of size <size> bytes (minimum default 14)."
 		},
 		{
 			'r', AOPT_ARG,	aopt_set_literal( 'r' ),	aopt_set_string( "range" ),
@@ -997,7 +997,7 @@ static int proc_mode_throughput( int id, int argc, const char **argv )
 		},
 		{
 			'm', AOPT_ARG, aopt_set_literal( 'm' ), aopt_set_string( "msg-size" ),
-			"Use messages of size <size> bytes (minimum default 12)."
+			"Use messages of size <size> bytes (minimum default 14)."
 		},
 		{
 			'r', AOPT_ARG,	aopt_set_literal( 'r' ),	aopt_set_string( "range" ),

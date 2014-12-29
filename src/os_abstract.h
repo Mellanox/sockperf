@@ -51,6 +51,7 @@
 
 #include <Dbghelp.h>		// backtrace
 #include <signal.h>
+#include <Winsock2.h>
 
 #ifdef _M_IX86
 	#define PRIu64			"llu"
@@ -108,11 +109,19 @@ void* win_set_timer(void *p_timer);
 #include <errno.h>
 #include <sys/resource.h>
 #include <fcntl.h>
+#include <netinet/in.h>
 
 #define INVALID_SOCKET 		(-1)
-
+#ifndef htonll
+#define htonll htobe64
 #endif
 
+#ifndef ntohll
+#define ntohll be64toh
+#endif
+
+#endif
+  
 /***********************************************************************************
 *				Common
 ***********************************************************************************/

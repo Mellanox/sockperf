@@ -167,6 +167,13 @@ private:
 					g_fds_array[ifd]->recv.cur_size = MsgHeader::EFFECTIVE_SIZE - g_fds_array[ifd]->recv.cur_offset;
 				}
 				return (receiveCount);
+			} else if (g_fds_array[ifd]->recv.cur_offset < MsgHeader::EFFECTIVE_SIZE) {
+			  /* 2: message header is got, match message to cycle buffer */
+			  m_pMsgReply->setBuf(g_fds_array[ifd]->recv.cur_addr);
+			  m_pMsgReply->setHeaderToHost();
+			} else {
+			  /* 2: message header is got, match message to cycle buffer */
+			  m_pMsgReply->setBuf(g_fds_array[ifd]->recv.cur_addr);
 			}
 
 			if (m_pMsgReply->getSequenceCounter() > m_pMsgRequest->getSequenceCounter())
@@ -176,8 +183,6 @@ private:
 			if ( m_pMsgReply->getLength() > MAX_PAYLOAD_SIZE){
 				exit_with_err("Message received was larger than expected.",SOCKPERF_ERR_FATAL);
 			}
-			/* 2: message header is got, match message to cycle buffer */
-			m_pMsgReply->setBuf(g_fds_array[ifd]->recv.cur_addr);
 
 			/* 3: message is not complete */
 			if ((g_fds_array[ifd]->recv.cur_offset + nbytes) < m_pMsgReply->getLength()) {

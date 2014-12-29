@@ -28,7 +28,7 @@ NF < 5 {error = 1; exit 1} # too few fields
 {
 	runtime = 0; startTime = $1; duration = $2; startPPS=$3; endPPS=$4; msgSize=$5
 	if (startTime < t) { error = 1; exit 2} # file is un-ordered
-	if (duration <= 0 || startPPS <= 0 || endPPS <= 0 || msgSize < 12 || msgSize > 65000) { error = 1; exit 3}
+	if (duration <= 0 || startPPS <= 0 || endPPS <= 0 || msgSize < 14 || msgSize > 65000) { error = 1; exit 3}
 	
 	ppsGradient = (endPPS - startPPS) / duration
 	#pps = startPPS
