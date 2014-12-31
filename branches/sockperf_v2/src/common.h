@@ -56,32 +56,81 @@ static inline int msg_recvfrom(int fd, uint8_t* buf, int nbytes, struct sockaddr
     int flags = 0;
 
 #ifdef  USING_VMA_EXTRA_API
+	int remain_buffer, data_to_copy;
+	uint8_t* start_addrs; 
+	struct vma_packet_t *pkt;
 
 	if (g_pApp->m_const_params.is_vmazcopyread && g_vma_api) {
+		remain_buffer = nbytes;
+		// Receive held data, and free VMA's previously received zero copied packets
+		if (g_pkts && g_pkts->n_packet_num > 0) {
 
-		// Free VMA's previously received zero copied datagram
-		if (g_dgram) {
-			g_vma_api->free_datagrams(fd, &g_dgram->datagram_id, 1);
-			g_dgram = NULL;
+			pkt = &g_pkts->pkts[0];			
+			
+			while(g_pkt_index < pkt->sz_iov) {
+				start_addrs = buf + (nbytes - remain_buffer);
+				data_to_copy = _min(remain_buffer, (int)(pkt->iov[g_pkt_index].iov_len - g_pkt_offset));
+				memcpy(start_addrs, (uint8_t*)pkt->iov[g_pkt_index].iov_base + g_pkt_offset, data_to_copy);
+				remain_buffer -= data_to_copy;
+				g_pkt_offset += data_to_copy;
+				
+				//Handled buffer is filled
+				if (g_pkt_offset < pkt->iov[g_pkt_index].iov_len)	return nbytes;
+
+				g_pkt_offset = 0;
+				g_pkt_index++;
+			}
+			
+			g_vma_api->free_packets(fd, g_pkts->pkts, g_pkts->n_packet_num);
+			g_pkts = NULL;
+			g_pkt_index = 0;
+			g_pkt_offset = 0;
+			
+			//Handled buffer is filled
+			if (remain_buffer == 0) return nbytes;
 		}
-
-		// Receive the next datagram with zero copy API
-		ret = g_vma_api->recvfrom_zcopy(fd, g_dgram_buf, Message::getMaxSize(),
-		                                  &flags, (struct sockaddr*)recvfrom_addr, &size);
-		if (ret >= MsgHeader::EFFECTIVE_SIZE) {
+		
+		// Receive the next packet with zero copy API
+		ret = g_vma_api->recvfrom_zcopy(fd, g_pkt_buf, Message::getMaxSize(), &flags, (struct sockaddr*)recvfrom_addr, &size);
+		
+		if (ret > 0) {
+			// Zcopy receive is perfomed
 			if (flags & MSG_VMA_ZCOPY) {
-				// zcopy
-				g_dgram = (struct vma_datagram_t*)g_dgram_buf;
+				g_pkts = (struct vma_packets_t*)g_pkt_buf;
+				if (g_pkts->n_packet_num > 0) {
 
-				// copy signature
-				memcpy(buf, g_dgram->iov[0].iov_base, MsgHeader::EFFECTIVE_SIZE);
+					pkt = &g_pkts->pkts[0];
+
+					while(g_pkt_index < pkt->sz_iov) {
+						start_addrs = buf + (nbytes - remain_buffer);
+						data_to_copy = _min(remain_buffer, (int)pkt->iov[g_pkt_index].iov_len);
+						memcpy(start_addrs, pkt->iov[g_pkt_index].iov_base, data_to_copy);
+						remain_buffer -= data_to_copy;
+						g_pkt_offset += data_to_copy;
+						
+						//Handled buffer is filled
+						if (g_pkt_offset < pkt->iov[g_pkt_index].iov_len)	return nbytes;
+
+						g_pkt_offset = 0;
+						g_pkt_index++;
+					}
+					ret = nbytes-remain_buffer;	
+				}
+				else{
+					ret = (remain_buffer == nbytes) ? -1 : (nbytes - remain_buffer);
+				}
 			}
 			else {
-				// copy signature
-				memcpy(buf, g_dgram_buf, MsgHeader::EFFECTIVE_SIZE);
+				data_to_copy = _min(remain_buffer, ret);
+				memcpy(buf + (nbytes - remain_buffer), g_pkt_buf, data_to_copy);
+				ret = nbytes - (remain_buffer - data_to_copy);
 			}
 		}
-	}
+		// Non_blocked with held packet.
+		else if (ret < 0 && os_err_eagain() && (remain_buffer < nbytes)) {
+			return nbytes-remain_buffer;
+		}
+	}	
 	else
 #endif
 	{

@@ -122,6 +122,20 @@ void print_log(const char* error, int fds)
 */
 void close_ifd(int fd,int ifd,fds_data* l_fds_ifd){
 	fds_data* l_next_fd =  g_fds_array[fd];
+
+#ifdef  USING_VMA_EXTRA_API
+	if (g_pkts) {
+		g_vma_api->free_packets(fd, g_pkts->pkts, g_pkts->n_packet_num);
+		g_pkts = NULL;
+		g_pkt_index = 0;
+		g_pkt_offset = 0;
+	}
+
+	if (g_vma_api) {
+		g_vma_api->register_recv_callback(fd, NULL, NULL);
+	}
+#endif
+
 	for (int i = 0; i < MAX_ACTIVE_FD_NUM; i++) {
 		if (l_next_fd->active_fd_list[i] == ifd) {
 			print_log_dbg( l_fds_ifd->server_addr.sin_addr, l_fds_ifd->server_addr.sin_port, ifd);
@@ -191,7 +205,7 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_t
 		  m_pMsgReply->setBuf(l_fds_ifd->recv.cur_addr);
 		}
 
-		if ( m_pMsgReply->getLength() > MAX_PAYLOAD_SIZE){
+		if ( (unsigned) m_pMsgReply->getLength() > (unsigned)MAX_PAYLOAD_SIZE) {
 			//Message received was larger than expected, message ignored. - only on stream mode.
 			print_log("Message received was larger than expected, message ignored.", l_fds_ifd);
 
