@@ -76,7 +76,9 @@ int ServerBase::initBeforeLoop()
 		for (int ifd = m_ioHandlerRef.m_fd_min; ifd <= m_ioHandlerRef.m_fd_max; ifd++) {
 
 			if (!(g_fds_array[ifd] && (g_fds_array[ifd]->active_fd_list))) continue;
-
+#ifdef  USING_VMA_EXTRA_API
+			g_fds_array[ifd]->p_msg = m_pMsgReply;
+#endif
 			struct sockaddr_in* p_bind_addr = &g_fds_array[ifd]->server_addr;
 
 			struct sockaddr_in bind_addr;

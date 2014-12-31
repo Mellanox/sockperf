@@ -371,8 +371,10 @@ extern TicksTime g_cycleStartTime;
 extern debug_level_t g_debug_level;
 
 #ifdef  USING_VMA_EXTRA_API
-extern unsigned char* g_dgram_buf;
-extern struct vma_datagram_t *g_dgram;
+extern unsigned char* g_pkt_buf;
+extern struct vma_packets_t* g_pkts;
+extern unsigned int g_pkt_index;
+extern unsigned int g_pkt_offset;
 #endif
 
 class Message;
@@ -416,6 +418,9 @@ typedef struct fds_data {
 		int cur_offset;
 		int cur_size;
 	} recv;
+#ifdef  USING_VMA_EXTRA_API
+	Message *p_msg;
+#endif
 } fds_data;
 
 

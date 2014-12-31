@@ -209,30 +209,7 @@ private:
 			printf("%s\n", rcvd_buf);
 			to_print = 0;
 		}*/
-	#ifdef USING_VMA_EXTRA_API
-		if (g_dgram) {
-			size_t i, pos, len;
 
-			((MsgHeader*)(g_dgram->iov[0].iov_base))->setClient();/*match to client so data_integrity will pass*/
-
-			pos = 0;
-			for (i = 0; i < g_dgram->sz_iov; ++i) {
-				len = g_dgram->iov[i].iov_len;
-
-				if (buf_size < pos + len ||
-					memcmp((char*)g_dgram->iov[i].iov_base,
-						   message_buf + pos, len)) {
-					return 0;
-				}
-				pos += len;
-			}
-			return pos == buf_size;
-		} else {
-			printf("dgram is NULL\n");
-		}
-	#endif
-
-		//TODO: this is bug in orig udp_lat's code, in case USING_VMA_EXTRA_API and ! g_dgram we should compare to g_dgram_buf
 		pMsgReply->setClient();
 		return !memcmp(pMsgReply->getBuf(), message_buf, buf_size);
 
