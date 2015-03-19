@@ -30,6 +30,8 @@ case "$host" in
   powerpc-*-freebsd*) TARGET=POWERPC_FREEBSD; TARGETDIR=powerpc;;
   powerpc*-*-rtems*) TARGET=POWERPC; TARGETDIR=powerpc;;
   x86_64-*-*) TARGET=X86_64; TARGETDIR=x86;;
+  amd64-*-freebsd*) TARGET=FREEBSD; TARGETDIR=x86;;
+  i386-*-freebsd*) TARGET=FREEBSD; TARGETDIR=x86;;
   aarch64-*-*) TARGET=AARCH64; TARGETDIR=aarch64;;
 esac
  
@@ -47,6 +49,7 @@ AM_CONDITIONAL(ARM, test x$TARGET = xARM)
 AM_CONDITIONAL(POWERPC_AIX, test x$TARGET = xPOWERPC_AIX)
 AM_CONDITIONAL(POWERPC_DARWIN, test x$TARGET = xPOWERPC_DARWIN)
 AM_CONDITIONAL(POWERPC_FREEBSD, test x$TARGET = xPOWERPC_FREEBSD)
+AM_CONDITIONAL(FREEBSD, test x$TARGET = xFREEBSD)
 AM_CONDITIONAL(AARCH64, test x$TARGET = xAARCH64)
 
 AC_SUBST(TARGET)
@@ -78,7 +81,11 @@ AC_PROG_CXX
 #AC_PROG_LIBTOOL
 
 
-CXXFLAGS="-Werror -Wall  --param inline-unit-growth=200"
+if test x$TARGET = xFREEBSD; then
+	CXXFLAGS="-Wall"
+else
+	CXXFLAGS="-Werror -Wall  --param inline-unit-growth=200"
+fi
 CXXFLAGS="$CXXFLAGS  -D__LINUX__  -DVERSION=$VERSION"
 
 
@@ -179,9 +186,13 @@ AC_CHECK_LIB(
     [rt], [clock_gettime], [], AC_MSG_ERROR([librt not found]))
 AC_CHECK_LIB(
     [pthread], [pthread_create], [], AC_MSG_ERROR([libpthread not found]))
-AC_CHECK_LIB(
-    [dl], [dlsym], [], AC_MSG_ERROR([libdl not found]))
-
+if test x$TARGET = xFREEBSD; then
+	AC_CHECK_LIB(
+	    [execinfo], [backtrace], [], AC_MSG_ERROR([libexecinfo not found]))
+else
+	AC_CHECK_LIB(
+	    [dl], [dlsym], [], AC_MSG_ERROR([libdl not found]))
+fi
 
 RPM_RELEASE=1
 AC_SUBST(RPM_RELEASE)

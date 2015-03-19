@@ -27,7 +27,11 @@
  *
  */
 #include "Message.h"
+
+#ifndef __FreeBSD__
 #include <malloc.h>
+#endif
+
 #include <string>
 #include "common.h"
 

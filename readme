@@ -56,4 +56,8 @@ LD=${CROSS_COMPILE}ld CC=${CROSS_COMPILE}gcc --host i386
 4) Invoke make
 
 
+* To build for FreeBSD
+
+Make sure automake tools are installed.
+
 Good luck!

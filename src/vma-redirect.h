@@ -36,8 +36,14 @@
 #include <sys/poll.h>
 #include <sched.h>
 #include <sys/ioctl.h>
+
+#ifdef __FreeBSD__
+#include <netinet/in.h>
+#include <stdio.h>
+#else
 #include <resolv.h>
 #include <sys/epoll.h>
+#endif
 
 // -------------------------------------------------------------------
 //
