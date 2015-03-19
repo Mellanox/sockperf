@@ -99,6 +99,10 @@ with simple integral values. The following describes these calculations:
 #include <stdint.h>// for int64_t
 #include <stdlib.h>// for qsort
 
+#ifdef __FreeBSD__
+#include <sys/time.h>
+#endif
+
 #include "ticks_os.h"
 
 // usefull constants

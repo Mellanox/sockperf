@@ -96,20 +96,46 @@ void* win_set_timer(void *p_timer);
 #else
 
 /***********************************************************************************
-*				Linux
+*				UNIX
 ***********************************************************************************/
 
 #include <execinfo.h>  // for backtraces
 #include <pthread.h>
-#include <unistd.h>
 #include <signal.h>
-#include <sys/syscall.h>
 #include <sys/time.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <sys/resource.h>
 #include <fcntl.h>
 #include <netinet/in.h>
+
+#define INVALID_SOCKET (-1)
+
+#endif
+
+
+/***********************************************************************************
+*				FreeBSD
+***********************************************************************************/
+
+#ifdef __FreeBSD__
+
+#include <sys/param.h>
+#include <sys/cpuset.h>
+#include <pthread_np.h>
+
+#define htonll htonl
+#define ntohll ntohl
+
+
+/***********************************************************************************
+*				Linux
+***********************************************************************************/
+
+#else
+
+#include <unistd.h>
+#include <sys/syscall.h>
 #include <endian.h>
 
 #ifndef htobe64
@@ -127,8 +153,6 @@ void* win_set_timer(void *p_timer);
 #endif
 #endif
 
-
-#define INVALID_SOCKET 		(-1)
 #ifndef htonll
 #define htonll htobe64
 #endif
@@ -138,7 +162,7 @@ void* win_set_timer(void *p_timer);
 #endif
 
 #endif
-  
+ 
 /***********************************************************************************
 *				Common
 ***********************************************************************************/
@@ -163,6 +187,8 @@ typedef struct os_mutex_t {
 typedef struct os_cpuset_t {
 #ifdef WIN32
 	DWORD_PTR cpuset;
+#elif __FreeBSD__
+	cpuset_t cpuset;
 #else
 	cpu_set_t cpuset;
 #endif

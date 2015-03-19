@@ -166,7 +166,7 @@ int set_affinity_list(os_thread_t thread, const char * cpu_list)
 		}
 		if ( (rc == SOCKPERF_ERR_NONE) && os_set_affinity(thread, mycpuset))
 		{
-			log_err("Set thread affinity failed to set tid(%lu) to cpu(%s)", thread.tid, cpu_list);
+			log_err("Set thread affinity failed to set tid(%lu) to cpu(%s)", (unsigned long)thread.tid, cpu_list);
 			rc = SOCKPERF_ERR_FATAL;
 		}
 

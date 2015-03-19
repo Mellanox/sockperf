@@ -42,7 +42,13 @@ typedef uint16_t in_port_t;
 
 #else
 
+#ifdef __linux__
+
 #include <features.h>
+#include <sys/epoll.h>
+
+#endif
+
 #if  (__GLIBC__ > 2) || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 2)
 #include <bits/types.h>
 #undef __FD_SETSIZE
@@ -60,7 +66,6 @@ typedef uint16_t in_port_t;
 #include <sys/time.h>		/* timers*/
 #include <sys/socket.h>		/* sockets*/
 #include <sys/select.h>		/* select() According to POSIX 1003.1-2001 */
-#include <sys/epoll.h>
 #include <sys/syscall.h>
 #include <arpa/inet.h>		/* internet address manipulation */
 #include <netinet/in.h>		/* internet address manipulation */
@@ -86,7 +91,7 @@ typedef uint16_t in_port_t;
 #include "Message.h"
 #include "Playback.h"
 
-#ifndef WIN32
+#if ! defined (WIN32) && ! defined (__FreeBSD__)
 	#include "vma-redirect.h"
 	//#define USING_VMA_EXTRA_API
 	#ifdef  USING_VMA_EXTRA_API
@@ -447,7 +452,7 @@ typedef struct clt_session_info {
 //hash/equal_to functions, by ourself.
 namespace std
 {
-#ifndef WIN32
+#if ! defined (WIN32) && ! defined (__FreeBSD__)
 	namespace tr1
 	{
 #endif
@@ -479,7 +484,7 @@ namespace std
 				return key.s_addr & 0xFF;
 			}
 		};
-#ifndef WIN32
+#if ! defined (WIN32) && ! defined (__FreeBSD__)
 	} // closes namespace tr1
 #endif
 	template<>
@@ -509,9 +514,13 @@ namespace std
 		}
 	};
 }
-
+#ifndef __FreeBSD__
 typedef std::tr1::unordered_map<struct sockaddr_in, clt_session_info_t> seq_num_map;
 typedef std::tr1::unordered_map<struct in_addr, size_t> addr_to_id;
+#else
+typedef std::unordered_map<struct sockaddr_in, clt_session_info_t> seq_num_map;
+typedef std::unordered_map<struct in_addr, size_t> addr_to_id;
+#endif
 
 extern fds_data** g_fds_array;
 extern int IGMP_MAX_MEMBERSHIPS;

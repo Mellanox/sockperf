@@ -297,7 +297,7 @@ private:
 	struct pollfd *mp_poll_fd_arr;
 };
 
-
+#ifndef __FreeBSD__
 //==============================================================================
 class IoEpoll: public IoHandler {
 public:
@@ -372,6 +372,7 @@ private:
 	int m_epfd;
 	int m_max_events;
 };
+#endif
 #endif
 
 #endif /* IOHANDLERS_H_ */

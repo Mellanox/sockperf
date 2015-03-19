@@ -70,7 +70,7 @@ int ServerBase::initBeforeLoop()
 	if (rc == SOCKPERF_ERR_NONE)
 	{
 		log_dbg("thread %lu: fd_min: %d, fd_max : %d, fd_num: %d"
-				, os_getthread().tid, m_ioHandlerRef.m_fd_min, m_ioHandlerRef.m_fd_max, m_ioHandlerRef.m_fd_num);
+				, (unsigned long)os_getthread().tid, m_ioHandlerRef.m_fd_min, m_ioHandlerRef.m_fd_max, m_ioHandlerRef.m_fd_num);
 
 		// cycle through all set fds in the array (with wrap around to beginning)
 		for (int ifd = m_ioHandlerRef.m_fd_min; ifd <= m_ioHandlerRef.m_fd_max; ifd++) {
@@ -123,7 +123,7 @@ int ServerBase::initBeforeLoop()
 		if (rc == SOCKPERF_ERR_NONE) {
 			sleep(g_pApp->m_const_params.pre_warmup_wait);
 			m_ioHandlerRef.warmup(m_pMsgRequest);
-			log_msg("[tid %lu] using %s() to block on socket(s)", os_getthread().tid, handler2str(g_pApp->m_const_params.fd_handler_type));
+			log_msg("[tid %lu] using %s() to block on socket(s)", (unsigned long)os_getthread().tid, handler2str(g_pApp->m_const_params.fd_handler_type));
 		}
 	}
 
@@ -133,7 +133,7 @@ int ServerBase::initBeforeLoop()
 //------------------------------------------------------------------------------
 void ServerBase::cleanupAfterLoop() {
 	// cleanup
-	log_dbg("thread %lu released allocations",os_getthread().tid);
+	log_dbg("thread %lu released allocations",(unsigned long)os_getthread().tid);
 
 	if (!g_pApp->m_const_params.mthread_server) {
 		log_msg("%s() exit", __func__);
@@ -377,11 +377,13 @@ void server_handler(handler_info *p_info)
 			server_handler<IoPoll>(p_info->fd_min, p_info->fd_max, p_info->fd_num);
 			break;
 		}
+#ifndef __FreeBSD__
 		case EPOLL:
 		{
 			server_handler<IoEpoll>(p_info->fd_min, p_info->fd_max, p_info->fd_num);
 			break;
 		}
+#endif
 #endif
 		default:
 			ERROR_MSG("unknown file handler");
@@ -436,7 +438,7 @@ void find_min_max_fds(int start_look_from, int len, int* p_fd_min, int* p_fd_max
 void server_sig_handler(int signum) {
 	if (g_b_exit) {
 		log_msg("Test end (interrupted by signal %d)", signum);
-		log_dbg("thread %lu - exiting", os_getthread().tid);
+		log_dbg("thread %lu - exiting", (unsigned long)os_getthread().tid);
 		return;
 	}
 
@@ -448,14 +450,14 @@ void server_sig_handler(int signum) {
 	if (g_pApp->m_const_params.mthread_server) {
 		if (os_getthread().tid == thread_pid_array[0].tid) {  //main thread
 			if (g_debug_level >= LOG_LVL_DEBUG) {
-				log_dbg("Main thread %lu got signal %d - exiting",os_getthread().tid,signum);
+				log_dbg("Main thread %lu got signal %d - exiting",(unsigned long)os_getthread().tid,signum);
 			}
 			else {
 				log_msg("Got signal %d - exiting", signum);
 			}
 		}
 		else {
-			log_dbg("Secondary thread %lu got signal %d - exiting", os_getthread().tid,signum);
+			log_dbg("Secondary thread %lu got signal %d - exiting", (unsigned long)os_getthread().tid,signum);
 		}
 	}
 	else {

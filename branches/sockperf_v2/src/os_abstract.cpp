@@ -63,7 +63,7 @@ void os_printf_backtrace(void)
 	char **strings;
 	void* m_backtrace[25];
 	int m_backtrace_size = backtrace(m_backtrace, 25);
-	printf("sockperf: [tid: %lu] ------\n", os_getthread().tid);
+	printf("sockperf: [tid: %lu] ------\n", (unsigned long)os_getthread().tid);
 	strings = backtrace_symbols(m_backtrace, m_backtrace_size);
 	for (int i = 0; i < m_backtrace_size; i++)
 		printf("sockperf: [%i] %p: %s\n", i, m_backtrace[i], strings[i]);
@@ -151,6 +151,8 @@ os_thread_t os_getthread(void)
 #ifdef WIN32
 	mythread.tid = GetCurrentThreadId();
 	mythread.hThread = GetCurrentThread();
+#elif __FreeBSD__
+	mythread.tid = pthread_self();
 #else
 	mythread.tid = syscall(__NR_gettid);
 #endif
@@ -386,7 +388,7 @@ int os_set_affinity(const os_thread_t & thread, const os_cpuset_t &_mycpuset)
 			return -1;
 #else
 		// Can't use thread.tid since it's syscall and not pthread_t
-		if (0 != pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &(_mycpuset.cpuset)))
+		if (0 != pthread_setaffinity_np(pthread_self(), sizeof(os_cpuset_t), &(_mycpuset.cpuset)))
 			return -1;
 #endif
 		return 0;
