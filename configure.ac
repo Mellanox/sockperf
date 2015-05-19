@@ -173,18 +173,6 @@ AC_SEARCH_LIBS([pthread_create], [pthread], [], AC_MSG_ERROR([libpthread not fou
 AC_SEARCH_LIBS([backtrace], [execinfo], [], AC_MSG_ERROR([libexecinfo not found]))
 AC_SEARCH_LIBS([dlsym], [dl], [], AC_MSG_ERROR([libdl not found]))
 
-RPM_RELEASE=1
-AC_SUBST(RPM_RELEASE)
-RPM_DIR=${top_sockperf_dir}
-AC_SUBST(RPM_DIR)
-RPM_TARBALL=${PACKAGE}-${VERSION}.tar.gz
-AC_SUBST(RPM_TARBALL)
-
-
-OUT_DIR=`pwd`/bin/linux/${TARGET_BUILD}/${host_cpu}
-#AC_PREFIX_DEFAULT("`pwd`/inst")
-
-
 AC_CONFIG_FILES([
     Makefile
     doc/Makefile
