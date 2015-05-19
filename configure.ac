@@ -1,13 +1,11 @@
 define([ver_major], esyscmd([sh -c "(awk -F. '{ print \$1 }' version) | tr -d '\n'"]))
 define([ver_minor], esyscmd([sh -c "(awk -F. '{ print \$2 }' version) | tr -d '\n'"]))
-define([ver_svn], esyscmd([sh -c "(svnversion .) | awk '{ print \$1 }' | tr -d '\n'"]))
 
-AC_INIT([SOCKPERF], [ver_major.ver_minor.ver_svn], [sockperf-discuss@googlegroups.com])
+AC_INIT([SOCKPERF], [ver_major.ver_minor], [sockperf-discuss@googlegroups.com])
 
 AC_DEFINE(SOCKPERF_MAJOR_VER, ver_major, [sockperf Major Version])
 AC_DEFINE(SOCKPERF_MINOR_VER, ver_minor, [sockperf Minor Version])
-AC_DEFINE(SOCKPERF_MICRO_VER, ver_svn, [sockperf Micro Version])
-VERSION=ver_major.ver_minor.ver_svn
+VERSION=ver_major.ver_minor
 
 
 AC_CONFIG_HEADER([config.h])
