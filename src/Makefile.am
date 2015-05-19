@@ -14,8 +14,6 @@ install-data-local:
 	@(cp $(bin_PROGRAMS)_$(PACKAGE_VERSION) $(DESTDIR)${prefix}/bin/. && cp $(bin_PROGRAMS) $(DESTDIR)${prefix}/bin/.)
 
 bin_PROGRAMS = sockperf
-INCLUDES := \
-	-I.
 
 
 noinst_HEADERS = \
