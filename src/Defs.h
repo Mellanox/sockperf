@@ -203,9 +203,6 @@ enum {
 #define TRACE(msg) log_msg("TRACE <%s>: %s() %s:%d\n", msg, __func__, __FILE__, __LINE__)
 #define ERROR_MSG(msg) if (1) {TRACE(msg); exit_with_log (-1);} else
 
-#define QUOTE(name) #name
-#define STR(macro) QUOTE(macro)
-
 typedef enum {
 	LOG_LVL_INFO = 0,
 	LOG_LVL_DEBUG
