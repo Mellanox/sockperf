@@ -2,6 +2,7 @@
 # sockperf utility.
 #
 AM_LDFLAGS = -rdynamic
+AM_CXXFLAGS = -Wall
 
 all:
 	@(cp $(DESTDIR)$(bin_PROGRAMS) $(DESTDIR)$(bin_PROGRAMS)_$(PACKAGE_VERSION))

@@ -80,15 +80,6 @@ AM_MAINTAINER_MODE
 AC_PROG_CXX
 #AC_PROG_LIBTOOL
 
-
-if test x$TARGET = xFREEBSD; then
-	CXXFLAGS="-Wall"
-else
-	CXXFLAGS="-Werror -Wall  --param inline-unit-growth=200"
-fi
-CXXFLAGS="$CXXFLAGS  -D__LINUX__  -DVERSION=$VERSION"
-
-
 ##########################
 # Documentation
 #
