@@ -123,13 +123,10 @@ AC_ARG_ENABLE(
     AC_HELP_STRING([--enable-debug], 
                    [SOCKPERF: turn on debugging (default=no)]))
 if test x$enable_debug = xyes; then
-    TARGET_BUILD=dbg
-    CXXFLAGS="$CXXFLAGS -g -D_DEBUG -DDEBUG"
-	CFLAGS="$CFLAGS -g -D_DEBUG -DDEBUG"
+    AC_DEFINE([DEBUG], [], [Enable debugging])
+    AC_DEFINE([_DEBUG], [], [Enable debugging])
 else
-    TARGET_BUILD=rls
-    CXXFLAGS="$CXXFLAGS -O3 -DNDEBUG"
-	CFLAGS="$CFLAGS -O3 -DNDEBUG"
+    AC_DEFINE([NDEBUG], [], [Disable debugging])
 fi
 
 
