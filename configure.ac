@@ -3,11 +3,6 @@ define([ver_minor], esyscmd([sh -c "(awk -F. '{ print \$2 }' version) | tr -d '\
 
 AC_INIT([SOCKPERF], [ver_major.ver_minor], [sockperf-discuss@googlegroups.com])
 
-AC_DEFINE(SOCKPERF_MAJOR_VER, ver_major, [sockperf Major Version])
-AC_DEFINE(SOCKPERF_MINOR_VER, ver_minor, [sockperf Minor Version])
-VERSION=ver_major.ver_minor
-
-
 AC_CONFIG_HEADER([config.h])
 #AC_CONFIG_MACRO_DIR([config/m4])
 AC_CONFIG_AUX_DIR([config/aux])

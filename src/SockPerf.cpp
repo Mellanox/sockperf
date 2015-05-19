@@ -110,7 +110,7 @@ int prepare_socket(int fd, struct fds_data *p_data);
 void cleanup();
 
 #ifndef VERSION
-#define VERSION	unknown
+#define VERSION        "unknown"
 #endif
 
 static int proc_mode_help( int, int, const char ** );
@@ -318,7 +318,7 @@ static int proc_mode_help( int id, int argc, const char **argv )
 	int   i = 0;
 
 	printf(MODULE_NAME " is a tool for testing network latency and throughput.\n");
-	printf("version %s\n", STR(VERSION));
+	printf("version %s\n", VERSION);
 	printf("\n");
 	printf("Usage: " MODULE_NAME " <subcommand> [options] [args]\n");
 	printf("Type: \'" MODULE_NAME " <subcommand> --help\' for help on a specific subcommand.\n");
@@ -344,7 +344,7 @@ static int proc_mode_help( int id, int argc, const char **argv )
 //------------------------------------------------------------------------------
 static int proc_mode_version( int id, int argc, const char **argv )
 {
-	printf(MODULE_NAME ", version %s\n", STR(VERSION));
+	printf(MODULE_NAME ", version %s\n", VERSION);
 	printf("   compiled %s, %s\n", __DATE__, __TIME__);
 	printf("\n%s\n", MODULE_COPYRIGHT);
 
@@ -3354,7 +3354,7 @@ s_user_params.daemonize,
 s_user_params.tos);
 
 		// Display application version
-		log_msg( MAGNETA "== version #%s == " ENDCOLOR, STR(VERSION));
+		log_msg( MAGNETA "== version #%s == " ENDCOLOR, VERSION);
 
 		// Display VMA version
 #ifdef VMA_LIBRARY_MAJOR
