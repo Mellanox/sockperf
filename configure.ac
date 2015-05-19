@@ -182,17 +182,10 @@ AC_CHECK_HEADERS(
 # Checks for libraries.
 #
 AC_HEADER_STDC
-AC_CHECK_LIB(
-    [rt], [clock_gettime], [], AC_MSG_ERROR([librt not found]))
-AC_CHECK_LIB(
-    [pthread], [pthread_create], [], AC_MSG_ERROR([libpthread not found]))
-if test x$TARGET = xFREEBSD; then
-	AC_CHECK_LIB(
-	    [execinfo], [backtrace], [], AC_MSG_ERROR([libexecinfo not found]))
-else
-	AC_CHECK_LIB(
-	    [dl], [dlsym], [], AC_MSG_ERROR([libdl not found]))
-fi
+AC_SEARCH_LIBS([clock_gettime], [rt], [], AC_MSG_ERROR([librt not found]))
+AC_SEARCH_LIBS([pthread_create], [pthread], [], AC_MSG_ERROR([libpthread not found]))
+AC_SEARCH_LIBS([backtrace], [execinfo], [], AC_MSG_ERROR([libexecinfo not found]))
+AC_SEARCH_LIBS([dlsym], [dl], [], AC_MSG_ERROR([libdl not found]))
 
 RPM_RELEASE=1
 AC_SUBST(RPM_RELEASE)
