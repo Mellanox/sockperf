@@ -145,18 +145,6 @@ fi
 
 
 ##########################
-# Enable debug info
-#
-AC_ARG_ENABLE(
-    [debuginfo],
-    AC_HELP_STRING([--enable-debuginfo],
-                   [SOCKPERF: include debug information (default=no)]))
-if test x$enable_debuginfo = xyes; then
-    CXXFLAGS="$CXXFLAGS -g -O3"
-	CFLAGS="$CFLAGS -g -O3"
-fi
-
-##########################
 # Enable build 32bit
 #
 AC_ARG_ENABLE(
