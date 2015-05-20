@@ -11,7 +11,7 @@ TOOL_SUBDIR = tools
 endif
 
 
-EXTRA_DIST = \
+dist_doc_DATA = \
 	readme \
 	authors \
 	news \
