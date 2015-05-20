@@ -1,25 +1,21 @@
 EXTRA_DIST = \
-	Doxyfile \
+	Doxyfile.in \
 	main.dox
 
+man_MANS = man/man/man3/sockperf.3
+
 .PHONY: doxygen
+doxygen: man/man/man3/sockperf.3
 
-targets = doxygen
-
-all-local: $(targets)
-
-doxygen: Doxyfile main.dox
-	( cat Doxyfile ; echo "PROJECT_NUMBER=`cat ../version`" ) | doxygen -
+man/man/man3/sockperf.3: Doxyfile $(top_srcdir)/doc/main.dox
+	doxygen Doxyfile
 
 install-data-local:
 	$(mkinstalldirs) ${DESTDIR}$(docdir)
-	cp -rf man/man/ ${DESTDIR}$(prefix)/share/
 	cp -rf man/html/ ${DESTDIR}$(docdir)
 
 uninstall-local:
-	$(RM) -rf ${DESTDIR}$(docdir)/*
+	rm -rf ${DESTDIR}$(docdir)/html
 
 clean-local:
-	$(RM) -r man doxygen.log
-
-
+	rm -rf man doxygen.log

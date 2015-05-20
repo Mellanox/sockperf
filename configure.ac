@@ -145,6 +145,7 @@ AC_SEARCH_LIBS([dlsym], [dl], [], AC_MSG_ERROR([libdl not found]))
 AC_CONFIG_FILES([
     Makefile
     doc/Makefile
+    doc/Doxyfile
     src/Makefile
     tools/Makefile
     tests/Makefile
