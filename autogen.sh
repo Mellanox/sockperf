@@ -12,4 +12,12 @@ rm -rf autom4te.cache
 
 cd "$oldpwd"
 
+if [ "x$1" = "xc" ]; then
+	shift
+	$topdir/configure CXXFLAGS='-g -O0 -Wall -Werror' $@
+	make clean
+else
+	printf "\nNow run '$topdir/configure' and 'make'.\n\n"
+fi
+
 exit 0
