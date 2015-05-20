@@ -21,7 +21,6 @@ EXTRA_DIST = \
 
 SUBDIRS = src ${DOC_SUBDIR} ${TEST_SUBDIR} ${TOOL_SUBDIR}
 
-ACLOCAL_FLAGS = -I config/m4
 AM_LDFLAGS = -rdynamic
 
 
