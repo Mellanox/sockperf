@@ -59,7 +59,7 @@ if test x"$cross_compiling" = xyes; then
 #prefix=${prefix}/${host_cpu}
 fi
 
-AM_INIT_AUTOMAKE(foreign)
+AM_INIT_AUTOMAKE([foreign -Wall])
 AM_MAINTAINER_MODE
 
 #####################################
