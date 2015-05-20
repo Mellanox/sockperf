@@ -50,10 +50,6 @@ AM_CONDITIONAL(S390, test x$TARGET = xS390)
 AC_SUBST(TARGET)
 AC_SUBST(TARGETDIR)
 
-
-AC_MSG_NOTICE([ ])
-AC_MSG_NOTICE([release $VERSION])
-
 #########
 # Locate a compiler for the build machine. This compiler should
 # generate command-line programs that run on the build machine.
@@ -62,9 +58,6 @@ if test x"$cross_compiling" = xyes; then
     AC_MSG_NOTICE([Enable cross compiling on ${build_cpu} for ${host_cpu}])
 #prefix=${prefix}/${host_cpu}
 fi
-
-AC_MSG_NOTICE([..............................................])
-
 
 AM_INIT_AUTOMAKE(foreign)
 AM_MAINTAINER_MODE
@@ -81,7 +74,8 @@ AC_PROG_CXX
 AC_ARG_ENABLE(
     [doc],
     AC_HELP_STRING([--enable-doc],
-                   [SOCKPERF: create documentation with doxygen in html and unix-man(default=yes)]))
+                   [SOCKPERF: create documentation with doxygen in html and unix-man(default=yes)]),
+    [], [enable_doc=no])
 
 # Checks for doxygen
 AC_PATH_PROG(DOXYGEN, doxygen, ,$PATH:/usr/local/bin:/usr/bin)
@@ -98,7 +92,8 @@ AM_CONDITIONAL(DOC, test x$enable_doc = xyes)
 AC_ARG_ENABLE(
     [test],
     AC_HELP_STRING([--enable-test],
-                   [SOCKPERF: compile tests (default=yes)]))
+                   [SOCKPERF: compile tests (default=yes)]),
+    [], [enable_test=no])
 AM_CONDITIONAL(TEST, test x$enable_test = xyes)
 
 
@@ -108,7 +103,8 @@ AM_CONDITIONAL(TEST, test x$enable_test = xyes)
 AC_ARG_ENABLE(
     [tool],
     AC_HELP_STRING([--enable-tool],
-                   [SOCKPERF: compile utilities (default=yes)]))
+                   [SOCKPERF: compile utilities (default=yes)]),
+    [], [enable_tool=no])
 AM_CONDITIONAL(TOOL, test x$enable_tool = xyes)
 
 
@@ -118,7 +114,8 @@ AM_CONDITIONAL(TOOL, test x$enable_tool = xyes)
 AC_ARG_ENABLE(
     [debug],
     AC_HELP_STRING([--enable-debug], 
-                   [SOCKPERF: turn on debugging (default=no)]))
+                   [SOCKPERF: turn on debugging (default=no)]),
+    [], [enable_debug=no])
 if test x$enable_debug = xyes; then
     AC_DEFINE([DEBUG], [], [Enable debugging])
     AC_DEFINE([_DEBUG], [], [Enable debugging])
@@ -155,3 +152,18 @@ AC_CONFIG_FILES([
 
 AC_OUTPUT
 
+AC_MSG_RESULT([
+	${PACKAGE} ${VERSION}
+
+	prefix:		${prefix}
+
+	compiler:	${CXX}
+	cppflags:	${CPPFLAGS}
+	cxxflags:	${CXXFLAGS}
+	ldflags:	${LDFLAGS}
+
+	doc:		${enable_doc}
+	test:		${enable_test}
+	tool:		${enable_tool}
+	debug:		${enable_debug}
+])
