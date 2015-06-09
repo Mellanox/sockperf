@@ -539,8 +539,10 @@ typedef enum { // must be coordinated with s_fds_handle_desc in common.cpp
 	RECVFROM = 0,
 	RECVFROMMUX,
 	SELECT,
+#ifndef WIN32
 	POLL,
 	EPOLL,
+#endif
 	FD_HANDLE_MAX
 } fd_block_handler_t;
 
