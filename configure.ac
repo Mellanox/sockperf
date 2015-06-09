@@ -1,14 +1,7 @@
 define([ver_major], esyscmd([sh -c "(awk -F. '{ print \$1 }' version) | tr -d '\n'"]))
 define([ver_minor], esyscmd([sh -c "(awk -F. '{ print \$2 }' version) | tr -d '\n'"]))
-define([ver_svn], esyscmd([sh -c "(svnversion .) | awk '{ print \$1 }' | tr -d '\n'"]))
 
-AC_INIT([SOCKPERF], [ver_major.ver_minor.ver_svn], [sockperf-discuss@googlegroups.com])
-
-AC_DEFINE(SOCKPERF_MAJOR_VER, ver_major, [sockperf Major Version])
-AC_DEFINE(SOCKPERF_MINOR_VER, ver_minor, [sockperf Minor Version])
-AC_DEFINE(SOCKPERF_MICRO_VER, ver_svn, [sockperf Micro Version])
-VERSION=ver_major.ver_minor.ver_svn
-
+AC_INIT([SOCKPERF], [ver_major.ver_minor], [sockperf-discuss@googlegroups.com])
 
 AC_CONFIG_HEADER([config.h])
 #AC_CONFIG_MACRO_DIR([config/m4])
@@ -33,6 +26,7 @@ case "$host" in
   amd64-*-freebsd*) TARGET=FREEBSD; TARGETDIR=x86;;
   i386-*-freebsd*) TARGET=FREEBSD; TARGETDIR=x86;;
   aarch64-*-*) TARGET=AARCH64; TARGETDIR=aarch64;;
+  s390*-*-*) TARGET=S390; TARGETDIR=s390;;
 esac
  
 AC_SUBST(AM_RUNTESTFLAGS)
@@ -51,13 +45,10 @@ AM_CONDITIONAL(POWERPC_DARWIN, test x$TARGET = xPOWERPC_DARWIN)
 AM_CONDITIONAL(POWERPC_FREEBSD, test x$TARGET = xPOWERPC_FREEBSD)
 AM_CONDITIONAL(FREEBSD, test x$TARGET = xFREEBSD)
 AM_CONDITIONAL(AARCH64, test x$TARGET = xAARCH64)
+AM_CONDITIONAL(S390, test x$TARGET = xS390)
 
 AC_SUBST(TARGET)
 AC_SUBST(TARGETDIR)
-
-
-AC_MSG_NOTICE([ ])
-AC_MSG_NOTICE([release $VERSION])
 
 #########
 # Locate a compiler for the build machine. This compiler should
@@ -68,10 +59,7 @@ if test x"$cross_compiling" = xyes; then
 #prefix=${prefix}/${host_cpu}
 fi
 
-AC_MSG_NOTICE([..............................................])
-
-
-AM_INIT_AUTOMAKE(foreign)
+AM_INIT_AUTOMAKE([foreign subdir-objects -Wall])
 AM_MAINTAINER_MODE
 
 #####################################
@@ -80,22 +68,14 @@ AM_MAINTAINER_MODE
 AC_PROG_CXX
 #AC_PROG_LIBTOOL
 
-
-if test x$TARGET = xFREEBSD; then
-	CXXFLAGS="-Wall"
-else
-	CXXFLAGS="-Werror -Wall  --param inline-unit-growth=200"
-fi
-CXXFLAGS="$CXXFLAGS  -D__LINUX__  -DVERSION=$VERSION"
-
-
 ##########################
 # Documentation
 #
 AC_ARG_ENABLE(
     [doc],
     AC_HELP_STRING([--enable-doc],
-                   [SOCKPERF: create documentation with doxygen in html and unix-man(default=yes)]))
+                   [SOCKPERF: create documentation with doxygen in html and unix-man(default=yes)]),
+    [], [enable_doc=no])
 
 # Checks for doxygen
 AC_PATH_PROG(DOXYGEN, doxygen, ,$PATH:/usr/local/bin:/usr/bin)
@@ -112,7 +92,8 @@ AM_CONDITIONAL(DOC, test x$enable_doc = xyes)
 AC_ARG_ENABLE(
     [test],
     AC_HELP_STRING([--enable-test],
-                   [SOCKPERF: compile tests (default=yes)]))
+                   [SOCKPERF: compile tests (default=yes)]),
+    [], [enable_test=no])
 AM_CONDITIONAL(TEST, test x$enable_test = xyes)
 
 
@@ -122,7 +103,8 @@ AM_CONDITIONAL(TEST, test x$enable_test = xyes)
 AC_ARG_ENABLE(
     [tool],
     AC_HELP_STRING([--enable-tool],
-                   [SOCKPERF: compile utilities (default=yes)]))
+                   [SOCKPERF: compile utilities (default=yes)]),
+    [], [enable_tool=no])
 AM_CONDITIONAL(TOOL, test x$enable_tool = xyes)
 
 
@@ -132,41 +114,14 @@ AM_CONDITIONAL(TOOL, test x$enable_tool = xyes)
 AC_ARG_ENABLE(
     [debug],
     AC_HELP_STRING([--enable-debug], 
-                   [SOCKPERF: turn on debugging (default=no)]))
+                   [SOCKPERF: turn on debugging (default=no)]),
+    [], [enable_debug=no])
 if test x$enable_debug = xyes; then
-    TARGET_BUILD=dbg
-    CXXFLAGS="$CXXFLAGS -g -D_DEBUG -DDEBUG"
-	CFLAGS="$CFLAGS -g -D_DEBUG -DDEBUG"
+    AC_DEFINE([DEBUG], [], [Enable debugging])
+    AC_DEFINE([_DEBUG], [], [Enable debugging])
 else
-    TARGET_BUILD=rls
-    CXXFLAGS="$CXXFLAGS -O3 -DNDEBUG"
-	CFLAGS="$CFLAGS -O3 -DNDEBUG"
+    AC_DEFINE([NDEBUG], [], [Disable debugging])
 fi
-
-
-##########################
-# Enable debug info
-#
-AC_ARG_ENABLE(
-    [debuginfo],
-    AC_HELP_STRING([--enable-debuginfo],
-                   [SOCKPERF: include debug information (default=no)]))
-if test x$enable_debuginfo = xyes; then
-    CXXFLAGS="$CXXFLAGS -g -O3"
-	CFLAGS="$CFLAGS -g -O3"
-fi
-
-##########################
-# Enable build 32bit
-#
-AC_ARG_ENABLE(
-	[build32],
-	AC_HELP_STRING([--enable-build32],
-					[SOCKPERF: force build 32bit (default=no)]))
-if test x$enable_build32 = xyes; then
-	    CXXFLAGS="$CXXFLAGS -m32"
-		CFLAGS="$CFLAGS -m32"
-	fi
 
 #####################################
 # Checks for header files.
@@ -182,37 +137,27 @@ AC_CHECK_HEADERS(
 # Checks for libraries.
 #
 AC_HEADER_STDC
-AC_CHECK_LIB(
-    [rt], [clock_gettime], [], AC_MSG_ERROR([librt not found]))
-AC_CHECK_LIB(
-    [pthread], [pthread_create], [], AC_MSG_ERROR([libpthread not found]))
-if test x$TARGET = xFREEBSD; then
-	AC_CHECK_LIB(
-	    [execinfo], [backtrace], [], AC_MSG_ERROR([libexecinfo not found]))
-else
-	AC_CHECK_LIB(
-	    [dl], [dlsym], [], AC_MSG_ERROR([libdl not found]))
-fi
+AC_SEARCH_LIBS([clock_gettime], [rt], [], AC_MSG_ERROR([librt not found]))
+AC_SEARCH_LIBS([pthread_create], [pthread], [], AC_MSG_ERROR([libpthread not found]))
+AC_SEARCH_LIBS([backtrace], [execinfo], [], AC_MSG_ERROR([libexecinfo not found]))
+AC_SEARCH_LIBS([dlsym], [dl], [], AC_MSG_ERROR([libdl not found]))
 
-RPM_RELEASE=1
-AC_SUBST(RPM_RELEASE)
-RPM_DIR=${top_sockperf_dir}
-AC_SUBST(RPM_DIR)
-RPM_TARBALL=${PACKAGE}-${VERSION}.tar.gz
-AC_SUBST(RPM_TARBALL)
-
-
-OUT_DIR=`pwd`/bin/linux/${TARGET_BUILD}/${host_cpu}
-#AC_PREFIX_DEFAULT("`pwd`/inst")
-
-
-AC_CONFIG_FILES([
-    Makefile
-    doc/Makefile
-    src/Makefile
-    tools/Makefile
-    tests/Makefile
-    ])
+AC_CONFIG_FILES([Makefile tools/Makefile tests/Makefile doc/Doxyfile])
 
 AC_OUTPUT
 
+AC_MSG_RESULT([
+	${PACKAGE} ${VERSION}
+
+	prefix:		${prefix}
+
+	compiler:	${CXX}
+	cppflags:	${CPPFLAGS}
+	cxxflags:	${CXXFLAGS}
+	ldflags:	${LDFLAGS}
+
+	doc:		${enable_doc}
+	test:		${enable_test}
+	tool:		${enable_tool}
+	debug:		${enable_debug}
+])
