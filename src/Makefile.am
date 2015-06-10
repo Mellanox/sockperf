@@ -2,6 +2,7 @@
 # sockperf utility.
 #
 AM_LDFLAGS = -rdynamic
+AM_CPPFLAGS = -imacros $(top_builddir)/config.h
 
 bin_PROGRAMS = sockperf
 
