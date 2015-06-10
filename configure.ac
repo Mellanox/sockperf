@@ -88,66 +88,79 @@ CXXFLAGS="$CXXFLAGS  -D__LINUX__  -DVERSION=$VERSION"
 ##########################
 # Documentation
 #
+have_doc=no
 AC_ARG_ENABLE(
     [doc],
     AC_HELP_STRING([--enable-doc],
-                   [SOCKPERF: create documentation with doxygen in html and unix-man(default=yes)]))
-
-# Checks for doxygen
-AC_PATH_PROG(DOXYGEN, doxygen, ,$PATH:/usr/local/bin:/usr/bin)
-if test x$DOXYGEN = x; then
-        enable_doc=no
-fi
-AM_CONDITIONAL(DOC, test x$enable_doc = xyes)
-
+		   [SOCKPERF: create documentation with doxygen in html and unix-man (default=no)]),
+    AS_IF([test "x$enableval" = "xno"],  [have_doc=no],
+          [test "x$enableval" = "xyes"], [have_doc=yes],
+          AC_MSG_ERROR([bad value $enableval for --enable-doc])))
+AS_IF([test "x$have_doc" = "xyes"], [
+       # Checks for doxygen
+       AC_PATH_PROG(DOXYGEN, doxygen, ,$PATH:/usr/local/bin:/usr/bin)
+       AS_IF([test -z "$DOXYGEN"],
+	     [AC_MSG_ERROR([Building of doc requested, but doxygen not found])])])
+AM_CONDITIONAL(DOC, test "x$have_doc" = "xyes")
 
 
 ##########################
 # Enable tests 
 #
+have_test=no
 AC_ARG_ENABLE(
     [test],
     AC_HELP_STRING([--enable-test],
-                   [SOCKPERF: compile tests (default=yes)]))
-AM_CONDITIONAL(TEST, test x$enable_test = xyes)
+                   [SOCKPERF: compile tests (default=no)]),
+    AS_IF([test "x$enableval" = "xno"],  [have_test=no],
+          [test "x$enableval" = "xyes"], [have_test=yes],
+          AC_MSG_ERROR([bad value $enableval for --enable-test])))
+AM_CONDITIONAL(TEST, test "x$have_test" = "xyes")
 
 
 ##########################
 # Enable tools 
 #
+have_tool=no
 AC_ARG_ENABLE(
     [tool],
     AC_HELP_STRING([--enable-tool],
-                   [SOCKPERF: compile utilities (default=yes)]))
-AM_CONDITIONAL(TOOL, test x$enable_tool = xyes)
+                   [SOCKPERF: compile utilities (default=no)]),
+    AS_IF([test "x$enableval" = "xno"],  [have_tool=no],
+          [test "x$enableval" = "xyes"], [have_tool=yes],
+          AC_MSG_ERROR([bad value $enableval for --enable-tool])))
+AM_CONDITIONAL(TOOL, test "x$have_tool" = "xyes")
 
 
 ##########################
 # Enable debug build
 #
+have_debug=no
 AC_ARG_ENABLE(
     [debug],
     AC_HELP_STRING([--enable-debug], 
-                   [SOCKPERF: turn on debugging (default=no)]))
-if test x$enable_debug = xyes; then
-    AC_DEFINE([DEBUG], [], [Enable debugging])
-    AC_DEFINE([_DEBUG], [], [Enable debugging])
-else
-    AC_DEFINE([NDEBUG], [], [Disable debugging])
-fi
+                   [SOCKPERF: turn on debugging (default=no)]),
+    AS_IF([test "x$enableval" = "xno"],  [have_debug=no],
+          [test "x$enableval" = "xyes"], [have_debug=yes],
+          AC_MSG_ERROR([bad value $enableval for --enable-debug])))
+AS_IF([test "x$have_debug" = "xyes"],
+      [AC_DEFINE([DEBUG],  [], [Enable debugging])],
+      [AC_DEFINE([NDEBUG], [], [Disable debugging])])
 
 
 ##########################
 # Enable build 32bit
 #
+have_build32=no
 AC_ARG_ENABLE(
-	[build32],
-	AC_HELP_STRING([--enable-build32],
-					[SOCKPERF: force build 32bit (default=no)]))
-if test x$enable_build32 = xyes; then
-	    CXXFLAGS="$CXXFLAGS -m32"
-		CFLAGS="$CFLAGS -m32"
-	fi
+    [build32],
+    AC_HELP_STRING([--enable-build32],
+		   [SOCKPERF: force build 32bit (default=no)]),
+    AS_IF([test "x$enableval" = "xno"],  [have_build32=no],
+          [test "x$enableval" = "xyes"], [have_build32=yes],
+          AC_MSG_ERROR([bad value $enableval for --enable-build32])))
+AS_IF([test "x$have_build32" = "xyes"],
+      [CXXFLAGS="$CXXFLAGS -m32"])
 
 #####################################
 # Checks for header files.

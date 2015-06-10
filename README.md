@@ -45,7 +45,7 @@ Specifically, in addition to the standard throughput tests, **sockperf**, does t
   To compile with debug symbols and information:
     $ ./configure --prefix=<path to install> --enable-debug
 
-   This will define the _DEBUG variable at compile time.
+   This will define the DEBUG variable at compile time.
 
    Type './configure --help' for a list of all the configure
    options. Some of the options are generic autoconf options, while the aLic
