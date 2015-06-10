@@ -4,7 +4,7 @@ define([ver_minor], esyscmd([sh -c "(awk -F. '{ print \$2 }' version) | tr -d '\
 AC_INIT([SOCKPERF], [ver_major.ver_minor], [sockperf-discuss@googlegroups.com])
 
 AC_CONFIG_HEADER([config.h])
-#AC_CONFIG_MACRO_DIR([config/m4])
+AC_CONFIG_MACRO_DIR([config/m4])
 AC_CONFIG_AUX_DIR([config/aux])
 
 # Determine the host system
@@ -70,14 +70,9 @@ AC_PROG_CXX
 AC_LANG(C++)
 #AC_PROG_LIBTOOL
 
-
-if test x$TARGET = xFREEBSD; then
-	CXXFLAGS="-Wall"
-else
-	CXXFLAGS="-Werror -Wall  --param inline-unit-growth=200"
-fi
-CXXFLAGS="$CXXFLAGS  -D__LINUX__  -DVERSION=$VERSION"
-
+SP_CHECK_CXXFLAGS_APPEND([OUR_CXXFLAGS], [\
+                         -Wall \
+                         "--param inline-unit-growth=200"])
 
 ##########################
 # Documentation
@@ -153,8 +148,11 @@ AC_ARG_ENABLE(
     AS_IF([test "x$enableval" = "xno"],  [have_build32=no],
           [test "x$enableval" = "xyes"], [have_build32=yes],
           AC_MSG_ERROR([bad value $enableval for --enable-build32])))
-AS_IF([test "x$have_build32" = "xyes"],
-      [CXXFLAGS="$CXXFLAGS -m32"])
+AS_IF([test "x$have_build32" = "xyes"], [
+      SP_CHECK_CXXFLAG_APPEND([OUR_CXXFLAGS], [-m32],
+                              [AC_MSG_ERROR([32bit build requested, but -m32 compiler flag does not work])])])
+
+AC_SUBST([OUR_CXXFLAGS])
 
 #####################################
 # Checks for header files.
@@ -186,7 +184,7 @@ AC_MSG_RESULT([
 
 	compiler:	${CXX}
 	cppflags:	${CPPFLAGS}
-	cxxflags:	${CXXFLAGS}
+	cxxflags:	${OUR_CXXFLAGS} ${CXXFLAGS}
 	ldflags:	${LDFLAGS}
 
 	doc:		${have_doc}
