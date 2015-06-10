@@ -59,7 +59,7 @@ if test x"$cross_compiling" = xyes; then
 #prefix=${prefix}/${host_cpu}
 fi
 
-AM_INIT_AUTOMAKE([foreign -Wall])
+AM_INIT_AUTOMAKE([foreign subdir-objects -Wall])
 AM_MAINTAINER_MODE
 
 #####################################
@@ -174,14 +174,7 @@ AC_SEARCH_LIBS([pthread_create], [pthread], [], AC_MSG_ERROR([libpthread not fou
 AC_SEARCH_LIBS([backtrace], [execinfo], [], AC_MSG_ERROR([libexecinfo not found]))
 AC_SEARCH_LIBS([dlsym], [dl], [], AC_MSG_ERROR([libdl not found]))
 
-AC_CONFIG_FILES([
-    Makefile
-    doc/Makefile
-    doc/Doxyfile
-    src/Makefile
-    tools/Makefile
-    tests/Makefile
-    ])
+AC_CONFIG_FILES([Makefile tools/Makefile tests/Makefile doc/Doxyfile])
 
 AC_OUTPUT
 
