@@ -50,10 +50,6 @@ AM_CONDITIONAL(S390, test x$TARGET = xS390)
 AC_SUBST(TARGET)
 AC_SUBST(TARGETDIR)
 
-
-AC_MSG_NOTICE([ ])
-AC_MSG_NOTICE([release $VERSION])
-
 #########
 # Locate a compiler for the build machine. This compiler should
 # generate command-line programs that run on the build machine.
@@ -62,9 +58,6 @@ if test x"$cross_compiling" = xyes; then
     AC_MSG_NOTICE([Enable cross compiling on ${build_cpu} for ${host_cpu}])
 #prefix=${prefix}/${host_cpu}
 fi
-
-AC_MSG_NOTICE([..............................................])
-
 
 AM_INIT_AUTOMAKE(foreign)
 AM_MAINTAINER_MODE
@@ -191,3 +184,18 @@ AC_CONFIG_FILES([
 
 AC_OUTPUT
 
+AC_MSG_RESULT([
+	${PACKAGE} ${VERSION}
+
+	prefix:		${prefix}
+
+	compiler:	${CXX}
+	cppflags:	${CPPFLAGS}
+	cxxflags:	${CXXFLAGS}
+	ldflags:	${LDFLAGS}
+
+	doc:		${have_doc}
+	test:		${have_test}
+	tool:		${have_tool}
+	debug:		${have_debug}
+])
