@@ -8,6 +8,7 @@ endif
 
 SUBDIRS = ${TEST_SUBDIR} ${TOOL_SUBDIR}
 
+ACLOCAL_AMFLAGS = -I config/m4
 AM_LDFLAGS = -rdynamic
 AM_CPPFLAGS = -imacros $(builddir)/config.h
 AM_CXXFLAGS = $(OUR_CXXFLAGS)

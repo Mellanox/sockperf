@@ -4,16 +4,17 @@ dnl
 dnl SP_CHECK_CXXFLAG(FLAG, [ACTION-IF-FLAG-WORKS], [ACTION-IF-FLAG-DOES-NOT-WORK])
 
 AC_DEFUN([SP_CHECK_CXXFLAG], [
+	AS_VAR_PUSHDEF([sp_cxxflag], [sockperf_cv_cxxflags_$1])
 	AC_CACHE_CHECK([whether $CXX supports $1 in CXXFLAGS],
-		[AS_TR_SH([sockperf_cv_cxxflags_$1])], [
+		[sp_cxxflag], [
 		saved_cxxflags="$CXXFLAGS"
 		CXXFLAGS="$1"
 		AC_LINK_IFELSE([AC_LANG_PROGRAM()],
-			[eval "AS_TR_SH([sockperf_cv_cxxflags_$1])='yes'"],
-			[eval "AS_TR_SH([sockperf_cv_cxxflags_$1])='no'"])
+			[AS_VAR_SET([sp_cxxflag], [yes])],
+			[AS_VAR_SET([sp_cxxflag], [no])])
 		CXXFLAGS="$saved_cxxflags"])
-	AS_IF([eval "test $"AS_TR_SH([sockperf_cv_cxxflags_$1])" = yes"],
-		[$2], [$3])
+	AS_VAR_IF([sp_cxxflag], [yes], [$2], [$3])
+	AS_VAR_POPDEF([sp_cxxflag])
 ])
 
 dnl Check if compiler accepts FLAG in CXXFLAGS. If accepted, append the flag
