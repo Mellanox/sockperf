@@ -1,6 +1,6 @@
 define([ver_major],  esyscmd([sh -c "cat version  | awk -F[-.] '{ print \$1 }' | tr -d '\n'"]))
 define([ver_minor],  esyscmd([sh -c "cat version  | awk -F[-.] '{ print \$2 }' | tr -d '\n'"]))
-define([ver_git],    esyscmd([sh -c "git describe | awk -F[-.] '{ print \$3 }' | tr -d '\n'"]))
+define([ver_git],    esyscmd([sh -c "git describe | awk -F[-.] '{ print 0+\$3 }' | tr -d '\n'"]))
 define([ver_commit], esyscmd([sh -c "git rev-parse HEAD | tr -d '\n'"]))
 define([ver_shortcommit], esyscmd([sh -c "git rev-parse HEAD | awk '{ print substr(\$0, 0, 12)}' | tr -d '\n'"]))
 
