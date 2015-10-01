@@ -1,12 +1,5 @@
-define([ver_major],  esyscmd([sh -c "cat version  | awk -F[-.] '{ print \$1 }' | tr -d '\n'"]))
-define([ver_minor],  esyscmd([sh -c "cat version  | awk -F[-.] '{ print \$2 }' | tr -d '\n'"]))
-define([ver_git],    esyscmd([sh -c "git describe | awk -F[-.] '{ print 0+\$3 }' | tr -d '\n'"]))
-define([ver_commit], esyscmd([sh -c "git rev-parse HEAD | tr -d '\n'"]))
-define([ver_shortcommit], esyscmd([sh -c "git rev-parse HEAD | awk '{ print substr(\$0, 0, 12)}' | tr -d '\n'"]))
-
-#VERSION=ver_major.ver_minor.ver_git
-AC_INIT([SOCKPERF], [ver_major.ver_minor-ver_git.[git]ver_shortcommit], [sockperf-discuss@googlegroups.com])
-
+define([sockperf_version], esyscmd([sh -c "head -1 ./build/current-version | tr -d '\n'"]))
+AC_INIT([SOCKPERF], [sockperf_version], [sockperf-discuss@googlegroups.com])
 
 AC_CONFIG_HEADER([config.h])
 AC_CONFIG_MACRO_DIR([config/m4])
