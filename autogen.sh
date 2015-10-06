@@ -5,10 +5,13 @@ oldpwd=$(pwd)
 topdir=$(dirname "$0")
 cd "$topdir"
 
-source ./build/versioning.sh
-echo ${VERSION}-${VER_GIT} > ./build/current-version
-echo $GIT_REF >> ./build/current-version
-
+CURRENT_VERSION_FILE=./build/current-version
+if [ ! -f $CURRENT_VERSION_FILE ] # don't ruin file that might come from build-git-rpm.sh
+then
+	source ./build/versioning.sh
+	echo ${VERSION}-${VER_GIT} > $CURRENT_VERSION_FILE
+	echo $GIT_REF >> $CURRENT_VERSION_FILE
+fi
 
 rm -rf autom4te.cache
 mkdir -p config/m4 config/aux
@@ -25,4 +28,5 @@ else
 	printf "\nNow run '$topdir/configure' and 'make'.\n\n"
 fi
 
+rm -f $CURRENT_VERSION_FILE
 exit 0
