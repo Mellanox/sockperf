@@ -1,4 +1,5 @@
 __APP_NAME__ (__VERSION__-__RELEASE__) release; urgency=low
 
+  * Initial Release.
 
  -- __MAINTAINER__  __DATE__
