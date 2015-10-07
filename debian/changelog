@@ -1,4 +1,4 @@
-sockperf-__VERSION__ (__RELEASE__) UNRELEASED; urgency=low
+sockperf (__VERSION__-__RELEASE__) release; urgency=low
 
   * Initial release. Closes: #nnnn
     <nnnn is the bug number of your ITP>

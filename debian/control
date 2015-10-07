@@ -1,12 +1,12 @@
-Source: sockperf-__VERSION__
+Source: sockperf
 Section: unknown
 Priority: extra
-Maintainer: Avner Ben Hanoch <avnerb@localhost>
+Maintainer: Mellanox Technologies Ltd. <support@mellanox.com>
 Build-Depends: debhelper (>=9), dh-autoreconf
 Standards-Version: 3.9.5
-Homepage: <insert the upstream URL, if relevant>
+Homepage: http://www.mellanox.com
 
-Package: sockperf-__VERSION__
+Package: sockperf
 Architecture: any
 Multi-Arch: foreign
 Depends: ${misc:Depends}, ${shlibs:Depends}
