@@ -24,6 +24,6 @@ if [ $# -lt 1 ]; then
 else
         RPM_DIR=$1
 fi
-tar -zcf $RPM_DIR/SOURCES/$APP_NAME-$GIT_REF.tar.gz --exclude .git  -C .. $APP_NAME_GIT
+tar -zcf $RPM_DIR/SOURCES/$APP_NAME_GIT.tar.gz --exclude .git  -C .. $APP_NAME_GIT
 rpmbuild -ba --rmsource --rmspec --define "_topdir $RPM_DIR" $APP_SPEC
 cd $base_dir
