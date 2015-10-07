@@ -1,5 +1,5 @@
 Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
-Upstream-Name: sockperf
+Upstream-Name: __APP_NAME__
 Source: <url://example.com>
 ###
 ### Uncomment the following 2 lines to enable uscan to exclude non-DFSG components

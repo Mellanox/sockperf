@@ -1,6 +1,4 @@
-sockperf (__VERSION__-__RELEASE__) release; urgency=low
+__APP_NAME__ (__VERSION__-__RELEASE__) release; urgency=low
 
-  * Initial release. Closes: #nnnn
-    <nnnn is the bug number of your ITP>
 
- -- Avner Ben Hanoch <avnerb@localhost>  Wed, 07 Oct 2015 16:19:38 +0300
+ -- __MAINTAINER__  __DATE__

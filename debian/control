@@ -1,4 +1,4 @@
-Source: sockperf
+Source: __APP_NAME__
 Section: unknown
 Priority: extra
 Maintainer: Mellanox Technologies Ltd. <support@mellanox.com>
@@ -6,7 +6,7 @@ Build-Depends: debhelper (>=9), dh-autoreconf
 Standards-Version: 3.9.5
 Homepage: http://www.mellanox.com
 
-Package: sockperf
+Package: __APP_NAME__
 Architecture: any
 Multi-Arch: foreign
 Depends: ${misc:Depends}, ${shlibs:Depends}
