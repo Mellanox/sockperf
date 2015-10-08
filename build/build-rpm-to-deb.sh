@@ -1,33 +1,32 @@
 #!/bin/bash -e
+##############################################################################
+# this script will extract content of a given *.src.rpm file (that its tarball 
+# contains ./debian/ subfolder) and will compile it into *.deb binary
+##############################################################################
 
 APP_NAME=sockperf
 SRCRPM_EXT=.src.rpm
-SPEC_EXT=.spec
 TARBALL_EXT=.tar.gz
-
 BASE_DIR=`pwd`
-
 if [ $# -lt 1 ]; then
         echo -e "Usage is:\n\t $0 <path to $APP_NAME-*$SRCRPM_EXT file> <arch>" > /dev/stderr
 	exit 1
 fi
 
 SRCRPM_FILE=`readlink -f $1`
-SPECFILE=`rpm2cpio $SRCRPM_FILE | cpio -t 2> /dev/null | grep "$SPEC_EXT\$"`
-APP_NAME_VER=${SPECFILE%$SPEC_EXT}  # sockperf-2.7-13.gitd8618862f05d.dirty
+APP_NAME_VER=`basename --suffix $SRCRPM_EXT $SRCRPM_FILE` # sockperf-2.7-13.gitd8618862f05d.dirty
 FULL_VER=${APP_NAME_VER#$APP_NAME-} # 2.7-13.gitd8618862f05d.dirty
-RELEASE=${FULL_VER#*-}              # 13.gitd8618862f05d.dirty
-VERSION=${FULL_VER%-$RELEASE}       # 2.7
-DEBIAN_APP_NAME_VER=${APP_NAME}_${VERSION}-${RELEASE} # sockperf_2.7-13.gitd8618862f05d.dirty
+VERSION=${FULL_VER%%-*}       # 2.7
+
 TEMP_DIR=/tmp/for-deb-$APP_NAME_VER
 rm -rf $TEMP_DIR; mkdir $TEMP_DIR; cd $TEMP_DIR
 rpm2cpio $SRCRPM_FILE | cpio -i 2> /dev/null
 OLD_NAME=`basename --suffix $TARBALL_EXT $APP_NAME-*$TARBALL_EXT`
-mv $OLD_NAME$TARBALL_EXT $DEBIAN_APP_NAME_VER$TARBALL_EXT
-ln -s $DEBIAN_APP_NAME_VER$TARBALL_EXT ${APP_NAME}_${VERSION}.orig$TARBALL_EXT
-tar xf $DEBIAN_APP_NAME_VER$TARBALL_EXT
-mv $OLD_NAME $DEBIAN_APP_NAME_VER
-cd $DEBIAN_APP_NAME_VER
+
+ln -s $OLD_NAME$TARBALL_EXT ${APP_NAME}_${VERSION}.orig$TARBALL_EXT
+tar xf $OLD_NAME$TARBALL_EXT
+cd $OLD_NAME
+
 debuild -us -uc
 cd $BASE_DIR
 cp $TEMP_DIR/*deb .
