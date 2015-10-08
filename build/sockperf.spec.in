@@ -1,10 +1,10 @@
 %global version __VERSION__
 %global git_ref __GIT_REF__
-%global ver_git __VER_GIT__
+%global release __RELEASE__
 
 Name:           sockperf
 Version:        %{version}
-Release:        %{ver_git}%{?dist}
+Release:        %{release}%{?dist}
 Summary:        Network benchmarking utility for testing latency and throughput
 License:        BSD
 URL:            https://github.com/mellanox/sockperf
