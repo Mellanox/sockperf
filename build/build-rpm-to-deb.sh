@@ -6,8 +6,6 @@ SPEC_EXT=.spec
 TARBALL_EXT=.tar.gz
 
 BASE_DIR=`pwd`
-DATE=`date -R`
-MAINTAINER="Mellanox Technologies Ltd. <support@mellanox.com>"
 
 if [ $# -lt 1 ]; then
         echo -e "Usage is:\n\t $0 <path to $APP_NAME-*$SRCRPM_EXT file> <arch>" > /dev/stderr
@@ -30,7 +28,6 @@ ln -s $DEBIAN_APP_NAME_VER$TARBALL_EXT ${APP_NAME}_${VERSION}.orig$TARBALL_EXT
 tar xf $DEBIAN_APP_NAME_VER$TARBALL_EXT
 mv $OLD_NAME $DEBIAN_APP_NAME_VER
 cd $DEBIAN_APP_NAME_VER
-sed -i -e s/__VERSION__/$VERSION/g -e s/__RELEASE__/$RELEASE/g -e s/__APP_NAME__/$APP_NAME/g -e "s/__DATE__/$DATE/g" -e "s/__MAINTAINER__/$MAINTAINER/g" debian/* 2> /dev/null || true
 debuild -us -uc
 cd $BASE_DIR
 cp $TEMP_DIR/*deb .
