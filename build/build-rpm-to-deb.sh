@@ -20,14 +20,14 @@ VERSION=${FULL_VER%%-*}       # 2.7
 
 TEMP_DIR=/tmp/for-deb-$APP_NAME_VER
 rm -rf $TEMP_DIR; mkdir $TEMP_DIR; cd $TEMP_DIR
-rpm2cpio $SRCRPM_FILE | cpio -i 2> /dev/null
+rpm2cpio $SRCRPM_FILE | cpio -i 2> /dev/null # extract *.src.rpm
 OLD_NAME=`basename --suffix $TARBALL_EXT $APP_NAME-*$TARBALL_EXT`
 
 ln -s $OLD_NAME$TARBALL_EXT ${APP_NAME}_${VERSION}.orig$TARBALL_EXT
 tar xf $OLD_NAME$TARBALL_EXT
 cd $OLD_NAME
 
-debuild -us -uc
+debuild -us -uc # actual build of *.deb
 cd $BASE_DIR
-cp $TEMP_DIR/*deb .
+cp --verbose $TEMP_DIR/*.deb .
 rm -rf $TEMP_DIR
