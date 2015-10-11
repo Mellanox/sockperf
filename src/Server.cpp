@@ -308,6 +308,9 @@ int Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_accept(int ifd)
         	}
 
         	if (!do_accept) {
+			log_msg("WARNING: closing a socket because we can not accept "
+			"active_fd_count=%d MAX_ACTIVE_FD_NUM=%d",
+			g_fds_array[ifd]->active_fd_count, MAX_ACTIVE_FD_NUM );
         		close(active_ifd);
         		active_ifd = (int)INVALID_SOCKET; // TODO: use SOCKET all over the way and avoid this cast
 				if (tmp->recv.buf){
