@@ -289,22 +289,22 @@ int Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_accept(int ifd)
     		 */
     		if ( (active_ifd < MAX_FDS_NUM) &&
         	     (g_fds_array[ifd]->active_fd_count < (MAX_ACTIVE_FD_NUM - 1)) ) {
-            	if (prepare_socket(active_ifd, tmp) != (int)INVALID_SOCKET) { // TODO: use SOCKET all over the way and avoid this cast
-        			int *active_fd_list = g_fds_array[ifd]->active_fd_list;
-        			int i = 0;
+			if (prepare_socket(active_ifd, tmp) != (int)INVALID_SOCKET) { // TODO: use SOCKET all over the way and avoid this cast
+				int *active_fd_list = g_fds_array[ifd]->active_fd_list;
+				int i = 0;
 
-        			for (i = 0; i < MAX_ACTIVE_FD_NUM; i++) {
-        				if (active_fd_list[i] == (int)INVALID_SOCKET) { // TODO: use SOCKET all over the way and avoid this cast
-        					active_fd_list[i] = active_ifd;
-        					g_fds_array[ifd]->active_fd_count++;
-        					g_fds_array[active_ifd] = tmp;
+				for (i = 0; i < MAX_ACTIVE_FD_NUM; i++) {
+					if (active_fd_list[i] == (int)INVALID_SOCKET) { // TODO: use SOCKET all over the way and avoid this cast
+						active_fd_list[i] = active_ifd;
+						g_fds_array[ifd]->active_fd_count++;
+						g_fds_array[active_ifd] = tmp;
 
-        					log_dbg ("peer address to accept: %s:%d [%d]", inet_ntoa(addr.sin_addr), ntohs(addr.sin_port), active_ifd);
-           					do_accept = true;
-           					break;
-        				}
-        			}
-            	}
+						log_dbg ("peer address to accept: %s:%d [%d]", inet_ntoa(addr.sin_addr), ntohs(addr.sin_port), active_ifd);
+						do_accept = true;
+						break;
+					}
+				}
+			}
         	}
 
         	if (!do_accept) {
