@@ -9,7 +9,7 @@ SRCRPM_EXT=.src.rpm
 TARBALL_EXT=.tar.gz
 BASE_DIR=`pwd`
 if [ $# -lt 1 ]; then
-        echo -e "Usage is:\n\t $0 <path to $APP_NAME-*$SRCRPM_EXT file> <arch>" > /dev/stderr
+        echo -e "Usage is:\n\t $0 <path to $APP_NAME-*$SRCRPM_EXT file>" > /dev/stderr
 	exit 1
 fi
 
