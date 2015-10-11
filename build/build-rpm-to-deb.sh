@@ -27,7 +27,7 @@ ln -s $OLD_NAME$TARBALL_EXT ${APP_NAME}_${VERSION}.orig$TARBALL_EXT
 tar xf $OLD_NAME$TARBALL_EXT
 cd $OLD_NAME
 
-debuild -us -uc # actual build of *.deb
+dpkg-buildpackage -us -uc # actual build of *.deb
 cd $BASE_DIR
 cp --verbose $TEMP_DIR/*.deb .
 rm -rf $TEMP_DIR
