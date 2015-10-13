@@ -7,8 +7,8 @@ Version:        %{version}
 Release:        %{release}%{?dist}
 Summary:        Network benchmarking utility for testing latency and throughput
 License:        BSD
-URL:            https://github.com/mellanox/sockperf
-Source0:	https://github.com/mellanox/sockperf/archive/%{git_ref}.tar.gz#/%{name}-%{git_ref}.tar.gz
+URL:            https://github.com/mellanox/{name}
+Source0:	https://github.com/mellanox/{name}/archive/%{git_ref}.tar.gz#/%{name}-%{git_ref}.tar.gz
 
 BuildRequires:  autoconf automake
 BuildRequires:  doxygen
@@ -68,7 +68,7 @@ make %{?_smp_mflags}
 
 %files
 %defattr(-,root,root,-)
-%{_bindir}/sockperf
-%{_mandir}/man3/sockperf.3.*
+%{_bindir}/{name}
+%{_mandir}/man3/{name}.3.*
 %{_pkgdocdir}
 
