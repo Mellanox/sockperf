@@ -9,3 +9,4 @@ configure
 doc/Doxyfile
 sockperf
 src/.dirstamp
+*~
