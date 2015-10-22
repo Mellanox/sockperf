@@ -68,7 +68,7 @@ make %{?_smp_mflags}
 
 %files
 %defattr(-,root,root,-)
-%{_bindir}/{name}
-%{_mandir}/man3/{name}.3.*
+%{_bindir}/%{name}
+%{_mandir}/man3/%{name}.3.*
 %{_pkgdocdir}
 
