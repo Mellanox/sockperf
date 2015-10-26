@@ -10,7 +10,6 @@ License:        BSD
 URL:            https://github.com/mellanox/{name}
 Source0:	https://github.com/mellanox/{name}/archive/%{git_ref}.tar.gz#/%{name}-%{git_ref}.tar.gz
 
-BuildRequires:  autoconf automake
 BuildRequires:  doxygen
 %{!?_pkgdocdir: %global _pkgdocdir %{_docdir}/%{name}}
 
@@ -46,7 +45,7 @@ following:
 %setup -q -n %{name}-%{git_ref}
 
 %build
-./autogen.sh
+
 # Upstream wants and defaults to "-O3 --param inline-unit-growth=200".
 # The Fedora optflags would override the former, so let's put it back.
 # Avner wrote:
