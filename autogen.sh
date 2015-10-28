@@ -9,7 +9,7 @@ CURRENT_VERSION_FILE=./build/current-version
 if [ ! -f $CURRENT_VERSION_FILE ] # don't ruin file that might come from build-rpm.sh
 then
 	. ./build/versioning.sh
-	echo ${VERSION}-${VER_GIT} > $CURRENT_VERSION_FILE
+	echo ${VERSION}-${RELEASE} > $CURRENT_VERSION_FILE
 	echo $GIT_REF >> $CURRENT_VERSION_FILE
 fi
 
