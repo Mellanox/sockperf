@@ -6,7 +6,7 @@ topdir=$(dirname "$0")
 cd "$topdir"
 
 CURRENT_VERSION_FILE=./build/current-version
-if [ ! -f $CURRENT_VERSION_FILE ] # don't ruin file that might come from build-rpm.sh
+if [ -d .git ] # don't ruin file that might come from build-rpm.sh
 then
 	. ./build/versioning.sh
 	echo ${VERSION}-${RELEASE} > $CURRENT_VERSION_FILE
