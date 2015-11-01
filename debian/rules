@@ -25,12 +25,8 @@
 
 ### main packaging script based on dh7 syntax
 %:
-	dh $@ --with autoreconf 
+	dh $@
 
-### debmake generated override targets
-### Initialize source with autogen.sh found in the upstream
-override_dh_autoreconf:
-	dh_autoreconf -- ./autogen.sh
 ### Alternatively
 ### support for -Wl,--as-needed to ltmain.sh with autoreconf -f -i
 ###override_dh_autoreconf:
