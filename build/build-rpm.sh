@@ -20,8 +20,9 @@ echo $GIT_REF >> ./build/current-version
 
 APP_NAME_VER=$APP_NAME-$FULL_VER
 
-#DIRNAME=$GITHUB_REF   # match Fedora original style
-DIRNAME=$APP_NAME_VER # better for debian
+#DIRNAME=$GITHUB_REF  # match Fedora original style
+DIRNAME=$APP_NAME_VER # better MOFED
+DIRNAME=$APP_NAME-$VERSION
 
 TEMP_DIR=/tmp/$DIRNAME
 rm -rf $TEMP_DIR; mkdir $TEMP_DIR
