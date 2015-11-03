@@ -14,26 +14,34 @@ MAINTAINER="Mellanox Technologies Ltd. <support@mellanox.com>"
 DATE=`date -R`
 
 GITHUB_REF=$APP_NAME-$GIT_REF
-TEMP_DIR=/tmp/$GITHUB_REF
+FULL_VER=${VERSION}-${RELEASE}
+echo $FULL_VER > ./build/current-version
+echo $GIT_REF >> ./build/current-version
+
+APP_NAME_VER=$APP_NAME-$FULL_VER
+
+#DIRNAME=$GITHUB_REF   # match Fedora original style
+DIRNAME=$APP_NAME_VER # better for debian
+
+TEMP_DIR=/tmp/$DIRNAME
 rm -rf $TEMP_DIR; mkdir $TEMP_DIR
 cp -a * $TEMP_DIR/ # do not copy hidden files like .git
 cd $TEMP_DIR
-APP_VERSION=${VERSION}-${RELEASE}
-echo $APP_VERSION > ./build/current-version
-echo $GIT_REF >> ./build/current-version
+
 
 if [ $# -lt 1 ]; then
         RPM_DIR=`rpm --eval '%{_topdir}'`
 else
         RPM_DIR=$1
 fi
-APP_SPEC=$RPM_DIR/SPECS/$APP_NAME-$APP_VERSION.spec
+APP_SPEC=$RPM_DIR/SPECS/$APP_NAME_VER.spec
 sed -e s/__GIT_REF__/$GIT_REF/g -e s/__VERSION__/$VERSION/g -e s/__RELEASE__/$RELEASE/g ./build/$APP_NAME.spec.in > $APP_SPEC
 sed -i -e s/__VERSION__/$VERSION/g -e s/__RELEASE__/$RELEASE/g -e s/__APP_NAME__/$APP_NAME/g -e "s/__DATE__/$DATE/g" -e "s/__MAINTAINER__/$MAINTAINER/g" debian/* 2> /dev/null || true
 
 ./autogen.sh
 
-tar -zcf $RPM_DIR/SOURCES/$GITHUB_REF.tar.gz --exclude .git  -C .. $GITHUB_REF
+
+tar -zcf $RPM_DIR/SOURCES/$DIRNAME.tar.gz --exclude .git  -C .. $DIRNAME
 rpmbuild -bs --define 'dist %{nil}' --define '_source_filedigest_algorithm md5' --define '_binary_filedigest_algorithm md5' --rmsource --rmspec --define "_topdir $RPM_DIR" $APP_SPEC
 cd $BASE_DIR
 rm -rf $TEMP_DIR

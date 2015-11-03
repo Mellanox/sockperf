@@ -1,6 +1,7 @@
 %global version __VERSION__
 %global git_ref __GIT_REF__
 %global release __RELEASE__
+%global full_ver %{version}-%{release}
 
 Name:           sockperf
 Version:        %{version}
@@ -8,7 +9,8 @@ Release:        %{release}%{?dist}
 Summary:        Network benchmarking utility for testing latency and throughput
 License:        BSD
 URL:            https://github.com/mellanox/%{name}
-Source0:	https://github.com/mellanox/%{name}/archive/%{git_ref}.tar.gz#/%{name}-%{git_ref}.tar.gz
+#Source0:	https://github.com/mellanox/%{name}/archive/%{git_ref}.tar.gz#/%{name}-%{git_ref}.tar.gz
+Source0:	%{name}-%{full_ver}.tar.gz
 
 BuildRequires:  doxygen
 %{!?_pkgdocdir: %global _pkgdocdir %{_docdir}/%{name}}
@@ -42,7 +44,9 @@ following:
   allow cleanest results.
 
 %prep
-%setup -q -n %{name}-%{git_ref}
+#%setup -q -n %{name}-%{git_ref}
+%setup -q -n %{name}-%{full_ver}
+
 
 %build
 
