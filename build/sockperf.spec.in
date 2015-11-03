@@ -7,13 +7,15 @@ Name:           sockperf
 Version:        %{version}
 Release:        %{release}%{?dist}
 Summary:        Network benchmarking utility for testing latency and throughput
+Group:          Applications/Internet
 License:        BSD
 URL:            https://github.com/mellanox/%{name}
 #Source0:	https://github.com/mellanox/%{name}/archive/%{git_ref}.tar.gz#/%{name}-%{git_ref}.tar.gz
 Source0:	%{name}-%{version}.tar.gz
 
 BuildRequires:  doxygen
-%{!?_pkgdocdir: %global _pkgdocdir %{_docdir}/%{name}}
+# can't use _pkgdocdir since it is not the same even where it is defined
+%global _my_pkgdocdir %{_docdir}/%{name}
 
 %description
 sockperf is a network benchmarking utility over socket API that was designed
@@ -73,5 +75,4 @@ make %{?_smp_mflags}
 %defattr(-,root,root,-)
 %{_bindir}/%{name}
 %{_mandir}/man3/%{name}.3.*
-%{_pkgdocdir}
-
+%{_my_pkgdocdir}
