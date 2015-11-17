@@ -43,16 +43,19 @@ typedef uint16_t in_port_t;
 #else
 
 #ifdef __linux__
-
 #include <features.h>
-#include <sys/epoll.h>
-
 #endif
 
+/* every file that use fd_set must include this section first for using big fd set size */
 #if  (__GLIBC__ > 2) || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 2)
 #include <bits/types.h>
 #undef __FD_SETSIZE
 #define __FD_SETSIZE 32768
+#include <sys/select.h>
+#endif
+
+#ifdef __linux__
+#include <sys/epoll.h>
 #endif
 
 #include <stdbool.h>
