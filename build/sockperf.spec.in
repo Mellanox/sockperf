@@ -70,7 +70,7 @@ export CXXFLAGS='%{optflags} -O3'
 make %{?_smp_mflags}
 
 %install
-%make_install
+make install DESTDIR="%{?buildroot}"
 
 %files
 %defattr(-,root,root,-)
