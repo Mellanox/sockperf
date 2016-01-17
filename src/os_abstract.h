@@ -111,7 +111,6 @@ void* win_set_timer(void *p_timer);
 
 #define INVALID_SOCKET (-1)
 
-#endif
 
 
 /***********************************************************************************
@@ -161,6 +160,7 @@ void* win_set_timer(void *p_timer);
 #define ntohll be64toh
 #endif
 
+#endif
 #endif
  
 /***********************************************************************************
