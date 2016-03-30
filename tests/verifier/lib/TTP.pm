@@ -36,7 +36,7 @@ our $test_suite_tcp_tp =
                     failure => ['Segmentation fault', 'Assertion', 'ERROR']
                 },
                 client => {
-                    success => ['Test ended', 'Summary: Message Rate', 'Warmup stage \(sending a few dummy packets\)...'],
+                    success => ['Test ended', 'Summary: Message Rate', 'Warmup stage \(sending a few dummy messages\)...'],
                     failure => ['Segmentation fault', 'Assertion', 'ERROR', 'server down']
                 },
             },
@@ -58,7 +58,7 @@ our $test_suite_tcp_tp =
                 },
                 client => {
                     success => ['Test ended', 'Summary: Message Rate'],
-                    failure => ['Segmentation fault', 'Assertion', 'ERROR', 'server down', 'Warmup stage \(sending a few dummy packets\)...'],
+                    failure => ['Segmentation fault', 'Assertion', 'ERROR', 'server down', 'Warmup stage \(sending a few dummy messages\)...'],
                 }
             },
             post_proc => \&te_def_post_proc,
@@ -697,6 +697,7 @@ our $test_suite_tcp_tp =
             name => 'tc33',
             note => '#33 - throughput option -f -Fs --threads-num=100 (on 400 sockets)',
             pre_proc => \&te_def_pre_proc,
+            server_wakeup => '20',
             server_proc => \&te_def_server_proc,
             server_arg => 'sr -f FEED(TCP:TARGET():17000:400) -F s --threads-num=100',
             client_proc => \&te_def_client_proc,
@@ -718,6 +719,7 @@ our $test_suite_tcp_tp =
             name => 'tc34',
             note => '#34 - throughput option -f -Fp --threads-num=100 (on 400 sockets)',
             pre_proc => \&te_def_pre_proc,
+            server_wakeup => '20',
             server_proc => \&te_def_server_proc,
             server_arg => 'sr -f FEED(TCP:TARGET():17000:400) -F p --threads-num=100',
             client_proc => \&te_def_client_proc,
@@ -739,6 +741,7 @@ our $test_suite_tcp_tp =
             name => 'tc35',
             note => '#35 - throughput option -f -Fe --threads-num=100 (on 400 sockets)',
             pre_proc => \&te_def_pre_proc,
+            server_wakeup => '20',
             server_proc => \&te_def_server_proc,
             server_arg => 'sr -f FEED(TCP:TARGET():17000:400) -F e --threads-num=100',
             client_proc => \&te_def_client_proc,

@@ -488,10 +488,12 @@ sub __exec_task
                     $task->{pre_proc}() if defined($task->{pre_proc});
                     if (not (defined($result_code) && $result_code))
                     {
+                    	my $server_wakeup = ( exists($task->{server_wakeup}) && defined($task->{server_wakeup}) ? $task->{server_wakeup} : 5 );
+                    
                     	$thread = threads->create(
                                $task->{server_proc}, $task->{server_arg})  if defined($task->{server_proc});
                     	# Wait for server wake up
-                    	sleep(2);
+                    	sleep($server_wakeup);
                     }
                     if (not (defined($result_code) && $result_code))
                     {
