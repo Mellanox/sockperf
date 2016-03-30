@@ -36,7 +36,7 @@ our $test_suite_tcp_pp =
                     failure => ['Segmentation fault', 'Assertion', 'ERROR']
                 },
                 client => {
-                    success => ['Test ended', 'Summary: Latency is', 'Warmup stage \(sending a few dummy packets\)...'],
+                    success => ['Test ended', 'Summary: Latency is', 'Warmup stage \(sending a few dummy messages\)...'],
                     failure => ['Segmentation fault', 'Assertion', 'ERROR', 'server down']
                 },
             },
@@ -58,7 +58,7 @@ our $test_suite_tcp_pp =
                 },
                 client => {
                     success => ['Test ended', 'Summary: Latency is'],
-                    failure => ['Segmentation fault', 'Assertion', 'ERROR', 'server down', 'Warmup stage \(sending a few dummy packets\)...'],
+                    failure => ['Segmentation fault', 'Assertion', 'ERROR', 'server down', 'Warmup stage \(sending a few dummy messages\)...'],
                 }
             },
             post_proc => \&te_def_post_proc,
@@ -78,7 +78,7 @@ our $test_suite_tcp_pp =
                     failure => ['Segmentation fault', 'Assertion', 'ERROR']
                 },
                 client => {
-                    success => ['Test ended', 'Summary: Latency of burst of 10 packets'],
+                    success => ['Test ended', 'Summary: Latency of burst of 10 messages'],
                     failure => ['Segmentation fault', 'Assertion', 'ERROR', 'server down']
                 }
             },
@@ -99,7 +99,7 @@ our $test_suite_tcp_pp =
                     failure => ['Segmentation fault', 'Assertion', 'ERROR']
                 },
                 client => {
-                    success => ['Test ended', 'Summary: Latency of burst of 100 packets'],
+                    success => ['Test ended', 'Summary: Latency of burst of 100 messages'],
                     failure => ['Segmentation fault', 'Assertion', 'ERROR', 'server down']
                 }
             },
@@ -120,7 +120,7 @@ our $test_suite_tcp_pp =
                     failure => ['Segmentation fault', 'Assertion', 'ERROR']
                 },
                 client => {
-                    success => ['Test ended', 'Summary: Latency of burst of 1000 packets'],
+                    success => ['Test ended', 'Summary: Latency of burst of 1000 messages'],
                     failure => ['Segmentation fault', 'Assertion', 'ERROR', 'server down']
                 }
             },

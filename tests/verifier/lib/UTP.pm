@@ -36,7 +36,7 @@ our $test_suite_udp_tp =
                     failure => ['Segmentation fault', 'Assertion', 'ERROR']
                 },
             	client => {
-	            	success => ['Test ended', 'Summary: Message Rate', 'Warmup stage \(sending a few dummy packets\)...'],
+			success => ['Test ended', 'Summary: Message Rate', 'Warmup stage \(sending a few dummy messages\)...'],
 	                failure => ['Segmentation fault', 'Assertion', 'ERROR', 'server down']
             	},
             },
@@ -58,7 +58,7 @@ our $test_suite_udp_tp =
                 },
                 client => {
 	                success => ['Test ended', 'Summary: Message Rate'],
-	                failure => ['Segmentation fault', 'Assertion', 'ERROR', 'server down', 'Warmup stage \(sending a few dummy packets\)...'],
+	                failure => ['Segmentation fault', 'Assertion', 'ERROR', 'server down', 'Warmup stage \(sending a few dummy messages\)...'],
                 }
             },
             post_proc => \&te_def_post_proc,
