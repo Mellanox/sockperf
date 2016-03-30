@@ -36,7 +36,7 @@ our $test_suite_udp_pp =
                     failure => ['Segmentation fault', 'Assertion', 'ERROR']
                 },
             	client => {
-			success => ['Test ended', 'Summary: Latency is', 'Warmup stage \(sending a few dummy messages\)...'],
+	            	success => ['Test ended', 'Summary: Latency is', 'Warmup stage \(sending a few dummy messages\)...'],
 	                failure => ['Segmentation fault', 'Assertion', 'ERROR', 'server down']
             	},
             },
@@ -697,6 +697,7 @@ our $test_suite_udp_pp =
             name => 'tc33',
             note => '#33 - ping-pong option -f -Fs --threads-num=100 (on 400 sockets)',
             pre_proc => \&te_def_pre_proc,
+            server_wakeup => '20',
             server_proc => \&te_def_server_proc,
             server_arg => 'sr -f FEED(UDP:TARGET():17000:400) -F s --threads-num=100',
             client_proc => \&te_def_client_proc,
@@ -718,6 +719,7 @@ our $test_suite_udp_pp =
             name => 'tc34',
             note => '#34 - ping-pong option -f -Fp --threads-num=100 (on 400 sockets)',
             pre_proc => \&te_def_pre_proc,
+            server_wakeup => '20',
             server_proc => \&te_def_server_proc,
             server_arg => 'sr -f FEED(UDP:TARGET():17000:400) -F p --threads-num=100',
             client_proc => \&te_def_client_proc,
@@ -739,6 +741,7 @@ our $test_suite_udp_pp =
             name => 'tc35',
             note => '#35 - ping-pong option -f -Fe --threads-num=100 (on 400 sockets)',
             pre_proc => \&te_def_pre_proc,
+            server_wakeup => '20',
             server_proc => \&te_def_server_proc,
             server_arg => 'sr -f FEED(UDP:TARGET():17000:400) -F e --threads-num=100',
             client_proc => \&te_def_client_proc,
@@ -970,6 +973,7 @@ our $test_suite_udp_pp =
             name => 'tc46',
             note => '#46 - ping-pong unicast option -f -Fs -t20 -m50000 -r512 --threads-num=100 --data-integrity',
             pre_proc => \&te_def_pre_proc,
+            server_wakeup => '20',
             server_proc => \&te_def_server_proc,
             server_arg => 'sr -f FEED(UDP:TARGET():17000:500) -F s --threads-num=100',
             client_proc => \&te_def_client_proc,
@@ -991,6 +995,7 @@ our $test_suite_udp_pp =
             name => 'tc47',
             note => '#47 - ping-pong multicast option -f -Fs -t20 -m50000 -r512 --threads-num=100 --data-integrity',
             pre_proc => \&te_def_pre_proc,
+            server_wakeup => '20',
             server_proc => \&te_def_server_proc,
             server_arg => 'sr -f FEED(UDP:224.4.0.3:17000:500) -F s --threads-num=100',
             client_proc => \&te_def_client_proc,
