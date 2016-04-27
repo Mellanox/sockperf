@@ -214,10 +214,11 @@ sub __help
     printf (" %-5s %-10s\t%-s\n", '-v,', '--version', "Output version information and exit.");
     printf (" %-5s %-10s\t%-s\n", '-i',  '--info', "Display detailed information about available tasks.");
 
-    printf (" %-5s %-10s\t%-s\n", '-s,', '--target', "List of targets");
+    printf (" %-5s %-10s\t%-s\n", '-a,', '--app', "Application to be used.");
+    printf (" %-5s %-10s\t%-s\n", '-s,', '--target', "List of targets.");
     printf (" %-5s %-10s\t%-s\n", '-u,', '--username', "Privileged username to target (default: $_options->{username}).");
-    printf (" %-5s %-10s\t%-s\n", '-p,', '--password', "Password to access target (default: $_options->{password})");
-    printf (" %-5s %-10s\t%-s\n", '-t,', '--task',     "Test.");
+    printf (" %-5s %-10s\t%-s\n", '-p,', '--password', "Password to access target (default: $_options->{password}).");
+    printf (" %-5s %-10s\t%-s\n", '-t,', '--task',     "Test name.");
 
     print ("\nArguments:\n");
 
@@ -393,7 +394,7 @@ sub __exec_task
             TE::Utility::fatal("Can't open $dump_file: $!\n") if defined($dump_file);
             
         # Form heading
-        TE::Utility::trace("\nVoltaire VPERF Verification Tool v$VERSION\n");
+        TE::Utility::trace("\nMellanox SOCKPERF Verification Tool v$VERSION\n");
         TE::Utility::trace("**********************************\n");
         my $info_str = '';
         $info_str .= sprintf("* Options: %s\n", $command_line);
