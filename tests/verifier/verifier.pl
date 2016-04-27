@@ -2,8 +2,8 @@
 ##
 # @file verifier.pl
 #
-# @brief VPERF Verification Tool.
-# @author Igor Ivanov (Igor.Ivanov@itseez.com)
+# @brief SOCKPERF Verification Tool.
+# @author Igor Ivanov (Igor.Ivanov.Va@gmail.com)
 #
 
 
@@ -58,6 +58,7 @@ my @opt_target_list;
 my $opt_username;
 my $opt_password;
 my @opt_task_list;
+my $opt_app_arg;
 
 my $opt_mailto;
 my $opt_silent;
@@ -78,6 +79,7 @@ GetOptions ('help|h' => \$opt_help,
             'username|u=s' => \$opt_username,
             'password|p=s' => \$opt_password,           
             'task|t=s' => \@opt_task_list,
+            'app-arg|x=s' => \$opt_app_arg,
 
             'email|e|m=s' => \$opt_mailto,
             'quiet|q!' => \$opt_silent,
@@ -132,6 +134,8 @@ if (defined($opt_app))
     __verify_opt_file( $opt_app );	
     $_common->{app} = basename($opt_app);
     $_common->{app_path} = File::Spec->rel2abs(dirname($opt_app));
+    $_common->{app_arg} = '';
+    $_common->{app_arg} = $opt_app_arg if defined($opt_app_arg);
 }
 $_common->{host} = hostname();
 $_common->{host_ip} = TE::Utility::get_ip($_common->{host});
@@ -207,7 +211,7 @@ sub __help
     print ("Usage: $module_script [options...] [arguments...]\n");
     print ("Mellanox SOCKPERF Verification Utility -- Version: $VERSION\n\n");
 
-    print ("$module_script -s [ip|hostname] -a [absolute path to tool] -t [all|udp-pp|udp-pp:tc1] -l [log file name]\n\n");
+    print ("$module_script -s [ip|hostname] -a [absolute path to tool] -t [all|udp-pp|udp-pp:tc1|udp-pp:^tc1$] -l [log file name]\n\n");
 	
     print ("\nOptions:\n");
     printf (" %-5s %-10s\t%-s\n", '-h,', '--help', "Show the help message and exit.");
@@ -215,6 +219,7 @@ sub __help
     printf (" %-5s %-10s\t%-s\n", '-i',  '--info', "Display detailed information about available tasks.");
 
     printf (" %-5s %-10s\t%-s\n", '-a,', '--app', "Application to be used.");
+    printf (" %-5s %-10s\t%-s\n", '-x,', '--app-arg', "Common application arguments.");
     printf (" %-5s %-10s\t%-s\n", '-s,', '--target', "List of targets.");
     printf (" %-5s %-10s\t%-s\n", '-u,', '--username', "Privileged username to target (default: $_options->{username}).");
     printf (" %-5s %-10s\t%-s\n", '-p,', '--password', "Password to access target (default: $_options->{password}).");
@@ -492,7 +497,7 @@ sub __exec_task
                     	my $server_wakeup = ( exists($task->{server_wakeup}) && defined($task->{server_wakeup}) ? $task->{server_wakeup} : 5 );
                     
                     	$thread = threads->create(
-                               $task->{server_proc}, $task->{server_arg})  if defined($task->{server_proc});
+                               $task->{server_proc}, $task->{server_arg} . " " . $_common->{app_arg})  if defined($task->{server_proc});
                     	# Wait for server wake up
                     	sleep($server_wakeup);
                     }
@@ -502,7 +507,7 @@ sub __exec_task
                         	TE::Funclet::shell("pkill -SIGINT $_common->{app}") 
                         };
                         alarm 300;
-                        ($result_code, $client_output) = $task->{client_proc}($task->{client_arg}) if defined($task->{client_proc});
+                        ($result_code, $client_output) = $task->{client_proc}($task->{client_arg} . " " . $_common->{app_arg}) if defined($task->{client_proc});
                         alarm 0;
                     }
                     
@@ -578,8 +583,8 @@ sub __exec_task
         $_common->{fdump} = undef;
     }
 }
-      
-      
+
+
 ###############################################################################
 #
 # Check if files directed in command line exists
