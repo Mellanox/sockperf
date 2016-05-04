@@ -407,8 +407,11 @@ sub te_def_server_proc
 
     if (@_ > 0)
     {
-        my $cmd = "$_common->{app_path}\/$_common->{app} "; 
-        $cmd .= join(" ", @_);
+        my $cmd = "";
+        $cmd .= "env $_common->{app_env}" if exists($_common->{app_env}) && defined($_common->{app_env});
+        $cmd .= " $_common->{app_path}\/$_common->{app} ";
+        $cmd .= join(' ', @_);
+        $cmd .= " $_common->{app_arg} " if exists($_common->{app_arg}) && defined($_common->{app_arg});
         $cmd =~ s/TARGET\(\)/$_current->{target}/;
         if ($cmd =~ /FEED\(.*\)/)
         {
@@ -432,8 +435,11 @@ sub te_def_client_proc
 
     if (@_ > 0)
     {
-        my $cmd = "$_common->{app_path}\/$_common->{app} "; 
-        $cmd .= join(" ", @_);
+        my $cmd = "";
+        $cmd .= "env $_common->{app_env}" if exists($_common->{app_env}) && defined($_common->{app_env});
+        $cmd .= " $_common->{app_path}\/$_common->{app} ";
+        $cmd .= join(' ', @_);
+        $cmd .= " $_common->{app_arg} " if exists($_common->{app_arg}) && defined($_common->{app_arg});
         $cmd =~ s/TARGET\(\)/$_current->{target}/;
         if ($cmd =~ /FEED\(.*\)/)
         {
