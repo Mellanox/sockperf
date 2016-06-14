@@ -116,10 +116,10 @@ sockperf: [tid 4857] using select() to block on socket(s)
  -i      --ip                 	Listen on/send to ip <ip>.
  -p      --port               	Listen on/connect to port <port> (default 11111).
  -m      --msg-size           	Use messages of size <size> bytes (minimum default 14).
- -f      --file               	Tread multiple ip+port combinations from file <file> 
-                                (server uses select).
+ -f      --file               	Read multiple ip+port combinations from file <file> 
+                                (will use IO muxer '-F' such as epoll, poll or select)
  -F      --io-hanlder-type    	Type of multiple file descriptors handle 
-                                [s|select|p|poll|e|epoll](default select).
+                                [s|select|p|poll|e|epoll](default epoll).
  -a      --activity           	Measure activity by printing a '.' for the last 
                                 <N> packets processed.
  -A      --Activity           	Measure activity by printing the duration for last 
