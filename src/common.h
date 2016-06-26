@@ -35,7 +35,7 @@
 
 //------------------------------------------------------------------------------
 void recvfromError(int fd);//take out error code from inline function
-void sendtoError(int fd, int nbytes, const struct sockaddr_in *sendto_addr);//take out error code from inline function
+void sendtoError(int fd, int nbytes, int flags, const struct sockaddr_in *sendto_addr);//take out error code from inline function
 void exit_with_log(int status);
 void exit_with_log(const char* error,int status);
 void exit_with_log(const char* error, int status, fds_data* fds);
@@ -142,7 +142,9 @@ static inline int msg_recvfrom(int fd, uint8_t* buf, int nbytes, struct sockaddr
 	        Note: another way is call signal (SIGPIPE,SIG_IGN);
 	     */
 #ifndef WIN32
+#ifdef WITHOUT_RDS
 		flags = MSG_NOSIGNAL;
+#endif
 #endif
 
 		ret = recvfrom(fd, buf, nbytes, flags, (struct sockaddr*)recvfrom_addr, &size);
@@ -200,8 +202,9 @@ static inline int msg_sendto(int fd, uint8_t* buf, int nbytes, const struct sock
 	 * Note: another way is call signal (SIGPIPE,SIG_IGN);
      */
 #ifndef WIN32
+#ifdef WITHOUT_RDS
 	flags = MSG_NOSIGNAL;
-
+#endif
 	/*
 	 * MSG_DONTWAIT:
 	 * Enables non-blocking operation; if the operation would block,
@@ -261,7 +264,7 @@ static inline int msg_sendto(int fd, uint8_t* buf, int nbytes, const struct sock
 		else {
 			/* Unprocessed error
 			 */
-			sendtoError(fd, nbytes, sendto_addr);
+			sendtoError(fd, nbytes, flags, sendto_addr);
 			errno = 0;
 			break;
 		}

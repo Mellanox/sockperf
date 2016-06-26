@@ -2544,9 +2544,11 @@ int sock_set_snd_rcv_bufs(int fd)
 	}
 	if (!rc) {
 		log_msg("Socket buffers sizes of fd %d: RX: %d Byte, TX: %d Byte", fd, rcv_buff_size, snd_buff_size);
-		if (rcv_buff_size < s_user_params.sock_buff_size*2 ||
-				snd_buff_size < s_user_params.sock_buff_size*2  ) {
-			log_msg("WARNING: Failed setting receive or send socket buffer size to %d bytes (check 'sysctl net.core.rmem_max' value)", s_user_params.sock_buff_size);
+		if (rcv_buff_size < s_user_params.sock_buff_size*2) {
+			log_msg("WARNING: rcv_buff_size=%d - Failed setting recv socket buffer size to %d bytes (check 'sysctl net.core.rmem_max' or wmem_max value)", rcv_buff_size, s_user_params.sock_buff_size);
+		}
+		if (snd_buff_size < s_user_params.sock_buff_size*2  ) {
+			log_msg("WARNING: snd_buff_size=%d - Failed setting send socket buffer size to %d bytes (check 'sysctl net.core.rmem_max' or wmem_max value)", snd_buff_size, s_user_params.sock_buff_size);
 		}
 	}
 
@@ -2901,7 +2903,9 @@ static int set_sockets_from_feedfile(const char *feedfile_name)
 				}
 				else {
 					/* create a socket */
-					if ((curr_fd = (int)socket(AF_INET, tmp->sock_type, 0)) < 0) { // TODO: use SOCKET all over the way and avoid this cast
+					if (tmp->sock_type == SOCK_DGRAM) tmp->sock_type = SOCK_SEQPACKET; // TODO: temp hack
+					const int domain = tmp->sock_type != SOCK_SEQPACKET ? AF_INET : AF_RDS;
+					if ((curr_fd = (int)socket(domain, tmp->sock_type, 0)) < 0) { // TODO: use SOCKET all over the way and avoid this cast
 						log_err("socket(AF_INET, SOCK_x)");
 						rc = SOCKPERF_ERR_SOCKET;
 					}
@@ -3089,7 +3093,9 @@ int bringup(const int *p_daemonize)
 				}
 				else {
 					/* create a socket */
-					if ((curr_fd = (int)socket(AF_INET, tmp->sock_type, 0)) < 0) { // TODO: use SOCKET all over the way and avoid this cast
+					if (tmp->sock_type == SOCK_DGRAM) tmp->sock_type = SOCK_SEQPACKET; // TODO: temp hack
+					const int domain = tmp->sock_type != SOCK_SEQPACKET ? AF_INET : AF_RDS;
+					if ((curr_fd = (int)socket(domain, tmp->sock_type, 0)) < 0) { // TODO: use SOCKET all over the way and avoid this cast
 						log_err("socket(AF_INET, SOCK_x)");
 						rc = SOCKPERF_ERR_SOCKET;
 					}

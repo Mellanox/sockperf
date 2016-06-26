@@ -43,9 +43,9 @@ void recvfromError(int fd)
 }
 
 //------------------------------------------------------------------------------
-void sendtoError(int fd, int nbytes, const struct sockaddr_in *sendto_addr) {
+void sendtoError(int fd, int nbytes, int flags, const struct sockaddr_in *sendto_addr) {
 	if (!g_b_exit) {
-		log_err("sendto() Failed sending on fd[%d] to %s:%d msg size of %d bytes", fd, inet_ntoa(sendto_addr->sin_addr), ntohs(sendto_addr->sin_port), nbytes);
+		log_err("sendto() Failed sending on fd[%d] to %s:%d msg size=%d bytes flags=0x%x", fd, inet_ntoa(sendto_addr->sin_addr), ntohs(sendto_addr->sin_port), nbytes, flags);
 		exit_with_log(SOCKPERF_ERR_SOCKET);
 	}
 }
