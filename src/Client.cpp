@@ -69,7 +69,7 @@ void printPercentiles(FILE* f, TicksDuration* pLat, size_t size)
 {
 	qsort(pLat, size, sizeof(TicksDuration), TicksDuration::compare);
 
-	double percentile[] = {0.9999, 0.999, 0.995, 0.99, 0.95, 0.90, 0.75, 0.50, 0.25};
+	double percentile[] = {0.99999, 0.9999, 0.999, 0.99, 0.90, 0.75, 0.50, 0.25};
 	int num = sizeof(percentile)/sizeof(percentile[0]);
 	double observationsInPercentile = (double)size/100;
 
@@ -79,7 +79,7 @@ void printPercentiles(FILE* f, TicksDuration* pLat, size_t size)
 	for (int i = 0; i < num; i++) {
 		int index = (int)( 0.5 + percentile[i]*size ) - 1;
 		if (index >= 0) {
-			log_msg_file2(f, "---> percentile %6.2lf = %8.3lf", 100*percentile[i], pLat[index].toDecimalUsec());
+			log_msg_file2(f, "---> percentile %6.3lf = %8.3lf", 100*percentile[i], pLat[index].toDecimalUsec());
 		}
 	}
 	log_msg_file2(f, "---> <MIN> observation = %8.3lf", pLat[0].toDecimalUsec());
