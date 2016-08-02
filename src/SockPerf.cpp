@@ -212,11 +212,11 @@ static const AOPT_DESC  common_opt_desc[] =
 	},
 	{
 		OPT_RX_MC_IF, AOPT_ARG, aopt_set_literal( 0 ), aopt_set_string( "mc-rx-if" ),
-		"<ip> address of interface on which to receive mulitcast messages (can be other then route table)."
+		"Set address <ip> of interface on which to receive mulitcast messages (can be other then route table)."
 	},
 	{
 		OPT_TX_MC_IF, AOPT_ARG, aopt_set_literal( 0 ), aopt_set_string( "mc-tx-if" ),
-		"<ip> address of interface on which to transmit mulitcast messages (can be other then route table)."
+		"Set address <ip> of interface on which to transmit mulitcast messages (can be other then route table)."
 	},
 	{
 		OPT_MC_LOOPBACK_ENABLE, AOPT_NOARG, aopt_set_literal( 0 ), aopt_set_string( "mc-loopback-enable" ),
@@ -225,6 +225,10 @@ static const AOPT_DESC  common_opt_desc[] =
 	{
 		OPT_IP_MULTICAST_TTL, AOPT_ARG, aopt_set_literal( 0 ), aopt_set_string( "mc-ttl" ),
 		"Limit the lifetime of the message (default 2)."
+	},
+	{
+		OPT_MC_SOURCE_IP, AOPT_ARG, aopt_set_literal( 0 ), aopt_set_string( "mc-source-filter" ),
+		"Set address <ip, hostname> of mulitcast messages source which is allowed to receive from."
 	},
 	{
 		OPT_LLS, AOPT_ARG, aopt_set_literal( 0 ), aopt_set_string( "lls" ),
@@ -1564,11 +1568,11 @@ static int proc_mode_server( int id, int argc, const char **argv )
 		printf("\n");
 		printf("Usage: " MODULE_NAME " %s [options] [args]...\n", sockperf_modes[id].name);
 		printf(" " MODULE_NAME " %s\n", sockperf_modes[id].name);
-		printf(" " MODULE_NAME " %s [-i ip] [-p port] [--rx-mc-if ip] [--tx-mc-if ip]\n", sockperf_modes[id].name);
+		printf(" " MODULE_NAME " %s [-i ip] [-p port] [--mc-rx-if ip] [--mc-tx-if ip] [--mc-source-filter ip]\n", sockperf_modes[id].name);
 #ifndef WIN32
-		printf(" " MODULE_NAME " %s -f file [-F s/p/e] [--rx-mc-if ip] [--tx-mc-if ip]\n", sockperf_modes[id].name);
+		printf(" " MODULE_NAME " %s -f file [-F s/p/e] [--mc-rx-if ip] [--mc-tx-if ip] [--mc-source-filter ip]\n", sockperf_modes[id].name);
 #else
-		printf(" " MODULE_NAME " %s -f file [-F s] [--rx-mc-if ip] [--tx-mc-if ip]\n", sockperf_modes[id].name);
+		printf(" " MODULE_NAME " %s -f file [-F s] [--mc-rx-if ip] [--mc-tx-if ip] [--mc-source-filter ip]\n", sockperf_modes[id].name);
 #endif
 		printf("\n");
 		printf("Options:\n");
@@ -1774,6 +1778,26 @@ static int parse_common_opt( const AOPT_OBJECT *common_obj )
 			}
 		}
 
+		if ( !rc && aopt_check(common_obj, OPT_MC_SOURCE_IP) ) {
+			const char* optarg = aopt_value(common_obj, OPT_MC_SOURCE_IP);
+			if (optarg) {
+				if (!inet_aton(optarg, &(s_user_params.mc_source_ip_addr))) {
+					struct hostent *hostip = gethostbyname(optarg);
+					if(hostip) {
+						memcpy(&(s_user_params.mc_source_ip_addr), hostip->h_addr_list[0], hostip->h_length);
+					}
+					else {
+						log_msg("Invalid multicast source address: '%s'", optarg);
+						rc = SOCKPERF_ERR_BAD_ARGUMENT;
+					}
+				}				
+			}
+			else {
+				log_msg("'-%d' Invalid address: %s", OPT_MC_SOURCE_IP, optarg);
+				rc = SOCKPERF_ERR_BAD_ARGUMENT;
+			}
+		}
+		
 		if ( !rc && aopt_check(common_obj, OPT_SELECT_TIMEOUT) ) {
 			const char* optarg = aopt_value(common_obj, OPT_SELECT_TIMEOUT);
 			if (optarg) {
@@ -2207,6 +2231,7 @@ void set_defaults()
 	memset(g_fds_array, 0, sizeof(fds_data*)*MAX_FDS_NUM);
 	s_user_params.rx_mc_if_addr.s_addr = htonl(INADDR_ANY);
 	s_user_params.tx_mc_if_addr.s_addr = htonl(INADDR_ANY);
+	s_user_params.mc_source_ip_addr.s_addr = htonl(INADDR_ANY);
 	s_user_params.sec_test_duration = DEFAULT_TEST_DURATION;
 	s_user_params.client_bind_info.sin_family = AF_INET;
 	s_user_params.client_bind_info.sin_addr.s_addr = INADDR_ANY;
@@ -2586,22 +2611,42 @@ int sock_set_multicast(int fd, struct fds_data *p_data)
 	struct sockaddr_in* p_addr = NULL;
 	p_addr = &(p_data->server_addr);
 
-	struct ip_mreq mreq;
-	memset(&mreq,0,sizeof(struct ip_mreq));
-
 	/* use setsockopt() to request that the kernel join a multicast group */
 	/* and specify a specific interface address on which to receive the packets of this socket */
+	/* and may specify message source IP address on which to receive from */
 	/* NOTE: we don't do this if case of client (sender) in stream mode */
 	if (!s_user_params.b_stream || s_user_params.mode != MODE_CLIENT) {
-		mreq.imr_multiaddr = p_addr->sin_addr;
-		mreq.imr_interface.s_addr = s_user_params.rx_mc_if_addr.s_addr;
-		if (setsockopt(fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq)) < 0) {
-			if(errno == 105)
-				log_err("setsockopt(IP_ADD_MEMBERSHIP) - Maximum multicast addresses that can join same group is limited by /proc/sys/net/ipv4/igmp_max_memberships");
-			else
-				log_err("setsockopt(IP_ADD_MEMBERSHIP)");
-			rc = SOCKPERF_ERR_SOCKET;
+		if (p_data->mc_source_ip_addr.s_addr != INADDR_ANY) {
+			struct ip_mreq_source mreq_src;
+			memset(&mreq_src,0,sizeof(struct ip_mreq_source));
+			mreq_src.imr_multiaddr = p_addr->sin_addr;
+			mreq_src.imr_interface.s_addr = s_user_params.rx_mc_if_addr.s_addr;
+			mreq_src.imr_sourceaddr.s_addr  = p_data->mc_source_ip_addr.s_addr;
+			if (setsockopt(fd, IPPROTO_IP, IP_ADD_SOURCE_MEMBERSHIP, &mreq_src, sizeof(mreq_src)) < 0) {
+				if(errno == ENOBUFS) {
+					log_err("setsockopt(IP_ADD_SOURCE_MEMBERSHIP) - Maximum multicast source addresses that can be filtered is limited by /proc/sys/net/ipv4/igmp_max_msf");
+				}
+				else {
+					log_err("setsockopt(IP_ADD_SOURCE_MEMBERSHIP)");
+				}
+				rc = SOCKPERF_ERR_SOCKET;
+			}				
 		}
+		else {
+			struct ip_mreq mreq;
+			memset(&mreq,0,sizeof(struct ip_mreq));
+			mreq.imr_multiaddr = p_addr->sin_addr;
+			mreq.imr_interface.s_addr = s_user_params.rx_mc_if_addr.s_addr;
+			if (setsockopt(fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq)) < 0) {
+				if(errno == ENOBUFS) {
+					log_err("setsockopt(IP_ADD_MEMBERSHIP) - Maximum multicast addresses that can join same group is limited by /proc/sys/net/ipv4/igmp_max_memberships");
+				}
+				else {
+					log_err("setsockopt(IP_ADD_MEMBERSHIP)");
+				}
+				rc = SOCKPERF_ERR_SOCKET;
+			}
+		}	
 	}
 
 	/* specify a specific interface address on which to transmitted the multicast packets of this socket */
@@ -2742,6 +2787,7 @@ static int set_sockets_from_feedfile(const char *feedfile_name)
 	int sock_type = SOCK_DGRAM;
 	char *ip = NULL;
 	char *port = NULL;
+	char *mc_src_ip = NULL;
 	fds_data *tmp;
 	int curr_fd = 0, last_fd = 0;
 #ifndef WIN32
@@ -2802,7 +2848,7 @@ static int set_sockets_from_feedfile(const char *feedfile_name)
 			regfree(&regexpr);
 			if (regexpres) {
 				log_msg("Invalid input in line %s: "
-						"each line must have the following format: ip:port or type:ip:port",
+						"each line must have the following format: ip:port or type:ip:port or type:ip:port:mc_src_ip",
 						line);
 				rc = SOCKPERF_ERR_INCORRECT;
 				break;
@@ -2822,10 +2868,11 @@ static int set_sockets_from_feedfile(const char *feedfile_name)
 			ip = strtok(line, ":");
 		}
 		port = strtok(NULL, ":\n");
+		mc_src_ip = strtok(NULL, ":\n");
 		if (!ip || !port) {
 			log_msg("Invalid input in line %s: "
-					"each line must have the following format: ip:port or type:ip:port",
-					line);
+					"each line must have the following format: ip:port or type:ip:port or type:ip:port:mc_src_ip",
+						line);
 			rc = SOCKPERF_ERR_INCORRECT;
 			break;
 		}
@@ -2839,6 +2886,7 @@ static int set_sockets_from_feedfile(const char *feedfile_name)
 			memset(tmp,0,sizeof(struct fds_data));
 			tmp->server_addr.sin_family = AF_INET;
 			tmp->server_addr.sin_port = htons(atoi(port));
+			tmp->mc_source_ip_addr.s_addr = s_user_params.mc_source_ip_addr.s_addr;
 			if (!inet_aton(ip, &tmp->server_addr.sin_addr)) {
 				struct hostent *hostip = gethostbyname(ip);
 				if(hostip) {
@@ -2851,6 +2899,18 @@ static int set_sockets_from_feedfile(const char *feedfile_name)
 					break;
 				}
 			}
+			if ((mc_src_ip) && (!inet_aton(mc_src_ip, &(tmp->mc_source_ip_addr)))) {
+				struct hostent *hostip = gethostbyname(mc_src_ip);
+				if(hostip) {
+					memcpy(&(tmp->mc_source_ip_addr), hostip->h_addr_list[0], hostip->h_length);
+				}
+				else {
+					log_msg("Invalid multicast source address in line %s: '%s'",line, mc_src_ip);
+					FREE(tmp);
+					rc = SOCKPERF_ERR_INCORRECT;
+					break;
+				}
+			}			
 			tmp->is_multicast = IN_MULTICAST(ntohl(tmp->server_addr.sin_addr.s_addr));
 			tmp->sock_type = sock_type;
 
@@ -2859,7 +2919,8 @@ static int set_sockets_from_feedfile(const char *feedfile_name)
 			port_and_type port_type_tmp = {tmp->sock_type,tmp->server_addr.sin_port};
 			for (int i = s_fd_min; i <= s_fd_max; i++) {
 				/* duplicated values are accepted in case client connection using TCP */
-				if (((s_user_params.mode == MODE_CLIENT)  && (tmp->sock_type == SOCK_STREAM))) {
+				/* or in case source address is set for multicast socket */
+				if (((s_user_params.mode == MODE_CLIENT)  && (tmp->sock_type == SOCK_STREAM)) || ((tmp->is_multicast) && (tmp->mc_source_ip_addr.s_addr != INADDR_ANY))) {
 					continue;
 				}
 
@@ -3077,7 +3138,7 @@ int bringup(const int *p_daemonize)
 			else {
 				memset(tmp, 0, sizeof(struct fds_data));
 				memcpy(&tmp->server_addr, &(s_user_params.addr), sizeof(struct sockaddr_in));
-
+				tmp->mc_source_ip_addr.s_addr = s_user_params.mc_source_ip_addr.s_addr;
 				tmp->is_multicast = IN_MULTICAST(ntohl(tmp->server_addr.sin_addr.s_addr));
 				tmp->sock_type = s_user_params.sock_type;
 
