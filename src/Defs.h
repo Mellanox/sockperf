@@ -130,9 +130,9 @@ const uint32_t TEST_END_COOLDOWN_MSEC = 50;
 #ifndef MAX_PATH_LENGTH
 #define MAX_PATH_LENGTH         	1024
 #endif
-#define MAX_MCFILE_LINE_LENGTH  	25	/* sizeof("U:255.255.255.255:11111\0") */
+#define MAX_MCFILE_LINE_LENGTH  	41	/* sizeof("U:255.255.255.255:11111:255.255.255.255\0") */
 
-#define IP_PORT_FORMAT_REG_EXP		"^([UuTt]:)*([a-zA-Z0-9\\.\\-]+):(6553[0-5]|655[0-2][0-9]|65[0-4][0-9]{2}|6[0-4][0-9]{3}|[0-5]?[0-9]{1,4})[\r\n]"
+#define IP_PORT_FORMAT_REG_EXP		"^([UuTt]:)*([a-zA-Z0-9\\.\\-]+):(6553[0-5]|655[0-2][0-9]|65[0-4][0-9]{2}|6[0-4][0-9]{3}|[0-5]?[0-9]{1,4})(:[a-zA-Z0-9\\.\\-]+)?[\r\n]"
 /*
 #define IP_PORT_FORMAT_REG_EXP		"^([UuTt]:)*((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}"\
 					"(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?):"\
@@ -187,6 +187,7 @@ enum {
 	OPT_CLIENTIP,                   //37
 	OPT_TOS,                        //38
 	OPT_LLS,                        //39
+	OPT_MC_SOURCE_IP                //40
 };
 
 #define MODULE_NAME			"sockperf"
@@ -415,6 +416,7 @@ typedef struct fds_data {
 	int active_fd_count;		/**< number of active connections (by default 1-for UDP; 0-for TCP) */
 	int *active_fd_list;		/**< list of fd related active connections (UDP has the same fd by default) */
 	struct sockaddr_in *memberships_addr;	/**< more servers on the same socket information */
+	struct in_addr mc_source_ip_addr;	/**< message source ip for multicast packet filtering */
 	int memberships_size;	
 	struct {
 		uint8_t *buf;
@@ -551,6 +553,7 @@ struct user_params_t {
 	work_mode_t mode; // either  client or server
 	struct in_addr rx_mc_if_addr;
 	struct in_addr tx_mc_if_addr;
+	struct in_addr mc_source_ip_addr;
 	int msg_size;
 	int msg_size_range;
 	int sec_test_duration;
