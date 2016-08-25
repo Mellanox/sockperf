@@ -291,4 +291,60 @@ int IoEpoll::prepareNetwork()
 	return rc;
 }
 #endif
+#ifdef  USING_VMA_EXTRA_API
+//==============================================================================
+//------------------------------------------------------------------------------
+IoVmaPoll::IoVmaPoll(int _fd_min, int _fd_max, int _fd_num) : IoHandler(_fd_min, _fd_max,_fd_num, 0, 0){
+
+}
+
+//------------------------------------------------------------------------------
+IoVmaPoll::~IoVmaPoll() {
+}
+
+//------------------------------------------------------------------------------
+int IoVmaPoll::prepareNetwork()
+{
+	int rc = SOCKPERF_ERR_NONE;
+	int list_count = 0;
+	int ring_fd = 0;
+
+	printf("\n");
+	for (int ifd = m_fd_min; ifd <= m_fd_max; ifd++) {
+		if (g_fds_array[ifd]) {
+			ring_fd = 0;
+			g_vma_api->get_socket_rings_fds(ifd, &ring_fd,1);
+			assert((-1) != ring_fd);
+			rings_vma_comps_map::iterator itr = m_rings_vma_comps_map.find(ring_fd);
+			if (itr == m_rings_vma_comps_map.end()){
+				vma_ring_comps* temp = NULL;
+				temp = (struct vma_ring_comps*)malloc(sizeof(vma_ring_comps));
+				if (!temp) {
+					log_err("Failed to allocate memory with malloc()");
+				}
+				memset(temp, 0, sizeof(vma_ring_comps));
+				temp->is_freed = true; 
+				std::pair<rings_vma_comps_map::iterator, bool> ret = m_rings_vma_comps_map.insert(std::make_pair(ring_fd,temp));
+				if (!ret.second) {
+					log_err("Failed to insert new ring.");
+				}
+			}
+
+			printf("[%2d] IP = %-15s PORT = %5d # %s\n",
+			       list_count++,
+			       inet_ntoa(g_fds_array[ifd]->server_addr.sin_addr),
+			       ntohs(g_fds_array[ifd]->server_addr.sin_port),
+			       PRINT_PROTOCOL(g_fds_array[ifd]->sock_type));
+			for (int i=0; i< g_fds_array[ifd]->memberships_size; i++){
+				printf("[%2d] IP = %-15s PORT = %5d # %s\n",
+				       list_count++,
+				       inet_ntoa(g_fds_array[ifd]->memberships_addr[i].sin_addr),
+				       ntohs(g_fds_array[ifd]->server_addr.sin_port),
+				       PRINT_PROTOCOL(g_fds_array[ifd]->sock_type));
+			}
+		}
+	}	
+	return rc;
+}
+#endif
 #endif

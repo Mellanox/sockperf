@@ -140,7 +140,7 @@ AC_CHECK_HEADERS(
     [arpa/inet.h fcntl.h netinet/in.h stdint.h stdlib.h \
     string.h sys/ioctl.h sys/socket.h sys/time.h syslog.h \
     termios.h unistd.h])
-
+AC_CHECK_HEADER([mellanox/vma_extra.h], [AC_DEFINE([USING_VMA_EXTRA_API], [], [Enable using VMA extra API])], [AC_MSG_NOTICE([vma_extra.h not found, USING_VMA_EXTRA_API is not defined])], [])
 
 #####################################
 # Checks for libraries.

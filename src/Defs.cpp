@@ -46,6 +46,8 @@ unsigned char* g_pkt_buf = NULL;
 struct vma_packets_t* g_pkts = NULL;
 unsigned int g_pkt_index = 0;
 unsigned int g_pkt_offset = 0;
+struct vma_buff_t* g_vma_poll_buff = NULL;
+struct vma_completion_t* g_vma_comps;
 #endif
 
 
