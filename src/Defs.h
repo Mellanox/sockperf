@@ -89,6 +89,7 @@ typedef uint16_t in_port_t;
 #include <errno.h>
 #include <fcntl.h>
 #include <sys/types.h>		/* sockets*/
+#include <queue>
 
 #include "Ticks.h"
 #include "Message.h"
@@ -96,7 +97,6 @@ typedef uint16_t in_port_t;
 
 #if ! defined (WIN32) && ! defined (__FreeBSD__)
 	#include "vma-redirect.h"
-	//#define USING_VMA_EXTRA_API
 	#ifdef  USING_VMA_EXTRA_API
 	#include <mellanox/vma_extra.h>
 	#endif
@@ -162,11 +162,12 @@ enum {
 	OPT_PREWARMUPWAIT,              //11
 	OPT_VMARXFILTERCB,              //12
 	OPT_VMAZCOPYREAD,               //13
-	OPT_MC_LOOPBACK_ENABLE,         //14
-	OPT_CLIENT_WORK_WITH_SRV_NUM,   //15
-	OPT_FORCE_UC_REPLY,             //16
-	OPT_MPS,                        //17
-	OPT_REPLY_EVERY,                //18
+	OPT_VMAPOLL,			//14
+	OPT_MC_LOOPBACK_ENABLE,         //15
+	OPT_CLIENT_WORK_WITH_SRV_NUM,   //16
+	OPT_FORCE_UC_REPLY,             //17
+	OPT_MPS,                        //18
+	OPT_REPLY_EVERY,                //19
 	OPT_NO_RDTSC,                   //20
 	OPT_SENDER_AFFINITY,            //21
 	OPT_RECEIVER_AFFINITY,          //22
@@ -381,6 +382,8 @@ extern unsigned char* g_pkt_buf;
 extern struct vma_packets_t* g_pkts;
 extern unsigned int g_pkt_index;
 extern unsigned int g_pkt_offset;
+extern struct vma_buff_t* g_vma_poll_buff;
+extern struct vma_completion_t* g_vma_comps;
 #endif
 
 class Message;
@@ -516,18 +519,34 @@ namespace std
 		}
 	};
 }
+
+#ifdef  USING_VMA_EXTRA_API
+struct vma_ring_comps{
+  struct vma_completion_t vma_comp;
+  bool is_freed;
+};
+#endif
+
+
 #ifndef __FreeBSD__
 typedef std::tr1::unordered_map<struct sockaddr_in, clt_session_info_t> seq_num_map;
 typedef std::tr1::unordered_map<struct in_addr, size_t> addr_to_id;
+#ifdef  USING_VMA_EXTRA_API
+typedef std::tr1::unordered_map<int, struct vma_ring_comps*> rings_vma_comps_map;
+#endif
 #else
 typedef std::unordered_map<struct sockaddr_in, clt_session_info_t> seq_num_map;
 typedef std::unordered_map<struct in_addr, size_t> addr_to_id;
+#ifdef  USING_VMA_EXTRA_API
+typedef std::unordered_map<int, struct vma_ring_comps*> rings_vma_comps_map;
+#endif
 #endif
 
 extern fds_data** g_fds_array;
 extern int IGMP_MAX_MEMBERSHIPS;
 
 #ifdef  USING_VMA_EXTRA_API
+typedef std::queue<int> vma_comps_queue;
 extern struct vma_api_t *g_vma_api;
 #endif
 
@@ -544,6 +563,9 @@ typedef enum { // must be coordinated with s_fds_handle_desc in common.cpp
 #ifndef WIN32
 	POLL,
 	EPOLL,
+#ifdef  USING_VMA_EXTRA_API
+	VMAPOLL,
+#endif
 #endif
 	FD_HANDLE_MAX
 } fd_block_handler_t;
@@ -573,6 +595,7 @@ struct user_params_t {
 	unsigned int pre_warmup_wait;
 	bool is_vmarxfiltercb;
 	bool is_vmazcopyread;
+	bool is_vmapoll;
 	TicksDuration cycleDuration;
 	bool mc_loop_disable;
 	int client_work_with_srv_num;
