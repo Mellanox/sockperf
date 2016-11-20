@@ -187,7 +187,8 @@ enum {
 	OPT_CLIENTIP,                   //37
 	OPT_TOS,                        //38
 	OPT_LLS,                        //39
-	OPT_MC_SOURCE_IP                //40
+	OPT_MC_SOURCE_IP,               //40
+	OPT_DUMMY_SEND                  //41
 };
 
 #define MODULE_NAME			"sockperf"
@@ -603,6 +604,7 @@ struct user_params_t {
 	int tos;
 	unsigned int lls_usecs;
 	bool lls_is_set;
+	bool b_dummy_send; //client side only
 };
 
 struct mutable_params_t {

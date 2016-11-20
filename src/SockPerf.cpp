@@ -277,6 +277,10 @@ static const AOPT_DESC  common_opt_desc[] =
 		"Set socket accleration before run (available for some of Mellanox systems)"
 	},
 	{
+		OPT_DUMMY_SEND, AOPT_NOARG,	aopt_set_literal( 0 ),	aopt_set_string( "use-dummy" ),
+		"Use dummy send instead of busy wait."
+	},
+	{
 		'd', AOPT_NOARG, aopt_set_literal( 'd' ),	aopt_set_string( "debug" ),
 		"Print extra debug information."
 	},
@@ -1952,6 +1956,11 @@ static int parse_common_opt( const AOPT_OBJECT *common_obj )
 		if ( !rc && aopt_check(common_obj, OPT_SOCK_ACCL) ) {
 			s_user_params.withsock_accl = true;
 		}
+
+		if ( !rc && aopt_check(common_obj, OPT_DUMMY_SEND) ) {
+			s_user_params.b_dummy_send = true;
+		}
+
 #ifndef WIN32
 
 		if ( !rc && aopt_check(common_obj, OPT_VMAZCOPYREAD) ) {
@@ -2290,6 +2299,7 @@ void set_defaults()
 	s_user_params.daemonize = false;
 
 	s_user_params.withsock_accl = false;
+	s_user_params.b_dummy_send = false;
 	memset(s_user_params.feedfile_name, 0, sizeof(s_user_params.feedfile_name));
 	s_user_params.tos = 0x00;
 }

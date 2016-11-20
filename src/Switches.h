@@ -47,6 +47,7 @@ public:
 	inline void execute(struct sockaddr_in *clt_addr, uint64_t seq_num, bool is_warmup) {}
 	inline void execute(Message *pMsgRequest, Message * pMsgReply) {}
 	inline void execute(Message *pMsgRequest) {}
+	inline void execute(int ifd, int buffer_size) {}
 
 /*
 	inline void execute2() {}
@@ -94,7 +95,35 @@ public:
 		}
 		g_cycleStartTime = nextCycleStartTime;
 	}
+
+	inline void execute(int ifd, int buffer_size) {
+		execute();
+	}
+
 };
+
+//=============================================================================
+class SwitchOnDummySend {
+public:
+	// dummy send between two cycles starting point and take starting point of next cycle
+
+	inline void execute(int ifd, int buffer_size) {
+		uint8_t buffer[buffer_size];
+		TicksTime nextCycleStartTime = g_cycleStartTime + g_pApp->m_const_params.cycleDuration;
+		while (!g_b_exit) {
+			if (TicksTime::now() >= nextCycleStartTime) {
+				break;
+			}
+
+			sendto(ifd, buffer, sizeof(buffer), MSG_SYN, (struct sockaddr*)& (g_fds_array[ifd]->server_addr), sizeof(struct sockaddr));
+
+			g_cycle_wait_loop_counter++; //count delta between time takings vs. num of cycles
+		}
+
+		g_cycleStartTime = nextCycleStartTime;
+	}
+};
+
 //*
 //==============================================================================
 class PongModeNormal { // indicate that pong-request bit is set for part of the packets

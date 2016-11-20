@@ -313,7 +313,7 @@ private:
 		m_switchMsgSize.execute(m_pMsgRequest);
 
 		//idle
-		m_switchCycleDuration.execute();
+		m_switchCycleDuration.execute(ifd, m_pMsgRequest->getLength());
 
 		//send
 		for (unsigned i = 0; i < g_pApp->m_const_params.burst_size && !g_b_exit; i++) {
