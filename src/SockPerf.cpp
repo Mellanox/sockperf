@@ -277,10 +277,6 @@ static const AOPT_DESC  common_opt_desc[] =
 		"Set socket accleration before run (available for some of Mellanox systems)"
 	},
 	{
-		OPT_DUMMY_SEND, AOPT_NOARG,	aopt_set_literal( 0 ),	aopt_set_string( "use-dummy" ),
-		"Use dummy send instead of busy wait."
-	},
-	{
 		'd', AOPT_NOARG, aopt_set_literal( 'd' ),	aopt_set_string( "debug" ),
 		"Print extra debug information."
 	},
@@ -315,6 +311,10 @@ static const AOPT_DESC  client_opt_desc[] =
 	{
 		OPT_OUTPUT_PRECISION, AOPT_NOARG,	aopt_set_literal( 0 ),	aopt_set_string( "increase_output_precision" ),
 		"Increase number of digits after decimal point of the throughput output (from 3 to 9). "
+	},
+	{
+		OPT_DUMMY_SEND, AOPT_NOARG,	aopt_set_literal( 0 ),	aopt_set_string( "dummy-send" ),
+		"Use dummy send instead of busy wait."
 	},
 	{ 0, AOPT_NOARG, aopt_set_literal( 0 ), aopt_set_string( NULL ), NULL }
 };
@@ -1956,11 +1956,6 @@ static int parse_common_opt( const AOPT_OBJECT *common_obj )
 		if ( !rc && aopt_check(common_obj, OPT_SOCK_ACCL) ) {
 			s_user_params.withsock_accl = true;
 		}
-
-		if ( !rc && aopt_check(common_obj, OPT_DUMMY_SEND) ) {
-			s_user_params.b_dummy_send = true;
-		}
-
 #ifndef WIN32
 
 		if ( !rc && aopt_check(common_obj, OPT_VMAZCOPYREAD) ) {
@@ -2101,6 +2096,9 @@ static int parse_client_opt( const AOPT_OBJECT *client_obj )
 		}
 		if ( !rc && aopt_check(client_obj, OPT_OUTPUT_PRECISION) ) {
 			s_user_params.increase_output_precision = true;
+		}
+		if ( !rc && aopt_check(client_obj, OPT_DUMMY_SEND) ) {
+			s_user_params.b_dummy_send = true;
 		}
 	}
 
