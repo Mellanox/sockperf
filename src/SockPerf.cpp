@@ -313,8 +313,8 @@ static const AOPT_DESC  client_opt_desc[] =
 		"Increase number of digits after decimal point of the throughput output (from 3 to 9). "
 	},
 	{
-		OPT_DUMMY_SEND, AOPT_NOARG,	aopt_set_literal( 0 ),	aopt_set_string( "dummy-send" ),
-		"Use dummy send instead of busy wait."
+		OPT_DUMMY_SEND, AOPT_OPTARG,	aopt_set_literal( 0 ),	aopt_set_string( "dummy-send" ),
+		"Use dummy-send instead of busy wait. optional: set dummy-send rate per second (default 10000). usage: --dummy-send <rate>"
 	},
 	{ 0, AOPT_NOARG, aopt_set_literal( 0 ), aopt_set_string( NULL ), NULL }
 };
@@ -2098,7 +2098,24 @@ static int parse_client_opt( const AOPT_OBJECT *client_obj )
 			s_user_params.increase_output_precision = true;
 		}
 		if ( !rc && aopt_check(client_obj, OPT_DUMMY_SEND) ) {
-			s_user_params.b_dummy_send = true;
+			s_user_params.dummy_send = true;
+			const char* optarg = aopt_value(client_obj, OPT_DUMMY_SEND);
+			if (optarg) {
+				if (0 == strcmp("MAX", optarg) || 0 == strcmp("max", optarg)) {
+					s_user_params.dummy_mps = UINT32_MAX;
+				}
+				else {
+					errno = 0;
+					int value = strtol(optarg, NULL, 0);
+					if (errno != 0  || value <= 0 || value > 1<<30) {
+						log_msg("'-%d' Invalid value of dummy send rate : %s", OPT_DUMMY_SEND, optarg);
+						rc = SOCKPERF_ERR_BAD_ARGUMENT;
+					}
+					else {
+						s_user_params.dummy_mps = (uint32_t)value;
+					}
+				}
+			}
 		}
 	}
 
@@ -2297,7 +2314,8 @@ void set_defaults()
 	s_user_params.daemonize = false;
 
 	s_user_params.withsock_accl = false;
-	s_user_params.b_dummy_send = false;
+	s_user_params.dummy_send = false;
+	s_user_params.dummy_mps = DUMMY_SEND_MPS_DEFAULT;
 	memset(s_user_params.feedfile_name, 0, sizeof(s_user_params.feedfile_name));
 	s_user_params.tos = 0x00;
 }
@@ -3213,6 +3231,16 @@ int bringup(const int *p_daemonize)
 			log_msg("Number of threads should be less than sockets count");
 			rc = SOCKPERF_ERR_BAD_ARGUMENT;
 		}
+
+		if ( !rc && s_user_params.dummy_send && s_user_params.mps == UINT32_MAX) {
+			log_err("Dummy send is not supported when message-rate = MAX");
+			rc = SOCKPERF_ERR_BAD_ARGUMENT;
+		}
+
+		if ( !rc && s_user_params.dummy_send && s_user_params.mps > s_user_params.dummy_mps) {
+			log_err("Dummy send is not supported when message-rate is greater then the dummy-message-rate");
+			rc = SOCKPERF_ERR_BAD_ARGUMENT;
+		}
 	}
 
 	/* Setup internal data */
@@ -3234,6 +3262,11 @@ int bringup(const int *p_daemonize)
 		}
 
 		s_user_params.cycleDuration = TicksDuration(cycleDurationNsec);
+
+		if (s_user_params.dummy_send) { // Calculate dummy send rate
+			int64_t dummySendCycleDurationNsec = (s_user_params.dummy_mps == UINT32_MAX) ? 0 : NSEC_IN_SEC / s_user_params.dummy_mps;
+			s_user_params.dummySendCycleDuration = TicksDuration(dummySendCycleDurationNsec);
+		}
 
 		uint64_t _maxTestDuration = 1 + s_user_params.sec_test_duration;       // + 1sec for timer inaccuracy safety
 		uint64_t _maxSequenceNo = _maxTestDuration * s_user_params.mps + 10 * s_user_params.reply_every; // + 10 replies for safety

@@ -84,7 +84,7 @@ private:
 class SwitchOnCycleDuration {
 public:
 	//busy wait between two cycles starting point and take starting point of next cycle
-	inline void execute() {
+	inline void execute(int ifd = 0, int buffer_size = 0) {
 
 		TicksTime nextCycleStartTime = g_cycleStartTime + g_pApp->m_const_params.cycleDuration;
 		while (!g_b_exit) {
@@ -95,11 +95,6 @@ public:
 		}
 		g_cycleStartTime = nextCycleStartTime;
 	}
-
-	inline void execute(int ifd, int buffer_size) {
-		execute();
-	}
-
 };
 
 //=============================================================================
@@ -110,12 +105,16 @@ public:
 	inline void execute(int ifd, int buffer_size) {
 		uint8_t buffer[buffer_size];
 		TicksTime nextCycleStartTime = g_cycleStartTime + g_pApp->m_const_params.cycleDuration;
+		TicksTime nextDummySendTime = g_cycleStartTime + g_pApp->m_const_params.dummySendCycleDuration;
 		while (!g_b_exit) {
 			if (TicksTime::now() >= nextCycleStartTime) {
 				break;
 			}
 
-			sendto(ifd, buffer, sizeof(buffer), MSG_SYN, (struct sockaddr*)& (g_fds_array[ifd]->server_addr), sizeof(struct sockaddr));
+			if (TicksTime::now() > nextDummySendTime) {
+				sendto(ifd, buffer, sizeof(buffer), DUMMY_SEND_FLAG, (struct sockaddr*)& (g_fds_array[ifd]->server_addr), sizeof(struct sockaddr));
+				nextDummySendTime += g_pApp->m_const_params.dummySendCycleDuration;
+			}
 
 			g_cycle_wait_loop_counter++; //count delta between time takings vs. num of cycles
 		}

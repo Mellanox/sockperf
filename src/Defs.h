@@ -147,6 +147,8 @@ extern const int MAX_FDS_NUM;
 #define DEFAULT_SELECT_TIMEOUT_MSEC	10
 #define DEFAULT_DEBUG_LEVEL			0
 
+#define DUMMY_SEND_FLAG MSG_SYN // Used by offload libraries to do egress path warm-up of caches. It is not in use by kernel. WARNING: it will actually end this packet on the wire.
+#define DUMMY_SEND_MPS_DEFAULT 10000
 
 enum {
 	OPT_RX_MC_IF 			 = 1,
@@ -604,7 +606,9 @@ struct user_params_t {
 	int tos;
 	unsigned int lls_usecs;
 	bool lls_is_set;
-	bool b_dummy_send; //client side only
+	bool dummy_send; //client side only
+	uint32_t dummy_mps; //client side only
+	TicksDuration dummySendCycleDuration; //client side only
 };
 
 struct mutable_params_t {
