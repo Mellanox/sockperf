@@ -549,7 +549,7 @@ int Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration,
 				if (connect(ifd, (struct sockaddr*)&(g_fds_array[ifd]->server_addr), sizeof(struct sockaddr)) < 0) {
 					if (os_err_in_progress()) {
 #ifdef  USING_VMA_EXTRA_API
-						if (g_pApp->m_const_params.is_vmapoll && g_vma_api) {
+						if (g_pApp->m_const_params.fd_handler_type == VMAPOLL && g_vma_api) {
 							ifd = _connect_check_vma(ifd);
 						}
 						else

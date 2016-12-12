@@ -182,7 +182,7 @@ void Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::doLoop()
 		// handle arrival and response
 		int accept_fd = (int)INVALID_SOCKET; // TODO: use SOCKET all over the way and avoid this cast
 		bool do_update = false;
-		for (int ifd = m_ioHandler.get_look_start(); (numReady) && (ifd < m_ioHandler.get_look_end()); ifd++) {
+		for (int ifd = m_ioHandler.get_look_start(); (numReady) && (ifd < m_ioHandler.get_look_end()); ifd++) {	   
 			actual_fd = m_ioHandler.analyzeArrival(ifd);
 
 			if (actual_fd){
@@ -271,7 +271,7 @@ int Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_accept(int ifd)
 		tmp->recv.cur_size = tmp->recv.max_size;
 
 #ifdef  USING_VMA_EXTRA_API
-		if (g_pApp->m_const_params.is_vmapoll && g_vma_api){
+		if (g_pApp->m_const_params.fd_handler_type == VMAPOLL && g_vma_api){
 			active_ifd = g_vma_comps->user_data;
 		}
 		else
@@ -307,7 +307,7 @@ int Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_accept(int ifd)
 						g_fds_array[ifd]->active_fd_count++;
 						g_fds_array[active_ifd] = tmp;
 #ifdef  USING_VMA_EXTRA_API
-						if (g_pApp->m_const_params.is_vmapoll && g_vma_api){
+						if (g_pApp->m_const_params.fd_handler_type == VMAPOLL && g_vma_api){
 							log_dbg ("peer address to accept: %s:%d [%d]", inet_ntoa(g_vma_comps->src.sin_addr), ntohs(g_vma_comps->src.sin_port), active_ifd);
 						} else
 #endif
@@ -335,7 +335,7 @@ int Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_accept(int ifd)
 				}
         		FREE(tmp);
 #ifdef  USING_VMA_EXTRA_API
-			if (g_pApp->m_const_params.is_vmapoll && g_vma_api){
+			if (g_pApp->m_const_params.fd_handler_type == VMAPOLL && g_vma_api){
 				log_dbg ("peer address to refuse: %s:%d [%d]", inet_ntoa(g_vma_comps->src.sin_addr), ntohs(g_vma_comps->src.sin_port), active_ifd);
 			} else
 #endif

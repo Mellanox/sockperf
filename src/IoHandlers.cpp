@@ -300,6 +300,9 @@ IoVmaPoll::IoVmaPoll(int _fd_min, int _fd_max, int _fd_num) : IoHandler(_fd_min,
 
 //------------------------------------------------------------------------------
 IoVmaPoll::~IoVmaPoll() {
+  for (m_rings_vma_comps_map_itr = m_rings_vma_comps_map.begin(); m_rings_vma_comps_map_itr != m_rings_vma_comps_map.end(); ++m_rings_vma_comps_map_itr){
+  	FREE(m_rings_vma_comps_map_itr->second);
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -318,15 +321,19 @@ int IoVmaPoll::prepareNetwork()
 			rings_vma_comps_map::iterator itr = m_rings_vma_comps_map.find(ring_fd);
 			if (itr == m_rings_vma_comps_map.end()){
 				vma_ring_comps* temp = NULL;
-				temp = (struct vma_ring_comps*)malloc(sizeof(vma_ring_comps));
+				temp = (struct vma_ring_comps*)MALLOC(sizeof(vma_ring_comps));
 				if (!temp) {
-					log_err("Failed to allocate memory with malloc()");
+					log_err("Failed to allocate memory");
+					rc = SOCKPERF_ERR_NO_MEMORY;
 				}
 				memset(temp, 0, sizeof(vma_ring_comps));
 				temp->is_freed = true; 
+				temp->vma_comp_list_size = 0;
+
 				std::pair<rings_vma_comps_map::iterator, bool> ret = m_rings_vma_comps_map.insert(std::make_pair(ring_fd,temp));
 				if (!ret.second) {
 					log_err("Failed to insert new ring.");
+					rc = SOCKPERF_ERR_NO_MEMORY;
 				}
 			}
 

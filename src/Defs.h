@@ -126,6 +126,9 @@ const uint32_t TEST_END_COOLDOWN_MSEC = 50;
 #define DEFAULT_IP_PAYLOAD_SZ 		(DEFAULT_IP_MTU-28)
 #define DUMMY_PORT					57341
 #define MAX_ACTIVE_FD_NUM			1024 /* maximum number of active connection to the single TCP addr:port */
+#ifdef  USING_VMA_EXTRA_API
+#define MAX_VMA_COMPS                       1024 /* maximum size for the VMA completions array for VMA Poll */
+#endif
 
 #ifndef MAX_PATH_LENGTH
 #define MAX_PATH_LENGTH         	1024
@@ -522,8 +525,9 @@ namespace std
 
 #ifdef  USING_VMA_EXTRA_API
 struct vma_ring_comps{
-  struct vma_completion_t vma_comp;
+  vma_completion_t vma_comp_list[MAX_VMA_COMPS];
   bool is_freed;
+  int vma_comp_list_size;
 };
 #endif
 
@@ -595,7 +599,6 @@ struct user_params_t {
 	unsigned int pre_warmup_wait;
 	bool is_vmarxfiltercb;
 	bool is_vmazcopyread;
-	bool is_vmapoll;
 	TicksDuration cycleDuration;
 	bool mc_loop_disable;
 	int client_work_with_srv_num;

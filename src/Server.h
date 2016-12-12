@@ -170,7 +170,7 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_t
 		return (do_update);
 	}
 #ifdef  USING_VMA_EXTRA_API
-	if (!g_vma_api || !g_pApp->m_const_params.is_vmapoll)
+	if (!g_vma_api || g_pApp->m_const_params.fd_handler_type != VMAPOLL)
 #endif
 	{
 		ret = msg_recvfrom(ifd,

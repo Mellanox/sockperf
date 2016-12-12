@@ -141,7 +141,7 @@ private:
 
 		TicksTime rxTime;
 #ifdef  USING_VMA_EXTRA_API
-		if (!g_vma_api || !g_pApp->m_const_params.is_vmapoll)
+		if (!g_vma_api || g_pApp->m_const_params.fd_handler_type != VMAPOLL)
 #endif
 		{
 			ret = msg_recvfrom(ifd,
@@ -382,7 +382,7 @@ private:
 		for (unsigned i = 0; i < g_pApp->m_const_params.burst_size && !g_b_exit; i++) {
 			client_send_packet(ifd);
 #ifdef  USING_VMA_EXTRA_API
-			if (g_pApp->m_const_params.is_vmapoll && g_vma_api && !g_pApp->m_const_params.b_client_ping_pong){
+			if (g_pApp->m_const_params.fd_handler_type == VMAPOLL && g_vma_api && !g_pApp->m_const_params.b_client_ping_pong){
 				m_ioHandler.waitArrival();
 			}
 #endif
