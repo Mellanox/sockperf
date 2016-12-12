@@ -47,7 +47,7 @@ public:
 	inline void execute(struct sockaddr_in *clt_addr, uint64_t seq_num, bool is_warmup) {}
 	inline void execute(Message *pMsgRequest, Message * pMsgReply) {}
 	inline void execute(Message *pMsgRequest) {}
-	inline void execute(int ifd, int buffer_size) {}
+	inline void execute(Message *pMsgRequest, int ifd) {}
 
 /*
 	inline void execute2() {}
@@ -84,7 +84,7 @@ private:
 class SwitchOnCycleDuration {
 public:
 	//busy wait between two cycles starting point and take starting point of next cycle
-	inline void execute(int ifd = 0, int buffer_size = 0) {
+	inline void execute(Message *pMsgRequest, int ifd) {
 
 		TicksTime nextCycleStartTime = g_cycleStartTime + g_pApp->m_const_params.cycleDuration;
 		while (!g_b_exit) {
@@ -102,8 +102,8 @@ class SwitchOnDummySend {
 public:
 	// dummy send between two cycles starting point and take starting point of next cycle
 
-	inline void execute(int ifd, int buffer_size) {
-		uint8_t buffer[buffer_size];
+	inline void execute(Message *pMsgRequest, int ifd) {
+		uint8_t buffer[pMsgRequest->getLength()];
 		TicksTime nextCycleStartTime = g_cycleStartTime + g_pApp->m_const_params.cycleDuration;
 		TicksTime nextDummySendTime = g_cycleStartTime + g_pApp->m_const_params.dummySendCycleDuration;
 		while (!g_b_exit) {

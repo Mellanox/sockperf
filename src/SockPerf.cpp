@@ -314,7 +314,7 @@ static const AOPT_DESC  client_opt_desc[] =
 	},
 	{
 		OPT_DUMMY_SEND, AOPT_OPTARG,	aopt_set_literal( 0 ),	aopt_set_string( "dummy-send" ),
-		"Use dummy-send instead of busy wait. optional: set dummy-send rate per second (default 10000). usage: --dummy-send <rate>"
+		"Use VMA's dummy send API instead of busy wait, must be higher than regular msg rate. \n\t\t\t\t optional: set dummy-send rate per second (default 10,000), usage: --dummy-send [<rate>|max]"
 	},
 	{ 0, AOPT_NOARG, aopt_set_literal( 0 ), aopt_set_string( NULL ), NULL }
 };
@@ -2098,7 +2098,7 @@ static int parse_client_opt( const AOPT_OBJECT *client_obj )
 			s_user_params.increase_output_precision = true;
 		}
 		if ( !rc && aopt_check(client_obj, OPT_DUMMY_SEND) ) {
-			s_user_params.dummy_send = true;
+			s_user_params.dummy_mps = DUMMY_SEND_MPS_DEFAULT;
 			const char* optarg = aopt_value(client_obj, OPT_DUMMY_SEND);
 			if (optarg) {
 				if (0 == strcmp("MAX", optarg) || 0 == strcmp("max", optarg)) {
@@ -2314,8 +2314,7 @@ void set_defaults()
 	s_user_params.daemonize = false;
 
 	s_user_params.withsock_accl = false;
-	s_user_params.dummy_send = false;
-	s_user_params.dummy_mps = DUMMY_SEND_MPS_DEFAULT;
+	s_user_params.dummy_mps = 0;
 	memset(s_user_params.feedfile_name, 0, sizeof(s_user_params.feedfile_name));
 	s_user_params.tos = 0x00;
 }
@@ -3232,13 +3231,8 @@ int bringup(const int *p_daemonize)
 			rc = SOCKPERF_ERR_BAD_ARGUMENT;
 		}
 
-		if ( !rc && s_user_params.dummy_send && s_user_params.mps == UINT32_MAX) {
-			log_err("Dummy send is not supported when message-rate = MAX");
-			rc = SOCKPERF_ERR_BAD_ARGUMENT;
-		}
-
-		if ( !rc && s_user_params.dummy_send && s_user_params.mps > s_user_params.dummy_mps) {
-			log_err("Dummy send is not supported when message-rate is greater then the dummy-message-rate");
+		if ( !rc && s_user_params.dummy_mps && s_user_params.mps >= s_user_params.dummy_mps) {
+			log_err("Dummy send is allowed only if dummy-send rate is higher than regular msg rate");
 			rc = SOCKPERF_ERR_BAD_ARGUMENT;
 		}
 	}
@@ -3263,7 +3257,7 @@ int bringup(const int *p_daemonize)
 
 		s_user_params.cycleDuration = TicksDuration(cycleDurationNsec);
 
-		if (s_user_params.dummy_send) { // Calculate dummy send rate
+		if (s_user_params.dummy_mps) { // Calculate dummy send rate
 			int64_t dummySendCycleDurationNsec = (s_user_params.dummy_mps == UINT32_MAX) ? 0 : NSEC_IN_SEC / s_user_params.dummy_mps;
 			s_user_params.dummySendCycleDuration = TicksDuration(dummySendCycleDurationNsec);
 		}
