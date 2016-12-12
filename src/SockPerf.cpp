@@ -177,7 +177,11 @@ static const AOPT_DESC  common_opt_desc[] =
 #elif __FreeBSD__
 		"Type of multiple file descriptors handle [s|select|p|poll|r|recvfrom](default select)."
 #else
+#ifdef  USING_VMA_EXTRA_API
+		"Type of multiple file descriptors handle [s|select|p|poll|e|epoll|r|recvfrom|v|vmapoll](default epoll)."
+#else
 		"Type of multiple file descriptors handle [s|select|p|poll|e|epoll|r|recvfrom](default epoll)."
+#endif
 #endif
 	},
 	{
@@ -259,12 +263,6 @@ static const AOPT_DESC  common_opt_desc[] =
 		OPT_VMAZCOPYREAD, AOPT_NOARG, aopt_set_literal( 0 ), aopt_set_string( "vmazcopyread" ),
 		"If possible use VMA's zero copy reads API (See VMA's readme)."
 	},
-#ifdef  USING_VMA_EXTRA_API
-	{
-		OPT_VMAPOLL, AOPT_NOARG, aopt_set_literal( 0 ), aopt_set_string( "vmapoll" ),
-                "If possible use VMA's Poll API (See VMA's readme)."
-        },
-#endif
 	{
 		OPT_DAEMONIZE, AOPT_NOARG, aopt_set_literal( 0 ), aopt_set_string( "daemonize" ),
 		"Run as daemon."
@@ -581,12 +579,6 @@ static int proc_mode_under_load( int id, int argc, const char **argv )
 				rc = SOCKPERF_ERR_BAD_ARGUMENT;
 			}
 		}
-		else {
-			if (s_user_params.is_vmapoll && s_user_params.sock_type != SOCK_STREAM) {
-				log_msg("vmapoll requires forcing the client side to bind to a specific ip address (client_ip) option");
-				rc = SOCKPERF_ERR_BAD_ARGUMENT;
-			}
-		}
 
 		if ( !rc && aopt_check(self_obj, 'm') ) {
 			const char* optarg = aopt_value(self_obj, 'm');
@@ -875,12 +867,6 @@ static int proc_mode_ping_pong( int id, int argc, const char **argv )
 				rc = SOCKPERF_ERR_BAD_ARGUMENT;
 			}
 		}
-		else {
-			if (s_user_params.is_vmapoll && s_user_params.sock_type != SOCK_STREAM) {
-				log_msg("vmapoll requires forcing the client side to bind to a specific ip address (client_ip) option");
-				rc = SOCKPERF_ERR_BAD_ARGUMENT;
-			}
-                }
 
 		if ( !rc && aopt_check(self_obj, 'm') ) {
 			const char* optarg = aopt_value(self_obj, 'm');
@@ -1179,12 +1165,6 @@ static int proc_mode_throughput( int id, int argc, const char **argv )
 			}
 			else if (!inet_aton(optarg, &s_user_params.client_bind_info.sin_addr)) {
 				log_msg("'-%c' Invalid address: %s", OPT_CLIENTIP, optarg);
-				rc = SOCKPERF_ERR_BAD_ARGUMENT;
-			}
-		}
-		else {
-			if (s_user_params.is_vmapoll && s_user_params.sock_type != SOCK_STREAM) {
-				log_msg("vmapoll requires forcing the client side to bind to a specific ip address (client_ip) option");
 				rc = SOCKPERF_ERR_BAD_ARGUMENT;
 			}
 		}
@@ -1738,6 +1718,12 @@ static int parse_common_opt( const AOPT_OBJECT *common_obj )
 					else if (!strcmp( fd_handle_type, "recvfrom" ) || !strcmp( fd_handle_type, "r")) {
 						s_user_params.fd_handler_type = RECVFROMMUX;
 					}
+#ifdef  USING_VMA_EXTRA_API
+					else if (!strcmp( fd_handle_type, "vmapoll" ) || !strcmp( fd_handle_type, "v")) {
+						s_user_params.fd_handler_type = VMAPOLL;
+						s_user_params.is_blocked = false;
+					}
+#endif
 					else {
 						log_msg("'-%c' Invalid muliply io hanlde type: %s", 'F', optarg);
 						rc = SOCKPERF_ERR_BAD_ARGUMENT;
@@ -1985,13 +1971,6 @@ static int parse_common_opt( const AOPT_OBJECT *common_obj )
 		if ( !rc && aopt_check(common_obj, OPT_VMAZCOPYREAD) ) {
 			s_user_params.is_vmazcopyread = true;
 		}
-#ifdef  USING_VMA_EXTRA_API
-		if ( !rc && aopt_check(common_obj, OPT_VMAPOLL) ) {
-			s_user_params.is_vmapoll = true;
-			s_user_params.fd_handler_type = VMAPOLL;
-			s_user_params.is_blocked = false;
-		}
-#endif
 
 		if ( !rc && aopt_check(common_obj, OPT_DAEMONIZE) ) {
 			*p_daemonize = true;
@@ -2311,7 +2290,6 @@ void set_defaults()
 	s_user_params.pre_warmup_wait = 0;
 	s_user_params.is_vmarxfiltercb = false;
 	s_user_params.is_vmazcopyread = false;
-	s_user_params.is_vmapoll = false;
 	g_debug_level = LOG_LVL_INFO;
 	s_user_params.mc_loop_disable = true;
 	s_user_params.client_work_with_srv_num = DEFAULT_CLIENT_WORK_WITH_SRV_NUM;
@@ -2924,6 +2902,15 @@ static int set_sockets_from_feedfile(const char *feedfile_name)
 			sock_type = SOCK_DGRAM;
 			ip = strtok(line, ":");
 		}
+#ifdef  USING_VMA_EXTRA_API
+		if (sock_type == SOCK_DGRAM && s_user_params.mode == MODE_CLIENT){
+			if (s_user_params.fd_handler_type == VMAPOLL && !s_user_params.client_bind_info.sin_port && !s_user_params.client_bind_info.sin_addr.s_addr) {
+				log_msg("vmapoll requires forcing the client side to bind to a specific ip address (client_ip) option");
+				rc = SOCKPERF_ERR_INCORRECT;
+				break;
+			}
+		}
+#endif
 		port = strtok(NULL, ":\n");
 		mc_src_ip = strtok(NULL, ":\n");
 		if (!ip || !port) {
@@ -3160,9 +3147,10 @@ int bringup(const int *p_daemonize)
 	
 	/* Setup VMA */
 	int _vma_pkts_desc_size = 0;
-	if ( !rc &&
-			(s_user_params.is_vmarxfiltercb || s_user_params.is_vmazcopyread || s_user_params.is_vmapoll)) {
+
 #ifdef  USING_VMA_EXTRA_API
+	if ( !rc &&
+			(s_user_params.is_vmarxfiltercb || s_user_params.is_vmazcopyread || s_user_params.fd_handler_type == VMAPOLL)) {
 		// Get VMA extended API
 		g_vma_api = vma_get_api();
 		if (g_vma_api == NULL)
@@ -3171,10 +3159,14 @@ int bringup(const int *p_daemonize)
 			log_msg("VMA Extra API found - using VMA's receive zero copy and messages filter APIs");
 
 		_vma_pkts_desc_size = sizeof(struct vma_packets_t) + sizeof(struct vma_packet_t) + sizeof(struct iovec) * 16;
-#else
-		log_msg("This version is not compiled with VMA extra API");
-#endif
 	}
+#else
+	if ( !rc &&
+	     		(s_user_params.is_vmarxfiltercb || s_user_params.is_vmazcopyread)) {
+		log_msg("This version is not compiled with VMA extra API");
+	}
+#endif
+		
 	
 	/* Create and initialize sockets */
 	if (!rc)
@@ -3427,7 +3419,6 @@ do_warmup = %d \n\t\
 pre_warmup_wait = %d \n\t\
 is_vmarxfiltercb = %d \n\t\
 is_vmazcopyread = %d \n\t\
-is_vmapoll = %d \n\t\
 mc_loop_disable = %d \n\t\
 mc_ttl = %d \n\t\
 tcp_nodelay = %d \n\t\
@@ -3466,7 +3457,6 @@ s_user_params.do_warmup,
 s_user_params.pre_warmup_wait,
 s_user_params.is_vmarxfiltercb,
 s_user_params.is_vmazcopyread,
-s_user_params.is_vmapoll,
 s_user_params.mc_loop_disable,
 s_user_params.mc_ttl,
 s_user_params.tcp_nodelay,

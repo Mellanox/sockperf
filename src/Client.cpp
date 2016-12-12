@@ -464,20 +464,24 @@ void Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration
 #ifdef  USING_VMA_EXTRA_API
 static int _connect_check_vma(int ifd)
 {
+	int rc = SOCKPERF_ERR_SOCKET;
 	int ring_fd = 0;
 	int poll = 0;
-	g_vma_api->get_socket_rings_fds(ifd, &ring_fd,1);
-	assert((-1) != ring_fd);
+	rc = g_vma_api->get_socket_rings_fds(ifd, &ring_fd, 1);
+	if (rc == -1) {
+		rc = SOCKPERF_ERR_SOCKET;
+		return rc;
+	}
 	while (poll == 0) {
 		struct vma_completion_t vma_comps;
 		poll = g_vma_api->vma_poll(ring_fd, &vma_comps, 1, 0);
 		if (poll > 0) {
 			if (vma_comps.events & EPOLLOUT) {
-				ifd = vma_comps.user_data;
+				rc = SOCKPERF_ERR_NONE;
 			}
 		}
 	}
-	return ifd;
+	return rc;
 }
 #endif
 
@@ -549,17 +553,18 @@ int Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration,
 				if (connect(ifd, (struct sockaddr*)&(g_fds_array[ifd]->server_addr), sizeof(struct sockaddr)) < 0) {
 					if (os_err_in_progress()) {
 #ifdef  USING_VMA_EXTRA_API
-						if (g_pApp->m_const_params.is_vmapoll && g_vma_api) {
-							ifd = _connect_check_vma(ifd);
+						if (g_pApp->m_const_params.fd_handler_type == VMAPOLL && g_vma_api) {
+							rc = _connect_check_vma(ifd);
 						}
 						else
 #endif
 						{
 							rc = _connect_check(ifd);
-							if (rc == SOCKPERF_ERR_SOCKET){
-								break;
-							}
+						}	
+						if (rc == SOCKPERF_ERR_SOCKET) {
+						  break;
 						}
+						
 					}
 					else {
 						log_err("Can`t connect socket");
