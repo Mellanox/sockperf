@@ -43,11 +43,11 @@ public:
 //	inline void execute(unsigned long long) {}
 	inline void execute(uint64_t) {}
 	inline void execute(int, uint64_t) {}
-	inline void execute(TicksTime & _ticks) {}
-	inline void execute(struct sockaddr_in *clt_addr, uint64_t seq_num, bool is_warmup) {}
-	inline void execute(Message *pMsgRequest, Message * pMsgReply) {}
-	inline void execute(Message *pMsgRequest) {}
-	inline void execute(Message *pMsgRequest, int ifd) {}
+	inline void execute(TicksTime &) {}
+	inline void execute(struct sockaddr_in *, uint64_t, bool) {}
+	inline void execute(Message *, Message *) {}
+	inline void execute(Message *) {}
+	inline void execute(Message *, int) {}
 
 /*
 	inline void execute2() {}
@@ -84,7 +84,7 @@ private:
 class SwitchOnCycleDuration {
 public:
 	//busy wait between two cycles starting point and take starting point of next cycle
-	inline void execute(Message *pMsgRequest, int ifd) {
+	inline void execute(Message *, int) {
 
 		TicksTime nextCycleStartTime = g_cycleStartTime + g_pApp->m_const_params.cycleDuration;
 		while (!g_b_exit) {
@@ -103,16 +103,18 @@ public:
 	// dummy send between two cycles starting point and take starting point of next cycle
 
 	inline void execute(Message *pMsgRequest, int ifd) {
-		uint8_t buffer[pMsgRequest->getLength()];
+		TicksTime now;
 		TicksTime nextCycleStartTime = g_cycleStartTime + g_pApp->m_const_params.cycleDuration;
 		TicksTime nextDummySendTime = g_cycleStartTime + g_pApp->m_const_params.dummySendCycleDuration;
 		while (!g_b_exit) {
-			if (TicksTime::now() >= nextCycleStartTime) {
+			now = TicksTime::now();
+			if (now >= nextCycleStartTime) {
 				break;
 			}
 
-			if (TicksTime::now() > nextDummySendTime) {
-				sendto(ifd, buffer, sizeof(buffer), DUMMY_SEND_FLAG, (struct sockaddr*)& (g_fds_array[ifd]->server_addr), sizeof(struct sockaddr));
+			if (now >= nextDummySendTime) {
+				// We don't use Sockperf's msg_sendto() for dummy messages because we want to ignore the error handling.
+				sendto(ifd, pMsgRequest->getBuf(), pMsgRequest->getLength(), DUMMY_SEND_FLAG, (struct sockaddr*)& (g_fds_array[ifd]->server_addr), sizeof(struct sockaddr));
 				nextDummySendTime += g_pApp->m_const_params.dummySendCycleDuration;
 			}
 
