@@ -460,6 +460,9 @@ public:
 			g_vma_poll_buff = g_vma_comps->packet.buff_lst;
 			ifd = g_vma_comps->user_data;
 		} 
+		else {
+			ifd = g_vma_comps->user_data;
+		}
 
 		m_vma_comp_index++;
 		if (m_vma_comp_index == m_current_vma_ring_comp->vma_comp_list_size) {
@@ -473,7 +476,7 @@ public:
 
 private:
 	int m_vma_comp_index;
-	vma_ring_comps* m_current_vma_ring_comp = NULL;
+	vma_ring_comps* m_current_vma_ring_comp;
 	vma_comps_queue m_vma_comps_queue;
 	rings_vma_comps_map m_rings_vma_comps_map;
 	rings_vma_comps_map::iterator m_rings_vma_comps_map_itr;

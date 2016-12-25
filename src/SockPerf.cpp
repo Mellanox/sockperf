@@ -3122,9 +3122,10 @@ int bringup(const int *p_daemonize)
 	
 	/* Setup VMA */
 	int _vma_pkts_desc_size = 0;
+
+#ifdef  USING_VMA_EXTRA_API
 	if ( !rc &&
 			(s_user_params.is_vmarxfiltercb || s_user_params.is_vmazcopyread || s_user_params.fd_handler_type == VMAPOLL)) {
-#ifdef  USING_VMA_EXTRA_API
 		// Get VMA extended API
 		g_vma_api = vma_get_api();
 		if (g_vma_api == NULL)
@@ -3133,10 +3134,14 @@ int bringup(const int *p_daemonize)
 			log_msg("VMA Extra API found - using VMA's receive zero copy and messages filter APIs");
 
 		_vma_pkts_desc_size = sizeof(struct vma_packets_t) + sizeof(struct vma_packet_t) + sizeof(struct iovec) * 16;
-#else
-		log_msg("This version is not compiled with VMA extra API");
-#endif
 	}
+#else
+	if ( !rc &&
+	     		(s_user_params.is_vmarxfiltercb || s_user_params.is_vmazcopyread)) {
+		log_msg("This version is not compiled with VMA extra API");
+	}
+#endif
+		
 	
 	/* Create and initialize sockets */
 	if (!rc)
