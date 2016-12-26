@@ -706,8 +706,13 @@ void client_handler(int _fd_min, int _fd_max, int _fd_num) {
 //------------------------------------------------------------------------------
 template <class IoType, class SwitchDataIntegrity, class SwitchActivityInfo>
 void client_handler(int _fd_min, int _fd_max, int _fd_num) {
-	if (g_pApp->m_const_params.cycleDuration > TicksDuration::TICKS0)
-		client_handler<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchOnCycleDuration> (_fd_min, _fd_max, _fd_num);
+	if (g_pApp->m_const_params.cycleDuration > TicksDuration::TICKS0) {
+		if (g_pApp->m_const_params.dummy_mps) {
+			client_handler<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchOnDummySend> (_fd_min, _fd_max, _fd_num);
+		} else {
+			client_handler<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchOnCycleDuration> (_fd_min, _fd_max, _fd_num);
+		}
+	}
 	else
 		client_handler<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchOff> (_fd_min, _fd_max, _fd_num);
 }
