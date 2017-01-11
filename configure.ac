@@ -72,6 +72,24 @@ SP_CHECK_CXXFLAGS_APPEND([OUR_CXXFLAGS], [\
                          -Wall \
                          "--param inline-unit-growth=200"])
 
+##########################################################################
+# check VMA extra API
+#
+AC_ARG_ENABLE(
+    [vma-api],
+    AC_HELP_STRING([--enable-vma-api],
+                   [SOCKPERF: enable vma extra api support (default=no)]),
+    [have_vma_api=$enableval],
+    [have_vma_api=no])
+AS_IF([test "x${have_vma_api}" == "xyes"],
+    [AC_CHECK_HEADER([mellanox/vma_extra.h],
+        [AC_DEFINE([USING_VMA_EXTRA_API],[1],[[Enable using VMA extra API]])],
+        [AC_MSG_NOTICE([vma_extra.h file not found])]
+        [have_vma_api=no])])
+AC_MSG_CHECKING(
+    [for vma extra api])
+AC_MSG_RESULT([${have_vma_api}])
+
 ##########################
 # Documentation
 #
@@ -141,7 +159,6 @@ AC_CHECK_HEADERS(
     string.h sys/ioctl.h sys/socket.h sys/time.h syslog.h \
     termios.h unistd.h])
 
-
 #####################################
 # Checks for libraries.
 #
@@ -168,5 +185,6 @@ AC_MSG_RESULT([
 	doc:		${have_doc}
 	test:		${have_test}
 	tool:		${have_tool}
+	vma_api:	${have_vma_api}
 	debug:		${have_debug}
 ])
