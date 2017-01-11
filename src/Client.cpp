@@ -472,6 +472,15 @@ int Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration,
 	/* bind/connect socket */
 	if (rc == SOCKPERF_ERR_NONE)
 	{
+#ifdef USING_VMA_EXTRA_API
+		if (g_vma_api){
+			g_pkt_buf = new unsigned char [Message::getMaxSize()];
+			if (g_pkt_buf == NULL) {
+				log_err("Failed to allocate g_pkt_buf");
+				return SOCKPERF_ERR_NO_MEMORY;
+			}
+		}
+#endif
 		// cycle through all set fds in the array (with wrap around to beginning)
 		for (int ifd = m_ioHandler.m_fd_min; ifd <= m_ioHandler.m_fd_max; ifd++) {
 
@@ -673,6 +682,11 @@ void Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration
 
 		cleanupAfterLoop();
 	}
+#ifdef USING_VMA_EXTRA_API
+	if (g_pkt_buf) {
+		delete [] g_pkt_buf;
+	}
+#endif
 }
 
 

@@ -42,10 +42,10 @@ TicksTime g_cycleStartTime;
 debug_level_t g_debug_level = LOG_LVL_INFO;
 
 #ifdef  USING_VMA_EXTRA_API
-unsigned char* g_pkt_buf = NULL;
-struct vma_packets_t* g_pkts = NULL;
-unsigned int g_pkt_index = 0;
-unsigned int g_pkt_offset = 0;
+__thread unsigned char* g_pkt_buf = NULL;
+__thread struct vma_packets_t* g_pkts = NULL;
+__thread unsigned int g_pkt_index = 0;
+__thread unsigned int g_pkt_offset = 0;
 #endif
 
 

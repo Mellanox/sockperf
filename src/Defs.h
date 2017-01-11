@@ -385,10 +385,10 @@ extern TicksTime g_cycleStartTime;
 extern debug_level_t g_debug_level;
 
 #ifdef  USING_VMA_EXTRA_API
-extern unsigned char* g_pkt_buf;
-extern struct vma_packets_t* g_pkts;
-extern unsigned int g_pkt_index;
-extern unsigned int g_pkt_offset;
+extern __thread unsigned char* g_pkt_buf;
+extern __thread struct vma_packets_t* g_pkts;
+extern __thread unsigned int g_pkt_index;
+extern __thread unsigned int g_pkt_offset;
 #endif
 
 class Message;
