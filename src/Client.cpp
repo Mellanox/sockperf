@@ -473,9 +473,9 @@ int Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration,
 	if (rc == SOCKPERF_ERR_NONE)
 	{
 #ifdef USING_VMA_EXTRA_API
-		if (g_vma_api){
-			g_pkt_buf = new unsigned char [Message::getMaxSize()];
-			if (g_pkt_buf == NULL) {
+		if (g_vma_api) {
+			g_zero_data.pkt_buf = (unsigned char*)MALLOC(Message::getMaxSize());
+			if (g_zero_data.pkt_buf == NULL) {
 				log_err("Failed to allocate g_pkt_buf");
 				return SOCKPERF_ERR_NO_MEMORY;
 			}
@@ -683,8 +683,8 @@ void Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration
 		cleanupAfterLoop();
 	}
 #ifdef USING_VMA_EXTRA_API
-	if (g_pkt_buf) {
-		delete [] g_pkt_buf;
+	if (g_zero_data.pkt_buf) {
+		FREE(g_zero_data.pkt_buf);
 	}
 #endif
 }

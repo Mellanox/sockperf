@@ -124,11 +124,12 @@ void close_ifd(int fd,int ifd,fds_data* l_fds_ifd){
 	fds_data* l_next_fd =  g_fds_array[fd];
 
 #ifdef  USING_VMA_EXTRA_API
-	if (g_pkts) {
-		g_vma_api->free_packets(fd, g_pkts->pkts, g_pkts->n_packet_num);
-		g_pkts = NULL;
-		g_pkt_index = 0;
-		g_pkt_offset = 0;
+	if (g_zero_data.pkts) {
+		g_vma_api->free_packets(fd, g_zero_data.pkts->pkts,
+								g_zero_data.pkts->n_packet_num);
+		g_zero_data.pkts = NULL;
+		g_zero_data.pkt_index = 0;
+		g_zero_data.pkt_offset = 0;
 	}
 
 	if (g_vma_api) {

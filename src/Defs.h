@@ -384,11 +384,14 @@ extern TicksTime g_cycleStartTime;
 
 extern debug_level_t g_debug_level;
 
-#ifdef  USING_VMA_EXTRA_API
-extern __thread unsigned char* g_pkt_buf;
-extern __thread struct vma_packets_t* g_pkts;
-extern __thread unsigned int g_pkt_index;
-extern __thread unsigned int g_pkt_offset;
+#ifdef USING_VMA_EXTRA_API
+typedef struct zero_copy_thread_data {
+	unsigned char* pkt_buf;
+	struct vma_packets_t* pkts;
+	unsigned int pkt_index;
+	unsigned int pkt_offset;
+}zero_copy_thread_data;
+extern __thread struct zero_copy_thread_data g_zero_data;
 #endif
 
 class Message;

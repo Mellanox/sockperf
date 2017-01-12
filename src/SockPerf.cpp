@@ -2339,7 +2339,7 @@ vma_recv_callback_retval_t myapp_vma_recv_pkt_filter_callback(
 	}
 
 	//If there is data in local buffer, then push new packet in TCP queue.Otherwise handle received packet inside callback.
-	if (g_pkts && g_pkts->n_packet_num > 0) {
+	if (g_zero_data.pkts && g_zero_data.pkts->n_packet_num > 0) {
 		return VMA_PACKET_RECV;
 	}
 
