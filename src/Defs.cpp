@@ -41,8 +41,8 @@ TicksTime g_cycleStartTime;
 
 debug_level_t g_debug_level = LOG_LVL_INFO;
 
-#ifdef  USING_VMA_EXTRA_API
-__thread struct zero_copy_thread_data g_zero_data = {0};
+#ifdef USING_VMA_EXTRA_API
+THREAD_LOCAL vma_data_buffer g_zero_data = {0};
 #endif
 
 

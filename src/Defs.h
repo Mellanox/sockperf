@@ -385,13 +385,17 @@ extern TicksTime g_cycleStartTime;
 extern debug_level_t g_debug_level;
 
 #ifdef USING_VMA_EXTRA_API
-typedef struct zero_copy_thread_data {
+typedef struct vma_data_buffer {
 	unsigned char* pkt_buf;
 	struct vma_packets_t* pkts;
 	unsigned int pkt_index;
 	unsigned int pkt_offset;
-}zero_copy_thread_data;
-extern __thread struct zero_copy_thread_data g_zero_data;
+}vma_data_buffer;
+extern THREAD_LOCAL struct vma_data_buffer g_zero_data;
+// https://software.intel.com/en-us/blogs/2011/05/02/the-hidden-performance-cost-of-accessing-thread-local-variables
+SP_FORCE_INLINE vma_data_buffer* get_zero_data() {
+	return &g_zero_data;
+}
 #endif
 
 class Message;

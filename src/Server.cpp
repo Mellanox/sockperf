@@ -358,15 +358,7 @@ void server_handler(int _fd_min, int _fd_max, int _fd_num) {
 void server_handler(handler_info *p_info)
 {
 	if (p_info) {
-#ifdef USING_VMA_EXTRA_API
-		if (g_vma_api) {
-			g_zero_data.pkt_buf = (unsigned char*)MALLOC(Message::getMaxSize());
-			if (g_zero_data.pkt_buf == NULL) {
-				log_err("Failed to allocate g_pkt_buf");
-				return;
-			}
-		}
-#endif
+		vma_buffer_init();
 		switch (g_pApp->m_const_params.fd_handler_type) {
 		case RECVFROM:
 		{
@@ -400,11 +392,7 @@ void server_handler(handler_info *p_info)
 		default:
 			ERROR_MSG("unknown file handler");
 		}
-#ifdef USING_VMA_EXTRA_API
-		if (g_zero_data.pkt_buf) {
-			FREE(g_zero_data.pkt_buf);
-		}
-#endif
+		vma_buffer_free();
 	}
 }
 
