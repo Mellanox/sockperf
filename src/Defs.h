@@ -152,7 +152,7 @@ Used by offload libraries to do egress path warm-up of caches.
 It is not in use by kernel. WARNING: it will actually end this packet on the wire.
 DUMMY_SEND_FLAG value should be compatible with the value of VMA_SND_FLAGS_DUMMY (More info at vma_extra.h).
 */
-#define DUMMY_SEND_FLAG MSG_SYN // equals to 0x400
+#define DUMMY_SEND_FLAG 0x400 // equals to MSG_SYN
 #define DUMMY_SEND_MPS_DEFAULT 10000
 
 enum {
