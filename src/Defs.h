@@ -150,6 +150,13 @@ extern const int MAX_FDS_NUM;
 #define DEFAULT_SELECT_TIMEOUT_MSEC	10
 #define DEFAULT_DEBUG_LEVEL			0
 
+/*
+Used by offload libraries to do egress path warm-up of caches.
+It is not in use by kernel. WARNING: it will actually end this packet on the wire.
+DUMMY_SEND_FLAG value should be compatible with the value of VMA_SND_FLAGS_DUMMY (More info at vma_extra.h).
+*/
+#define DUMMY_SEND_FLAG MSG_SYN // equals to 0x400
+#define DUMMY_SEND_MPS_DEFAULT 10000
 
 enum {
 	OPT_RX_MC_IF 			 = 1,
@@ -191,7 +198,8 @@ enum {
 	OPT_CLIENTIP,                   //37
 	OPT_TOS,                        //38
 	OPT_LLS,                        //39
-	OPT_MC_SOURCE_IP                //40
+	OPT_MC_SOURCE_IP,               //40
+	OPT_DUMMY_SEND                  //41
 };
 
 #define MODULE_NAME			"sockperf"
@@ -629,6 +637,8 @@ struct user_params_t {
 	int tos;
 	unsigned int lls_usecs;
 	bool lls_is_set;
+	uint32_t dummy_mps; //client side only
+	TicksDuration dummySendCycleDuration; //client side only
 };
 
 struct mutable_params_t {
