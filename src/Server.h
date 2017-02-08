@@ -231,7 +231,7 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_t
 #ifdef USING_VMA_EXTRA_API
 			if (tmp_vma_poll_buff){ 
 				if (!tmp_vma_poll_buff->next) {
-					memcpy(l_fds_ifd->recv.buf,l_fds_ifd->recv.cur_addr, l_fds_ifd->recv.cur_offset);
+					memcpy(l_fds_ifd->recv.buf, l_fds_ifd->recv.cur_addr, l_fds_ifd->recv.cur_offset);
 					return (!do_update);
 				}
 			}

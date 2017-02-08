@@ -316,8 +316,11 @@ int IoVmaPoll::prepareNetwork()
 	for (int ifd = m_fd_min; ifd <= m_fd_max; ifd++) {
 		if (g_fds_array[ifd]) {
 			ring_fd = 0;
-			g_vma_api->get_socket_rings_fds(ifd, &ring_fd,1);
-			assert((-1) != ring_fd);
+			int rings = g_vma_api->get_socket_rings_fds(ifd, &ring_fd, 1);
+			if (rings == -1) {
+				rc = SOCKPERF_ERR_SOCKET;
+				return rc;
+			}
 			rings_vma_comps_map::iterator itr = m_rings_vma_comps_map.find(ring_fd);
 			if (itr == m_rings_vma_comps_map.end()){
 				vma_ring_comps* temp = NULL;

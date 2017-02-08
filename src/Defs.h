@@ -526,8 +526,8 @@ namespace std
 #ifdef  USING_VMA_EXTRA_API
 struct vma_ring_comps{
   vma_completion_t vma_comp_list[MAX_VMA_COMPS];
-  bool is_freed;
   int vma_comp_list_size;
+  bool is_freed;
 };
 #endif
 
