@@ -1,5 +1,5 @@
 define([sockperf_version], esyscmd([sh -c "head -1 ./build/current-version | tr -d '\n'"]))
-AC_INIT([SOCKPERF], [sockperf_version], [sockperf-discuss@googlegroups.com])
+AC_INIT([SOCKPERF], [sockperf_version], [http://github.com/mellanox/sockperf/issues])
 
 AC_CONFIG_HEADER([config.h])
 AC_CONFIG_MACRO_DIR([config/m4])

@@ -200,7 +200,7 @@ enum {
 
 #define MODULE_NAME			"sockperf"
 #define MODULE_COPYRIGHT	"Copyright (C) 2011 Mellanox Technologies Ltd." \
-	"\nSockPerf is open source software, see http://sockperf.googlecode.com/"
+	"\nSockPerf is open source software, see http://github.com/mellanox/sockperf"
 #define log_msg(log_fmt, ...)	printf(MODULE_NAME ": " log_fmt "\n", ##__VA_ARGS__)
 #define log_msg_file(file, log_fmt, ...)	fprintf(file, MODULE_NAME ": " log_fmt "\n", ##__VA_ARGS__)
 #define log_msg_file2(file, log_fmt, ...)	if (1) {log_msg(log_fmt, ##__VA_ARGS__); if (file) log_msg_file(file, log_fmt, ##__VA_ARGS__);} else
