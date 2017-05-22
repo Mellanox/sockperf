@@ -1442,7 +1442,7 @@ static int proc_mode_server( int id, int argc, const char **argv )
 		 },
 		 {
 			 'm', AOPT_ARG, aopt_set_literal( 'm' ), aopt_set_string( "msg-size" ),
-			 "Set maximum message size that the server can receive <size> bytes (default 65506)."
+			 "Set maximum message size that the server can receive <size> bytes (default 65507)."
 		 },
 		 {
 			 'g', AOPT_NOARG,	aopt_set_literal( 'g' ),	aopt_set_string( "gap-detection" ),

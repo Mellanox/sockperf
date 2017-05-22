@@ -56,7 +56,7 @@ TicksTime g_lastTicks;
 
 const int MAX_FDS_NUM = os_get_max_active_fds_num();
 fds_data** g_fds_array = NULL;
-int MAX_PAYLOAD_SIZE = 65506;
+int MAX_PAYLOAD_SIZE = 65507;
 int IGMP_MAX_MEMBERSHIPS = IP_MAX_MEMBERSHIPS;
 
 #ifdef  USING_VMA_EXTRA_API
