@@ -254,7 +254,7 @@ IoEpoll::~IoEpoll() {
 int IoEpoll::prepareNetwork()
 {
 	int rc = SOCKPERF_ERR_NONE;
-	struct epoll_event ev;
+	struct epoll_event ev = {0, {0}};
 
 	int list_count = 0;
 	mp_epoll_events = (struct epoll_event *)MALLOC(MAX_FDS_NUM * sizeof(struct epoll_event));

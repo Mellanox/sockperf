@@ -307,7 +307,7 @@ public:
 	//------------------------------------------------------------------------------
 	inline void update() {
 		int ifd = 0;
-		struct epoll_event ev;
+		struct epoll_event ev = {0, {0}};
 
 		m_look_start = 0;
 		m_look_end = m_fd_num;
