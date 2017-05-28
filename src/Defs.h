@@ -90,6 +90,7 @@ typedef uint16_t in_port_t;
 #include <fcntl.h>
 #include <sys/types.h>		/* sockets*/
 #include <queue>
+#include <map>
 
 #include "Ticks.h"
 #include "Message.h"
@@ -392,13 +393,24 @@ extern TicksTime g_cycleStartTime;
 
 extern debug_level_t g_debug_level;
 
-#ifdef  USING_VMA_EXTRA_API
-extern unsigned char* g_pkt_buf;
-extern struct vma_packets_t* g_pkts;
-extern unsigned int g_pkt_index;
-extern unsigned int g_pkt_offset;
+#ifdef USING_VMA_EXTRA_API
+
 extern struct vma_buff_t* g_vma_poll_buff;
 extern struct vma_completion_t* g_vma_comps;
+
+class ZeroCopyData {
+public:
+	ZeroCopyData();
+	void allocate();
+	~ZeroCopyData();
+	unsigned char* m_pkt_buf;
+	struct vma_packets_t* m_pkts;
+	unsigned int m_pkt_index;
+	unsigned int m_pkt_offset;
+};
+// map from fd to zeroCopyData
+typedef std::map<int, ZeroCopyData *> zeroCopyMap;
+extern zeroCopyMap g_zeroCopyData;
 #endif
 
 class Message;
