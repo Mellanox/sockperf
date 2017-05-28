@@ -35,7 +35,6 @@
 static CRITICAL_SECTION	thread_exit_lock;
 static os_thread_t *thread_pid_array = NULL;
 
-
 //==============================================================================
 
 //------------------------------------------------------------------------------
@@ -93,6 +92,18 @@ int ServerBase::initBeforeLoop()
 			log_dbg ("[fd=%d] Binding to: %s:%d...", ifd, inet_ntoa(p_bind_addr->sin_addr), ntohs(p_bind_addr->sin_port));
 			if (bind(ifd, (struct sockaddr*)p_bind_addr, sizeof(struct sockaddr)) < 0) {
 				log_err("[fd=%d] Can`t bind socket, IP to bind: %s:%d\n", ifd, inet_ntoa(p_bind_addr->sin_addr), ntohs(p_bind_addr->sin_port));
+				rc = SOCKPERF_ERR_SOCKET;
+				break;
+			}
+			/*
+			 * since when using VMA there is no qp until the bind, and vma cannot
+			 * check that rate-limit is supported this is done here and not
+			 * with the rest of the setsockopt
+			 */
+			if (s_user_params.rate_limit > 0 &&
+				sock_set_rate_limit(ifd, s_user_params.rate_limit)) {
+				log_err("[fd=%d] failed setting rate limit, %s\n",
+						ifd, inet_ntoa(p_bind_addr->sin_addr));
 				rc = SOCKPERF_ERR_SOCKET;
 				break;
 			}

@@ -97,7 +97,6 @@ static bool sock_lib_started = 0; //
 static int s_fd_max = 0;
 static int s_fd_min = 0;	/* used as THE fd when single mc group is given (RECVFROM blocked mode) */
 static int s_fd_num = 0;
-static struct user_params_t    s_user_params;
 static struct mutable_params_t s_mutable_params;
 
 static void set_select_timeout(int time_out_msec);
@@ -274,6 +273,10 @@ static const AOPT_DESC  common_opt_desc[] =
 	{
 		OPT_LOAD_VMA, AOPT_OPTARG,	aopt_set_literal( 0 ),	aopt_set_string( "load-vma" ),
 		"Load VMA dynamically even when LD_PRELOAD was not used."
+	},
+	{
+		OPT_RATE_LIMIT, AOPT_ARG, aopt_set_literal( 0 ), aopt_set_string( "rate-limit" ),
+		"use rate limit (packet-pacing), with VMA must be run with VMA_RING_ALLOCATION_LOGIC_TX mode."
 	},
 #endif
 	{
@@ -1979,6 +1982,26 @@ static int parse_common_opt( const AOPT_OBJECT *common_obj )
 		if ( !rc && aopt_check(common_obj, OPT_NO_RDTSC) ) {
 			s_user_params.b_no_rdtsc = true;
 		}
+
+		if ( !rc && aopt_check(common_obj, OPT_RATE_LIMIT) ) {
+			const char* optarg = aopt_value(common_obj, OPT_RATE_LIMIT);
+			if (optarg) {
+				errno = 0;
+				uint32_t value = strtol(optarg, NULL, 0);
+				if (errno != 0 || value <= 0) {
+					log_msg("'-%d' Invalid rate limit : %s", OPT_RATE_LIMIT, optarg);
+					rc = SOCKPERF_ERR_BAD_ARGUMENT;
+				}
+				else {
+					s_user_params.rate_limit = value;
+				}
+			}
+			else {
+				log_msg("'-%d' Invalid value", OPT_RATE_LIMIT);
+				rc = SOCKPERF_ERR_BAD_ARGUMENT;
+			}
+		}
+
 #if defined (__arm__) || defined(__aarch64__)
 		if (s_user_params.b_no_rdtsc == false) {
 			log_msg("ARM target build does not support rdtsc, use --no-rdtsc");
@@ -3436,7 +3459,8 @@ receiver_affinity = %s \n\t\
 b_stream = %d \n\t\
 daemonize = %d \n\t\
 feedfile_name = %s \n\t\
-tos = %d \n",
+tos = %d \n\t\
+packet pace limit = %d",
 s_user_params.mode,
 s_user_params.withsock_accl,
 s_user_params.msg_size,
@@ -3475,7 +3499,7 @@ s_user_params.b_no_rdtsc,
 s_user_params.b_stream,
 s_user_params.daemonize,
 (strlen(s_user_params.feedfile_name) ? s_user_params.feedfile_name : "<empty>"),
-s_user_params.tos);
+s_user_params.tos, s_user_params.rate_limit);
 
 		// Display application version
 		log_msg( MAGNETA "== version #%s == " ENDCOLOR, VERSION);

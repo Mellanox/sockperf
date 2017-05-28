@@ -150,6 +150,9 @@ extern const int MAX_FDS_NUM;
 #define DEFAULT_SELECT_TIMEOUT_MSEC	10
 #define DEFAULT_DEBUG_LEVEL			0
 
+#ifndef SO_MAX_PACING_RATE
+#define SO_MAX_PACING_RATE			47
+#endif
 /*
 Used by offload libraries to do egress path warm-up of caches.
 It is not in use by kernel. WARNING: it will actually end this packet on the wire.
@@ -199,7 +202,8 @@ enum {
 	OPT_TOS,                        //38
 	OPT_LLS,                        //39
 	OPT_MC_SOURCE_IP,               //40
-	OPT_DUMMY_SEND                  //41
+	OPT_DUMMY_SEND,                 //41
+	OPT_RATE_LIMIT                  //42
 };
 
 #define MODULE_NAME			"sockperf"
@@ -639,6 +643,7 @@ struct user_params_t {
 	bool lls_is_set;
 	uint32_t dummy_mps; //client side only
 	TicksDuration dummySendCycleDuration; //client side only
+	uint32_t rate_limit;
 };
 
 struct mutable_params_t {
