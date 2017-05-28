@@ -42,12 +42,27 @@ TicksTime g_cycleStartTime;
 debug_level_t g_debug_level = LOG_LVL_INFO;
 
 #ifdef  USING_VMA_EXTRA_API
-unsigned char* g_pkt_buf = NULL;
-struct vma_packets_t* g_pkts = NULL;
-unsigned int g_pkt_index = 0;
-unsigned int g_pkt_offset = 0;
 struct vma_buff_t* g_vma_poll_buff = NULL;
 struct vma_completion_t* g_vma_comps;
+
+ZeroCopyData::ZeroCopyData():
+		m_pkt_buf(NULL),
+		m_pkts(NULL),
+		m_pkt_index(0),
+		m_pkt_offset(0) {
+
+};
+
+void ZeroCopyData::allocate() {
+	m_pkt_buf = (unsigned char *)MALLOC(Message::getMaxSize());
+}
+
+ZeroCopyData::~ZeroCopyData() {
+	if (m_pkt_buf)
+		FREE(m_pkt_buf);
+}
+
+zeroCopyMap g_zeroCopyData;
 #endif
 
 

@@ -54,66 +54,81 @@ static inline int msg_recvfrom(int fd, uint8_t* buf, int nbytes, struct sockaddr
 {
 	int ret = 0;
 	socklen_t size = sizeof(struct sockaddr_in);
-    int flags = 0;
+	int flags = 0;
 
-#ifdef  USING_VMA_EXTRA_API
+#ifdef USING_VMA_EXTRA_API
 	int remain_buffer, data_to_copy;
 	uint8_t* start_addrs; 
 	struct vma_packet_t *pkt;
+	ZeroCopyData *z_ptr = g_zeroCopyData[fd];
 
-	if (g_pApp->m_const_params.is_vmazcopyread && g_vma_api) {
+	if (z_ptr && g_pApp->m_const_params.is_vmazcopyread) {
 		remain_buffer = nbytes;
 		// Receive held data, and free VMA's previously received zero copied packets
-		if (g_pkts && g_pkts->n_packet_num > 0) {
+		if (z_ptr->m_pkts && z_ptr->m_pkts->n_packet_num > 0) {
 
-			pkt = &g_pkts->pkts[0];			
+			pkt = &z_ptr->m_pkts->pkts[0];
 			
-			while(g_pkt_index < pkt->sz_iov) {
+			while(z_ptr->m_pkt_index < pkt->sz_iov) {
 				start_addrs = buf + (nbytes - remain_buffer);
-				data_to_copy = _min(remain_buffer, (int)(pkt->iov[g_pkt_index].iov_len - g_pkt_offset));
-				memcpy(start_addrs, (uint8_t*)pkt->iov[g_pkt_index].iov_base + g_pkt_offset, data_to_copy);
+				data_to_copy = _min(remain_buffer,
+						(int)(pkt->iov[z_ptr->m_pkt_index].iov_len -
+								z_ptr->m_pkt_offset));
+				memcpy(start_addrs,
+					(uint8_t*)pkt->iov[z_ptr->m_pkt_index].iov_base +
+						z_ptr->m_pkt_offset, data_to_copy);
 				remain_buffer -= data_to_copy;
-				g_pkt_offset += data_to_copy;
+				z_ptr->m_pkt_offset += data_to_copy;
 				
 				//Handled buffer is filled
-				if (g_pkt_offset < pkt->iov[g_pkt_index].iov_len)	return nbytes;
+				if (z_ptr->m_pkt_offset < pkt->iov[z_ptr->m_pkt_index].iov_len)
+					return nbytes;
 
-				g_pkt_offset = 0;
-				g_pkt_index++;
+				z_ptr->m_pkt_offset = 0;
+				z_ptr->m_pkt_index++;
 			}
 			
-			g_vma_api->free_packets(fd, g_pkts->pkts, g_pkts->n_packet_num);
-			g_pkts = NULL;
-			g_pkt_index = 0;
-			g_pkt_offset = 0;
+			g_vma_api->free_packets(fd, z_ptr->m_pkts->pkts,
+									z_ptr->m_pkts->n_packet_num);
+			z_ptr->m_pkts = NULL;
+			z_ptr->m_pkt_index = 0;
+			z_ptr->m_pkt_offset = 0;
 			
 			//Handled buffer is filled
 			if (remain_buffer == 0) return nbytes;
 		}
 		
 		// Receive the next packet with zero copy API
-		ret = g_vma_api->recvfrom_zcopy(fd, g_pkt_buf, Message::getMaxSize(), &flags, (struct sockaddr*)recvfrom_addr, &size);
+		ret = g_vma_api->recvfrom_zcopy(fd, &z_ptr->m_pkt_buf,
+										Message::getMaxSize(),
+										&flags, (struct sockaddr*)recvfrom_addr,
+										&size);
 		
 		if (ret > 0) {
-			// Zcopy receive is perfomed
+			// Zcopy receive is performed
 			if (flags & MSG_VMA_ZCOPY) {
-				g_pkts = (struct vma_packets_t*)g_pkt_buf;
-				if (g_pkts->n_packet_num > 0) {
+				z_ptr->m_pkts = (struct vma_packets_t*)&z_ptr->m_pkt_buf;
+				if (z_ptr->m_pkts->n_packet_num > 0) {
 
-					pkt = &g_pkts->pkts[0];
+					pkt = &z_ptr->m_pkts->pkts[0];
 
-					while(g_pkt_index < pkt->sz_iov) {
+					while(z_ptr->m_pkt_index < pkt->sz_iov) {
 						start_addrs = buf + (nbytes - remain_buffer);
-						data_to_copy = _min(remain_buffer, (int)pkt->iov[g_pkt_index].iov_len);
-						memcpy(start_addrs, pkt->iov[g_pkt_index].iov_base, data_to_copy);
+						data_to_copy =
+								_min(remain_buffer,
+									(int)pkt->iov[z_ptr->m_pkt_index].iov_len);
+						memcpy(start_addrs,
+								pkt->iov[z_ptr->m_pkt_index].iov_base,
+								data_to_copy);
 						remain_buffer -= data_to_copy;
-						g_pkt_offset += data_to_copy;
+						z_ptr->m_pkt_offset += data_to_copy;
 						
 						//Handled buffer is filled
-						if (g_pkt_offset < pkt->iov[g_pkt_index].iov_len)	return nbytes;
+						if (z_ptr->m_pkt_offset < pkt->iov[z_ptr->m_pkt_index].iov_len)
+							return nbytes;
 
-						g_pkt_offset = 0;
-						g_pkt_index++;
+						z_ptr->m_pkt_offset = 0;
+						z_ptr->m_pkt_index++;
 					}
 					ret = nbytes-remain_buffer;	
 				}
@@ -123,7 +138,7 @@ static inline int msg_recvfrom(int fd, uint8_t* buf, int nbytes, struct sockaddr
 			}
 			else {
 				data_to_copy = _min(remain_buffer, ret);
-				memcpy(buf + (nbytes - remain_buffer), g_pkt_buf, data_to_copy);
+				memcpy(buf + (nbytes - remain_buffer), &z_ptr->m_pkt_buf[fd], data_to_copy);
 				ret = nbytes - (remain_buffer - data_to_copy);
 			}
 		}
