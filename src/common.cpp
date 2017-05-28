@@ -30,6 +30,7 @@
 
 extern void cleanup();
 
+user_params_t	s_user_params;
 //
 // AvnerB: the purpose of these error functions is to take out error code from inline function
 //
@@ -233,4 +234,17 @@ int read_int_from_sys_file(const char *path)
 	fclose (file);
 
 	return retVal;
+}
+
+int sock_set_rate_limit(int fd, uint32_t rate_limit)
+{
+	int rc = SOCKPERF_ERR_NONE;
+	if (setsockopt(fd, SOL_SOCKET, SO_MAX_PACING_RATE, &rate_limit, sizeof(rate_limit)) < 0) {
+		log_err("setsockopt(SO_MAX_PACING_RATE), set rate-limit failed. "
+				"It could be that this option is not supported in your system");
+		rc = SOCKPERF_ERR_SOCKET;
+	} else {
+		log_msg("succeed to set sock-SO_MAX_PACING_RATE");
+	}
+	return rc;
 }

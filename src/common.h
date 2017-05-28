@@ -33,6 +33,7 @@
 //#include "Switches.h"
 #include "Message.h"
 
+extern user_params_t	s_user_params;
 //------------------------------------------------------------------------------
 void recvfromError(int fd);//take out error code from inline function
 void sendtoError(int fd, int nbytes, const struct sockaddr_in *sendto_addr);//take out error code from inline function
@@ -270,5 +271,6 @@ static inline int msg_sendto(int fd, uint8_t* buf, int nbytes, const struct sock
 	return ret;
 }
 
+int sock_set_rate_limit(int fd, uint32_t rate_limit);
 
 #endif // ! __INC_COMMON_H__
