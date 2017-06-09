@@ -2187,11 +2187,6 @@ void cleanup()
 	if(s_user_params.select_timeout) {
 		FREE(s_user_params.select_timeout);
 	}
-#ifdef  USING_VMA_EXTRA_API
-	if (g_pkt_buf) {
-		FREE(g_pkt_buf);
-	}
-#endif
 
 	if (g_fds_array)
 	{
@@ -2344,7 +2339,7 @@ vma_recv_callback_retval_t myapp_vma_recv_pkt_filter_callback(
 	}
 
 	//If there is data in local buffer, then push new packet in TCP queue.Otherwise handle received packet inside callback.
-	if (g_pkts && g_pkts->n_packet_num > 0) {
+	if (g_zero_data.pkts && g_zero_data.pkts->n_packet_num > 0) {
 		return VMA_PACKET_RECV;
 	}
 
@@ -3241,12 +3236,6 @@ int bringup(const int *p_daemonize)
 	if (!rc) {
 		int _max_buff_size = _max(s_user_params.msg_size + 1, _vma_pkts_desc_size);
 		_max_buff_size = _max(_max_buff_size, MAX_PAYLOAD_SIZE);
-
-#ifdef  USING_VMA_EXTRA_API
-		if (s_user_params.is_vmazcopyread && g_vma_api){
-			g_pkt_buf = (unsigned char*)MALLOC(_max_buff_size);
-		}
-#endif
 
 		int64_t cycleDurationNsec = NSEC_IN_SEC * s_user_params.burst_size / s_user_params.mps;
 

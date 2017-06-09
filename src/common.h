@@ -53,85 +53,100 @@ static inline int msg_recvfrom(int fd, uint8_t* buf, int nbytes, struct sockaddr
 {
 	int ret = 0;
 	socklen_t size = sizeof(struct sockaddr_in);
-    int flags = 0;
+	int flags = 0;
 
-#ifdef  USING_VMA_EXTRA_API
+#ifdef USING_VMA_EXTRA_API
 	int remain_buffer, data_to_copy;
-	uint8_t* start_addrs; 
+	uint8_t* start_addrs;
 	struct vma_packet_t *pkt;
 
 	if (g_pApp->m_const_params.is_vmazcopyread && g_vma_api) {
 		remain_buffer = nbytes;
 		// Receive held data, and free VMA's previously received zero copied packets
-		if (g_pkts && g_pkts->n_packet_num > 0) {
+		if (get_zero_data()->pkts && get_zero_data()->pkts->n_packet_num > 0) {
 
-			pkt = &g_pkts->pkts[0];			
-			
-			while(g_pkt_index < pkt->sz_iov) {
+			pkt = &get_zero_data()->pkts->pkts[0];
+
+			while (get_zero_data()->pkt_index < pkt->sz_iov) {
 				start_addrs = buf + (nbytes - remain_buffer);
-				data_to_copy = _min(remain_buffer, (int)(pkt->iov[g_pkt_index].iov_len - g_pkt_offset));
-				memcpy(start_addrs, (uint8_t*)pkt->iov[g_pkt_index].iov_base + g_pkt_offset, data_to_copy);
+				data_to_copy = _min(remain_buffer,
+						(int )(pkt->iov[get_zero_data()->pkt_index].iov_len
+								- get_zero_data()->pkt_offset));
+				memcpy(start_addrs,
+						(uint8_t*)pkt->iov[get_zero_data()->pkt_index].iov_base
+								+ get_zero_data()->pkt_offset, data_to_copy);
 				remain_buffer -= data_to_copy;
-				g_pkt_offset += data_to_copy;
-				
-				//Handled buffer is filled
-				if (g_pkt_offset < pkt->iov[g_pkt_index].iov_len)	return nbytes;
+				get_zero_data()->pkt_offset += data_to_copy;
 
-				g_pkt_offset = 0;
-				g_pkt_index++;
+				//Handled buffer is filled
+				if (get_zero_data()->pkt_offset <
+						pkt->iov[get_zero_data()->pkt_index].iov_len)
+					return nbytes;
+
+				get_zero_data()->pkt_offset = 0;
+				get_zero_data()->pkt_index++;
 			}
-			
-			g_vma_api->free_packets(fd, g_pkts->pkts, g_pkts->n_packet_num);
-			g_pkts = NULL;
-			g_pkt_index = 0;
-			g_pkt_offset = 0;
-			
+
+			g_vma_api->free_packets(fd, get_zero_data()->pkts->pkts,
+									get_zero_data()->pkts->n_packet_num);
+			get_zero_data()->pkts = NULL;
+			get_zero_data()->pkt_index = 0;
+			get_zero_data()->pkt_offset = 0;
+
 			//Handled buffer is filled
-			if (remain_buffer == 0) return nbytes;
+			if (remain_buffer == 0)
+				return nbytes;
 		}
-		
+
 		// Receive the next packet with zero copy API
-		ret = g_vma_api->recvfrom_zcopy(fd, g_pkt_buf, Message::getMaxSize(), &flags, (struct sockaddr*)recvfrom_addr, &size);
-		
+		ret = g_vma_api->recvfrom_zcopy(fd, get_zero_data()->pkt_buf,
+										Message::getMaxSize(), &flags,
+										(struct sockaddr*)recvfrom_addr,
+										&size);
+
 		if (ret > 0) {
 			// Zcopy receive is perfomed
 			if (flags & MSG_VMA_ZCOPY) {
-				g_pkts = (struct vma_packets_t*)g_pkt_buf;
-				if (g_pkts->n_packet_num > 0) {
-
-					pkt = &g_pkts->pkts[0];
-
-					while(g_pkt_index < pkt->sz_iov) {
+				get_zero_data()->pkts =
+						(struct vma_packets_t*)get_zero_data()->pkt_buf;
+				if (get_zero_data()->pkts->n_packet_num > 0) {
+					pkt = &get_zero_data()->pkts->pkts[0];
+					while (get_zero_data()->pkt_index < pkt->sz_iov) {
 						start_addrs = buf + (nbytes - remain_buffer);
-						data_to_copy = _min(remain_buffer, (int)pkt->iov[g_pkt_index].iov_len);
-						memcpy(start_addrs, pkt->iov[g_pkt_index].iov_base, data_to_copy);
+						data_to_copy =
+								_min(remain_buffer,
+									(int )pkt->iov[get_zero_data()->pkt_index].iov_len);
+						memcpy(start_addrs,
+								pkt->iov[get_zero_data()->pkt_index].iov_base,
+								data_to_copy);
 						remain_buffer -= data_to_copy;
-						g_pkt_offset += data_to_copy;
-						
-						//Handled buffer is filled
-						if (g_pkt_offset < pkt->iov[g_pkt_index].iov_len)	return nbytes;
+						get_zero_data()->pkt_offset += data_to_copy;
 
-						g_pkt_offset = 0;
-						g_pkt_index++;
+						//Handled buffer is filled
+						if (get_zero_data()->pkt_offset <
+								pkt->iov[get_zero_data()->pkt_index].iov_len)
+							return nbytes;
+
+						get_zero_data()->pkt_offset = 0;
+						get_zero_data()->pkt_index++;
 					}
-					ret = nbytes-remain_buffer;	
+					ret = nbytes - remain_buffer;
+				} else {
+					ret = (remain_buffer == nbytes) ?
+							-1 : (nbytes - remain_buffer);
 				}
-				else{
-					ret = (remain_buffer == nbytes) ? -1 : (nbytes - remain_buffer);
-				}
-			}
-			else {
+			} else {
 				data_to_copy = _min(remain_buffer, ret);
-				memcpy(buf + (nbytes - remain_buffer), g_pkt_buf, data_to_copy);
+				memcpy(buf + (nbytes - remain_buffer), get_zero_data()->pkt_buf,
+						data_to_copy);
 				ret = nbytes - (remain_buffer - data_to_copy);
 			}
 		}
 		// Non_blocked with held packet.
 		else if (ret < 0 && os_err_eagain() && (remain_buffer < nbytes)) {
-			return nbytes-remain_buffer;
+			return nbytes - remain_buffer;
 		}
-	}	
-	else
+	} else
 #endif
 	{
 		/*
@@ -178,6 +193,29 @@ static inline int msg_recvfrom(int fd, uint8_t* buf, int nbytes, struct sockaddr
 	}
 
 	return ret;
+}
+
+inline SOCKPERF_ERROR vma_buffer_init()
+{
+#ifdef USING_VMA_EXTRA_API
+	if (g_vma_api) {
+		g_zero_data.pkt_buf = (unsigned char*)MALLOC(Message::getMaxSize());
+		if (g_zero_data.pkt_buf == NULL) {
+			log_err("Failed to allocate g_pkt_buf");
+			return SOCKPERF_ERR_NO_MEMORY;;
+		}
+	}
+#endif
+	return SOCKPERF_ERR_NONE;
+}
+
+inline void vma_buffer_free()
+{
+#ifdef USING_VMA_EXTRA_API
+	if (g_zero_data.pkt_buf) {
+		FREE(g_zero_data.pkt_buf);
+	}
+#endif
 }
 
 //------------------------------------------------------------------------------

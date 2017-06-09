@@ -412,6 +412,7 @@ void Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration
 ::cleanupAfterLoop()
 {
 	usleep(100*1000);//0.1 sec - wait for rx packets for last sends (in normal flow)
+	vma_buffer_free();
 	if (m_receiverTid.tid) {
 		os_thread_kill(&m_receiverTid);
 		//os_thread_join(&m_receiverTid);
@@ -472,6 +473,9 @@ int Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration,
 	/* bind/connect socket */
 	if (rc == SOCKPERF_ERR_NONE)
 	{
+		rc = vma_buffer_init();
+		if (rc != SOCKPERF_ERR_NONE)
+			return rc;
 		// cycle through all set fds in the array (with wrap around to beginning)
 		for (int ifd = m_ioHandler.m_fd_min; ifd <= m_ioHandler.m_fd_max; ifd++) {
 

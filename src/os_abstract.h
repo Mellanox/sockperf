@@ -92,7 +92,8 @@ struct itimerval
   };
 
 void* win_set_timer(void *p_timer);
-
+#define SP_FORCE_INLINE	__forceinline
+#define THREAD_LOCAL	__declspec(thread)
 #else
 
 /***********************************************************************************
@@ -110,7 +111,7 @@ void* win_set_timer(void *p_timer);
 #include <netinet/in.h>
 
 #define INVALID_SOCKET (-1)
-
+#define THREAD_LOCAL __thread
 
 
 /***********************************************************************************
@@ -136,7 +137,7 @@ void* win_set_timer(void *p_timer);
 #include <unistd.h>
 #include <sys/syscall.h>
 #include <endian.h>
-
+#define SP_FORCE_INLINE inline __attribute__ ((always_inline))
 #ifndef htobe64
 #ifdef __USE_BSD
 /* Conversion interfaces.  */
