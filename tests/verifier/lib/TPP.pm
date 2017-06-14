@@ -309,7 +309,7 @@ our $test_suite_tcp_pp =
                     failure => ['Segmentation fault', 'Assertion', 'ERROR']
                 },
                 client => {
-                    success => ['Test ended', 'Summary: Latency is', 'using select()'],
+                    success => ['Test ended', 'Summary: Latency is', 'using epoll()'],
                     failure => ['Segmentation fault', 'Assertion', 'ERROR', 'server down']
                 }
             },
@@ -582,7 +582,7 @@ our $test_suite_tcp_pp =
                     failure => ['Segmentation fault', 'Assertion', 'ERROR']
                 },
                 client => {
-                    success => ['Test ended', 'Summary: Latency is', 'using select()'],
+                    success => ['Test ended', 'Summary: Latency is', 'using epoll()'],
                     failure => ['Segmentation fault', 'Assertion', 'ERROR', 'server down']
                 }
             },
@@ -603,7 +603,7 @@ our $test_suite_tcp_pp =
                     failure => ['Segmentation fault', 'Assertion', 'ERROR']
                 },
                 client => {
-                    success => ['Test ended', 'Summary: Latency is', 'using select()'],
+                    success => ['Test ended', 'Summary: Latency is', 'using epoll()'],
                     failure => ['Segmentation fault', 'Assertion', 'ERROR', 'server down']
                 }
             },
@@ -624,7 +624,7 @@ our $test_suite_tcp_pp =
                     failure => ['Segmentation fault', 'Assertion', 'ERROR']
                 },
                 client => {
-                    success => ['Test ended', 'Summary: Latency is', 'using select()'],
+                    success => ['Test ended', 'Summary: Latency is', 'using epoll()'],
                     failure => ['Segmentation fault', 'Assertion', 'ERROR', 'server down']
                 }
             },
@@ -645,7 +645,7 @@ our $test_suite_tcp_pp =
                     failure => ['Segmentation fault', 'Assertion', 'ERROR']
                 },
                 client => {
-                    success => ['Test ended', 'Summary: Latency is', 'using select()'],
+                    success => ['Test ended', 'Summary: Latency is', 'using epoll()'],
                     failure => ['Segmentation fault', 'Assertion', 'ERROR', 'server down']
                 }
             },
@@ -666,7 +666,7 @@ our $test_suite_tcp_pp =
                     failure => ['Segmentation fault', 'Assertion', 'ERROR']
                 },
                 client => {
-                    success => ['Test ended', 'Summary: Latency is', 'using select()'],
+                    success => ['Test ended', 'Summary: Latency is', 'using epoll()'],
                     failure => ['Segmentation fault', 'Assertion', 'ERROR', 'server down']
                 }
             },
@@ -687,7 +687,7 @@ our $test_suite_tcp_pp =
                     failure => ['Segmentation fault', 'Assertion', 'ERROR']
                 },
                 client => {
-                    success => ['Test ended', 'Summary: Latency is', 'using select()'],
+                    success => ['Test ended', 'Summary: Latency is', 'using epoll()'],
                     failure => ['Segmentation fault', 'Assertion', 'ERROR', 'server down']
                 }
             },
@@ -709,7 +709,7 @@ our $test_suite_tcp_pp =
                     failure => ['Segmentation fault', 'Assertion', 'ERROR']
                 },
                 client => {
-                    success => ['Test ended', 'Summary: Latency is', 'using select()'],
+                    success => ['Test ended', 'Summary: Latency is', 'using epoll()'],
                     failure => ['Segmentation fault', 'Assertion', 'ERROR', 'server down']
                 }
             },
@@ -731,7 +731,7 @@ our $test_suite_tcp_pp =
                     failure => ['Segmentation fault', 'Assertion', 'ERROR']
                 },
                 client => {
-                    success => ['Test ended', 'Summary: Latency is', 'using select()'],
+                    success => ['Test ended', 'Summary: Latency is', 'using epoll()'],
                     failure => ['Segmentation fault', 'Assertion', 'ERROR', 'server down']
                 }
             },
@@ -753,7 +753,7 @@ our $test_suite_tcp_pp =
                     failure => ['Segmentation fault', 'Assertion', 'ERROR']
                 },
                 client => {
-                    success => ['Test ended', 'Summary: Latency is', 'using select()'],
+                    success => ['Test ended', 'Summary: Latency is', 'using epoll()'],
                     failure => ['Segmentation fault', 'Assertion', 'ERROR', 'server down']
                 }
             },

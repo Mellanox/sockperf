@@ -305,7 +305,7 @@ our $test_suite_udp_tp =
             result_proc => \&te_def_result_proc,
             result_arg => {
                 server => {
-                    success => ['Test end', 'interrupted by', 'exit', 'using select()'],
+                    success => ['Test end', 'interrupted by', 'exit', 'using epoll()'],
                     failure => ['Segmentation fault', 'Assertion', 'ERROR']
                 },
                 client => {
