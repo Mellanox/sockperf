@@ -72,6 +72,22 @@ SP_CHECK_CXXFLAGS_APPEND([OUR_CXXFLAGS], [\
                          -Wall \
                          "--param inline-unit-growth=200"])
 
+##########################################################################
+# extra API
+##########################################################################
+# usage: ./configure --enable-extra-api=yes
+AC_ARG_ENABLE([extra_api],
+            [AC_HELP_STRING([--enable-extra-api], [enable vma extra api support, default=yes])],
+            [AS_IF([test "x{$enable-extra-api}" == "xno"],[have_extra_api=no],[have_extra_api=yes])],
+            [have_extra_api=yes])
+AS_IF([test "x{$have_extra_api}" == "xno"],
+      [AC_MSG_CHECKING([vma extra api support])]
+      [AC_MSG_RESULT(disabled)],
+      [AC_CHECK_HEADER([mellanox/vma_extra.h],
+                       [AC_MSG_CHECKING([vma extra api support])]
+                       [AC_MSG_RESULT(enabled)]
+                       [AC_DEFINE([USING_VMA_EXTRA_API],[1], [[Enable using VMA extra API]])],
+                       [AC_MSG_NOTICE([vma_extra.h file not found])])])
 ##########################
 # Documentation
 #
@@ -140,7 +156,6 @@ AC_CHECK_HEADERS(
     [arpa/inet.h fcntl.h netinet/in.h stdint.h stdlib.h \
     string.h sys/ioctl.h sys/socket.h sys/time.h syslog.h \
     termios.h unistd.h])
-AC_CHECK_HEADER([mellanox/vma_extra.h], [AC_DEFINE([USING_VMA_EXTRA_API], [], [Enable using VMA extra API])], [AC_MSG_NOTICE([vma_extra.h not found, USING_VMA_EXTRA_API is not defined])], [])
 
 #####################################
 # Checks for libraries.
@@ -168,5 +183,6 @@ AC_MSG_RESULT([
 	doc:		${have_doc}
 	test:		${have_test}
 	tool:		${have_tool}
+	extra_api:	${have_extra_api}
 	debug:		${have_debug}
 ])
