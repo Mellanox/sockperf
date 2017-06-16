@@ -98,6 +98,7 @@ typedef uint16_t in_port_t;
 
 #if ! defined (WIN32) && ! defined (__FreeBSD__)
 	#include "vma-redirect.h"
+	//#define USING_VMA_EXTRA_API
 	#ifdef  USING_VMA_EXTRA_API
 	#include <mellanox/vma_extra.h>
 	#endif
@@ -127,9 +128,6 @@ const uint32_t TEST_END_COOLDOWN_MSEC = 50;
 #define DEFAULT_IP_PAYLOAD_SZ 		(DEFAULT_IP_MTU-28)
 #define DUMMY_PORT					57341
 #define MAX_ACTIVE_FD_NUM			1024 /* maximum number of active connection to the single TCP addr:port */
-#ifdef  USING_VMA_EXTRA_API
-#define MAX_VMA_COMPS                       1024 /* maximum size for the VMA completions array for VMA Poll */
-#endif
 
 #ifndef MAX_PATH_LENGTH
 #define MAX_PATH_LENGTH         	1024
@@ -176,12 +174,11 @@ enum {
 	OPT_PREWARMUPWAIT,              //11
 	OPT_VMARXFILTERCB,              //12
 	OPT_VMAZCOPYREAD,               //13
-	OPT_VMAPOLL,			//14
-	OPT_MC_LOOPBACK_ENABLE,         //15
-	OPT_CLIENT_WORK_WITH_SRV_NUM,   //16
-	OPT_FORCE_UC_REPLY,             //17
-	OPT_MPS,                        //18
-	OPT_REPLY_EVERY,                //19
+	OPT_MC_LOOPBACK_ENABLE,         //14
+	OPT_CLIENT_WORK_WITH_SRV_NUM,   //15
+	OPT_FORCE_UC_REPLY,             //16
+	OPT_MPS,                        //17
+	OPT_REPLY_EVERY,                //18
 	OPT_NO_RDTSC,                   //20
 	OPT_SENDER_AFFINITY,            //21
 	OPT_RECEIVER_AFFINITY,          //22
@@ -394,10 +391,6 @@ extern TicksTime g_cycleStartTime;
 extern debug_level_t g_debug_level;
 
 #ifdef USING_VMA_EXTRA_API
-
-extern struct vma_buff_t* g_vma_poll_buff;
-extern struct vma_completion_t* g_vma_comps;
-
 class ZeroCopyData {
 public:
 	ZeroCopyData();
@@ -546,35 +539,18 @@ namespace std
 		}
 	};
 }
-
-#ifdef  USING_VMA_EXTRA_API
-struct vma_ring_comps{
-  vma_completion_t vma_comp_list[MAX_VMA_COMPS];
-  int vma_comp_list_size;
-  bool is_freed;
-};
-#endif
-
-
 #ifndef __FreeBSD__
 typedef std::tr1::unordered_map<struct sockaddr_in, clt_session_info_t> seq_num_map;
 typedef std::tr1::unordered_map<struct in_addr, size_t> addr_to_id;
-#ifdef  USING_VMA_EXTRA_API
-typedef std::tr1::unordered_map<int, struct vma_ring_comps*> rings_vma_comps_map;
-#endif
 #else
 typedef std::unordered_map<struct sockaddr_in, clt_session_info_t> seq_num_map;
 typedef std::unordered_map<struct in_addr, size_t> addr_to_id;
-#ifdef  USING_VMA_EXTRA_API
-typedef std::unordered_map<int, struct vma_ring_comps*> rings_vma_comps_map;
-#endif
 #endif
 
 extern fds_data** g_fds_array;
 extern int IGMP_MAX_MEMBERSHIPS;
 
 #ifdef  USING_VMA_EXTRA_API
-typedef std::queue<int> vma_comps_queue;
 extern struct vma_api_t *g_vma_api;
 #endif
 
@@ -591,9 +567,6 @@ typedef enum { // must be coordinated with s_fds_handle_desc in common.cpp
 #ifndef WIN32
 	POLL,
 	EPOLL,
-#ifdef  USING_VMA_EXTRA_API
-	VMAPOLL,
-#endif
 #endif
 	FD_HANDLE_MAX
 } fd_block_handler_t;

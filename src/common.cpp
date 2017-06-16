@@ -213,10 +213,7 @@ const char* handler2str( fd_block_handler_t type )
 #ifndef WIN32
 		,
 		"poll",
-		"epoll",
-#ifdef  USING_VMA_EXTRA_API
-		"vmapoll"
-#endif
+		"epoll"
 #endif
 	};
 
