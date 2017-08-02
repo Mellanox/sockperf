@@ -456,8 +456,7 @@ void Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration
 		fclose(g_pApp->m_const_params.fileFullLog);
 
 	if (g_pApp->m_const_params.cycleDuration > TicksDuration::TICKS0 && !g_cycle_wait_loop_counter)
-		log_msg("Warning: the value of the clients cycle duration might be too small (%" PRId64 " usec).  Try changing --mps and --burst arguments ",
-			g_pApp->m_const_params.cycleDuration.toUsec());
+		log_msg("Info: The requested message-per-second rate is too high. Try tuning --mps or --burst arguments");
 }
 
 //------------------------------------------------------------------------------
