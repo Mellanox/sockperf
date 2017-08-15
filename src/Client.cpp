@@ -32,7 +32,7 @@
 #include "IoHandlers.h"
 #include "PacketTimes.h"
 #include "Switches.h"
-
+#include <math.h>
 TicksTime s_startTime, s_endTime;
 
 //==============================================================================
@@ -51,15 +51,19 @@ void print_average_latency(double usecAvarageLatency)
 
 //------------------------------------------------------------------------------
 /* set the timer on client to the [-t sec] parameter given by user */
-void set_client_timer(struct itimerval *timer)
+void set_client_timer(struct itimerval *timer, int connections_num)
 {
-
 	// extra_sec and extra_msec will be excluded from results
-	int extra_sec  = (TEST_START_WARMUP_MSEC + TEST_END_COOLDOWN_MSEC) / 1000;
-	int extra_msec = (TEST_START_WARMUP_MSEC + TEST_END_COOLDOWN_MSEC) % 1000;
+	uint32_t extra_usec = MAX(50000 /*first connection's first packet ttl*/ +
+			connections_num * 100 /*other connections' first packet ttl*/,
+			TEST_START_WARMUP_MSEC * 1000) +
+			TEST_END_COOLDOWN_MSEC * 1000;
+	uint32_t extra_sec  = extra_usec / 1000000 +
+			g_pApp->m_const_params.sec_test_duration;
+	extra_usec %= 1000000;
 
-	timer->it_value.tv_sec = g_pApp->m_const_params.sec_test_duration + extra_sec;
-	timer->it_value.tv_usec = 1000 * extra_msec;
+	timer->it_value.tv_sec = extra_sec;
+	timer->it_value.tv_usec = extra_usec;
 	timer->it_interval.tv_sec = 0;
 	timer->it_interval.tv_usec = 0;
 }
@@ -465,7 +469,7 @@ int Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration,
 ::initBeforeLoop()
 {
 	int rc = SOCKPERF_ERR_NONE;
-
+	int connections = 0;
 	if (g_b_exit) return rc;
 
 	/* bind/connect socket */
@@ -488,7 +492,7 @@ int Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration,
 			else {
 				log_dbg ("[fd=%d] Binding to: %s:%d...", ifd, inet_ntoa(p_client_bind_addr->sin_addr), ntohs(p_client_bind_addr->sin_port));
 			}
-
+			connections++;
 			if (g_fds_array[ifd]->sock_type == SOCK_STREAM) {
 				log_dbg ("[fd=%d] Connecting to: %s:%d...", ifd, inet_ntoa(g_fds_array[ifd]->server_addr.sin_addr), ntohs(g_fds_array[ifd]->server_addr.sin_port));
 				if (connect(ifd, (struct sockaddr*)&(g_fds_array[ifd]->server_addr), sizeof(struct sockaddr)) < 0) {
@@ -578,7 +582,7 @@ int Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration,
 
 					if (!g_pApp->m_const_params.pPlaybackVector) {
 						struct itimerval timer;
-						set_client_timer(&timer);
+						set_client_timer(&timer, connections);
 						if (os_set_duration_timer(timer, client_sig_handler)) {
 							log_err("Failed setting test duration timer");
 							rc = SOCKPERF_ERR_FATAL;
