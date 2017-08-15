@@ -3304,7 +3304,18 @@ int bringup(const int *p_daemonize)
 					s_user_params.client_work_with_srv_num);
 		}
 
-			os_set_signal_action(SIGINT, s_user_params.mode ? server_sig_handler : client_sig_handler);
+		s_user_params.warmup_msec = TEST_FIRST_CONNECTION_FIRST_PACKET_TTL_THRESHOLD_MSEC +
+				s_fd_num * TEST_ANY_CONNECTION_FIRST_PACKET_TTL_THRESHOLD_MSEC;
+		if (s_user_params.warmup_msec < TEST_START_WARMUP_MSEC) {
+			s_user_params.warmup_msec = TEST_START_WARMUP_MSEC;
+		} else {
+			log_dbg("Warm-up set in relation to number of active connections. Warm up time: %" PRIu32 " usec; first connection's first packet TTL: %d usec; following connections' first packet TTL: %d usec\n",
+				g_pApp->m_const_params.warmup_msec,
+				TEST_FIRST_CONNECTION_FIRST_PACKET_TTL_THRESHOLD_MSEC * 1000,
+				(int)(TEST_ANY_CONNECTION_FIRST_PACKET_TTL_THRESHOLD_MSEC * 1000));
+		}
+
+		os_set_signal_action(SIGINT, s_user_params.mode ? server_sig_handler : client_sig_handler);
 	}
 
 	return rc;
