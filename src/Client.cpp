@@ -54,9 +54,9 @@ void print_average_latency(double usecAvarageLatency)
 void set_client_timer(struct itimerval *timer)
 {
 	// extra sec and extra msec will be excluded from results
-	timer->it_value.tv_sec = (TEST_END_COOLDOWN_MSEC * 1000 + g_pApp->m_const_params.warmup_usec) / 1000000 +
+	timer->it_value.tv_sec = (TEST_END_COOLDOWN_MSEC + g_pApp->m_const_params.warmup_msec) / 1000 +
 				g_pApp->m_const_params.sec_test_duration;
-	timer->it_value.tv_usec = (TEST_END_COOLDOWN_MSEC * 1000 + g_pApp->m_const_params.warmup_usec) % 1000000;
+	timer->it_value.tv_usec = (TEST_END_COOLDOWN_MSEC + g_pApp->m_const_params.warmup_msec) % 1000;
 	timer->it_interval.tv_sec = 0;
 	timer->it_interval.tv_usec = 0;
 }
@@ -122,12 +122,12 @@ void client_statistics(int serverNo, Message *pMsgRequest)
 		TicksDuration totalRunTime = s_endTime - s_startTime;
 		if (g_skipCount) {
 			log_msg_file2(f, "[Total Run] RunTime=%.3lf sec; Warm up time=%" PRIu32 " msec; SentMessages=%" PRIu64 "; ReceivedMessages=%" PRIu64 "; SkippedMessages=%" PRIu64 "",
-				totalRunTime.toDecimalUsec()/1000000, g_pApp->m_const_params.warmup_usec / 1000, sendCount, receiveCount, g_skipCount);
+				totalRunTime.toDecimalUsec()/1000000, g_pApp->m_const_params.warmup_msec, sendCount, receiveCount, g_skipCount);
 		}
 		else 
 		{
 			log_msg_file2(f, "[Total Run] RunTime=%.3lf sec; Warm up time=%" PRIu32 " msec; SentMessages=%" PRIu64 "; ReceivedMessages=%" PRIu64 "",
-				totalRunTime.toDecimalUsec()/1000000, g_pApp->m_const_params.warmup_usec / 1000, sendCount, receiveCount);
+				totalRunTime.toDecimalUsec()/1000000, g_pApp->m_const_params.warmup_msec, sendCount, receiveCount);
 		}
 	}
 
