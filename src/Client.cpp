@@ -53,13 +53,10 @@ void print_average_latency(double usecAvarageLatency)
 /* set the timer on client to the [-t sec] parameter given by user */
 void set_client_timer(struct itimerval *timer)
 {
-
-	// extra_sec and extra_msec will be excluded from results
-	int extra_sec  = (TEST_START_WARMUP_MSEC + TEST_END_COOLDOWN_MSEC) / 1000;
-	int extra_msec = (TEST_START_WARMUP_MSEC + TEST_END_COOLDOWN_MSEC) % 1000;
-
-	timer->it_value.tv_sec = g_pApp->m_const_params.sec_test_duration + extra_sec;
-	timer->it_value.tv_usec = 1000 * extra_msec;
+	// extra sec and extra msec will be excluded from results
+	timer->it_value.tv_sec = (TEST_END_COOLDOWN_MSEC + g_pApp->m_const_params.warmup_msec) / 1000 +
+				g_pApp->m_const_params.sec_test_duration;
+	timer->it_value.tv_usec = (TEST_END_COOLDOWN_MSEC + g_pApp->m_const_params.warmup_msec) % 1000;
 	timer->it_interval.tv_sec = 0;
 	timer->it_interval.tv_usec = 0;
 }
@@ -124,13 +121,13 @@ void client_statistics(int serverNo, Message *pMsgRequest)
 	if (SERVER_NO == 0) {
 		TicksDuration totalRunTime = s_endTime - s_startTime;
 		if (g_skipCount) {
-			log_msg_file2(f, "[Total Run] RunTime=%.3lf sec; SentMessages=%" PRIu64 "; ReceivedMessages=%" PRIu64 "; SkippedMessages=%" PRIu64 "",
-				totalRunTime.toDecimalUsec()/1000000, sendCount, receiveCount, g_skipCount);
+			log_msg_file2(f, "[Total Run] RunTime=%.3lf sec; Warm up time=%" PRIu32 " msec; SentMessages=%" PRIu64 "; ReceivedMessages=%" PRIu64 "; SkippedMessages=%" PRIu64 "",
+				totalRunTime.toDecimalUsec()/1000000, g_pApp->m_const_params.warmup_msec, sendCount, receiveCount, g_skipCount);
 		}
 		else 
 		{
-			log_msg_file2(f, "[Total Run] RunTime=%.3lf sec; SentMessages=%" PRIu64 "; ReceivedMessages=%" PRIu64 "",
-				totalRunTime.toDecimalUsec()/1000000, sendCount, receiveCount);
+			log_msg_file2(f, "[Total Run] RunTime=%.3lf sec; Warm up time=%" PRIu32 " msec; SentMessages=%" PRIu64 "; ReceivedMessages=%" PRIu64 "",
+				totalRunTime.toDecimalUsec()/1000000, g_pApp->m_const_params.warmup_msec, sendCount, receiveCount);
 		}
 	}
 
@@ -465,7 +462,6 @@ int Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration,
 ::initBeforeLoop()
 {
 	int rc = SOCKPERF_ERR_NONE;
-
 	if (g_b_exit) return rc;
 
 	/* bind/connect socket */
@@ -488,7 +484,6 @@ int Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration,
 			else {
 				log_dbg ("[fd=%d] Binding to: %s:%d...", ifd, inet_ntoa(p_client_bind_addr->sin_addr), ntohs(p_client_bind_addr->sin_port));
 			}
-
 			if (g_fds_array[ifd]->sock_type == SOCK_STREAM) {
 				log_dbg ("[fd=%d] Connecting to: %s:%d...", ifd, inet_ntoa(g_fds_array[ifd]->server_addr.sin_addr), ntohs(g_fds_array[ifd]->server_addr.sin_port));
 				if (connect(ifd, (struct sockaddr*)&(g_fds_array[ifd]->server_addr), sizeof(struct sockaddr)) < 0) {
