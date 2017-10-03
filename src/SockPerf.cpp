@@ -3310,7 +3310,7 @@ int bringup(const int *p_daemonize)
 			s_user_params.warmup_msec = TEST_START_WARMUP_MSEC;
 		} else {
 			log_dbg("Warm-up set in relation to number of active connections. Warm up time: %" PRIu32 " usec; first connection's first packet TTL: %d usec; following connections' first packet TTL: %d usec\n",
-				g_pApp->m_const_params.warmup_usec,
+				g_pApp->m_const_params.warmup_msec,
 				TEST_FIRST_CONNECTION_FIRST_PACKET_TTL_THRESHOLD_MSEC * 1000,
 				TEST_ANY_CONNECTION_FIRST_PACKET_TTL_THRESHOLD_MSEC * 1000);
 		}
