@@ -119,8 +119,8 @@ const uint32_t REPLY_EVERY_DEFAULT = 100;
 const uint32_t TEST_START_WARMUP_MSEC = 400;
 const uint32_t TEST_END_COOLDOWN_MSEC = 50;
 
-const uint32_t TEST_FIRST_CONNECTION_FIRST_PACKET_TTL_THRESHOLD_USEC = 50000;
-const uint32_t TEST_ANY_CONNECTION_FIRST_PACKET_TTL_THRESHOLD_USEC = 100;
+const uint32_t TEST_FIRST_CONNECTION_FIRST_PACKET_TTL_THRESHOLD_MSEC = 50;
+const uint32_t TEST_ANY_CONNECTION_FIRST_PACKET_TTL_THRESHOLD_MSEC = (1 / 10);
 
 
 #define DEFAULT_CLIENT_WORK_WITH_SRV_NUM	1
@@ -598,7 +598,7 @@ struct user_params_t {
 	bool is_blocked;
 	bool do_warmup;
 	unsigned int pre_warmup_wait;
-	uint32_t warmup_usec;
+	uint32_t warmup_msec;
 	bool is_vmarxfiltercb;
 	bool is_vmazcopyread;
 	TicksDuration cycleDuration;
