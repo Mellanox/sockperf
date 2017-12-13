@@ -141,7 +141,7 @@ private:
 
 		TicksTime rxTime;
 #ifdef  USING_VMA_EXTRA_API
-		if (!g_vma_api || g_pApp->m_const_params.fd_handler_type != VMAPOLL)
+		if (!(g_vma_api && (VMAPOLL == g_pApp->m_const_params.fd_handler_type)))
 #endif
 		{
 			ret = msg_recvfrom(ifd,
@@ -155,14 +155,15 @@ private:
 			}
 			if (ret < 0) return 0;
 		}
+
+		int nbytes = ret;
 #ifdef USING_VMA_EXTRA_API
 		/* All the processing on the received data with VMA poll is done outside the msg_recvfrom.
 		 * If we intend to move it inside then we'll copy all the received data to the local buffer
 		 * and in this way we'll heart the performance.
 		 */
-		int nbytes = ret;
 		vma_buff_t* tmp_vma_poll_buff = g_vma_poll_buff;
-		while(tmp_vma_poll_buff || nbytes) {
+		while (nbytes || tmp_vma_poll_buff) {
 			if (tmp_vma_poll_buff && !nbytes){
 				if (g_fds_array[ifd]->recv.cur_offset) {
 					g_fds_array[ifd]->recv.cur_addr = g_fds_array[ifd]->recv.buf;
@@ -183,7 +184,6 @@ private:
 			}
 
 #else
-		int nbytes = ret;
 		while (nbytes) {
 
 #endif
@@ -209,7 +209,7 @@ private:
 					return (receiveCount);
 				}
 #else
-			return (receiveCount);
+				return (receiveCount);
 #endif
 			} else if (g_fds_array[ifd]->recv.cur_offset < MsgHeader::EFFECTIVE_SIZE) {
 			  /* 2: message header is got, match message to cycle buffer */
@@ -309,7 +309,7 @@ private:
 			}
 			
 #ifdef  USING_VMA_EXTRA_API
-			if (tmp_vma_poll_buff && !nbytes){
+			if (tmp_vma_poll_buff && !nbytes) {
 				tmp_vma_poll_buff = tmp_vma_poll_buff->next;
 			}
 #endif

@@ -124,16 +124,16 @@ void close_ifd(int fd,int ifd,fds_data* l_fds_ifd){
 	fds_data* l_next_fd =  g_fds_array[fd];
 
 #ifdef  USING_VMA_EXTRA_API
-	ZeroCopyData *z_ptr = g_zeroCopyData[fd];
-	if (z_ptr && z_ptr->m_pkts) {
-		g_vma_api->free_packets(fd, z_ptr->m_pkts->pkts,
-				z_ptr->m_pkts->n_packet_num);
-		z_ptr->m_pkts = NULL;
-		z_ptr->m_pkt_index = 0;
-		z_ptr->m_pkt_offset = 0;
-	}
-
 	if (g_vma_api) {
+		ZeroCopyData *z_ptr = g_zeroCopyData[fd];
+		if (z_ptr && z_ptr->m_pkts) {
+			g_vma_api->free_packets(fd, z_ptr->m_pkts->pkts,
+				z_ptr->m_pkts->n_packet_num);
+			z_ptr->m_pkts = NULL;
+			z_ptr->m_pkt_index = 0;
+			z_ptr->m_pkt_offset = 0;
+		}
+
 		g_vma_api->register_recv_callback(fd, NULL, NULL);
 	}
 #endif
@@ -172,7 +172,7 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_t
 		return (do_update);
 	}
 #ifdef  USING_VMA_EXTRA_API
-	if (!g_vma_api || g_pApp->m_const_params.fd_handler_type != VMAPOLL)
+	if (!(g_vma_api && (VMAPOLL == g_pApp->m_const_params.fd_handler_type)))
 #endif
 	{
 		ret = msg_recvfrom(ifd,
@@ -187,14 +187,15 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_t
 		}
 		if (ret < 0) return (!do_update);
 	}
+
+	int nbytes = ret;
 #ifdef USING_VMA_EXTRA_API
 	/* All the processing on the received data with VMA poll is done outside the msg_recvfrom.
 	 * If we intend to move it inside then we'll copy all the received data to the local buffer
 	 * and in this way we'll heart the performance.
 	 */
-	int nbytes = ret;
 	vma_buff_t* tmp_vma_poll_buff = g_vma_poll_buff;
-	while(tmp_vma_poll_buff || nbytes){
+	while (nbytes || tmp_vma_poll_buff){
 		if (tmp_vma_poll_buff && !nbytes){
 			if (l_fds_ifd->recv.cur_offset) {
 				l_fds_ifd->recv.cur_addr = l_fds_ifd->recv.buf;
@@ -216,9 +217,8 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_t
 			nbytes = ret;
 		}
 #else
-		int nbytes = ret;
-		while (nbytes) {
-#endif
+	while (nbytes) {
+#endif /* USING_VMA_EXTRA_API */
 		/* 1: message header is not received yet */
 		if ((l_fds_ifd->recv.cur_offset + nbytes) < MsgHeader::EFFECTIVE_SIZE) {
 			l_fds_ifd->recv.cur_size -= nbytes;
@@ -367,11 +367,11 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_t
 		m_switchActivityInfo.execute(g_receiveCount);
 
 #ifdef  USING_VMA_EXTRA_API
-		if (tmp_vma_poll_buff && !nbytes){
+		if (tmp_vma_poll_buff && !nbytes) {
 			tmp_vma_poll_buff = tmp_vma_poll_buff->next;
 		}
 #endif
-		}
+	}
 
 	/* 6: shift to start of cycle buffer in case receiving buffer is empty and
 	 * there is no uncompleted message
