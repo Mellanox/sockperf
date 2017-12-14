@@ -57,7 +57,7 @@ static inline int msg_recvfrom(int fd, uint8_t* buf, int nbytes, struct sockaddr
 	int flags = 0;
 
 #ifdef USING_VMA_EXTRA_API
-	if (g_vma_api && g_pApp->m_const_params.is_vmazcopyread) {
+	if (g_pApp->m_const_params.is_vmazcopyread) {
 		int remain_buffer, data_to_copy;
 		uint8_t* start_addrs; 
 		struct vma_packet_t *pkt;
@@ -245,7 +245,7 @@ static inline int msg_sendto(int fd, uint8_t* buf, int nbytes, const struct sock
 								   strerror(errno));
 #endif /* LOG_TRACE_SEND */
 
-		if (ret > 0) {
+		if (likely(ret > 0)) {
 			nbytes -= ret;
 			buf += ret;
 			ret = size;

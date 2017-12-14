@@ -118,8 +118,12 @@ private:
 
 		ret = m_pongModeCare.msg_sendto(ifd);
 
+		/* return on success */
+		if (likely(ret > 0)) {
+			return ;
+		}
 		/* check dead peer case */
-		if (ret == RET_SOCKET_SHUTDOWN) {
+		else if (ret == RET_SOCKET_SHUTDOWN) {
 			if (g_fds_array[ifd]->sock_type == SOCK_STREAM) {
 				exit_with_log("A connection was forcibly closed by a peer",SOCKPERF_ERR_SOCKET,g_fds_array[ifd]);
 			}
@@ -141,19 +145,21 @@ private:
 
 		TicksTime rxTime;
 #ifdef  USING_VMA_EXTRA_API
-		if (!(g_vma_api && (VMAPOLL == g_pApp->m_const_params.fd_handler_type)))
+		if (VMAPOLL != g_pApp->m_const_params.fd_handler_type)
 #endif
 		{
 			ret = msg_recvfrom(ifd,
 					   g_fds_array[ifd]->recv.cur_addr + g_fds_array[ifd]->recv.cur_offset,
 					   g_fds_array[ifd]->recv.cur_size,
 					   &recvfrom_addr);
-			if (ret == RET_SOCKET_SHUTDOWN) {
-				if (g_fds_array[ifd]->sock_type == SOCK_STREAM) {
-					exit_with_log("A connection was forcibly closed by a peer",SOCKPERF_ERR_SOCKET,g_fds_array[ifd]);
+			if (unlikely(ret <= 0)) {
+				if (ret == RET_SOCKET_SHUTDOWN) {
+					if (g_fds_array[ifd]->sock_type == SOCK_STREAM) {
+						exit_with_log("A connection was forcibly closed by a peer",SOCKPERF_ERR_SOCKET,g_fds_array[ifd]);
+					}
 				}
+				if (ret < 0) return 0;
 			}
-			if (ret < 0) return 0;
 		}
 
 		int nbytes = ret;
@@ -220,11 +226,10 @@ private:
 			  m_pMsgReply->setBuf(g_fds_array[ifd]->recv.cur_addr);
 			}
 
-			if (m_pMsgReply->getSequenceCounter() > m_pMsgRequest->getSequenceCounter())
-			{
+			if (unlikely(m_pMsgReply->getSequenceCounter() > m_pMsgRequest->getSequenceCounter())) {
 				exit_with_err("Sequence Number received was higher then expected",SOCKPERF_ERR_FATAL);
 			}
-			if ( m_pMsgReply->getLength() > MAX_PAYLOAD_SIZE){
+			if (unlikely(m_pMsgReply->getLength() > MAX_PAYLOAD_SIZE)) {
 				exit_with_err("Message received was larger than expected.",SOCKPERF_ERR_FATAL);
 			}
 
@@ -274,7 +279,7 @@ private:
 			}
 
 			//should not count the warmup messages
-			if(m_pMsgReply->isWarmupMessage()){
+			if (unlikely(m_pMsgReply->isWarmupMessage())) {
 				continue;
 			}
 
@@ -298,7 +303,7 @@ private:
 			#endif
 
 			serverNo = client_get_server_id(ifd, &recvfrom_addr);
-			if (serverNo < 0) {
+			if (unlikely(serverNo < 0)) {
 				exit_with_log("Number of servers more than expected",SOCKPERF_ERR_FATAL);
 			}
 			else {
@@ -340,7 +345,7 @@ private:
 		if (g_b_exit) return 0;
 
 		// check errors
-		if (numReady < 0) {
+		if (unlikely(numReady < 0)) {
 			exit_with_log(handler2str(g_pApp->m_const_params.fd_handler_type),SOCKPERF_ERR_FATAL);
 		}
 
@@ -351,14 +356,14 @@ private:
 			actual_fd = m_ioHandler.analyzeArrival(_fd);
 			if (actual_fd){
 				int m_recived = g_pApp->m_const_params.max_looping_over_recv;
-				while (( 0 != m_recived ) && (!g_b_exit))
+				while ((0 != m_recived) && (!g_b_exit))
 				{
 					if (m_recived > 0)
 					{
 						m_recived--;
 					}
 					unsigned int recieved_packets = client_receive_from_selected(actual_fd/*, packet_cnt_index*/);
-					if ( (0 == recieved_packets) && (os_err_eagain()))
+					if ((0 == recieved_packets) && (os_err_eagain()))
 					{
 						break ;
 					}
@@ -382,7 +387,7 @@ private:
 		for (unsigned i = 0; i < g_pApp->m_const_params.burst_size && !g_b_exit; i++) {
 			client_send_packet(ifd);
 #ifdef  USING_VMA_EXTRA_API
-			if (g_vma_api && g_pApp->m_const_params.fd_handler_type == VMAPOLL && !g_pApp->m_const_params.b_client_ping_pong){
+			if (g_pApp->m_const_params.fd_handler_type == VMAPOLL && !g_pApp->m_const_params.b_client_ping_pong){
 				m_ioHandler.waitArrival();
 			}
 #endif

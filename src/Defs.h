@@ -252,6 +252,16 @@ typedef enum {
 #define UNREFERENCED_PARAMETER(P) ((void)P)
 #endif
 
+#ifndef likely
+#   if defined(__GNUC__) || defined(__INTEL_COMPILER)
+#       define likely(x)     __builtin_expect(!!(x),1)
+#       define unlikely(x)   __builtin_expect(!!(x),0)
+#   else
+#       define likely(x)     (x)
+#       define unlikely(x)   (x)
+#   endif
+#endif
+
 
 #define RET_SOCKET_SKIPPED		(-2)   	/**< socket operation is skipped */
 #define RET_SOCKET_SHUTDOWN		0		/**< socket is shutdown */

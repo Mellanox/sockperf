@@ -168,24 +168,27 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_t
 	bool do_update = true;
 	int ret = 0;
 	fds_data* l_fds_ifd = g_fds_array[ifd];
-	if (!l_fds_ifd) {
+
+	if (unlikely(!l_fds_ifd)) {
 		return (do_update);
 	}
 #ifdef  USING_VMA_EXTRA_API
-	if (!(g_vma_api && (VMAPOLL == g_pApp->m_const_params.fd_handler_type)))
+	if (VMAPOLL != g_pApp->m_const_params.fd_handler_type)
 #endif
 	{
 		ret = msg_recvfrom(ifd,
 				   l_fds_ifd->recv.cur_addr + l_fds_ifd->recv.cur_offset,
 				   l_fds_ifd->recv.cur_size,
 				   &recvfrom_addr);
-		if (ret == RET_SOCKET_SHUTDOWN) {
-			if (l_fds_ifd->sock_type == SOCK_STREAM) {
-				close_ifd( l_fds_ifd->next_fd,ifd,l_fds_ifd);
+		if (unlikely(ret <= 0)) {
+			if (ret == RET_SOCKET_SHUTDOWN) {
+				if (l_fds_ifd->sock_type == SOCK_STREAM) {
+					close_ifd( l_fds_ifd->next_fd,ifd,l_fds_ifd);
+				}
+				return (do_update);
 			}
-			return (do_update);
+			if (ret < 0) return (!do_update);
 		}
-		if (ret < 0) return (!do_update);
 	}
 
 	int nbytes = ret;
@@ -311,7 +314,7 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_t
 			return (!do_update);
 		}
 
-		if (m_pMsgReply->isWarmupMessage()) {
+		if (unlikely(m_pMsgReply->isWarmupMessage())) {
 			m_switchCalcGaps.execute(&recvfrom_addr, 0, true);
 			/* 6: shift to start of cycle buffer in case receiving buffer is empty and
 			 * there is no uncompleted message
@@ -345,7 +348,7 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_t
 			if (l_fds_ifd->memberships_size || !l_fds_ifd->is_multicast || g_pApp->m_const_params.b_server_reply_via_uc) {// In unicast case reply to sender
 				/* get source addr to reply. memcpy is not used to improve performance */
 				sendto_addr = recvfrom_addr;
-			}else if (l_fds_ifd->is_multicast)
+			} else if (l_fds_ifd->is_multicast)
 			{
 				/* always send to the same port recved from */
 				sendto_addr.sin_port = recvfrom_addr.sin_port;
@@ -354,7 +357,7 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_t
 			m_pMsgReply->setHeaderToNetwork();
 
 			ret = msg_sendto(ifd, m_pMsgReply->getBuf(), length, &sendto_addr);
-			if (ret == RET_SOCKET_SHUTDOWN) {
+			if (unlikely(ret == RET_SOCKET_SHUTDOWN)) {
 				if (l_fds_ifd->sock_type == SOCK_STREAM) {
 					close_ifd( l_fds_ifd->next_fd,ifd,l_fds_ifd);
 				}
