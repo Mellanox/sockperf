@@ -168,24 +168,57 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_t
 	bool do_update = true;
 	int ret = 0;
 	fds_data* l_fds_ifd = g_fds_array[ifd];
-	if (!l_fds_ifd)
-		return (do_update);
-	ret = msg_recvfrom(ifd,
-			           l_fds_ifd->recv.cur_addr + l_fds_ifd->recv.cur_offset,
-			           l_fds_ifd->recv.cur_size,
-			           &recvfrom_addr);
-
-	if (ret == RET_SOCKET_SHUTDOWN) {
-		if (l_fds_ifd->sock_type == SOCK_STREAM) {
-			close_ifd( l_fds_ifd->next_fd,ifd,l_fds_ifd);
-		}
+	if (!l_fds_ifd) {
 		return (do_update);
 	}
-	if (ret < 0) return (!do_update);
-
+#ifdef  USING_VMA_EXTRA_API
+	if (!g_vma_api || g_pApp->m_const_params.fd_handler_type != VMAPOLL)
+#endif
+	{
+		ret = msg_recvfrom(ifd,
+				   l_fds_ifd->recv.cur_addr + l_fds_ifd->recv.cur_offset,
+				   l_fds_ifd->recv.cur_size,
+				   &recvfrom_addr);
+		if (ret == RET_SOCKET_SHUTDOWN) {
+			if (l_fds_ifd->sock_type == SOCK_STREAM) {
+				close_ifd( l_fds_ifd->next_fd,ifd,l_fds_ifd);
+			}
+			return (do_update);
+		}
+		if (ret < 0) return (!do_update);
+	}
+#ifdef USING_VMA_EXTRA_API
+	/* All the processing on the received data with VMA poll is done outside the msg_recvfrom.
+	 * If we intend to move it inside then we'll copy all the received data to the local buffer
+	 * and in this way we'll heart the performance.
+	 */
 	int nbytes = ret;
-	while (nbytes) {
-
+	vma_buff_t* tmp_vma_poll_buff = g_vma_poll_buff;
+	while(tmp_vma_poll_buff || nbytes){
+		if (tmp_vma_poll_buff && !nbytes){
+			if (l_fds_ifd->recv.cur_offset) {
+				l_fds_ifd->recv.cur_addr = l_fds_ifd->recv.buf;
+				memcpy(l_fds_ifd->recv.cur_addr + l_fds_ifd->recv.cur_offset,(uint8_t*)tmp_vma_poll_buff->payload, tmp_vma_poll_buff->len);
+				recvfrom_addr = g_vma_comps->src;
+			}
+			else {
+				l_fds_ifd->recv.cur_addr = (uint8_t*)tmp_vma_poll_buff->payload;
+				recvfrom_addr = g_vma_comps->src;
+			}
+			ret = tmp_vma_poll_buff->len;
+			if (ret == RET_SOCKET_SHUTDOWN) {
+				if (l_fds_ifd->sock_type == SOCK_STREAM) {
+				  close_ifd( l_fds_ifd->next_fd,ifd,l_fds_ifd);
+				}
+				return (do_update);
+			}
+			if (ret < 0) return (!do_update);
+			nbytes = ret;
+		}
+#else
+		int nbytes = ret;
+		while (nbytes) {
+#endif
 		/* 1: message header is not received yet */
 		if ((l_fds_ifd->recv.cur_offset + nbytes) < MsgHeader::EFFECTIVE_SIZE) {
 			l_fds_ifd->recv.cur_size -= nbytes;
@@ -197,7 +230,19 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_t
 			if (l_fds_ifd->recv.cur_size < MsgHeader::EFFECTIVE_SIZE) {
 				l_fds_ifd->recv.cur_size = MsgHeader::EFFECTIVE_SIZE - l_fds_ifd->recv.cur_offset;
 			}
+#ifdef USING_VMA_EXTRA_API
+			if (tmp_vma_poll_buff){ 
+				if (!tmp_vma_poll_buff->next) {
+					memcpy(l_fds_ifd->recv.buf, l_fds_ifd->recv.cur_addr, l_fds_ifd->recv.cur_offset);
+					return (!do_update);
+				}
+			}
+			else{
+				return (!do_update);
+			}
+#else
 			return (!do_update);
+#endif
 		} else if (l_fds_ifd->recv.cur_offset < MsgHeader::EFFECTIVE_SIZE) {
 		  /* 2: message header is got, match message to cycle buffer */
 		  m_pMsgReply->setBuf(l_fds_ifd->recv.cur_addr);
@@ -227,7 +272,19 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_t
 			if (l_fds_ifd->recv.cur_size < (int)m_pMsgReply->getMaxSize()) {
 				l_fds_ifd->recv.cur_size = m_pMsgReply->getLength() - l_fds_ifd->recv.cur_offset;
 			}
+#ifdef USING_VMA_EXTRA_API
+			if (tmp_vma_poll_buff){
+				if (!tmp_vma_poll_buff->next) {
+					memcpy(l_fds_ifd->recv.buf,l_fds_ifd->recv.cur_addr, l_fds_ifd->recv.cur_offset);
+					return (!do_update);
+				}
+			}
+			else{
+				return (!do_update);
+			}
+#else
 			return (!do_update);
+#endif
 		}
 
 		/* 5: message is complete shift to process next one */
@@ -295,6 +352,7 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_t
 			}
 			int length = m_pMsgReply->getLength();
 			m_pMsgReply->setHeaderToNetwork();
+
 			ret = msg_sendto(ifd, m_pMsgReply->getBuf(), length, &sendto_addr);
 			if (ret == RET_SOCKET_SHUTDOWN) {
 				if (l_fds_ifd->sock_type == SOCK_STREAM) {
@@ -307,7 +365,13 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_t
 
 		m_switchCalcGaps.execute(&recvfrom_addr, m_pMsgReply->getSequenceCounter(), false);
 		m_switchActivityInfo.execute(g_receiveCount);
-	}
+
+#ifdef  USING_VMA_EXTRA_API
+		if (tmp_vma_poll_buff && !nbytes){
+			tmp_vma_poll_buff = tmp_vma_poll_buff->next;
+		}
+#endif
+		}
 
 	/* 6: shift to start of cycle buffer in case receiving buffer is empty and
 	 * there is no uncompleted message

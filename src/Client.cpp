@@ -457,6 +457,62 @@ void Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration
 }
 
 //------------------------------------------------------------------------------
+#ifdef  USING_VMA_EXTRA_API
+static int _connect_check_vma(int ifd)
+{
+	int rc = SOCKPERF_ERR_SOCKET;
+	int ring_fd = 0;
+	int poll = 0;
+	rc = g_vma_api->get_socket_rings_fds(ifd, &ring_fd, 1);
+	if (rc == -1) {
+		rc = SOCKPERF_ERR_SOCKET;
+		return rc;
+	}
+	while (poll == 0) {
+		struct vma_completion_t vma_comps;
+		poll = g_vma_api->vma_poll(ring_fd, &vma_comps, 1, 0);
+		if (poll > 0) {
+			if (vma_comps.events & EPOLLOUT) {
+				rc = SOCKPERF_ERR_NONE;
+			}
+		}
+	}
+	return rc;
+}
+#endif
+
+//------------------------------------------------------------------------------
+static int _connect_check(int ifd)
+{
+	int rc = SOCKPERF_ERR_NONE;
+	fd_set rfds, wfds;
+	struct timeval tv;
+	tv.tv_sec = 0; tv.tv_usec = 500;
+
+	FD_ZERO(&rfds);
+	FD_ZERO(&wfds);
+	
+	int max_fd = -1;
+	
+	FD_SET(ifd, &wfds);
+	FD_SET(ifd, &rfds);
+	if(ifd > max_fd) max_fd = ifd;
+
+	select(max_fd + 1, &rfds, &wfds, NULL, &tv);
+	if(FD_ISSET(ifd, &wfds) || FD_ISSET(ifd, &rfds)) {
+		socklen_t err_len;
+		int error;
+		
+		err_len = sizeof(error);
+		if (getsockopt(ifd, SOL_SOCKET, SO_ERROR, &error, &err_len) < 0 || error != 0) {
+			log_err("Can`t connect socket");
+			rc = SOCKPERF_ERR_SOCKET;
+		}
+	}
+	return rc;
+}
+
+//------------------------------------------------------------------------------
 template <class IoType, class SwitchDataIntegrity, class SwitchActivityInfo, class SwitchCycleDuration, class SwitchMsgSize , class PongModeCare>
 int Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration, SwitchMsgSize , PongModeCare>
 ::initBeforeLoop()
@@ -486,33 +542,23 @@ int Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration,
 			}
 			if (g_fds_array[ifd]->sock_type == SOCK_STREAM) {
 				log_dbg ("[fd=%d] Connecting to: %s:%d...", ifd, inet_ntoa(g_fds_array[ifd]->server_addr.sin_addr), ntohs(g_fds_array[ifd]->server_addr.sin_port));
+
+
 				if (connect(ifd, (struct sockaddr*)&(g_fds_array[ifd]->server_addr), sizeof(struct sockaddr)) < 0) {
 					if (os_err_in_progress()) {
-						fd_set rfds, wfds;
-						struct timeval tv;
-						tv.tv_sec = 0; tv.tv_usec = 500;
-
-						FD_ZERO(&rfds);
-						FD_ZERO(&wfds);
-
-						int max_fd = -1;
-
-						FD_SET(ifd, &wfds);
-						FD_SET(ifd, &rfds);
-						if(ifd > max_fd) max_fd = ifd;
-
-						select(max_fd + 1, &rfds, &wfds, NULL, &tv);
-						if(FD_ISSET(ifd, &wfds) || FD_ISSET(ifd, &rfds)) {
-							socklen_t err_len;
-							int error;
-
-							err_len = sizeof(error);
-							if (getsockopt(ifd, SOL_SOCKET, SO_ERROR, &error, &err_len) < 0 || error != 0) {
-								log_err("Can`t connect socket");
-								rc = SOCKPERF_ERR_SOCKET;
-								break;
-						    }
+#ifdef  USING_VMA_EXTRA_API
+						if (g_pApp->m_const_params.fd_handler_type == VMAPOLL && g_vma_api) {
+							rc = _connect_check_vma(ifd);
 						}
+						else
+#endif
+						{
+							rc = _connect_check(ifd);
+						}	
+						if (rc == SOCKPERF_ERR_SOCKET) {
+						  break;
+						}
+						
 					}
 					else {
 						log_err("Can`t connect socket");
@@ -771,6 +817,13 @@ void client_handler(handler_info *p_info)
 			case EPOLL:
 			{
 				client_handler<IoEpoll> (p_info->fd_min, p_info->fd_max, p_info->fd_num);
+				break;
+			}
+#endif
+#ifdef  USING_VMA_EXTRA_API
+			case VMAPOLL:
+			{
+				client_handler<IoVmaPoll> (p_info->fd_min, p_info->fd_max, p_info->fd_num);
 				break;
 			}
 #endif
