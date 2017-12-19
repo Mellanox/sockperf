@@ -470,7 +470,7 @@ static int _connect_check_vma(int ifd)
 	}
 	while (poll == 0) {
 		struct vma_completion_t vma_comps;
-		poll = g_vma_api->vma_poll(ring_fd, &vma_comps, 1, 0);
+		poll = g_vma_api->socketxtreme_poll(ring_fd, &vma_comps, 1, 0);
 		if (poll > 0) {
 			if (vma_comps.events & EPOLLOUT) {
 				rc = SOCKPERF_ERR_NONE;
@@ -547,7 +547,7 @@ int Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration,
 				if (connect(ifd, (struct sockaddr*)&(g_fds_array[ifd]->server_addr), sizeof(struct sockaddr)) < 0) {
 					if (os_err_in_progress()) {
 #ifdef  USING_VMA_EXTRA_API
-						if (g_pApp->m_const_params.fd_handler_type == VMAPOLL && g_vma_api) {
+						if (g_pApp->m_const_params.fd_handler_type == SOCKETXTREME && g_vma_api) {
 							rc = _connect_check_vma(ifd);
 						}
 						else
@@ -821,9 +821,9 @@ void client_handler(handler_info *p_info)
 			}
 #endif
 #ifdef  USING_VMA_EXTRA_API
-			case VMAPOLL:
+			case SOCKETXTREME:
 			{
-				client_handler<IoVmaPoll> (p_info->fd_min, p_info->fd_max, p_info->fd_num);
+				client_handler<IoSocketxtreme> (p_info->fd_min, p_info->fd_max, p_info->fd_num);
 				break;
 			}
 #endif

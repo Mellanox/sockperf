@@ -376,10 +376,10 @@ private:
 
 #ifdef  USING_VMA_EXTRA_API
 //==============================================================================
-class IoVmaPoll: public IoHandler {
+class IoSocketxtreme: public IoHandler {
 public:
-	IoVmaPoll(int _fd_min, int _fd_max, int _fd_num);
-	virtual ~IoVmaPoll();
+	IoSocketxtreme(int _fd_min, int _fd_max, int _fd_num);
+	virtual ~IoSocketxtreme();
 
 	//------------------------------------------------------------------------------
 	inline void update() {
@@ -418,15 +418,15 @@ public:
 			int ring_fd = m_rings_vma_comps_map_itr->first;
 			if (!m_rings_vma_comps_map_itr->second->is_freed) {
 				for (int i = 0; i < m_rings_vma_comps_map_itr->second->vma_comp_list_size; i++){
-					if (m_rings_vma_comps_map_itr->second->vma_comp_list[i].events & VMA_POLL_PACKET){
-						g_vma_api->free_vma_packets(&m_rings_vma_comps_map_itr->second->vma_comp_list[i].packet, 1);
+					if (m_rings_vma_comps_map_itr->second->vma_comp_list[i].events & VMA_SOCKETXTREME_PACKET){
+						g_vma_api->socketxtreme_free_vma_packets(&m_rings_vma_comps_map_itr->second->vma_comp_list[i].packet, 1);
 					}
 				}
 				memset(m_rings_vma_comps_map_itr->second->vma_comp_list, 0, m_rings_vma_comps_map_itr->second->vma_comp_list_size * sizeof(vma_completion_t));
 				m_rings_vma_comps_map_itr->second->is_freed = true;
 				m_rings_vma_comps_map_itr->second->vma_comp_list_size = 0;
 			}
-			m_rings_vma_comps_map_itr->second->vma_comp_list_size = g_vma_api->vma_poll(ring_fd, (vma_completion_t*)(&m_rings_vma_comps_map_itr->second->vma_comp_list), MAX_VMA_COMPS, 0);
+			m_rings_vma_comps_map_itr->second->vma_comp_list_size = g_vma_api->socketxtreme_poll(ring_fd, (vma_completion_t*)(&m_rings_vma_comps_map_itr->second->vma_comp_list), MAX_VMA_COMPS, 0);
 
 			if (m_rings_vma_comps_map_itr->second->vma_comp_list_size > 0){
 				m_vma_comps_queue.push(ring_fd);
@@ -442,7 +442,7 @@ public:
 		assert( (ifd < MAX_FDS_NUM)  &&
 				"exceeded tool limitation (MAX_FDS_NUM)");
 		int ring_fd = 0;
-		g_vma_poll_buff = NULL;
+		g_vma_buff = NULL;
 		if (!m_current_vma_ring_comp) {
 			ring_fd = m_vma_comps_queue.front();
 			m_vma_comps_queue.pop();
@@ -454,10 +454,10 @@ public:
 		}
 
 		g_vma_comps = (vma_completion_t*)&m_current_vma_ring_comp->vma_comp_list[m_vma_comp_index];
-		if (g_vma_comps->events & VMA_POLL_NEW_CONNECTION_ACCEPTED) {
+		if (g_vma_comps->events & VMA_SOCKETXTREME_NEW_CONNECTION_ACCEPTED) {
 			ifd = g_vma_comps->listen_fd;
-		} else if (g_vma_comps->events & VMA_POLL_PACKET) {
-			g_vma_poll_buff = g_vma_comps->packet.buff_lst;
+		} else if (g_vma_comps->events & VMA_SOCKETXTREME_PACKET) {
+			g_vma_buff = g_vma_comps->packet.buff_lst;
 			ifd = g_vma_comps->user_data;
 		} 
 		else {

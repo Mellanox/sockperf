@@ -173,7 +173,7 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_t
 		return (do_update);
 	}
 #ifdef  USING_VMA_EXTRA_API
-	if (VMAPOLL != g_pApp->m_const_params.fd_handler_type)
+	if (SOCKETXTREME != g_pApp->m_const_params.fd_handler_type)
 #endif
 	{
 		ret = msg_recvfrom(ifd,
@@ -197,19 +197,19 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_t
 	 * If we intend to move it inside then we'll copy all the received data to the local buffer
 	 * and in this way we'll heart the performance.
 	 */
-	vma_buff_t* tmp_vma_poll_buff = g_vma_poll_buff;
-	while (nbytes || tmp_vma_poll_buff){
-		if (tmp_vma_poll_buff && !nbytes){
+	vma_buff_t* tmp_vma_buff = g_vma_buff;
+	while (nbytes || tmp_vma_buff){
+		if (tmp_vma_buff && !nbytes){
 			if (l_fds_ifd->recv.cur_offset) {
 				l_fds_ifd->recv.cur_addr = l_fds_ifd->recv.buf;
-				memcpy(l_fds_ifd->recv.cur_addr + l_fds_ifd->recv.cur_offset,(uint8_t*)tmp_vma_poll_buff->payload, tmp_vma_poll_buff->len);
+				memcpy(l_fds_ifd->recv.cur_addr + l_fds_ifd->recv.cur_offset,(uint8_t*)tmp_vma_buff->payload, tmp_vma_buff->len);
 				recvfrom_addr = g_vma_comps->src;
 			}
 			else {
-				l_fds_ifd->recv.cur_addr = (uint8_t*)tmp_vma_poll_buff->payload;
+				l_fds_ifd->recv.cur_addr = (uint8_t*)tmp_vma_buff->payload;
 				recvfrom_addr = g_vma_comps->src;
 			}
-			ret = tmp_vma_poll_buff->len;
+			ret = tmp_vma_buff->len;
 			if (ret == RET_SOCKET_SHUTDOWN) {
 				if (l_fds_ifd->sock_type == SOCK_STREAM) {
 				  close_ifd( l_fds_ifd->next_fd,ifd,l_fds_ifd);
@@ -234,8 +234,8 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_t
 				l_fds_ifd->recv.cur_size = MsgHeader::EFFECTIVE_SIZE - l_fds_ifd->recv.cur_offset;
 			}
 #ifdef USING_VMA_EXTRA_API
-			if (tmp_vma_poll_buff){ 
-				if (!tmp_vma_poll_buff->next) {
+			if (tmp_vma_buff){ 
+				if (!tmp_vma_buff->next) {
 					memcpy(l_fds_ifd->recv.buf, l_fds_ifd->recv.cur_addr, l_fds_ifd->recv.cur_offset);
 					return (!do_update);
 				}
@@ -276,8 +276,8 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_t
 				l_fds_ifd->recv.cur_size = m_pMsgReply->getLength() - l_fds_ifd->recv.cur_offset;
 			}
 #ifdef USING_VMA_EXTRA_API
-			if (tmp_vma_poll_buff){
-				if (!tmp_vma_poll_buff->next) {
+			if (tmp_vma_buff){
+				if (!tmp_vma_buff->next) {
 					memcpy(l_fds_ifd->recv.buf,l_fds_ifd->recv.cur_addr, l_fds_ifd->recv.cur_offset);
 					return (!do_update);
 				}
@@ -370,8 +370,8 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_t
 		m_switchActivityInfo.execute(g_receiveCount);
 
 #ifdef  USING_VMA_EXTRA_API
-		if (tmp_vma_poll_buff && !nbytes) {
-			tmp_vma_poll_buff = tmp_vma_poll_buff->next;
+		if (tmp_vma_buff && !nbytes) {
+			tmp_vma_buff = tmp_vma_buff->next;
 		}
 #endif
 	}

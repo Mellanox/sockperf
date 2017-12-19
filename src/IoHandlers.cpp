@@ -294,19 +294,19 @@ int IoEpoll::prepareNetwork()
 #ifdef  USING_VMA_EXTRA_API
 //==============================================================================
 //------------------------------------------------------------------------------
-IoVmaPoll::IoVmaPoll(int _fd_min, int _fd_max, int _fd_num) : IoHandler(_fd_min, _fd_max,_fd_num, 0, 0){
+IoSocketxtreme::IoSocketxtreme(int _fd_min, int _fd_max, int _fd_num) : IoHandler(_fd_min, _fd_max,_fd_num, 0, 0){
 	m_current_vma_ring_comp = NULL;
 }
 
 //------------------------------------------------------------------------------
-IoVmaPoll::~IoVmaPoll() {
+IoSocketxtreme::~IoSocketxtreme() {
   for (m_rings_vma_comps_map_itr = m_rings_vma_comps_map.begin(); m_rings_vma_comps_map_itr != m_rings_vma_comps_map.end(); ++m_rings_vma_comps_map_itr){
   	FREE(m_rings_vma_comps_map_itr->second);
   }
 }
 
 //------------------------------------------------------------------------------
-int IoVmaPoll::prepareNetwork()
+int IoSocketxtreme::prepareNetwork()
 {
 	int rc = SOCKPERF_ERR_NONE;
 	int list_count = 0;

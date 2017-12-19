@@ -282,7 +282,7 @@ int Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_accept(int ifd)
 		tmp->recv.cur_size = tmp->recv.max_size;
 
 #ifdef  USING_VMA_EXTRA_API
-		if (g_vma_api && g_pApp->m_const_params.fd_handler_type == VMAPOLL) {
+		if (g_vma_api && g_pApp->m_const_params.fd_handler_type == SOCKETXTREME) {
 			active_ifd = g_vma_comps->user_data;
 		}
 		else
@@ -318,7 +318,7 @@ int Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_accept(int ifd)
 						g_fds_array[ifd]->active_fd_count++;
 						g_fds_array[active_ifd] = tmp;
 #ifdef  USING_VMA_EXTRA_API
-						if (g_vma_api && g_pApp->m_const_params.fd_handler_type == VMAPOLL) {
+						if (g_vma_api && g_pApp->m_const_params.fd_handler_type == SOCKETXTREME) {
 							log_dbg ("peer address to accept: %s:%d [%d]", inet_ntoa(g_vma_comps->src.sin_addr), ntohs(g_vma_comps->src.sin_port), active_ifd);
 						} else
 #endif
@@ -346,7 +346,7 @@ int Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_accept(int ifd)
 				}
         		FREE(tmp);
 #ifdef  USING_VMA_EXTRA_API
-			if (g_vma_api && g_pApp->m_const_params.fd_handler_type == VMAPOLL) {
+			if (g_vma_api && g_pApp->m_const_params.fd_handler_type == SOCKETXTREME) {
 				log_dbg ("peer address to refuse: %s:%d [%d]", inet_ntoa(g_vma_comps->src.sin_addr), ntohs(g_vma_comps->src.sin_port), active_ifd);
 			} else
 #endif
@@ -420,9 +420,9 @@ void server_handler(handler_info *p_info)
 		}
 #endif
 #ifdef  USING_VMA_EXTRA_API
-		case VMAPOLL:
+		case SOCKETXTREME:
 		{
-			server_handler<IoVmaPoll>(p_info->fd_min, p_info->fd_max, p_info->fd_num);
+			server_handler<IoSocketxtreme>(p_info->fd_min, p_info->fd_max, p_info->fd_num);
 			break;
 		}
 #endif
