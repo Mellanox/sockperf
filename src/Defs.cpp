@@ -42,7 +42,7 @@ TicksTime g_cycleStartTime;
 debug_level_t g_debug_level = LOG_LVL_INFO;
 
 #ifdef  USING_VMA_EXTRA_API
-struct vma_buff_t* g_vma_poll_buff = NULL;
+struct vma_buff_t* g_vma_buff = NULL;
 struct vma_completion_t* g_vma_comps;
 
 ZeroCopyData::ZeroCopyData():

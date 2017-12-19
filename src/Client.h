@@ -145,7 +145,7 @@ private:
 
 		TicksTime rxTime;
 #ifdef  USING_VMA_EXTRA_API
-		if (VMAPOLL != g_pApp->m_const_params.fd_handler_type)
+		if (SOCKETXTREME != g_pApp->m_const_params.fd_handler_type)
 #endif
 		{
 			ret = msg_recvfrom(ifd,
@@ -168,17 +168,17 @@ private:
 		 * If we intend to move it inside then we'll copy all the received data to the local buffer
 		 * and in this way we'll heart the performance.
 		 */
-		vma_buff_t* tmp_vma_poll_buff = g_vma_poll_buff;
-		while (nbytes || tmp_vma_poll_buff) {
-			if (tmp_vma_poll_buff && !nbytes){
+		vma_buff_t* tmp_vma_buff = g_vma_buff;
+		while (nbytes || tmp_vma_buff) {
+			if (tmp_vma_buff && !nbytes){
 				if (g_fds_array[ifd]->recv.cur_offset) {
 					g_fds_array[ifd]->recv.cur_addr = g_fds_array[ifd]->recv.buf;
-					memcpy(g_fds_array[ifd]->recv.cur_addr + g_fds_array[ifd]->recv.cur_offset,(uint8_t*)tmp_vma_poll_buff->payload, tmp_vma_poll_buff->len);
+					memcpy(g_fds_array[ifd]->recv.cur_addr + g_fds_array[ifd]->recv.cur_offset,(uint8_t*)tmp_vma_buff->payload, tmp_vma_buff->len);
 				}
 				else {
-					g_fds_array[ifd]->recv.cur_addr = (uint8_t*)tmp_vma_poll_buff->payload;
+					g_fds_array[ifd]->recv.cur_addr = (uint8_t*)tmp_vma_buff->payload;
 				}
-				ret = tmp_vma_poll_buff->len;
+				ret = tmp_vma_buff->len;
 				recvfrom_addr = g_vma_comps->src;
 				if (ret == RET_SOCKET_SHUTDOWN) {
 					if (g_fds_array[ifd]->sock_type == SOCK_STREAM) {
@@ -205,8 +205,8 @@ private:
 					g_fds_array[ifd]->recv.cur_size = MsgHeader::EFFECTIVE_SIZE - g_fds_array[ifd]->recv.cur_offset;
 				}
 #ifdef USING_VMA_EXTRA_API
-				if (tmp_vma_poll_buff) {
-					if (!tmp_vma_poll_buff->next){
+				if (tmp_vma_buff) {
+					if (!tmp_vma_buff->next){
 						memcpy(g_fds_array[ifd]->recv.buf,g_fds_array[ifd]->recv.cur_addr, g_fds_array[ifd]->recv.cur_offset);
 						return (receiveCount); 
 					}
@@ -246,8 +246,8 @@ private:
 					g_fds_array[ifd]->recv.cur_size = m_pMsgReply->getLength() - g_fds_array[ifd]->recv.cur_offset;
 				}
 #ifdef USING_VMA_EXTRA_API
-				if (tmp_vma_poll_buff){
-					if (!tmp_vma_poll_buff->next) {
+				if (tmp_vma_buff){
+					if (!tmp_vma_buff->next) {
 						memcpy(g_fds_array[ifd]->recv.buf,g_fds_array[ifd]->recv.cur_addr, g_fds_array[ifd]->recv.cur_offset);
 						return (receiveCount);
 					}
@@ -314,8 +314,8 @@ private:
 			}
 			
 #ifdef  USING_VMA_EXTRA_API
-			if (tmp_vma_poll_buff && !nbytes) {
-				tmp_vma_poll_buff = tmp_vma_poll_buff->next;
+			if (tmp_vma_buff && !nbytes) {
+				tmp_vma_buff = tmp_vma_buff->next;
 			}
 #endif
 		}
@@ -387,7 +387,7 @@ private:
 		for (unsigned i = 0; i < g_pApp->m_const_params.burst_size && !g_b_exit; i++) {
 			client_send_packet(ifd);
 #ifdef  USING_VMA_EXTRA_API
-			if (g_pApp->m_const_params.fd_handler_type == VMAPOLL && !g_pApp->m_const_params.b_client_ping_pong){
+			if (g_pApp->m_const_params.fd_handler_type == SOCKETXTREME && !g_pApp->m_const_params.b_client_ping_pong){
 				m_ioHandler.waitArrival();
 			}
 #endif

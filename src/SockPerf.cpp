@@ -177,7 +177,7 @@ static const AOPT_DESC  common_opt_desc[] =
 		"Type of multiple file descriptors handle [s|select|p|poll|r|recvfrom](default select)."
 #else
 #ifdef  USING_VMA_EXTRA_API
-		"Type of multiple file descriptors handle [s|select|p|poll|e|epoll|r|recvfrom|v|vmapoll](default epoll)."
+		"Type of multiple file descriptors handle [s|select|p|poll|e|epoll|r|recvfrom|x|socketxtreme](default epoll)."
 #else
 		"Type of multiple file descriptors handle [s|select|p|poll|e|epoll|r|recvfrom](default epoll)."
 #endif
@@ -1722,8 +1722,8 @@ static int parse_common_opt( const AOPT_OBJECT *common_obj )
 						s_user_params.fd_handler_type = RECVFROMMUX;
 					}
 #ifdef  USING_VMA_EXTRA_API
-					else if (!strcmp( fd_handle_type, "vmapoll" ) || !strcmp( fd_handle_type, "v")) {
-						s_user_params.fd_handler_type = VMAPOLL;
+					else if (!strcmp( fd_handle_type, "socketxtreme" ) || !strcmp( fd_handle_type, "x")) {
+						s_user_params.fd_handler_type = SOCKETXTREME;
 						s_user_params.is_blocked = false;
 					}
 #endif
@@ -2930,8 +2930,8 @@ static int set_sockets_from_feedfile(const char *feedfile_name)
 		}
 #ifdef  USING_VMA_EXTRA_API
 		if (sock_type == SOCK_DGRAM && s_user_params.mode == MODE_CLIENT){
-			if (s_user_params.fd_handler_type == VMAPOLL && !s_user_params.client_bind_info.sin_port && !s_user_params.client_bind_info.sin_addr.s_addr) {
-				log_msg("vmapoll requires forcing the client side to bind to a specific ip address (client_ip) option");
+			if (s_user_params.fd_handler_type == SOCKETXTREME && !s_user_params.client_bind_info.sin_port && !s_user_params.client_bind_info.sin_addr.s_addr) {
+				log_msg("socketxtreme requires forcing the client side to bind to a specific ip address (client_ip) option");
 				rc = SOCKPERF_ERR_INCORRECT;
 				break;
 			}
@@ -3176,7 +3176,7 @@ int bringup(const int *p_daemonize)
 
 #ifdef  USING_VMA_EXTRA_API
 	if ( !rc &&
-			(s_user_params.is_vmarxfiltercb || s_user_params.is_vmazcopyread || s_user_params.fd_handler_type == VMAPOLL)) {
+			(s_user_params.is_vmarxfiltercb || s_user_params.is_vmazcopyread || s_user_params.fd_handler_type == SOCKETXTREME)) {
 		// Get VMA extended API
 		g_vma_api = vma_get_api();
 		if (g_vma_api == NULL)

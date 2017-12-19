@@ -215,7 +215,7 @@ const char* handler2str( fd_block_handler_t type )
 		"poll",
 		"epoll",
 #ifdef  USING_VMA_EXTRA_API
-		"vmapoll"
+		"socketxtreme"
 #endif
 #endif
 	};

@@ -180,7 +180,7 @@ enum {
 	OPT_PREWARMUPWAIT,              //11
 	OPT_VMARXFILTERCB,              //12
 	OPT_VMAZCOPYREAD,               //13
-	OPT_VMAPOLL,			//14
+	OPT_SOCKETXTREME,               //14
 	OPT_MC_LOOPBACK_ENABLE,         //15
 	OPT_CLIENT_WORK_WITH_SRV_NUM,   //16
 	OPT_FORCE_UC_REPLY,             //17
@@ -409,7 +409,7 @@ extern debug_level_t g_debug_level;
 
 #ifdef USING_VMA_EXTRA_API
 
-extern struct vma_buff_t* g_vma_poll_buff;
+extern struct vma_buff_t* g_vma_buff;
 extern struct vma_completion_t* g_vma_comps;
 
 class ZeroCopyData {
@@ -606,7 +606,7 @@ typedef enum { // must be coordinated with s_fds_handle_desc in common.cpp
 	POLL,
 	EPOLL,
 #ifdef  USING_VMA_EXTRA_API
-	VMAPOLL,
+	SOCKETXTREME,
 #endif
 #endif
 	FD_HANDLE_MAX
