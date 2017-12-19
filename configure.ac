@@ -168,7 +168,7 @@ AC_SEARCH_LIBS([pthread_create], [pthread], [], AC_MSG_ERROR([libpthread not fou
 AC_SEARCH_LIBS([backtrace], [execinfo], [], AC_MSG_ERROR([libexecinfo not found]))
 AC_SEARCH_LIBS([dlsym], [dl], [], AC_MSG_ERROR([libdl not found]))
 
-AC_CONFIG_FILES([Makefile tools/Makefile tests/Makefile doc/Doxyfile])
+AC_CONFIG_FILES([Makefile tools/Makefile tests/Makefile doc/Doxyfile build/sockperf.spec])
 
 AC_OUTPUT
 

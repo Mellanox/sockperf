@@ -53,6 +53,9 @@ dist_doc_DATA = \
 	copying
 
 EXTRA_DIST = \
+	build \
+	contrib \
+	debian \
 	doc/Doxyfile.in \
 	doc/main.dox
 
