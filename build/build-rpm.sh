@@ -35,6 +35,9 @@ if [ $# -lt 1 ]; then
 else
         RPM_DIR=$1
 fi
+
+mkdir -p --verbose $RPM_DIR/{BUILD,RPMS,SOURCES,SPECS,SRPMS,tmp}
+
 APP_SPEC=$RPM_DIR/SPECS/$APP_NAME_VER.spec
 sed -e s/__GIT_REF__/$GIT_REF/g -e s/__VERSION__/$VERSION/g -e s/__RELEASE__/$RELEASE/g ./build/$APP_NAME.spec.in > $APP_SPEC
 sed -i -e s/__VERSION__/$VERSION/g -e s/__RELEASE__/$RELEASE/g -e s/__APP_NAME__/$APP_NAME/g -e "s/__DATE__/$DATE/g" -e "s/__MAINTAINER__/$MAINTAINER/g" debian/* 2> /dev/null || true
