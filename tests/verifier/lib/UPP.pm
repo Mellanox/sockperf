@@ -107,12 +107,12 @@ our $test_suite_udp_pp =
         },
         {
             name => 'tc5',
-            note => '#5 - ping-pong option -b1000',
+            note => '#5 - ping-pong option -b200',
             pre_proc => \&te_def_pre_proc,
             server_proc => \&te_def_server_proc,
             server_arg => 'sr -i TARGET()',
             client_proc => \&te_def_client_proc,
-            client_arg => 'pp -i TARGET() -b1000',
+            client_arg => 'pp -i TARGET() -b200',
             result_proc => \&te_def_result_proc,
             result_arg => {
                 server => {
@@ -120,7 +120,7 @@ our $test_suite_udp_pp =
                     failure => ['Segmentation fault', 'Assertion', 'ERROR']
                 },
                 client => {
-                    success => ['Test ended', 'Summary: Latency of burst of 1000 messages'],
+                    success => ['Test ended', 'Summary: Latency of burst of 200 messages'],
                     failure => ['Segmentation fault', 'Assertion', 'ERROR', 'server down']
                 }
             },

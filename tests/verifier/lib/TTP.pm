@@ -761,12 +761,12 @@ our $test_suite_tcp_tp =
         },
         {
             name => 'tc36',
-            note => '#36 - throughput option --pps=1000',
+            note => '#36 - throughput option --tcp --pps=1000',
             pre_proc => \&te_def_pre_proc,
             server_proc => \&te_def_server_proc,
-            server_arg => 'sr -i TARGET()',
+            server_arg => 'sr -i TARGET() --tcp',
             client_proc => \&te_def_client_proc,
-            client_arg => 'tp -i TARGET() --pps=1000',
+            client_arg => 'tp -i TARGET() --tcp --pps=1000',
             result_proc => \&te_ttp_result_proc1,
             result_arg => {
                 server => {
@@ -810,7 +810,7 @@ sub te_ttp_result_proc1
                 my $sent_msg = 0;
                 if ($client_output =~ m/Message Rate is (\d+) \[msg\/sec\]/) {
                     $sent_msg = $1;
-                    if ( not (grep($_ == $sent_msg, (1000..1001))) ) {
+                    if ( not (grep($_ == $sent_msg, (1000..1002))) ) {
                         $status = 1;
                     }
                 }
