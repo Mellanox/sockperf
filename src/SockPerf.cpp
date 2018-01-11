@@ -3180,7 +3180,7 @@ int bringup(const int *p_daemonize)
 		// Get VMA extended API
 		g_vma_api = vma_get_api();
 		if (g_vma_api == NULL)
-			log_err("VMA Extra API not found - working with default socket APIs");
+			exit_with_err("VMA Extra API is required but not found", SOCKPERF_ERR_FATAL);
 		else
 			log_msg("VMA Extra API found - using VMA's receive zero copy and messages filter APIs");
 
