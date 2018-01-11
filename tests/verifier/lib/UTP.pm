@@ -957,7 +957,7 @@ sub te_utp_result_proc1
                 my $sent_msg = 0;
                 if ($client_output =~ m/Message Rate is (\d+) \[msg\/sec\]/) {
                     $sent_msg = $1;
-                    if ( not (grep($_ == $sent_msg, (1000..1001))) ) {
+                    if ( not (grep($_ == $sent_msg, (1000..1002))) ) {
                         $status = 1;
                     }
                 }
