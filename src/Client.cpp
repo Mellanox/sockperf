@@ -154,6 +154,8 @@ void client_statistics(int serverNo, Message *pMsgRequest)
 		testStart += TicksDuration::TICKS1MSEC * TEST_START_WARMUP_MSEC;
 		testEnd   -= TicksDuration::TICKS1MSEC * TEST_END_COOLDOWN_MSEC;
 	}
+	log_dbg("testStart: %.9lf sec testEnd: %.9lf sec",
+			(double)testStart.debugToNsec()/1000/1000/1000, (double)testEnd.debugToNsec()/1000/1000/1000);
 
 	TicksDuration *pLat = new TicksDuration[SIZE];
 	RecordLog *pFullLog = new RecordLog[SIZE];
@@ -167,16 +169,17 @@ void client_statistics(int serverNo, Message *pMsgRequest)
 	TicksTime endValidTime;
 	uint64_t startValidSeqNo = 0;
 	uint64_t endValidSeqNo = 0;
-	for (size_t i = 1; counter < SIZE; i++) {
+	for (size_t i = 1; (counter < SIZE) && (testStart < testEnd); i++) {
 		uint64_t seqNo    = i * replyEvery;
 		const TicksTime & txTime   = g_pPacketTimes->getTxTime(seqNo);
 		const TicksTime & rxTime   = g_pPacketTimes->getRxTimeArray(seqNo)[SERVER_NO];
 
+		if ((txTime > testEnd) || (txTime == TicksTime::TICKS0)) {
+			break;
+		}
+
 		if (txTime < testStart) {
 			continue;
-		}
-		if (txTime > testEnd) {
-			break;
 		}
 
 		if (startValidSeqNo == 0) {
@@ -207,11 +210,6 @@ void client_statistics(int serverNo, Message *pMsgRequest)
 
 		rtt = rxTime - txTime;
 
-/*	test: ignore spikes in avg calculation
-		if (rtt > TicksDuration::TICKS1USEC * 20) {
-			continue;
-		}
-//*/
 		sumRtt += rtt;
 		pLat[counter] = rtt/2;
 
@@ -220,7 +218,7 @@ void client_statistics(int serverNo, Message *pMsgRequest)
 	}
 
 	if (!counter) {
-		log_msg_file2(f, "No valid observations found.  Try increasing test duration and/or --mps/--reply-every parameters");
+		log_msg_file2(f, "No valid observations found. Try tune parameters: --time/--mps/--reply-every");
 	}
 	else {
 		TicksDuration validRunTime = endValidTime - startValidTime;
