@@ -176,11 +176,7 @@ static const AOPT_DESC  common_opt_desc[] =
 #elif __FreeBSD__
 		"Type of multiple file descriptors handle [s|select|p|poll|r|recvfrom](default select)."
 #else
-#ifdef  USING_VMA_EXTRA_API
 		"Type of multiple file descriptors handle [s|select|p|poll|e|epoll|r|recvfrom|x|socketxtreme](default epoll)."
-#else
-		"Type of multiple file descriptors handle [s|select|p|poll|e|epoll|r|recvfrom](default epoll)."
-#endif
 #endif
 	},
 	{
@@ -260,7 +256,7 @@ static const AOPT_DESC  common_opt_desc[] =
 #ifndef WIN32
 	{
 		OPT_VMAZCOPYREAD, AOPT_NOARG, aopt_set_literal( 0 ), aopt_set_string( "vmazcopyread" ),
-		"If possible use VMA's zero copy reads API (See VMA's readme)."
+		"Use VMA's zero copy reads API (See VMA's readme)."
 	},
 	{
 		OPT_DAEMONIZE, AOPT_NOARG, aopt_set_literal( 0 ), aopt_set_string( "daemonize" ),
@@ -1436,7 +1432,7 @@ static int proc_mode_server( int id, int argc, const char **argv )
 #ifndef WIN32
 		 {
 			 OPT_VMARXFILTERCB, AOPT_NOARG,	aopt_set_literal( 0 ),	aopt_set_string( "vmarxfiltercb" ),
-			 "If possible use VMA's receive path message filter callback API (See VMA's readme)."
+			 "Use VMA's receive path message filter callback API (See VMA's readme)."
 		 },
 #endif
 		 {
@@ -1721,12 +1717,10 @@ static int parse_common_opt( const AOPT_OBJECT *common_obj )
 					else if (!strcmp( fd_handle_type, "recvfrom" ) || !strcmp( fd_handle_type, "r")) {
 						s_user_params.fd_handler_type = RECVFROMMUX;
 					}
-#ifdef  USING_VMA_EXTRA_API
 					else if (!strcmp( fd_handle_type, "socketxtreme" ) || !strcmp( fd_handle_type, "x")) {
 						s_user_params.fd_handler_type = SOCKETXTREME;
 						s_user_params.is_blocked = false;
 					}
-#endif
 					else {
 						log_msg("'-%c' Invalid muliply io hanlde type: %s", 'F', optarg);
 						rc = SOCKPERF_ERR_BAD_ARGUMENT;
@@ -2928,15 +2922,13 @@ static int set_sockets_from_feedfile(const char *feedfile_name)
 			sock_type = SOCK_DGRAM;
 			ip = strtok(line, ":");
 		}
-#ifdef  USING_VMA_EXTRA_API
 		if (sock_type == SOCK_DGRAM && s_user_params.mode == MODE_CLIENT){
-			if (s_user_params.fd_handler_type == SOCKETXTREME && !s_user_params.client_bind_info.sin_port && !s_user_params.client_bind_info.sin_addr.s_addr) {
-				log_msg("socketxtreme requires forcing the client side to bind to a specific ip address (client_ip) option");
+			if (s_user_params.fd_handler_type == SOCKETXTREME && s_user_params.client_bind_info.sin_addr.s_addr == INADDR_ANY) {
+				log_msg("socketxtreme requires forcing the client side to bind to a specific ip address (use --client_ip) option");
 				rc = SOCKPERF_ERR_INCORRECT;
 				break;
 			}
 		}
-#endif
 		port = strtok(NULL, ":\n");
 		mc_src_ip = strtok(NULL, ":\n");
 		if (!ip || !port) {
@@ -3176,20 +3168,27 @@ int bringup(const int *p_daemonize)
 
 #ifdef  USING_VMA_EXTRA_API
 	if ( !rc &&
-			(s_user_params.is_vmarxfiltercb || s_user_params.is_vmazcopyread || s_user_params.fd_handler_type == SOCKETXTREME)) {
+			(s_user_params.is_vmarxfiltercb ||
+					s_user_params.is_vmazcopyread ||
+					s_user_params.fd_handler_type == SOCKETXTREME)) {
 		// Get VMA extended API
 		g_vma_api = vma_get_api();
-		if (g_vma_api == NULL)
-			exit_with_err("VMA Extra API is required but not found", SOCKPERF_ERR_FATAL);
-		else
-			log_msg("VMA Extra API found - using VMA's receive zero copy and messages filter APIs");
+		if (g_vma_api == NULL) {
+			errno = EPERM;
+			exit_with_err("VMA Extra API is not available", SOCKPERF_ERR_FATAL);
+		} else {
+			log_msg("VMA Extra API is in use");
+		}
 
 		_vma_pkts_desc_size = sizeof(struct vma_packets_t) + sizeof(struct vma_packet_t) + sizeof(struct iovec) * 16;
 	}
 #else
 	if ( !rc &&
-	     		(s_user_params.is_vmarxfiltercb || s_user_params.is_vmazcopyread)) {
-		log_msg("This version is not compiled with VMA extra API");
+			(s_user_params.is_vmarxfiltercb ||
+					s_user_params.is_vmazcopyread ||
+					s_user_params.fd_handler_type == SOCKETXTREME)) {
+		errno = EPERM;
+		exit_with_err("Please compile with VMA Extra API to use these options", SOCKPERF_ERR_FATAL);
 	}
 #endif
 		
