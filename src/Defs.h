@@ -605,9 +605,7 @@ typedef enum { // must be coordinated with s_fds_handle_desc in common.cpp
 #ifndef WIN32
 	POLL,
 	EPOLL,
-#ifdef  USING_VMA_EXTRA_API
 	SOCKETXTREME,
-#endif
 #endif
 	FD_HANDLE_MAX
 } fd_block_handler_t;

@@ -78,13 +78,13 @@ SP_CHECK_CXXFLAGS_APPEND([OUR_CXXFLAGS], [\
 AC_ARG_ENABLE(
     [vma-api],
     AC_HELP_STRING([--enable-vma-api],
-                   [SOCKPERF: enable vma extra api support (default=yes)]),
+                   [SOCKPERF: enable vma extra api support (default=no)]),
     [have_vma_api=$enableval],
-    [have_vma_api=yes])
+    [have_vma_api=no])
 AS_IF([test "x${have_vma_api}" == "xyes"],
     [AC_CHECK_HEADER([mellanox/vma_extra.h],
         [AC_DEFINE([USING_VMA_EXTRA_API],[1],[[Enable using VMA extra API]])],
-        [AC_MSG_NOTICE([vma_extra.h file not found])]
+        [AC_MSG_ERROR([vma_extra.h file not found])]
         [have_vma_api=no])])
 AC_MSG_CHECKING(
     [for vma extra api])
