@@ -173,55 +173,40 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_t
 		return (do_update);
 	}
 #ifdef  USING_VMA_EXTRA_API
-	if (SOCKETXTREME != g_pApp->m_const_params.fd_handler_type)
+	vma_buff_t* tmp_vma_buff = g_vma_buff;
+	if (SOCKETXTREME == g_pApp->m_const_params.fd_handler_type && tmp_vma_buff) {
+		recvfrom_addr = g_vma_comps->src;
+		if (l_fds_ifd->recv.cur_offset) {
+			l_fds_ifd->recv.cur_addr = l_fds_ifd->recv.buf;
+			l_fds_ifd->recv.cur_size = l_fds_ifd->recv.max_size - l_fds_ifd->recv.cur_offset;
+			memmove(l_fds_ifd->recv.cur_addr + l_fds_ifd->recv.cur_offset, (uint8_t*)tmp_vma_buff->payload, tmp_vma_buff->len);
+		}
+		else {
+			l_fds_ifd->recv.cur_addr = (uint8_t*)tmp_vma_buff->payload;
+			l_fds_ifd->recv.cur_size = l_fds_ifd->recv.max_size;
+			l_fds_ifd->recv.cur_offset = 0;
+		}
+		ret = tmp_vma_buff->len;
+	} else
 #endif
 	{
 		ret = msg_recvfrom(ifd,
 				   l_fds_ifd->recv.cur_addr + l_fds_ifd->recv.cur_offset,
 				   l_fds_ifd->recv.cur_size,
 				   &recvfrom_addr);
-		if (unlikely(ret <= 0)) {
-			if (ret == RET_SOCKET_SHUTDOWN) {
-				if (l_fds_ifd->sock_type == SOCK_STREAM) {
-					close_ifd( l_fds_ifd->next_fd,ifd,l_fds_ifd);
-				}
-				return (do_update);
+	}
+	if (unlikely(ret <= 0)) {
+		if (ret == RET_SOCKET_SHUTDOWN) {
+			if (l_fds_ifd->sock_type == SOCK_STREAM) {
+				close_ifd( l_fds_ifd->next_fd,ifd,l_fds_ifd);
 			}
-			if (ret < 0) return (!do_update);
+			return (do_update);
 		}
+		if (ret < 0) return (!do_update);
 	}
 
 	int nbytes = ret;
-#ifdef USING_VMA_EXTRA_API
-	/* All the processing on the received data with VMA poll is done outside the msg_recvfrom.
-	 * If we intend to move it inside then we'll copy all the received data to the local buffer
-	 * and in this way we'll heart the performance.
-	 */
-	vma_buff_t* tmp_vma_buff = g_vma_buff;
-	while (nbytes || tmp_vma_buff){
-		if (tmp_vma_buff && !nbytes){
-			if (l_fds_ifd->recv.cur_offset) {
-				l_fds_ifd->recv.cur_addr = l_fds_ifd->recv.buf;
-				memcpy(l_fds_ifd->recv.cur_addr + l_fds_ifd->recv.cur_offset,(uint8_t*)tmp_vma_buff->payload, tmp_vma_buff->len);
-				recvfrom_addr = g_vma_comps->src;
-			}
-			else {
-				l_fds_ifd->recv.cur_addr = (uint8_t*)tmp_vma_buff->payload;
-				recvfrom_addr = g_vma_comps->src;
-			}
-			ret = tmp_vma_buff->len;
-			if (ret == RET_SOCKET_SHUTDOWN) {
-				if (l_fds_ifd->sock_type == SOCK_STREAM) {
-				  close_ifd( l_fds_ifd->next_fd,ifd,l_fds_ifd);
-				}
-				return (do_update);
-			}
-			if (ret < 0) return (!do_update);
-			nbytes = ret;
-		}
-#else
 	while (nbytes) {
-#endif /* USING_VMA_EXTRA_API */
 		/* 1: message header is not received yet */
 		if ((l_fds_ifd->recv.cur_offset + nbytes) < MsgHeader::EFFECTIVE_SIZE) {
 			l_fds_ifd->recv.cur_size -= nbytes;
@@ -234,25 +219,16 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_t
 				l_fds_ifd->recv.cur_size = MsgHeader::EFFECTIVE_SIZE - l_fds_ifd->recv.cur_offset;
 			}
 #ifdef USING_VMA_EXTRA_API
-			if (tmp_vma_buff){ 
-				if (!tmp_vma_buff->next) {
-					memcpy(l_fds_ifd->recv.buf, l_fds_ifd->recv.cur_addr, l_fds_ifd->recv.cur_offset);
-					return (!do_update);
-				}
-			}
-			else{
-				return (!do_update);
-			}
-#else
-			return (!do_update);
+			if (tmp_vma_buff) goto next;
 #endif
+			return (!do_update);
 		} else if (l_fds_ifd->recv.cur_offset < MsgHeader::EFFECTIVE_SIZE) {
-		  /* 2: message header is got, match message to cycle buffer */
-		  m_pMsgReply->setBuf(l_fds_ifd->recv.cur_addr);
-		  m_pMsgReply->setHeaderToHost();
-		  } else {
-		  /* 2: message header is got, match message to cycle buffer */
-		  m_pMsgReply->setBuf(l_fds_ifd->recv.cur_addr);
+			/* 2: message header is got, match message to cycle buffer */
+			m_pMsgReply->setBuf(l_fds_ifd->recv.cur_addr);
+			m_pMsgReply->setHeaderToHost();
+		} else {
+			/* 2: message header is got, match message to cycle buffer */
+			m_pMsgReply->setBuf(l_fds_ifd->recv.cur_addr);
 		}
 
 		if ( (unsigned) m_pMsgReply->getLength() > (unsigned)MAX_PAYLOAD_SIZE) {
@@ -276,18 +252,9 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_t
 				l_fds_ifd->recv.cur_size = m_pMsgReply->getLength() - l_fds_ifd->recv.cur_offset;
 			}
 #ifdef USING_VMA_EXTRA_API
-			if (tmp_vma_buff){
-				if (!tmp_vma_buff->next) {
-					memcpy(l_fds_ifd->recv.buf,l_fds_ifd->recv.cur_addr, l_fds_ifd->recv.cur_offset);
-					return (!do_update);
-				}
-			}
-			else{
-				return (!do_update);
-			}
-#else
-			return (!do_update);
+			if (tmp_vma_buff) goto next;
 #endif
+			return (!do_update);
 		}
 
 		/* 5: message is complete shift to process next one */
@@ -311,6 +278,9 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_t
 				l_fds_ifd->recv.cur_size = l_fds_ifd->recv.max_size;
 				l_fds_ifd->recv.cur_offset = 0;
 			}
+#ifdef USING_VMA_EXTRA_API
+			if (tmp_vma_buff) goto next;
+#endif
 			return (!do_update);
 		}
 
@@ -324,6 +294,9 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_t
 				l_fds_ifd->recv.cur_size = l_fds_ifd->recv.max_size;
 				l_fds_ifd->recv.cur_offset = 0;
 			}
+#ifdef USING_VMA_EXTRA_API
+			if (tmp_vma_buff) goto next;
+#endif
 			return (!do_update);
 		}
 
@@ -333,6 +306,9 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_t
 			/* if server in a no reply mode - shift to start of cycle buffer*/
 			if (g_pApp->m_const_params.b_server_dont_reply)
 			{
+#ifdef USING_VMA_EXTRA_API
+				if (tmp_vma_buff) goto next;
+#endif
 				l_fds_ifd->recv.cur_addr = l_fds_ifd->recv.buf;
 				l_fds_ifd->recv.cur_size = l_fds_ifd->recv.max_size;
 				l_fds_ifd->recv.cur_offset = 0;
@@ -370,8 +346,27 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_t
 		m_switchActivityInfo.execute(g_receiveCount);
 
 #ifdef  USING_VMA_EXTRA_API
-		if (tmp_vma_buff && !nbytes) {
-			tmp_vma_buff = tmp_vma_buff->next;
+next:
+		if (tmp_vma_buff) {
+			if (l_fds_ifd->recv.cur_offset) {
+				memmove(l_fds_ifd->recv.buf, l_fds_ifd->recv.cur_addr, l_fds_ifd->recv.cur_offset);
+				l_fds_ifd->recv.cur_addr = l_fds_ifd->recv.buf;
+				l_fds_ifd->recv.cur_size = l_fds_ifd->recv.max_size - l_fds_ifd->recv.cur_offset;
+				if (tmp_vma_buff->next) {
+				tmp_vma_buff = tmp_vma_buff->next;
+					memmove(l_fds_ifd->recv.cur_addr + l_fds_ifd->recv.cur_offset, (uint8_t*)tmp_vma_buff->payload, tmp_vma_buff->len);
+					nbytes = tmp_vma_buff->len;
+				} else {
+					return (!do_update);
+				}
+			}
+			else if (0 == nbytes && tmp_vma_buff->next) {
+				tmp_vma_buff = tmp_vma_buff->next;
+				l_fds_ifd->recv.cur_addr = (uint8_t*)tmp_vma_buff->payload;
+				l_fds_ifd->recv.cur_size = l_fds_ifd->recv.max_size;
+				l_fds_ifd->recv.cur_offset = 0;
+				nbytes = tmp_vma_buff->len;
+			}
 		}
 #endif
 	}
