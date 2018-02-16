@@ -142,88 +142,65 @@ private:
 		struct sockaddr_in recvfrom_addr;
 		int receiveCount = 0;
 		int serverNo = 0;
+		fds_data* l_fds_ifd = g_fds_array[ifd];
 
 		TicksTime rxTime;
 #ifdef  USING_VMA_EXTRA_API
-		if (SOCKETXTREME != g_pApp->m_const_params.fd_handler_type)
+		vma_buff_t* tmp_vma_buff = g_vma_buff;
+		if (SOCKETXTREME == g_pApp->m_const_params.fd_handler_type && tmp_vma_buff) {
+			recvfrom_addr = g_vma_comps->src;
+			if (l_fds_ifd->recv.cur_offset) {
+				l_fds_ifd->recv.cur_addr = l_fds_ifd->recv.buf;
+				l_fds_ifd->recv.cur_size = l_fds_ifd->recv.max_size - l_fds_ifd->recv.cur_offset;
+				memmove(l_fds_ifd->recv.cur_addr + l_fds_ifd->recv.cur_offset, (uint8_t*)tmp_vma_buff->payload, tmp_vma_buff->len);
+			}
+			else {
+				l_fds_ifd->recv.cur_addr = (uint8_t*)tmp_vma_buff->payload;
+				l_fds_ifd->recv.cur_size = l_fds_ifd->recv.max_size;
+				l_fds_ifd->recv.cur_offset = 0;
+			}
+			ret = tmp_vma_buff->len;
+		} else
 #endif
 		{
 			ret = msg_recvfrom(ifd,
-					   g_fds_array[ifd]->recv.cur_addr + g_fds_array[ifd]->recv.cur_offset,
-					   g_fds_array[ifd]->recv.cur_size,
+					   l_fds_ifd->recv.cur_addr + l_fds_ifd->recv.cur_offset,
+					   l_fds_ifd->recv.cur_size,
 					   &recvfrom_addr);
-			if (unlikely(ret <= 0)) {
-				if (ret == RET_SOCKET_SHUTDOWN) {
-					if (g_fds_array[ifd]->sock_type == SOCK_STREAM) {
-						exit_with_log("A connection was forcibly closed by a peer",SOCKPERF_ERR_SOCKET,g_fds_array[ifd]);
-					}
+		}
+		if (unlikely(ret <= 0)) {
+			if (ret == RET_SOCKET_SHUTDOWN) {
+				if (l_fds_ifd->sock_type == SOCK_STREAM) {
+					exit_with_log("A connection was forcibly closed by a peer",SOCKPERF_ERR_SOCKET,l_fds_ifd);
 				}
-				if (ret < 0) return 0;
 			}
+			if (ret < 0) return 0;
 		}
 
 		int nbytes = ret;
-#ifdef USING_VMA_EXTRA_API
-		/* All the processing on the received data with VMA poll is done outside the msg_recvfrom.
-		 * If we intend to move it inside then we'll copy all the received data to the local buffer
-		 * and in this way we'll heart the performance.
-		 */
-		vma_buff_t* tmp_vma_buff = g_vma_buff;
-		while (nbytes || tmp_vma_buff) {
-			if (tmp_vma_buff && !nbytes){
-				if (g_fds_array[ifd]->recv.cur_offset) {
-					g_fds_array[ifd]->recv.cur_addr = g_fds_array[ifd]->recv.buf;
-					memcpy(g_fds_array[ifd]->recv.cur_addr + g_fds_array[ifd]->recv.cur_offset,(uint8_t*)tmp_vma_buff->payload, tmp_vma_buff->len);
-				}
-				else {
-					g_fds_array[ifd]->recv.cur_addr = (uint8_t*)tmp_vma_buff->payload;
-				}
-				ret = tmp_vma_buff->len;
-				recvfrom_addr = g_vma_comps->src;
-				if (ret == RET_SOCKET_SHUTDOWN) {
-					if (g_fds_array[ifd]->sock_type == SOCK_STREAM) {
-						exit_with_log("A connection was forcibly closed by a peer",SOCKPERF_ERR_SOCKET,g_fds_array[ifd]);
-					}
-				}
-				if (ret < 0) return 0;
-				nbytes = ret;
-			}
-
-#else
 		while (nbytes) {
-
-#endif
 			/* 1: message header is not received yet */
-			if ((g_fds_array[ifd]->recv.cur_offset + nbytes) < MsgHeader::EFFECTIVE_SIZE) {
-				g_fds_array[ifd]->recv.cur_size -= nbytes;
-				g_fds_array[ifd]->recv.cur_offset += nbytes;
+			if ((l_fds_ifd->recv.cur_offset + nbytes) < MsgHeader::EFFECTIVE_SIZE) {
+				l_fds_ifd->recv.cur_size -= nbytes;
+				l_fds_ifd->recv.cur_offset += nbytes;
 
 				/* 4: set current buffer size to size of remained part of message header to
 				 *    guarantee getting full message header on next iteration
 				 */
-				if (g_fds_array[ifd]->recv.cur_size < MsgHeader::EFFECTIVE_SIZE) {
-					g_fds_array[ifd]->recv.cur_size = MsgHeader::EFFECTIVE_SIZE - g_fds_array[ifd]->recv.cur_offset;
+				if (l_fds_ifd->recv.cur_size < MsgHeader::EFFECTIVE_SIZE) {
+					l_fds_ifd->recv.cur_size = MsgHeader::EFFECTIVE_SIZE - l_fds_ifd->recv.cur_offset;
 				}
 #ifdef USING_VMA_EXTRA_API
-				if (tmp_vma_buff) {
-					if (!tmp_vma_buff->next){
-						memcpy(g_fds_array[ifd]->recv.buf,g_fds_array[ifd]->recv.cur_addr, g_fds_array[ifd]->recv.cur_offset);
-						return (receiveCount); 
-					}
-				}
-				else{
-					return (receiveCount);
-				}
-#else
-				return (receiveCount);
+				if (tmp_vma_buff) goto next;
 #endif
-			} else if (g_fds_array[ifd]->recv.cur_offset < MsgHeader::EFFECTIVE_SIZE) {
+				return (receiveCount);
+			} else if (l_fds_ifd->recv.cur_offset < MsgHeader::EFFECTIVE_SIZE) {
 			  /* 2: message header is got, match message to cycle buffer */
-			  m_pMsgReply->setBuf(g_fds_array[ifd]->recv.cur_addr);
+			  m_pMsgReply->setBuf(l_fds_ifd->recv.cur_addr);
 			  m_pMsgReply->setHeaderToHost();
 			} else {
 			  /* 2: message header is got, match message to cycle buffer */
-			  m_pMsgReply->setBuf(g_fds_array[ifd]->recv.cur_addr);
+			  m_pMsgReply->setBuf(l_fds_ifd->recv.cur_addr);
 			}
 
 			if (unlikely(m_pMsgReply->getSequenceCounter() > m_pMsgRequest->getSequenceCounter())) {
@@ -234,38 +211,28 @@ private:
 			}
 
 			/* 3: message is not complete */
-			if ((g_fds_array[ifd]->recv.cur_offset + nbytes) < m_pMsgReply->getLength()) {
-				g_fds_array[ifd]->recv.cur_size -= nbytes;
-				g_fds_array[ifd]->recv.cur_offset += nbytes;
+			if ((l_fds_ifd->recv.cur_offset + nbytes) < m_pMsgReply->getLength()) {
+				l_fds_ifd->recv.cur_size -= nbytes;
+				l_fds_ifd->recv.cur_offset += nbytes;
 
 				/* 4: set current buffer size to size of remained part of message to
 				 *    guarantee getting full message on next iteration (using extended reserved memory)
 				 *    and shift to start of cycle buffer
 				 */
-				if (g_fds_array[ifd]->recv.cur_size < (int)m_pMsgReply->getMaxSize()) {
-					g_fds_array[ifd]->recv.cur_size = m_pMsgReply->getLength() - g_fds_array[ifd]->recv.cur_offset;
+				if (l_fds_ifd->recv.cur_size < (int)m_pMsgReply->getMaxSize()) {
+					l_fds_ifd->recv.cur_size = m_pMsgReply->getLength() - l_fds_ifd->recv.cur_offset;
 				}
 #ifdef USING_VMA_EXTRA_API
-				if (tmp_vma_buff){
-					if (!tmp_vma_buff->next) {
-						memcpy(g_fds_array[ifd]->recv.buf,g_fds_array[ifd]->recv.cur_addr, g_fds_array[ifd]->recv.cur_offset);
-						return (receiveCount);
-					}
-				}
-				else{
-					return (receiveCount);
-				  
-				}
-#else
-				return (receiveCount);
+				if (tmp_vma_buff) goto next;
 #endif
+				return (receiveCount);
 			}
 
 			/* 5: message is complete shift to process next one */
-			nbytes -= m_pMsgReply->getLength() - g_fds_array[ifd]->recv.cur_offset;
-			g_fds_array[ifd]->recv.cur_addr += m_pMsgReply->getLength();
-			g_fds_array[ifd]->recv.cur_size -= m_pMsgReply->getLength() - g_fds_array[ifd]->recv.cur_offset;
-			g_fds_array[ifd]->recv.cur_offset = 0;
+			nbytes -= m_pMsgReply->getLength() - l_fds_ifd->recv.cur_offset;
+			l_fds_ifd->recv.cur_addr += m_pMsgReply->getLength();
+			l_fds_ifd->recv.cur_size -= m_pMsgReply->getLength() - l_fds_ifd->recv.cur_offset;
+			l_fds_ifd->recv.cur_offset = 0;
 
 #if defined(LOG_TRACE_MSG_IN) && (LOG_TRACE_MSG_IN==TRUE)
 			printf(">>> ");
@@ -274,12 +241,18 @@ private:
 
 			if (g_b_exit) return 0;
 			if (m_pMsgReply->isClient()) {
-				assert(!(g_fds_array[ifd]->is_multicast && g_pApp->m_const_params.mc_loop_disable));
+				assert(!(l_fds_ifd->is_multicast && g_pApp->m_const_params.mc_loop_disable));
+#ifdef USING_VMA_EXTRA_API
+				if (tmp_vma_buff) goto next;
+#endif
 				continue;
 			}
 
 			//should not count the warmup messages
 			if (unlikely(m_pMsgReply->isWarmupMessage())) {
+#ifdef USING_VMA_EXTRA_API
+				if (tmp_vma_buff) goto next;
+#endif
 				continue;
 			}
 
@@ -298,6 +271,9 @@ private:
 			if (m_pMsgReply->getSequenceCounter() % g_pApp->m_const_params.reply_every) {
 				log_err("skipping unexpected received message: seqNo=%" PRIu64 " mask=0x%x",
 						m_pMsgReply->getSequenceCounter(), m_pMsgReply->getFlags());
+#ifdef USING_VMA_EXTRA_API
+				if (tmp_vma_buff) goto next;
+#endif
 				continue;
 			}
 			#endif
@@ -314,8 +290,27 @@ private:
 			}
 			
 #ifdef  USING_VMA_EXTRA_API
-			if (tmp_vma_buff && !nbytes) {
-				tmp_vma_buff = tmp_vma_buff->next;
+next:
+			if (tmp_vma_buff) {
+				if (l_fds_ifd->recv.cur_offset) {
+					memmove(l_fds_ifd->recv.buf, l_fds_ifd->recv.cur_addr, l_fds_ifd->recv.cur_offset);
+					l_fds_ifd->recv.cur_addr = l_fds_ifd->recv.buf;
+					l_fds_ifd->recv.cur_size = l_fds_ifd->recv.max_size - l_fds_ifd->recv.cur_offset;
+					if (tmp_vma_buff->next) {
+					tmp_vma_buff = tmp_vma_buff->next;
+						memmove(l_fds_ifd->recv.cur_addr + l_fds_ifd->recv.cur_offset, (uint8_t*)tmp_vma_buff->payload, tmp_vma_buff->len);
+						nbytes = tmp_vma_buff->len;
+					} else {
+						return (receiveCount);
+					}
+				}
+				else if (0 == nbytes && tmp_vma_buff->next) {
+					tmp_vma_buff = tmp_vma_buff->next;
+					l_fds_ifd->recv.cur_addr = (uint8_t*)tmp_vma_buff->payload;
+					l_fds_ifd->recv.cur_size = l_fds_ifd->recv.max_size;
+					l_fds_ifd->recv.cur_offset = 0;
+					nbytes = tmp_vma_buff->len;
+				}
 			}
 #endif
 		}
@@ -324,9 +319,9 @@ private:
 		 * there is no uncompleted message
 		 */
 		if (!nbytes) {
-			g_fds_array[ifd]->recv.cur_addr = g_fds_array[ifd]->recv.buf;
-			g_fds_array[ifd]->recv.cur_size = g_fds_array[ifd]->recv.max_size;
-			g_fds_array[ifd]->recv.cur_offset = 0;
+			l_fds_ifd->recv.cur_addr = l_fds_ifd->recv.buf;
+			l_fds_ifd->recv.cur_size = l_fds_ifd->recv.max_size;
+			l_fds_ifd->recv.cur_offset = 0;
 		}
 
 		return (receiveCount);
