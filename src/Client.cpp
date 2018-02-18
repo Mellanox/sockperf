@@ -92,11 +92,12 @@ void dumpFullLog(int serverNo, RecordLog* pFullLog, size_t size, TicksDuration *
 	if (!f || !size) return;
 
 	fprintf(f, "------------------------------\n");
-	fprintf(f, "txTime, rxTime\n");
+	fprintf(f, "packet, txTime(sec), rxTime(sec), latency(usec)\n");
 	for (size_t i = 0; i < size; i++) {
 		double tx = (double)pFullLog[i][0].debugToNsec()/1000/1000/1000;
 		double rx = (double)pFullLog[i][1].debugToNsec()/1000/1000/1000;
-		fprintf(f, "%.9lf, %.9lf\n", tx, rx);
+		double latency = (rx - tx) * (USEC_PER_SEC / 2);
+		fprintf(f, "%zu, %.9lf, %.9lf, %.3lf\n", i, tx, rx, latency);
 	}
 	fprintf(f, "------------------------------\n");
 }
