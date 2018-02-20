@@ -14,8 +14,8 @@ cd ${build_dir}
 ln -s "${build_dir}/0/install" "${install_dir}"
 
 build_list="\
-default: "
-
+default: \
+debug:--enable-debug"
 
 build_tap=${WORKSPACE}/${prefix}/build.tap
 echo "1..$(echo $build_list | tr " " "\n" | wc -l)" > $build_tap
