@@ -14,14 +14,14 @@ if [ $# -lt 1 ]; then
 fi
 
 SRCRPM_FILE=`readlink -f $1`
-APP_NAME_VER=`basename --suffix $SRCRPM_EXT $SRCRPM_FILE` # sockperf-2.7-13.gitd8618862f05d.dirty
+APP_NAME_VER=`basename $SRCRPM_FILE $SRCRPM_EXT` # sockperf-2.7-13.gitd8618862f05d.dirty
 FULL_VER=${APP_NAME_VER#$APP_NAME-} # 2.7-13.gitd8618862f05d.dirty
 VERSION=${FULL_VER%%-*}       # 2.7
 
 TEMP_DIR=/tmp/for-deb-$APP_NAME_VER
 rm -rf $TEMP_DIR; mkdir $TEMP_DIR; cd $TEMP_DIR
 rpm2cpio $SRCRPM_FILE | cpio -i 2> /dev/null # extract *.src.rpm
-OLD_NAME=`basename --suffix $TARBALL_EXT $APP_NAME-*$TARBALL_EXT`
+OLD_NAME=`basename $APP_NAME-*$TARBALL_EXT $TARBALL_EXT`
 
 ln -s $OLD_NAME$TARBALL_EXT ${APP_NAME}_${VERSION}.orig$TARBALL_EXT
 tar xf $OLD_NAME$TARBALL_EXT

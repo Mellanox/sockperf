@@ -42,14 +42,8 @@ APP_SPEC=$RPM_DIR/SPECS/$APP_NAME_VER.spec
 sed -e s/__GIT_REF__/$GIT_REF/g -e s/__VERSION__/$VERSION/g -e s/__RELEASE__/$RELEASE/g ./build/$APP_NAME.spec.in > $APP_SPEC
 sed -i -e s/__VERSION__/$VERSION/g -e s/__RELEASE__/$RELEASE/g -e s/__APP_NAME__/$APP_NAME/g -e "s/__DATE__/$DATE/g" -e "s/__MAINTAINER__/$MAINTAINER/g" debian/* 2> /dev/null || true
 
-#rm `find -name config.guess` 2> /dev/null || true
 
 ./autogen.sh
-if ! grep ppc64le --silent -r --include config.guess .
-then
-	echo ERROR: try newer build machine for supporting ppc64le
-	exit 17
-fi
 
 tar -zcf $RPM_DIR/SOURCES/$DIRNAME.tar.gz --exclude .git  -C .. $DIRNAME
 rpmbuild -bs --define 'dist %{nil}' --define '_source_filedigest_algorithm md5' --define '_binary_filedigest_algorithm md5' --rmsource --rmspec --define "_topdir $RPM_DIR" $APP_SPEC

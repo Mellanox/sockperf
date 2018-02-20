@@ -14,10 +14,12 @@ rpm_tap=${WORKSPACE}/${prefix}/rpm.tap
 
 cd ${build_dir}/0
 
-if [ -x /usr/bin/dpkg-buildpackage ]; then
+if [ -f "/etc/debian_version" -o "$(grep -Ei 'debian|buntu|mint' /etc/*release)" ]; then
     echo "Build on debian"
     set +e
-    ${WORKSPACE}/build/build-rpm-to-deb.sh 2> "${rpm_dir}/rpm-deb.err" 1> "${rpm_dir}/rpm-deb.log"
+    ${WORKSPACE}/build/build-rpm.sh "$rpm_dir" 2> "${rpm_dir}/rpm.err" 1> "${rpm_dir}/rpm.log"
+    rc=$((rc + $?))
+    ${WORKSPACE}/build/build-rpm-to-deb.sh $(find $rpm_dir/SRPMS -maxdepth 1 -type f -name "sockperf*.src.rpm") 2> "${rpm_dir}/rpm-deb.err" 1> "${rpm_dir}/rpm-deb.log"
     rc=$((rc + $?))
     do_archive "${rpm_dir}/*.err" "${rpm_dir}/*.log"
     set -e

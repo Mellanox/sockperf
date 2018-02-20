@@ -74,7 +74,7 @@ for target_v in "${target_list[@]}"; do
     ret=0
     IFS=':' read target_name target_option <<< "$target_v"
 
-    export jenkins_test_artifacts="${WORKSPACE}/${prefix}/vma-${BUILD_NUMBER}-$(hostname -s)-${target_name}"
+    export jenkins_test_artifacts="${WORKSPACE}/${prefix}/sockperf-${BUILD_NUMBER}-$(hostname -s)-${target_name}"
     export jenkins_test_custom_configure="${target_option}"
     export jenkins_target="${target_name}"
     set +x
