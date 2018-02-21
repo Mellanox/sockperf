@@ -26,12 +26,12 @@
  * OF SUCH DAMAGE.
  *
  */
-#include "Defs.h"
-#include "Playback.h"
-#include "Client.h"
-#include "IoHandlers.h"
-#include "PacketTimes.h"
-#include "Switches.h"
+#include "defs.h"
+#include "playback.h"
+#include "client.h"
+#include "iohandlers.h"
+#include "packet.h"
+#include "switches.h"
 
 TicksTime s_startTime, s_endTime;
 

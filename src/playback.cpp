@@ -30,9 +30,9 @@
 #include <vector>
 #include <fstream>
 #include <iostream>
-#include "Defs.h"
-#include "Playback.h"
-#include "Ticks.h"
+#include "defs.h"
+#include "playback.h"
+#include "ticks.h"
 
 // How to build unit test: g++ Playback.cpp Ticks.cpp -lrt -Wall -Dplayback_test=main -o playback
 

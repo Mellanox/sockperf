@@ -26,9 +26,9 @@
  * OF SUCH DAMAGE.
  *
  */
-#include "Server.h"
-#include "IoHandlers.h"
-#include "Switches.h"
+#include "server.h"
+#include "iohandlers.h"
+#include "switches.h"
 
 // static members initialization
 /*static*/ seq_num_map SwitchOnCalcGaps::ms_seq_num_map;

@@ -204,7 +204,7 @@ void hexdump(void *ptr, int buflen)
 //------------------------------------------------------------------------------
 const char* handler2str( fd_block_handler_t type )
 {
-	 // must be coordinated with fd_block_handler_t in Defs.h
+	 // must be coordinated with fd_block_handler_t in defs.h
 	static const char* s_fds_handle_desc[FD_HANDLE_MAX] =
 	{
 		"recvfrom",

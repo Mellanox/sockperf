@@ -75,9 +75,9 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include "common.h"
-#include "Message.h"
-#include "PacketTimes.h"
-#include "Switches.h"
+#include "message.h"
+#include "packet.h"
+#include "switches.h"
 #include "aopt.h"
 #include <stdio.h>
 #include <sys/stat.h>

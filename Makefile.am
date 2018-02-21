@@ -18,29 +18,29 @@ bin_PROGRAMS = sockperf
 sockperf_SOURCES = \
 	src/aopt.cpp \
 	src/aopt.h \
-	src/Client.cpp \
-	src/Client.h \
+	src/client.cpp \
+	src/client.h \
 	src/clock.h \
 	src/common.cpp \
 	src/common.h \
-	src/Defs.cpp \
-	src/Defs.h \
-	src/IoHandlers.cpp \
-	src/IoHandlers.h \
-	src/Message.cpp \
-	src/Message.h \
+	src/defs.cpp \
+	src/defs.h \
+	src/iohandlers.cpp \
+	src/iohandlers.h \
+	src/message.cpp \
+	src/message.h \
 	src/os_abstract.cpp \
 	src/os_abstract.h \
-	src/PacketTimes.cpp \
-	src/PacketTimes.h \
-	src/Playback.cpp \
-	src/Playback.h \
-	src/Server.cpp \
-	src/Server.h \
-	src/SockPerf.cpp \
-	src/Switches.h \
-	src/Ticks.cpp \
-	src/Ticks.h \
+	src/packet.cpp \
+	src/packet.h \
+	src/playback.cpp \
+	src/playback.h \
+	src/server.cpp \
+	src/server.h \
+	src/sockperf.cpp \
+	src/switches.h \
+	src/ticks.cpp \
+	src/ticks.h \
 	src/ticks_os.h \
 	src/vma-redirect.cpp \
 	src/vma-redirect.h
