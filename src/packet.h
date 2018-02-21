@@ -30,7 +30,7 @@
 #define PACKETTIMES_H_
 
 #include <stdint.h> // for uint64_t
-#include "Ticks.h"
+#include "ticks.h"
 #include <stdexcept>
 #include "common.h"
 

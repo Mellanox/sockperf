@@ -26,7 +26,7 @@
  * OF SUCH DAMAGE.
  *
  */
-#include "Message.h"
+#include "message.h"
 
 #ifndef __FreeBSD__
 #include <malloc.h>

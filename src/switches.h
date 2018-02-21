@@ -29,11 +29,11 @@
 #ifndef SWITCHES_H_
 #define SWITCHES_H_
 
-#include "Defs.h"
+#include "defs.h"
 #include "common.h"
-#include "Message.h"
-#include "Ticks.h"
-#include "PacketTimes.h"
+#include "message.h"
+#include "ticks.h"
+#include "packet.h"
 
 //==============================================================================
 class SwitchOff {

@@ -29,9 +29,9 @@
 #ifndef __INC_COMMON_H__
 #define __INC_COMMON_H__
 
-#include "Defs.h"
-//#include "Switches.h"
-#include "Message.h"
+#include "defs.h"
+//#include "switches.h"
+#include "message.h"
 
 extern user_params_t	s_user_params;
 //------------------------------------------------------------------------------
