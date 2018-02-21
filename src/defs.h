@@ -92,9 +92,9 @@ typedef uint16_t in_port_t;
 #include <queue>
 #include <map>
 
-#include "Ticks.h"
-#include "Message.h"
-#include "Playback.h"
+#include "ticks.h"
+#include "message.h"
+#include "playback.h"
 
 #if ! defined (WIN32) && ! defined (__FreeBSD__)
 	#include "vma-redirect.h"
