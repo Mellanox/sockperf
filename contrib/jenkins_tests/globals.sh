@@ -34,6 +34,7 @@ rpm_dir=${WORKSPACE}/${prefix}/rpm
 cov_dir=${WORKSPACE}/${prefix}/cov
 cppcheck_dir=${WORKSPACE}/${prefix}/cppcheck
 csbuild_dir=${WORKSPACE}/${prefix}/csbuild
+style_dir=${WORKSPACE}/${prefix}/style
 
 
 nproc=$(grep processor /proc/cpuinfo|wc -l)

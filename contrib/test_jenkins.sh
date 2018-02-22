@@ -58,6 +58,7 @@ jenkins_test_cov=${jenkins_test_cov:="no"}
 jenkins_test_cppcheck=${jenkins_test_cppcheck:="yes"}
 jenkins_test_csbuild=${jenkins_test_csbuild:="no"}
 jenkins_test_run=${jenkins_test_run:="no"}
+jenkins_test_style=${jenkins_test_style:="no"}
 
 
 echo Starting on host: $(hostname)
@@ -153,6 +154,16 @@ for target_v in "${target_list[@]}"; do
 	        ret=$?
 	        if [ $ret -gt 0 ]; then
 	           do_err "case: [test: ret=$ret]"
+	        fi
+	        rc=$((rc + $ret))
+	    fi
+    fi
+    if [ 7 -lt "$jenkins_opt_exit" -o "$rc" -eq 0 ]; then
+	    if [ "$jenkins_test_style" = "yes" ]; then
+	        $WORKSPACE/contrib/jenkins_tests/style.sh
+	        ret=$?
+	        if [ $ret -gt 0 ]; then
+	           do_err "case: [style: ret=$ret]"
 	        fi
 	        rc=$((rc + $ret))
 	    fi
