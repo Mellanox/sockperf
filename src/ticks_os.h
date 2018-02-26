@@ -1,5 +1,5 @@
- /*
- * Copyright (c) 2011 Mellanox Technologies Ltd.
+/*
+ * Copyright (c) 2011-2018 Mellanox Technologies Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -24,8 +24,8 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY
  * OF SUCH DAMAGE.
- *
  */
+
 /**
  * @file ticks_os.h
  *
@@ -34,16 +34,16 @@
  * using QueryPerformanceFrequency() and QueryPerformanceCounter() for max accuracy.
  *
  *
- * @author  Meny Yossefi <menyy@mellanox.com> 
+ * @author  Meny Yossefi <menyy@mellanox.com>
  *
  **/
 #ifndef _TICKS_OS_H_
 #define _TICKS_OS_H_
 
-#include <time.h>		/* clock_gettime()*/
+#include <time.h> /* clock_gettime()*/
 #include <exception>
-#include <stdint.h>// for int64_t
-#include <stdlib.h>// for qsort
+#include <stdint.h> // for int64_t
+#include <stdlib.h> // for qsort
 #include "clock.h"
 
 typedef int64_t ticks_t;
@@ -53,82 +53,84 @@ typedef int64_t ticks_t;
 #include <WinSock2.h>
 #include <Winbase.h>
 
-#pragma warning( disable : 4290 ) //exception specification ignored except to indicate a function is not __declspec(nothrow)
-#pragma warning( disable : 4996 ) //The compiler encountered a function that was marked with deprecated.
+#pragma warning(disable : 4290) // exception specification ignored except to indicate a function is
+                                // not __declspec(nothrow)
+#pragma warning(disable                                                                            \
+                : 4996) // The compiler encountered a function that was marked with deprecated.
 
-#define		usleep(x)			Sleep (x/1000)
-#define		snprintf			_snprintf
+#define usleep(x) Sleep(x / 1000)
+#define snprintf _snprintf
 
- struct timespec
-  {
-    time_t		tv_sec;			//Seconds.
-    long int	tv_nsec;		//Nanoseconds.
- };
+struct timespec {
+    time_t tv_sec;    // Seconds.
+    long int tv_nsec; // Nanoseconds.
+};
 
 #endif
 
 /**
  * RDTSC extensions
  */
-#define TSCVAL_INITIALIZER	(0)
+#define TSCVAL_INITIALIZER (0)
 
-static const int64_t NSEC_IN_SEC  = 1000*1000*1000;
-//Utility function
-inline ticks_t timespec2nsec(const struct timespec &_val) { return NSEC_IN_SEC*_val.tv_sec + _val.tv_nsec; }
+static const int64_t NSEC_IN_SEC = 1000 * 1000 * 1000;
+// Utility function
+inline ticks_t timespec2nsec(const struct timespec &_val) {
+    return NSEC_IN_SEC * _val.tv_sec + _val.tv_nsec;
+}
 
-inline ticks_t os_gettimeoftsc()
-{
+inline ticks_t os_gettimeoftsc() {
 #ifdef WIN32
-		LARGE_INTEGER lp;
-		double PCFreq = 0.0;
-		QueryPerformanceFrequency(&lp);
-		PCFreq = (double(lp.QuadPart))/(double)NSEC_IN_SEC; // NanoSec
-		QueryPerformanceCounter(&lp);
-		lp.QuadPart = (LONGLONG) ((lp.QuadPart) / (PCFreq));
-		return (ticks_t)(lp.QuadPart);
+    LARGE_INTEGER lp;
+    double PCFreq = 0.0;
+    QueryPerformanceFrequency(&lp);
+    PCFreq = (double(lp.QuadPart)) / (double)NSEC_IN_SEC; // NanoSec
+    QueryPerformanceCounter(&lp);
+    lp.QuadPart = (LONGLONG)((lp.QuadPart) / (PCFreq));
+    return (ticks_t)(lp.QuadPart);
 #else
-	register uint32_t upper_32, lower_32;
+    register uint32_t upper_32, lower_32;
 
-#if defined (__powerpc64__)
-	unsigned long long ret;
-	asm volatile ("mftb %0" : "=r" (ret) : );
-	return (ticks_t)ret;
-#elif defined (__s390__)
-	unsigned long long ret;
-	asm volatile ("stck %0" : "=Q" (ret) : : "cc");
-	return (ticks_t)ret;
+#if defined(__powerpc64__)
+    unsigned long long ret;
+    asm volatile("mftb %0" : "=r"(ret) :);
+    return (ticks_t)ret;
+#elif defined(__s390__)
+    unsigned long long ret;
+    asm volatile("stck %0" : "=Q"(ret) : : "cc");
+    return (ticks_t)ret;
 #elif defined(__arm__) || defined(__aarch64__)
-	// so the compiler will not complain. for
-	// arm compile, this inline is not used 
-	// since no rdtsc supported on most arm processors
-	upper_32 = lower_32 = 0;
-	/*throw("rdtsc not supported in arm");*/
+    // so the compiler will not complain. for
+    // arm compile, this inline is not used
+    // since no rdtsc supported on most arm processors
+    upper_32 = lower_32 = 0;
+/*throw("rdtsc not supported in arm");*/
 #else
-	// ReaD Time Stamp Counter (RDTCS)
-	__asm__ __volatile__("rdtsc" : "=a" (lower_32), "=d" (upper_32));
+    // ReaD Time Stamp Counter (RDTCS)
+    __asm__ __volatile__("rdtsc" : "=a"(lower_32), "=d"(upper_32));
 #endif
-	// Return to user
-	return (((ticks_t)upper_32) << 32) | lower_32;
+    // Return to user
+    return (((ticks_t)upper_32) << 32) | lower_32;
 #endif
 }
 
-inline void os_ts_gettimeofclock(struct timespec *pts)   {
+inline void os_ts_gettimeofclock(struct timespec *pts) {
 #ifdef WIN32
-	ticks_t val = os_gettimeoftsc();  // probably just NSEC_IN_SEC
-	pts->tv_sec = val / NSEC_IN_SEC;
-	pts->tv_nsec = val % NSEC_IN_SEC;
+    ticks_t val = os_gettimeoftsc(); // probably just NSEC_IN_SEC
+    pts->tv_sec = val / NSEC_IN_SEC;
+    pts->tv_nsec = val % NSEC_IN_SEC;
 #else
 
-	if (clock_gettime(CLOCK_MONOTONIC, pts)) {
-		throw("clock_gettime failed");
-	}
+    if (clock_gettime(CLOCK_MONOTONIC, pts)) {
+        throw("clock_gettime failed");
+    }
 #endif
 }
 
-inline ticks_t os_gettimeofclock()   {
-	struct timespec ts;
-	os_ts_gettimeofclock(&ts);
-	return timespec2nsec(ts);
+inline ticks_t os_gettimeofclock() {
+    struct timespec ts;
+    os_ts_gettimeofclock(&ts);
+    return timespec2nsec(ts);
 }
 
 #endif /*_TICKS_OS_H_*/

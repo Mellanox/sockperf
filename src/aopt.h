@@ -1,5 +1,5 @@
- /*
- * Copyright (c) 2011 Mellanox Technologies Ltd.
+/*
+ * Copyright (c) 2011-2018 Mellanox Technologies Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -24,12 +24,12 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY
  * OF SUCH DAMAGE.
- *
  */
+
 /**
  * @file aopt.h
  *
- * @brief   aOpt is tiny set of ANSI C library functions for parsing command line. 
+ * @brief   aOpt is tiny set of ANSI C library functions for parsing command line.
  *
  * @details This module is written in ANSI C89. Support short and long styles of
  *          option. Automatic error messages can be turned on by _AOPT_CONF_TRACE==TRUE.
@@ -39,82 +39,71 @@
  *          short style: -o123, -o 123, -o=123, -o
  *          long style: --option 123, --option=123, --option
  *
- * @author  Igor Ivanov <Igor.Ivanov@itseez.com> 
+ * @author  Igor Ivanov <Igor.Ivanov@itseez.com>
  *
  **/
 #ifndef _AOPT_H_
 #define _AOPT_H_
 
-
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-
-/** 
+/**
  * @enum AOPT_TYPE
  * @brief Define option type.
  */
-typedef enum
-{
-    AOPT_NOARG      = 0,        /**< option does not have value */
-    AOPT_REPEAT     = 1,        /**< option can appear few times */
-    AOPT_ARG        = 2,        /**< option should have value */
-    AOPT_OPTARG     = 4         /**< option can have value */
+typedef enum {
+    AOPT_NOARG = 0,  /**< option does not have value */
+    AOPT_REPEAT = 1, /**< option can appear few times */
+    AOPT_ARG = 2,    /**< option should have value */
+    AOPT_OPTARG = 4  /**< option can have value */
 } AOPT_TYPE;
-
 
 /**
  * @def AOPT_MAX_NUMBER
  * @brief Maximum number of options
  */
-#define AOPT_MAX_NUMBER    4
-
+#define AOPT_MAX_NUMBER 4
 
 /**
  * @struct _AOPT_DESC
- * @brief 
+ * @brief
  *      Description of supported options.
  */
-typedef struct _AOPT_DESC
-{
-    int key;                                    /**< unique identifier */
-    AOPT_TYPE   flags;                          /**< option type */
-    const char  shorts[AOPT_MAX_NUMBER];        /**< short name */
-    const char* const longs[AOPT_MAX_NUMBER];   /**< long name */
-    const char *note;                           /**< option description */
+typedef struct _AOPT_DESC {
+    int key;                                  /**< unique identifier */
+    AOPT_TYPE flags;                          /**< option type */
+    const char shorts[AOPT_MAX_NUMBER];       /**< short name */
+    const char *const longs[AOPT_MAX_NUMBER]; /**< long name */
+    const char *note;                         /**< option description */
 } AOPT_DESC;
-
 
 /**
  * @struct _AOPT_OBJECT
- * @brief 
+ * @brief
  *      Option container.
  */
-typedef struct _AOPT_OBJECT
-{
-    int key;                    /**< unique identifier */
-    const char *arg;            /**< option value */
+typedef struct _AOPT_OBJECT {
+    int key;         /**< unique identifier */
+    const char *arg; /**< option value */
 } AOPT_OBJECT;
-
 
 /**
  * @def aopt_set_literal
- * @brief 
+ * @brief
  *      Set option as literal.
  */
-#define aopt_set_literal( ... ) \
+#define aopt_set_literal(...)                                                                      \
     { __VA_ARGS__, 0 }
-
 
 /**
  * @def aopt_set_string
- * @brief 
+ * @brief
  *      Set option as string.
  */
-#define aopt_set_string( ... ) \
+#define aopt_set_string(...)                                                                       \
     { __VA_ARGS__, NULL }
-
 
 /**
  * aopt_init
@@ -130,20 +119,18 @@ typedef struct _AOPT_OBJECT
  * @retval pointer to object - on success
  * @retval NULL - on failure
  ***************************************************************************/
-const AOPT_OBJECT* aopt_init( int *argc, const char **argv, const AOPT_DESC *desc );
-
+const AOPT_OBJECT *aopt_init(int *argc, const char **argv, const AOPT_DESC *desc);
 
 /**
  * aopt_exit
  *
  * @brief
- *    The function is used as a destructor. Releases memory allocated in 
+ *    The function is used as a destructor. Releases memory allocated in
  *    the corresponding call. Object can not be used later.
  *
  * @return @a none
  ***************************************************************************/
-void aopt_exit( AOPT_OBJECT *aopt_obj );
-
+void aopt_exit(AOPT_OBJECT *aopt_obj);
 
 /**
  * aopt_check
@@ -157,8 +144,7 @@ void aopt_exit( AOPT_OBJECT *aopt_obj );
  * @retval (>0) - on success
  * @retval ( 0) - on failure
  ***************************************************************************/
-int aopt_check( const AOPT_OBJECT *aopt_obj, int key );
-
+int aopt_check(const AOPT_OBJECT *aopt_obj, int key);
 
 /**
  * aopt_value
@@ -172,16 +158,15 @@ int aopt_check( const AOPT_OBJECT *aopt_obj, int key );
  * @retval pointer to value - on success
  * @retval NULL - on failure
  ***************************************************************************/
-const char* aopt_value( const AOPT_OBJECT *aopt_obj, int key );
-
+const char *aopt_value(const AOPT_OBJECT *aopt_obj, int key);
 
 /**
  * aopt_help
  *
  * @brief
  *    This function form help information  basing options description and
- *    return string with one. The string should be freed using the free() 
- *    function when you are done with it. NULL is returned if the it would 
+ *    return string with one. The string should be freed using the free()
+ *    function when you are done with it. NULL is returned if the it would
  *    produce an empty string or if the string cannot be allocated.
  *
  * @param[in]    desc           Option description.
@@ -189,8 +174,7 @@ const char* aopt_value( const AOPT_OBJECT *aopt_obj, int key );
  * @retval pointer to string - on success
  * @retval NULL - on failure
  ***************************************************************************/
-const char* aopt_help( const AOPT_DESC *desc );
-
+const char *aopt_help(const AOPT_DESC *desc);
 
 /**
  * isNumeric
@@ -202,14 +186,10 @@ const char* aopt_help( const AOPT_DESC *desc );
  *
  * @retval 1 if numeric, 0 otherwise.
  ***************************************************************************/
-int isNumeric (const char* arg);
-
+int isNumeric(const char *arg);
 
 #ifdef __cplusplus
 }
 #endif
 
-
 #endif /* _AOPT_H_ */
-
-
