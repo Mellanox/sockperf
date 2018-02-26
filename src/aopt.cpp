@@ -1,5 +1,5 @@
- /*
- * Copyright (c) 2011 Mellanox Technologies Ltd.
+/*
+ * Copyright (c) 2011-2018 Mellanox Technologies Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -24,8 +24,8 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY
  * OF SUCH DAMAGE.
- *
  */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -34,20 +34,19 @@
 
 #include "aopt.h"
 
-#define _AOPT_CONF_TRACE 	TRUE
+#define _AOPT_CONF_TRACE TRUE
 
 #if defined(_MSC_VER)
-    #ifndef snprintf
-        #define snprintf _snprintf
-    #endif
+#ifndef snprintf
+#define snprintf _snprintf
+#endif
 #endif
 
-#if defined(_AOPT_CONF_TRACE) && (_AOPT_CONF_TRACE==TRUE)
-    #define AOPT_TRACE(fmt, ...)  printf(fmt, ##__VA_ARGS__)
+#if defined(_AOPT_CONF_TRACE) && (_AOPT_CONF_TRACE == TRUE)
+#define AOPT_TRACE(fmt, ...) printf(fmt, ##__VA_ARGS__)
 #else
-    #define AOPT_TRACE(fmt, ...)
+#define AOPT_TRACE(fmt, ...)
 #endif /* _AOPT_CONF_TRACE */
-
 
 /**
  * aopt_init
@@ -63,82 +62,66 @@
  * @retval pointer to object - on success
  * @retval NULL - on failure
  ***************************************************************************/
-const AOPT_OBJECT* aopt_init( int *argc, const char **argv, const AOPT_DESC *desc )
-{
+const AOPT_OBJECT *aopt_init(int *argc, const char **argv, const AOPT_DESC *desc) {
     AOPT_OBJECT *arg_obj = NULL;
     int status = 0;
 
-    if (*argc)
-    {
-        const char* const *arg_p= argv + 1;
-        size_t opt_count= 0;
+    if (*argc) {
+        const char *const *arg_p = argv + 1;
+        size_t opt_count = 0;
 
         if (*arg_p && '-' != (*arg_p)[0]) {
-        	*argc=0;
-        	return NULL;
+            *argc = 0;
+            return NULL;
         }
 
-        for( ; *arg_p; ++arg_p )
-        {
-            if( '-' == (*arg_p)[0] && (*arg_p)[1] )
-            {
+        for (; *arg_p; ++arg_p) {
+            if ('-' == (*arg_p)[0] && (*arg_p)[1]) {
                 ++opt_count;
             }
         }
-        if (opt_count)
-        {
-            arg_obj= (AOPT_OBJECT*)malloc( (opt_count + 1) * sizeof(AOPT_OBJECT) );
+        if (opt_count) {
+            arg_obj = (AOPT_OBJECT *)malloc((opt_count + 1) * sizeof(AOPT_OBJECT));
             memset(arg_obj, 0, (opt_count + 1) * sizeof(AOPT_OBJECT));
         }
     }
-    if (arg_obj)
-    {
-        const char **arg_p= argv + 1;
-        AOPT_OBJECT *next_option= arg_obj;
+    if (arg_obj) {
+        const char **arg_p = argv + 1;
+        AOPT_OBJECT *next_option = arg_obj;
         *argc = 0;
 
-        for( ; *arg_p; arg_p++ )
-        {
-            if( '-' == (*arg_p)[0] && (*arg_p)[1] )
-            {
+        for (; *arg_p; arg_p++) {
+            if ('-' == (*arg_p)[0] && (*arg_p)[1]) {
                 /* process valid short option (-) */
                 int token_type = ('-' == (*arg_p)[1] ? 2 : 1);
                 const char *token_opt = (*arg_p) + token_type;
                 const char *token_arg = NULL;
 
-                if (!(*token_opt))
-                {
+                if (!(*token_opt)) {
                     status = __LINE__;
                     AOPT_TRACE("Incorrect token %s\n", (*arg_p));
-                }
-                else
-                {
-                    const AOPT_DESC *opt_spec_p= desc;
-        
-                    for( ; (opt_spec_p->key && !status); opt_spec_p++ )
-                    {
+                } else {
+                    const AOPT_DESC *opt_spec_p = desc;
+
+                    for (; (opt_spec_p->key && !status); opt_spec_p++) {
                         /*
                          * Accept -o123, -o 123, -o=123, -o
                          */
-                        if ( (token_type == 1) && strchr( opt_spec_p->shorts, *token_opt ))
-                        {
+                        if ((token_type == 1) && strchr(opt_spec_p->shorts, *token_opt)) {
                             token_arg = token_opt + 1;
                         }
-                        
+
                         /*
                          * Accept --option 123, --option=123, --option
                          */
-                        if ( token_type == 2)
-                        {
+                        if (token_type == 2) {
                             const char *desc_long = *opt_spec_p->longs;
                             int i = 0;
 
-                            for (i = 0; ((i < AOPT_MAX_NUMBER) && (desc_long)); i++)
-                            {
-                                if (!strncmp(token_opt, desc_long, strlen(desc_long)))
-                                {
-                                    if (!token_opt[strlen(desc_long)] || (token_opt[strlen(desc_long)] == '='))
-                                    {
+                            for (i = 0; ((i < AOPT_MAX_NUMBER) && (desc_long)); i++) {
+                                if (!strncmp(token_opt, desc_long, strlen(desc_long))) {
+                                    if (!token_opt[strlen(desc_long)] ||
+                                        (token_opt[strlen(desc_long)] == '=')) {
                                         token_arg = token_opt + strlen(desc_long);
                                         break;
                                     }
@@ -146,60 +129,53 @@ const AOPT_OBJECT* aopt_init( int *argc, const char **argv, const AOPT_DESC *des
                             }
                         }
 
-                        if (!status && token_arg)
-                        {
-                            /* 
+                        if (!status && token_arg) {
+                            /*
                              * check if option can be repeatable
                              */
-                            if( !( opt_spec_p->flags & AOPT_REPEAT ))
-                            {
-                                const AOPT_OBJECT *opt_p= arg_obj;
+                            if (!(opt_spec_p->flags & AOPT_REPEAT)) {
+                                const AOPT_OBJECT *opt_p = arg_obj;
 
-                                for( ; opt_p != next_option; ++opt_p )
-                                {
-                                    if( opt_p->key == opt_spec_p->key )
-                                    {
+                                for (; opt_p != next_option; ++opt_p) {
+                                    if (opt_p->key == opt_spec_p->key) {
                                         status = __LINE__;
-                                        AOPT_TRACE("Option %s should not be repeatable\n", (*arg_p));
+                                        AOPT_TRACE("Option %s should not be repeatable\n",
+                                                   (*arg_p));
                                     }
                                 }
                             }
 
-                            if (!status)
-                            {
+                            if (!status) {
                                 /* set option identifier */
                                 next_option->key = opt_spec_p->key;
 
                                 /* set option argument */
-                                next_option->arg= NULL;
+                                next_option->arg = NULL;
 
                                 /* have valid token (option) and count it */
                                 (*argc)++;
 
-                                if ( (opt_spec_p->flags & AOPT_ARG) || (opt_spec_p->flags & AOPT_OPTARG) )
-                                {
-                                    /* 
+                                if ((opt_spec_p->flags & AOPT_ARG) ||
+                                    (opt_spec_p->flags & AOPT_OPTARG)) {
+                                    /*
                                      * check if argument follows the option and =  in the same token
                                      * Example : [-o=1234]
                                      */
-                                    if ( (token_arg[0] == '=') && token_arg[1] )
-                                    {
+                                    if ((token_arg[0] == '=') && token_arg[1]) {
                                         next_option->arg = token_arg + 1;
                                     }
-                                    /* 
+                                    /*
                                      * check if argument follows the option in the same token
                                      * Example : [-o1234]
                                      */
-                                    else if ( token_arg[0] )
-                                    {
+                                    else if (token_arg[0]) {
                                         next_option->arg = token_arg;
                                     }
-                                    /* 
+                                    /*
                                      * check if argument follows the option next token
                                      * Example : [-o] [1234]
                                      */
-                                    else if ( (*(arg_p + 1)) && ((*(arg_p + 1))[0] != '-') )
-                                    {
+                                    else if ((*(arg_p + 1)) && ((*(arg_p + 1))[0] != '-')) {
                                         arg_p++;
                                         next_option->arg = *arg_p;
 
@@ -209,19 +185,16 @@ const AOPT_OBJECT* aopt_init( int *argc, const char **argv, const AOPT_DESC *des
                                     /*
                                      * check if argument is mandatory
                                      */
-                                    else if ( opt_spec_p->flags & AOPT_ARG )
-                                    {
+                                    else if (opt_spec_p->flags & AOPT_ARG) {
                                         status = __LINE__;
                                         AOPT_TRACE("Option %s should have an argument\n", (*arg_p));
                                         (*argc)--;
                                     }
-                                }
-                                else
-                                {
-                                    if ( token_arg[0] )
-                                    {
+                                } else {
+                                    if (token_arg[0]) {
                                         status = __LINE__;
-                                        AOPT_TRACE("Option %s should not have an argument\n", (*arg_p));
+                                        AOPT_TRACE("Option %s should not have an argument\n",
+                                                   (*arg_p));
                                         (*argc)--;
                                     }
                                 }
@@ -230,13 +203,10 @@ const AOPT_OBJECT* aopt_init( int *argc, const char **argv, const AOPT_DESC *des
                         }
                     }
 
-                    if (opt_spec_p->key)
-                    {
+                    if (opt_spec_p->key) {
                         /* move to the next frame */
                         next_option++;
-                    }
-                    else
-                    {
+                    } else {
 #if 0 /* check unsupported options */
                         status = __LINE__;
                         AOPT_TRACE("Token %s is incorrect\n", (*arg_p));
@@ -247,10 +217,8 @@ const AOPT_OBJECT* aopt_init( int *argc, const char **argv, const AOPT_DESC *des
         }
     }
 
-    if (status)
-    {
-        if (arg_obj)
-        {
+    if (status) {
+        if (arg_obj) {
             free(arg_obj);
             arg_obj = NULL;
         }
@@ -262,24 +230,20 @@ const AOPT_OBJECT* aopt_init( int *argc, const char **argv, const AOPT_DESC *des
     return arg_obj;
 }
 
-
 /**
  * aopt_exit
  *
  * @brief
- *    The function is used as a destructor. Releases memory allocated in 
+ *    The function is used as a destructor. Releases memory allocated in
  *    the corresponding call. Object can not be used later.
  *
  * @return @a none
  ***************************************************************************/
-void aopt_exit( AOPT_OBJECT *aopt_obj )
-{
-    if (aopt_obj)
-    {
+void aopt_exit(AOPT_OBJECT *aopt_obj) {
+    if (aopt_obj) {
         free(aopt_obj);
     }
 }
-
 
 /**
  * aopt_check
@@ -293,14 +257,11 @@ void aopt_exit( AOPT_OBJECT *aopt_obj )
  * @retval (>0) - on success
  * @retval ( 0) - on failure
  ***************************************************************************/
-int aopt_check( const AOPT_OBJECT *aopt_obj, int key )
-{
+int aopt_check(const AOPT_OBJECT *aopt_obj, int key) {
     int count = 0;
 
-    while ( aopt_obj && aopt_obj->key )
-    {
-        if ( aopt_obj->key == key ) 
-        {
+    while (aopt_obj && aopt_obj->key) {
+        if (aopt_obj->key == key) {
             count++;
         }
         aopt_obj++;
@@ -308,7 +269,6 @@ int aopt_check( const AOPT_OBJECT *aopt_obj, int key )
 
     return count;
 }
-
 
 /**
  * aopt_value
@@ -322,14 +282,11 @@ int aopt_check( const AOPT_OBJECT *aopt_obj, int key )
  * @retval pointer to value - on success
  * @retval NULL - on failure
  ***************************************************************************/
-const char* aopt_value( const AOPT_OBJECT *aopt_obj, int key )
-{
+const char *aopt_value(const AOPT_OBJECT *aopt_obj, int key) {
     const char *value = NULL;
 
-    while ( aopt_obj && aopt_obj->key )
-    {
-        if ( aopt_obj->key == key ) 
-        {
+    while (aopt_obj && aopt_obj->key) {
+        if (aopt_obj->key == key) {
             value = aopt_obj->arg;
             break;
         }
@@ -339,14 +296,13 @@ const char* aopt_value( const AOPT_OBJECT *aopt_obj, int key )
     return value;
 }
 
-
 /**
  * aopt_help
  *
  * @brief
  *    This function form help informaion  basing options description and
- *    return string with one. The string should be freed using the free() 
- *    function when you are done with it. NULL is returned if the it would 
+ *    return string with one. The string should be freed using the free()
+ *    function when you are done with it. NULL is returned if the it would
  *    produce an empty string or if the string cannot be allocated.
  *
  * @param[in]    desc           Option description.
@@ -354,30 +310,27 @@ const char* aopt_value( const AOPT_OBJECT *aopt_obj, int key )
  * @retval pointer to string - on success
  * @retval NULL - on failure
  ***************************************************************************/
-const char* aopt_help( const AOPT_DESC *desc )
-{
+const char *aopt_help(const AOPT_DESC *desc) {
     char *buf = NULL;
     int buf_size = 256;
     int buf_offset = 0;
 
-    if (desc)
-    {
+    if (desc) {
         char *buf_temp = NULL;
         int ret = 0;
 
-        buf = (char*)malloc(buf_size);
+        buf = (char *)malloc(buf_size);
         memset(buf, 0, buf_size);
 
-        for (; desc && desc->key && buf; desc++)
-        {
-        	if ( NULL == desc->note) //ignore values without a description
-        	{
-        		continue;
-        	}
+        for (; desc && desc->key && buf; desc++) {
+            if (NULL == desc->note) // ignore values without a description
+            {
+                continue;
+            }
             char buf_short[10];
             char buf_long[50];
             const char *cur_ptr_short = NULL;
-            const char* const *cur_ptr_long = NULL;
+            const char *const *cur_ptr_long = NULL;
             int cur_len_short = 0;
             int cur_len_long = 0;
 
@@ -388,14 +341,11 @@ const char* aopt_help( const AOPT_DESC *desc )
             cur_ptr_short = desc->shorts;
             cur_len_short = 0;
             ret = 0;
-            while (cur_ptr_short && (*cur_ptr_short) && (ret >= 0))
-            {
-                ret = snprintf( (buf_short + cur_len_short),
-                                sizeof(buf_short) - cur_len_short,
-                                (ret ? ",-%c" : "-%c"), 
-                                (isprint(*cur_ptr_short) ? *cur_ptr_short : '.'));
-                if (ret < 0)
-                {
+            while (cur_ptr_short && (*cur_ptr_short) && (ret >= 0)) {
+                ret = snprintf((buf_short + cur_len_short), sizeof(buf_short) - cur_len_short,
+                               (ret ? ",-%c" : "-%c"),
+                               (isprint(*cur_ptr_short) ? *cur_ptr_short : '.'));
+                if (ret < 0) {
                     /* size of buffer is exceeded */
                     free(buf);
                     buf = NULL;
@@ -409,14 +359,10 @@ const char* aopt_help( const AOPT_DESC *desc )
             cur_ptr_long = desc->longs;
             cur_len_long = 0;
             ret = 0;
-            while (cur_ptr_long && (*cur_ptr_long)  && (ret >= 0))
-            {
-                ret = snprintf( (buf_long + cur_len_long),
-                                sizeof(buf_long) - cur_len_long,
-                                (ret ? ",--%s" : "--%s"), 
-                                (*cur_ptr_long ? *cur_ptr_long : ""));
-                if (ret < 0)
-                {
+            while (cur_ptr_long && (*cur_ptr_long) && (ret >= 0)) {
+                ret = snprintf((buf_long + cur_len_long), sizeof(buf_long) - cur_len_long,
+                               (ret ? ",--%s" : "--%s"), (*cur_ptr_long ? *cur_ptr_long : ""));
+                if (ret < 0) {
                     /* size of buffer is exceeded */
                     free(buf);
                     buf = NULL;
@@ -427,41 +373,32 @@ const char* aopt_help( const AOPT_DESC *desc )
             }
 
             /* form help for current option */
-            while (buf) 
-            {
-            	char format[50];
+            while (buf) {
+                char format[50];
 
-            	if (strlen(buf_long) > 21 )
-            	{
-            		sprintf(format, " %%-7s %%-21s\n %-7s %-21s\t-%%s\n", "", "");
-            	}
-            	else
-            	{
-            		sprintf(format, " %%-7s %%-21s\t-%%s\n");
-            	}
+                if (strlen(buf_long) > 21) {
+                    sprintf(format, " %%-7s %%-21s\n %-7s %-21s\t-%%s\n", "", "");
+                } else {
+                    sprintf(format, " %%-7s %%-21s\t-%%s\n");
+                }
 
-            	ret = snprintf( (buf + buf_offset),
-                                (buf_size - buf_offset),
-                                 format,
-                                 buf_short, 
-                                 buf_long, 
-                                 (desc->note ? desc->note : ""));
+                ret = snprintf((buf + buf_offset), (buf_size - buf_offset), format, buf_short,
+                               buf_long, (desc->note ? desc->note : ""));
 
                 /* If that worked, return */
-                if (ret > -1 && ret <= (buf_size - buf_offset - 1))
-                {
+                if (ret > -1 && ret <= (buf_size - buf_offset - 1)) {
                     buf_offset += ret;
                     break;
                 }
 
                 /* Else try again with more space. */
-                if (ret > -1)     /* ISO/IEC 9899:1999 */
+                if (ret > -1) /* ISO/IEC 9899:1999 */
                     buf_size = buf_offset + ret + 1;
-                else            /* twice the old size */
+                else /* twice the old size */
                     buf_size *= 2;
 
                 buf_temp = buf;
-                buf = (char*)malloc(buf_size);
+                buf = (char *)malloc(buf_size);
                 memset(buf, 0, buf_size);
                 memcpy(buf, buf_temp, buf_offset);
                 free(buf_temp);
@@ -472,13 +409,12 @@ const char* aopt_help( const AOPT_DESC *desc )
     return buf;
 }
 
-int isNumeric (const char* arg)
-{
-	while (*arg) {
-	    if(!isdigit(*arg)) {
-      		return 0;
-		}
-    	arg++;
-  	}
-	return 1;
+int isNumeric(const char *arg) {
+    while (*arg) {
+        if (!isdigit(*arg)) {
+            return 0;
+        }
+        arg++;
+    }
+    return 1;
 }
