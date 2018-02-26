@@ -1,5 +1,5 @@
- /*
- * Copyright (c) 2011 Mellanox Technologies Ltd.
+/*
+ * Copyright (c) 2011-2018 Mellanox Technologies Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -24,24 +24,23 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY
  * OF SUCH DAMAGE.
- *
  */
-#ifndef __Playback_h__
-#define __Playback_h__
+
+#ifndef PLAYBACK_H_
+#define PLAYBACK_H_
 
 #include <vector>
 #include "ticks.h"
 
-
 struct PlaybackItem {
-  TicksDuration duration;
-  int size;
-  bool isValid() {return duration > TicksDuration::TICKS0 && size >= 14 && size <= 64000;}
+    TicksDuration duration;
+    int size;
+    bool isValid() { return duration > TicksDuration::TICKS0 && size >= 14 && size <= 64000; }
 };
 
 typedef std::vector<PlaybackItem> PlaybackVector;
 
-/// main interface to the module
+// main interface to the module
 void loadPlaybackData(PlaybackVector &pv, const char *filename);
 
-#endif //!__Playback_h__
+#endif /* PLAYBACK_H__ */

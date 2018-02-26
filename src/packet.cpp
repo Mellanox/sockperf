@@ -1,5 +1,5 @@
- /*
- * Copyright (c) 2011 Mellanox Technologies Ltd.
+/*
+ * Copyright (c) 2011-2018 Mellanox Technologies Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -24,8 +24,8 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY
  * OF SUCH DAMAGE.
- *
  */
+
 #include <stdexcept>
 #include "defs.h"
 #include "packet.h"
@@ -33,30 +33,31 @@
 #include "common.h"
 
 PacketTimes::PacketTimes(uint64_t _maxSequenceNo, uint64_t _replyEvery, uint64_t _numServers)
-	: m_maxSequenceNo(_maxSequenceNo)
-	, m_replyEvery(_replyEvery)
-	, m_blockSize(1 + _numServers) // 1 sent + N replies
-	, m_pTimes (new TicksTime[ (_maxSequenceNo / _replyEvery + 1) * m_blockSize])//_maxSequenceNo/_replyEvery+1 is _numBlocks rounded up
-	, m_pInternalUse(&m_pTimes[1])
-	, m_pErrors(new ArrivalErrors[_numServers])
-{
-/*
-	log_msg("m_maxSequenceNo=%lu, m_replyEvery=%lu, m_blockSize=%lu, m_pTimes=%p[%lu], m_pInternalUse=%p, m_pErrors=%p[%lu]"
+    : m_maxSequenceNo(_maxSequenceNo), m_replyEvery(_replyEvery),
+      m_blockSize(1 + _numServers) // 1 sent + N replies
+      ,
+      m_pTimes(new TicksTime[(_maxSequenceNo / _replyEvery + 1) *
+                             m_blockSize]) //_maxSequenceNo/_replyEvery+1 is _numBlocks rounded up
+      ,
+      m_pInternalUse(&m_pTimes[1]), m_pErrors(new ArrivalErrors[_numServers]) {
+    /*
+        log_msg("m_maxSequenceNo=%lu, m_replyEvery=%lu, m_blockSize=%lu, m_pTimes=%p[%lu],
+    m_pInternalUse=%p, m_pErrors=%p[%lu]"
 
-			, m_maxSequenceNo, m_replyEvery, m_blockSize, m_pTimes
-			, (_maxSequenceNo / _replyEvery + 1) * m_blockSize
-			, m_pInternalUse
-			, m_pErrors, _numServers
-			);
-//*/
+                , m_maxSequenceNo, m_replyEvery, m_blockSize, m_pTimes
+                , (_maxSequenceNo / _replyEvery + 1) * m_blockSize
+                , m_pInternalUse
+                , m_pErrors, _numServers
+                );
+    //*/
 }
 
 PacketTimes::~PacketTimes() {
-	delete[] m_pTimes;
-	delete[] m_pErrors;
+    delete[] m_pTimes;
+    delete[] m_pErrors;
 }
 
 bool PacketTimes::verifyError(uint64_t _seqNo) {
-	exit_with_err("_seqN > m_maxSequenceNo", SOCKPERF_ERR_FATAL);
-	return false;
+    exit_with_err("_seqN > m_maxSequenceNo", SOCKPERF_ERR_FATAL);
+    return false;
 }
