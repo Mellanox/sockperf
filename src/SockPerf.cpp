@@ -167,7 +167,7 @@ static const AOPT_DESC  common_opt_desc[] =
 	},
 	{
 		'f', AOPT_ARG, aopt_set_literal( 'f' ), aopt_set_string( "file" ),
-		"Read multiple ip+port combinations from file <file> (will use IO muxer '-F' such as epoll, poll or select)"
+		"Read list of connections from file (used in pair with -F option)."
 	},
 	{
 		'F', AOPT_ARG, aopt_set_literal( 'F' ), aopt_set_string( "iomux-type" ),
