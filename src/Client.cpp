@@ -159,7 +159,7 @@ void client_statistics(int serverNo, Message *pMsgRequest)
 			(double)testStart.debugToNsec()/1000/1000/1000, (double)testEnd.debugToNsec()/1000/1000/1000);
 
 	TicksDuration *pLat = new TicksDuration[SIZE];
-	RecordLog *pFullLog = new RecordLog[SIZE];
+	RecordLog *pFullLog = g_pApp->m_const_params.fileFullLog ? new RecordLog[SIZE] : NULL;
 
 	TicksDuration rtt;
 	TicksDuration sumRtt(0);
@@ -202,8 +202,11 @@ void client_statistics(int serverNo, Message *pMsgRequest)
 			continue;
 		}
 
-		pFullLog[lcounter][0] = txTime;
-		pFullLog[lcounter][1] = rxTime;
+		if (g_pApp->m_const_params.fileFullLog) {
+			pFullLog[lcounter][0] = txTime;
+			pFullLog[lcounter][1] = rxTime;
+		}
+
 		lcounter++;
 
 		endValidSeqNo = seqNo;
