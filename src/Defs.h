@@ -208,7 +208,8 @@ enum {
 	OPT_LLS,                        //39
 	OPT_MC_SOURCE_IP,               //40
 	OPT_DUMMY_SEND,                 //41
-	OPT_RATE_LIMIT                  //42
+	OPT_RATE_LIMIT,                 //42
+	OPT_UC_REUSEADDR                //43
 };
 
 #define MODULE_NAME			"sockperf"
@@ -638,6 +639,7 @@ struct user_params_t {
 	bool is_vmazcopyread;
 	TicksDuration cycleDuration;
 	bool mc_loop_disable;
+	bool uc_reuseaddr;
 	int client_work_with_srv_num;
 	bool b_server_reply_via_uc;
 	bool b_server_dont_reply;
