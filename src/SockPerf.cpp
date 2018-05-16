@@ -231,7 +231,7 @@ static const AOPT_DESC  common_opt_desc[] =
 	},
 	{
 		OPT_UC_REUSEADDR, AOPT_NOARG, aopt_set_literal( 0 ), aopt_set_string( "uc-reuseaddr" ),
-		"Enables uc reuse address (default disabled)."
+		"Enables unicast reuse address (default disabled)."
 	},
 	{
 		OPT_LLS, AOPT_ARG, aopt_set_literal( 0 ), aopt_set_string( "lls" ),
