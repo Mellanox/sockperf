@@ -230,6 +230,10 @@ static const AOPT_DESC  common_opt_desc[] =
 		"Set address <ip, hostname> of mulitcast messages source which is allowed to receive from."
 	},
 	{
+		OPT_UC_REUSEADDR, AOPT_NOARG, aopt_set_literal( 0 ), aopt_set_string( "uc-reuseaddr" ),
+		"Enables unicast reuse address (default disabled)."
+	},
+	{
 		OPT_LLS, AOPT_ARG, aopt_set_literal( 0 ), aopt_set_string( "lls" ),
 		"Turn on LLS via socket option (value = usec to poll)."
 	},
@@ -1838,6 +1842,10 @@ static int parse_common_opt( const AOPT_OBJECT *common_obj )
 			s_user_params.mc_loop_disable = false;
 		}
 
+		if ( !rc && aopt_check(common_obj, OPT_UC_REUSEADDR) ) {
+			s_user_params.uc_reuseaddr = true;
+		}
+
 		if ( !rc && aopt_check(common_obj, OPT_BUFFER_SIZE) ) {
 			const char* optarg = aopt_value(common_obj, OPT_BUFFER_SIZE);
 			if (optarg) {
@@ -2311,6 +2319,7 @@ void set_defaults()
 	s_user_params.is_vmazcopyread = false;
 	g_debug_level = LOG_LVL_INFO;
 	s_user_params.mc_loop_disable = true;
+	s_user_params.uc_reuseaddr = false;
 	s_user_params.client_work_with_srv_num = DEFAULT_CLIENT_WORK_WITH_SRV_NUM;
 	s_user_params.b_server_reply_via_uc = false;
 	s_user_params.b_server_dont_reply=false;
@@ -2775,11 +2784,12 @@ int prepare_socket(int fd, struct fds_data *p_data)
 	}
 
 	if (!rc &&
+			((p_data->is_multicast) || (s_user_params.uc_reuseaddr)) &&
 			((s_user_params.mode == MODE_SERVER && p_data->server_addr.sin_port) ||
 			 (s_user_params.mode == MODE_CLIENT && s_user_params.client_bind_info.sin_port)))
 	{
 		/* allow multiple sockets to use the same PORT (SO_REUSEADDR) number
-		 * only if it is a well know L4 port (TCP or UDP MC/UC)
+		 * only if it is a well know L4 port only for MC or if uc_reuseaddr parameter was set.
 		 */
 		rc = sock_set_reuseaddr(fd);
 	}
@@ -3458,6 +3468,7 @@ is_vmarxfiltercb = %d \n\t\
 is_vmazcopyread = %d \n\t\
 mc_loop_disable = %d \n\t\
 mc_ttl = %d \n\t\
+uc_reuseaddr = %d \n\t\
 tcp_nodelay = %d \n\t\
 client_work_with_srv_num = %d \n\t\
 b_server_reply_via_uc = %d \n\t\
@@ -3497,6 +3508,7 @@ s_user_params.is_vmarxfiltercb,
 s_user_params.is_vmazcopyread,
 s_user_params.mc_loop_disable,
 s_user_params.mc_ttl,
+s_user_params.uc_reuseaddr,
 s_user_params.tcp_nodelay,
 s_user_params.client_work_with_srv_num,
 s_user_params.b_server_reply_via_uc,
