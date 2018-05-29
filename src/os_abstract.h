@@ -1,5 +1,5 @@
- /*
- * Copyright (c) 2011 Mellanox Technologies Ltd.
+/*
+ * Copyright (c) 2011-2018 Mellanox Technologies Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -24,8 +24,8 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY
  * OF SUCH DAMAGE.
- *
  */
+
 /**
  * @file os_abstract.h
  *
@@ -38,60 +38,58 @@
 #ifndef _OS_ABSTRACT_H_
 #define _OS_ABSTRACT_H_
 
-#include <time.h>		/* clock_gettime()*/
-#include <sys/types.h>		/* sockets*/
+#include <time.h>      /* clock_gettime()*/
+#include <sys/types.h> /* sockets*/
 #include "ticks_os.h"
-
 
 /***********************************************************************************
 *				 WIN32
 ***********************************************************************************/
 
-#ifdef WIN32 
+#ifdef WIN32
 
-#include <Dbghelp.h>		// backtrace
+#include <Dbghelp.h> // backtrace
 #include <signal.h>
 #include <Winsock2.h>
 
 #ifdef _M_IX86
-	#define PRIu64			"llu"
-	#define PRId64			"lld"
+#define PRIu64 "llu"
+#define PRId64 "lld"
 #elif defined _M_X64
-	#define PRIu64			"lu"
-	#define PRId64			"ld"
+#define PRIu64 "lu"
+#define PRId64 "ld"
 #endif
 
-#define		sleep(x)		Sleep (x*1000)
-#define		close(x)		CloseHandle(&x)
+#define sleep(x) Sleep(x * 1000)
+#define close(x) CloseHandle(&x)
 
-#define		IP_MAX_MEMBERSHIPS	20	//ported from Linux
-#define		MAX_OPEN_FILES     	65535
-#define		_SECOND			10000000 //timer (SetWaitableTimer)
-#define		SIGALRM			999
+#define IP_MAX_MEMBERSHIPS 20 // ported from Linux
+#define MAX_OPEN_FILES 65535
+#define _SECOND 10000000 // timer (SetWaitableTimer)
+#define SIGALRM 999
 
-#define		__CPU_SETSIZE		1024	 //ported from Linux
-#define		__NCPUBITS		(8 * sizeof (__cpu_mask)) //ported from Linux
-#define		CPU_SETSIZE		__CPU_SETSIZE
-#define		__func__		__FUNCTION__
+#define __CPU_SETSIZE 1024                  // ported from Linux
+#define __NCPUBITS (8 * sizeof(__cpu_mask)) // ported from Linux
+#define CPU_SETSIZE __CPU_SETSIZE
+#define __func__ __FUNCTION__
 
-//Socket api
-#define 	inet_aton(x,y)		inet_pton(AF_INET,x,y)
-#define 	getsockopt(a,b,c,d,e)	getsockopt (a,b,c,(char *)d,e)
-#define 	setsockopt(a,b,c,d,e)	setsockopt (a,b,c,(char *)d,e)
-#define 	recvfrom(a,b,c,d,e,f)	recvfrom(a,(char *)b,c,d,e,f)
-#define 	sendto(a,b,c,d,e,f)	sendto(a,(char *)b,c,d,e,f)
+// Socket api
+#define inet_aton(x, y) inet_pton(AF_INET, x, y)
+#define getsockopt(a, b, c, d, e) getsockopt(a, b, c, (char *)d, e)
+#define setsockopt(a, b, c, d, e) setsockopt(a, b, c, (char *)d, e)
+#define recvfrom(a, b, c, d, e, f) recvfrom(a, (char *)b, c, d, e, f)
+#define sendto(a, b, c, d, e, f) sendto(a, (char *)b, c, d, e, f)
 
- /* Type of the second argument to `getitimer' and
-   the second and third arguments `setitimer'.  */
-struct itimerval
-  {
+/* Type of the second argument to `getitimer' and
+  the second and third arguments `setitimer'.  */
+struct itimerval {
     /* Value to put into `it_value' when the timer expires.  */
     struct timeval it_interval;
     /* Time to the next timer expiration.  */
     struct timeval it_value;
-  };
+};
 
-void* win_set_timer(void *p_timer);
+void *win_set_timer(void *p_timer);
 
 #else
 
@@ -99,7 +97,7 @@ void* win_set_timer(void *p_timer);
 *				UNIX
 ***********************************************************************************/
 
-#include <execinfo.h>  // for backtraces
+#include <execinfo.h> // for backtraces
 #include <pthread.h>
 #include <signal.h>
 #include <sys/time.h>
@@ -110,8 +108,6 @@ void* win_set_timer(void *p_timer);
 #include <netinet/in.h>
 
 #define INVALID_SOCKET (-1)
-
-
 
 /***********************************************************************************
 *				FreeBSD
@@ -126,7 +122,6 @@ void* win_set_timer(void *p_timer);
 #define htonll htonl
 #define ntohll ntohl
 
-
 /***********************************************************************************
 *				Linux
 ***********************************************************************************/
@@ -140,15 +135,15 @@ void* win_set_timer(void *p_timer);
 #ifndef htobe64
 #ifdef __USE_BSD
 /* Conversion interfaces.  */
-# include <bits/byteswap.h>
+#include <bits/byteswap.h>
 
-# if __BYTE_ORDER == __LITTLE_ENDIAN
-#  define htobe64(x) __bswap_64 (x)
-#  define be64toh(x) __bswap_64 (x)
-# else
-#  define htobe64(x) (x)
-#  define be64toh(x) (x)
-# endif
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+#define htobe64(x) __bswap_64(x)
+#define be64toh(x) __bswap_64(x)
+#else
+#define htobe64(x) (x)
+#define be64toh(x) (x)
+#endif
 #endif
 #endif
 
@@ -162,121 +157,128 @@ void* win_set_timer(void *p_timer);
 
 #endif
 #endif
- 
+
 /***********************************************************************************
 *				Common
 ***********************************************************************************/
 
 typedef struct os_thread_t {
 #ifdef WIN32
-	HANDLE hThread;
-	DWORD tid;
+    HANDLE hThread;
+    DWORD tid;
 #else
-	pthread_t tid;
+    pthread_t tid;
 #endif
 } os_thread_t;
 
 typedef struct os_mutex_t {
 #ifndef WIN32
-	pthread_mutex_t mutex;
+    pthread_mutex_t mutex;
 #else
-	HANDLE mutex;
+    HANDLE mutex;
 #endif
 } os_mutex_t;
 
 typedef struct os_cpuset_t {
 #ifdef WIN32
-	DWORD_PTR cpuset;
+    DWORD_PTR cpuset;
 #elif __FreeBSD__
-	cpuset_t cpuset;
+    cpuset_t cpuset;
 #else
-	cpu_set_t cpuset;
+    cpu_set_t cpuset;
 #endif
 } os_cpuset_t;
 
+typedef void sig_handler(int signum);
+void os_set_signal_action(int signum, sig_handler handler);
+void os_printf_backtrace(void);
+int os_set_nonblocking_socket(int fd);
+int os_daemonize();
+int os_set_duration_timer(const itimerval &timer, sig_handler handler);
+int os_get_max_active_fds_num();
+bool os_sock_startup();
+bool os_sock_cleanup();
 
-typedef void 		sig_handler(int signum);
-void 			os_set_signal_action(int signum, sig_handler handler);
-void			os_printf_backtrace(void);
-int			os_set_nonblocking_socket(int fd);
-int			os_daemonize();
-int 			os_set_duration_timer(const itimerval &timer, sig_handler handler);
-int			os_get_max_active_fds_num();
-bool			os_sock_startup();
-bool			os_sock_cleanup();
-
-//Colors
+// Colors
 #ifdef WIN32
-	#define MAGNETA		""
-	#define RED		""
-	#define ENDCOLOR	""
+#define MAGNETA ""
+#define RED ""
+#define ENDCOLOR ""
 #else
-	#define MAGNETA		"\e[2;35m"
-	#define RED		"\e[0;31m"
-	#define ENDCOLOR	"\e[0m"
+#define MAGNETA "\e[2;35m"
+#define RED "\e[0;31m"
+#define ENDCOLOR "\e[0m"
 #endif
 
-//Thread functions
+// Thread functions
 
-void			os_thread_init (os_thread_t * thr);
-void			os_thread_close (os_thread_t * thr);
-void			os_thread_detach (os_thread_t * thr);
-int			os_thread_exec (os_thread_t * thr, void *(*start) (void *), void *arg);
-void			os_thread_kill (os_thread_t * thr);
-void			os_thread_join (os_thread_t *thr);
-os_thread_t		os_getthread(void);
+void os_thread_init(os_thread_t *thr);
+void os_thread_close(os_thread_t *thr);
+void os_thread_detach(os_thread_t *thr);
+int os_thread_exec(os_thread_t *thr, void *(*start)(void *), void *arg);
+void os_thread_kill(os_thread_t *thr);
+void os_thread_join(os_thread_t *thr);
+os_thread_t os_getthread(void);
 
-//Mutex functions
+// Mutex functions
 
-void			os_mutex_init (os_mutex_t * lock);
-void			os_mutex_close (os_mutex_t * lock);
-void			os_mutex_lock (os_mutex_t * lock);
-void			os_mutex_unlock (os_mutex_t * lock);
+void os_mutex_init(os_mutex_t *lock);
+void os_mutex_close(os_mutex_t *lock);
+void os_mutex_lock(os_mutex_t *lock);
+void os_mutex_unlock(os_mutex_t *lock);
 
-//CPUset functions
+// CPUset functions
 
-void 			os_init_cpuset(os_cpuset_t *_mycpuset);
-void			os_cpu_set(os_cpuset_t *_mycpuset, long _cpu_from, long _cpu_cur);
-int			os_set_affinity(const os_thread_t &thread, const os_cpuset_t &_mycpuset);
-
+void os_init_cpuset(os_cpuset_t *_mycpuset);
+void os_cpu_set(os_cpuset_t *_mycpuset, long _cpu_from, long _cpu_cur);
+int os_set_affinity(const os_thread_t &thread, const os_cpuset_t &_mycpuset);
 
 // ERRORS
 
-inline bool os_err_in_progress()
-{
+inline bool os_err_in_progress() {
 #ifdef WIN32
-	// In Windows it's WSAEINPROGRESS for blocking sockets and WSAEWOULDBLOCK for non-vlocking sockets
-	return (WSAGetLastError() == WSAEWOULDBLOCK || WSAGetLastError() == WSAEINPROGRESS);
+    // In Windows it's WSAEINPROGRESS for blocking sockets and WSAEWOULDBLOCK for non-vlocking
+    // sockets
+    return (WSAGetLastError() == WSAEWOULDBLOCK || WSAGetLastError() == WSAEINPROGRESS);
 #else
-	return (errno == EINPROGRESS);
+    return (errno == EINPROGRESS);
 #endif
 }
 
-inline bool os_err_eagain()
-{
+inline bool os_err_eagain() {
 #ifdef WIN32
-	return (WSAGetLastError() == WSAEWOULDBLOCK);
+    return (WSAGetLastError() == WSAEWOULDBLOCK);
 #else
-	return (errno == EAGAIN);
+    return (errno == EAGAIN);
 #endif
 }
 
-inline bool os_err_conn_reset()
-{
+inline bool os_err_conn_reset() {
 #ifdef WIN32
-	return (WSAGetLastError() == WSAECONNRESET);
+    return (WSAGetLastError() == WSAECONNRESET);
 #else
-	return (errno == ECONNRESET);
+    return (errno == ECONNRESET);
 #endif
 }
 
 #ifdef WIN32
-#define _max(x,y)	max(x,y)
-#define _min(x,y)	min(x,y)
+#define _max(x, y) max(x, y)
+#define _min(x, y) min(x, y)
 #else
-#define _max(x,y)	({typeof(x) _x = (x); typeof(y) _y = (y); (void)(&_x == &_y); _x > _y ? _x : _y; })
-#define _min(x,y)	({typeof(x) _x = (x); typeof(y) _y = (y); (void)(&_x == &_y); _x < _y ? _x : _y; })
+#define _max(x, y)                                                                                 \
+    ({                                                                                             \
+        typeof(x) _x = (x);                                                                        \
+        typeof(y) _y = (y);                                                                        \
+        (void)(&_x == &_y);                                                                        \
+        _x > _y ? _x : _y;                                                                         \
+    })
+#define _min(x, y)                                                                                 \
+    ({                                                                                             \
+        typeof(x) _x = (x);                                                                        \
+        typeof(y) _y = (y);                                                                        \
+        (void)(&_x == &_y);                                                                        \
+        _x < _y ? _x : _y;                                                                         \
+    })
 #endif
-
 
 #endif /*_OS_ABSTRACT_H_*/
