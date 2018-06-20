@@ -464,7 +464,7 @@ static int _connect_check_vma(int ifd) {
         rc = SOCKPERF_ERR_SOCKET;
         return rc;
     }
-    while (poll == 0) {
+    while (!g_b_exit && poll == 0) {
         struct vma_completion_t vma_comps;
         poll = g_vma_api->socketxtreme_poll(ring_fd, &vma_comps, 1, 0);
         if (poll > 0) {
