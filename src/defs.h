@@ -216,8 +216,11 @@ enum {
     OPT_MC_SOURCE_IP,             // 40
     OPT_DUMMY_SEND,               // 41
     OPT_RATE_LIMIT,               // 42
-    OPT_UC_REUSEADDR              // 43
+    OPT_UC_REUSEADDR,             // 43
+    OPT_FULL_RTT                  // 44
 };
+
+static const char *const round_trip_str[] = { "latency", "rtt" };
 
 #define MODULE_NAME "sockperf"
 #define MODULE_COPYRIGHT                                                                           \
@@ -651,6 +654,7 @@ struct user_params_t {
     char sender_affinity[MAX_ARGV_SIZE];
     char receiver_affinity[MAX_ARGV_SIZE];
     FILE *fileFullLog;               // client side only
+    bool full_rtt;                   // client side only
     bool giga_size;                  // client side only
     bool increase_output_precision;  // client side only
     bool b_stream;                   // client side only

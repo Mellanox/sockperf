@@ -39,12 +39,14 @@ TicksTime s_startTime, s_endTime;
 //==============================================================================
 
 //------------------------------------------------------------------------------
-void print_average_latency(double usecAvarageLatency) {
+void print_average_results(double usecAvarage) {
     if (g_pApp->m_const_params.burst_size == 1) {
-        log_msg("Summary: Latency is %.3lf usec", usecAvarageLatency);
+        log_msg("Summary: %s is %.3lf usec",
+                g_pApp->m_const_params.full_rtt ? "Round trip" : "Latency", usecAvarage);
     } else {
-        log_msg("Summary: Latency of burst of %d messages is %.3lf usec",
-                g_pApp->m_const_params.burst_size, usecAvarageLatency);
+        log_msg("Summary: %s of burst of %d messages is %.3lf usec",
+                g_pApp->m_const_params.full_rtt ? "Round trip" : "Latency",
+                g_pApp->m_const_params.burst_size, usecAvarage);
     }
 }
 
@@ -88,15 +90,17 @@ typedef TicksTime RecordLog[2];
 //------------------------------------------------------------------------------
 void dumpFullLog(int serverNo, RecordLog *pFullLog, size_t size, TicksDuration *pLat) {
     FILE *f = g_pApp->m_const_params.fileFullLog;
+    uint32_t denominator = g_pApp->m_const_params.full_rtt ? 1 : 2;
     if (!f || !size) return;
 
     fprintf(f, "------------------------------\n");
-    fprintf(f, "packet, txTime(sec), rxTime(sec), latency(usec)\n");
+    fprintf(f, "packet, txTime(sec), rxTime(sec), %s(usec)\n",
+            round_trip_str[g_pApp->m_const_params.full_rtt]);
     for (size_t i = 0; i < size; i++) {
         double tx = (double)pFullLog[i][0].debugToNsec() / 1000 / 1000 / 1000;
         double rx = (double)pFullLog[i][1].debugToNsec() / 1000 / 1000 / 1000;
-        double latency = (rx - tx) * (USEC_PER_SEC / 2);
-        fprintf(f, "%zu, %.9lf, %.9lf, %.3lf\n", i, tx, rx, latency);
+        double result = (rx - tx) * (USEC_PER_SEC / denominator);
+        fprintf(f, "%zu, %.9lf, %.9lf, %.3lf\n", i, tx, rx, result);
     }
     fprintf(f, "------------------------------\n");
 }
@@ -171,6 +175,7 @@ void client_statistics(int serverNo, Message *pMsgRequest) {
     TicksTime prevRxTime;
     TicksTime startValidTime;
     TicksTime endValidTime;
+    uint32_t denominator = g_pApp->m_const_params.full_rtt ? 1 : 2;
     uint64_t startValidSeqNo = 0;
     uint64_t endValidSeqNo = 0;
     for (size_t i = 1; (counter < SIZE) && (testStart < testEnd); i++) {
@@ -217,7 +222,7 @@ void client_statistics(int serverNo, Message *pMsgRequest) {
         rtt = rxTime - txTime;
 
         sumRtt += rtt;
-        pLat[counter] = rtt / 2;
+        pLat[counter] = rtt / denominator;
 
         prevRxTime = rxTime;
         counter++;
@@ -235,10 +240,13 @@ void client_statistics(int serverNo, Message *pMsgRequest) {
 
         TicksDuration avgRtt = counter ? sumRtt / (int)counter : TicksDuration::TICKS0;
         TicksDuration avgLatency = avgRtt / 2;
+        double usecAvarage =
+            g_pApp->m_const_params.full_rtt ? avgRtt.toDecimalUsec() : avgLatency.toDecimalUsec();
 
         TicksDuration stdDev = TicksDuration::stdDev(pLat, counter);
-        log_msg_file2(f, MAGNETA "====> avg-lat=%7.3lf (std-dev=%.3lf)" ENDCOLOR,
-                      avgLatency.toDecimalUsec(), stdDev.toDecimalUsec());
+        log_msg_file2(f, MAGNETA "====> avg-%s=%.3lf (std-dev=%.3lf)" ENDCOLOR,
+                      round_trip_str[g_pApp->m_const_params.full_rtt], usecAvarage,
+                      stdDev.toDecimalUsec());
 
         /* Display ERROR statistic */
         bool isColor =
@@ -252,8 +260,7 @@ void client_statistics(int serverNo, Message *pMsgRequest) {
                       (long unsigned)g_pPacketTimes->getDupCount(SERVER_NO),
                       (long unsigned)g_pPacketTimes->getOooCount(SERVER_NO), colorResetStr);
 
-        double usecAvarageLatency = avgLatency.toDecimalUsec();
-        if (usecAvarageLatency) print_average_latency(usecAvarageLatency);
+        if (usecAvarage) print_average_results(usecAvarage);
 
         printPercentiles(f, pLat, counter);
 
@@ -433,10 +440,17 @@ void Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration
         if (f) {
             fprintf(f, "------------------------------\n");
             fprintf(f, "test was performed using the following parameters: "
-                       "--mps=%d --burst=%d --reply-every=%d --msg-size=%d --time=%d\n",
+                       "--mps=%d --burst=%d --reply-every=%d --msg-size=%d --time=%d",
                     (int)g_pApp->m_const_params.mps, (int)g_pApp->m_const_params.burst_size,
                     (int)g_pApp->m_const_params.reply_every, (int)g_pApp->m_const_params.msg_size,
                     (int)g_pApp->m_const_params.sec_test_duration);
+            if (g_pApp->m_const_params.dummy_mps) {
+                fprintf(f, " --dummy-send=%d", g_pApp->m_const_params.dummy_mps);
+            }
+            if (g_pApp->m_const_params.full_rtt) {
+                fprintf(f, " --full-rtt");
+            }
+            fprintf(f, "\n");
 
             fprintf(f, "------------------------------\n");
         }
