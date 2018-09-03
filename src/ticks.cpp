@@ -133,8 +133,7 @@ public:
 };
 
 //------------------------------------------------------------------------------
-/*static*/ void TicksImplClock::doThrow(const char *_func, const char *_file,
-                                        int _line) throw(std::exception) {
+/*static*/ void TicksImplClock::doThrow(const char *_func, const char *_file, int _line) {
     const size_t LEN = 256;
     char buf[LEN + 1];
     snprintf(buf, LEN, "%s:%d: %s() has failed:  (errno=%d %s)\n", _file, _line, _func, errno,

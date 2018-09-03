@@ -192,7 +192,7 @@ protected:
 
     //------------------------------------------------------------------------------
     // utility function for throwing exception related to this class (no need to inline it)
-    static void doThrow(const char *_func, const char *_file, int _line) throw(std::exception);
+    static void doThrow(const char *_func, const char *_file, int _line);
 };
 
 //==============================================================================
