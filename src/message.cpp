@@ -59,7 +59,7 @@ MemException::MemException(const char *file, int line, const char *handler, size
 }
 
 //------------------------------------------------------------------------------
-/*static*/ void Message::initMaxSize(int size) throw(std::exception) {
+/*static*/ void Message::initMaxSize(int size) {
     if (size < 0)
         throw std::out_of_range("size < 0");
     else if (ms_maxSize)
@@ -69,7 +69,7 @@ MemException::MemException(const char *file, int line, const char *handler, size
 }
 
 //------------------------------------------------------------------------------
-/*static*/ void Message::initMaxSeqNo(uint64_t seqno) throw(std::exception) {
+/*static*/ void Message::initMaxSeqNo(uint64_t seqno) {
     if (ms_maxSequenceNo)
         throw std::logic_error("MaxSeqNo is already initialized");
     else
@@ -77,7 +77,7 @@ MemException::MemException(const char *file, int line, const char *handler, size
 }
 
 //------------------------------------------------------------------------------
-Message::Message() throw(std::exception) { // throws in case fatal error occurred
+Message::Message() {
 
     if (!ms_maxSize) throw std::logic_error("MaxSize was NOT initialized");
 

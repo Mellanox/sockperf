@@ -104,11 +104,11 @@ private:
 
 class Message {
 public:
-    Message() throw(std::exception); // throws in case of fatal error
+    Message();
     ~Message();
 
-    static void initMaxSize(int size) throw(std::exception);        // throws in case of fatal error
-    static void initMaxSeqNo(uint64_t seqno) throw(std::exception); // throws in case of fatal error
+    static void initMaxSize(int size);
+    static void initMaxSeqNo(uint64_t seqno);
     static size_t getMaxSize() { return ms_maxSize; }
 
     uint8_t *getBuf() const { return m_addr; }
