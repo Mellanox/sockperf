@@ -185,7 +185,7 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_t
 #endif
     {
         ret = msg_recvfrom(ifd, l_fds_ifd->recv.cur_addr + l_fds_ifd->recv.cur_offset,
-                           l_fds_ifd->recv.cur_size, &recvfrom_addr);
+                           l_fds_ifd->recv.cur_size, &recvfrom_addr, &l_fds_ifd->recv.cur_addr);
     }
     if (unlikely(ret <= 0)) {
         if (ret == RET_SOCKET_SHUTDOWN) {

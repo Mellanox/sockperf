@@ -51,8 +51,8 @@ int read_int_from_sys_file(const char *path);
 
 // inline functions
 //------------------------------------------------------------------------------
-static inline int msg_recvfrom(int fd, uint8_t *buf, int nbytes,
-                               struct sockaddr_in *recvfrom_addr) {
+static inline int msg_recvfrom(int fd, uint8_t *buf, int nbytes, struct sockaddr_in *recvfrom_addr,
+                               uint8_t **zcopy_pkt_addr) {
     int ret = 0;
     socklen_t size = sizeof(struct sockaddr_in);
     int flags = 0;
@@ -60,7 +60,6 @@ static inline int msg_recvfrom(int fd, uint8_t *buf, int nbytes,
 #ifdef USING_VMA_EXTRA_API
     if (g_pApp->m_const_params.is_vmazcopyread) {
         int remain_buffer, data_to_copy;
-        uint8_t *start_addrs;
         struct vma_packet_t *pkt;
         ZeroCopyData *z_ptr = g_zeroCopyData[fd];
 
@@ -72,12 +71,8 @@ static inline int msg_recvfrom(int fd, uint8_t *buf, int nbytes,
                 pkt = &z_ptr->m_pkts->pkts[0];
 
                 while (z_ptr->m_pkt_index < pkt->sz_iov) {
-                    start_addrs = buf + (nbytes - remain_buffer);
                     data_to_copy = _min(remain_buffer, (int)(pkt->iov[z_ptr->m_pkt_index].iov_len -
                                                              z_ptr->m_pkt_offset));
-                    memcpy(start_addrs,
-                           (uint8_t *)pkt->iov[z_ptr->m_pkt_index].iov_base + z_ptr->m_pkt_offset,
-                           data_to_copy);
                     remain_buffer -= data_to_copy;
                     z_ptr->m_pkt_offset += data_to_copy;
 
@@ -98,23 +93,24 @@ static inline int msg_recvfrom(int fd, uint8_t *buf, int nbytes,
             }
 
             // Receive the next packet with zero copy API
-            ret = g_vma_api->recvfrom_zcopy(fd, &z_ptr->m_pkt_buf, Message::getMaxSize(), &flags,
+            ret = g_vma_api->recvfrom_zcopy(fd, z_ptr->m_pkt_buf, Message::getMaxSize(), &flags,
                                             (struct sockaddr *)recvfrom_addr, &size);
 
             if (ret > 0) {
                 // Zcopy receive is performed
                 if (flags & MSG_VMA_ZCOPY) {
-                    z_ptr->m_pkts = (struct vma_packets_t *)&z_ptr->m_pkt_buf;
+                    z_ptr->m_pkts = (struct vma_packets_t *)z_ptr->m_pkt_buf;
                     if (z_ptr->m_pkts->n_packet_num > 0) {
 
                         pkt = &z_ptr->m_pkts->pkts[0];
 
+                        // Make receive address point to the beginning of returned recvfrom_zcopy
+                        // buffer.
+                        *zcopy_pkt_addr = (uint8_t *)pkt->iov[z_ptr->m_pkt_index].iov_base;
+
                         while (z_ptr->m_pkt_index < pkt->sz_iov) {
-                            start_addrs = buf + (nbytes - remain_buffer);
                             data_to_copy =
                                 _min(remain_buffer, (int)pkt->iov[z_ptr->m_pkt_index].iov_len);
-                            memcpy(start_addrs, pkt->iov[z_ptr->m_pkt_index].iov_base,
-                                   data_to_copy);
                             remain_buffer -= data_to_copy;
                             z_ptr->m_pkt_offset += data_to_copy;
 
