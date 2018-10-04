@@ -102,6 +102,9 @@ static bool sock_lib_started = 0; //
 static int s_fd_max = 0;
 static int s_fd_min = 0; /* used as THE fd when single mc group is given (RECVFROM blocked mode) */
 static int s_fd_num = 0;
+#ifdef USING_VMA_EXTRA_API
+static int s_fd_max_zcopy = 0;
+#endif
 static struct mutable_params_t s_mutable_params;
 
 static void set_select_timeout(int time_out_msec);
@@ -2093,7 +2096,7 @@ void cleanup() {
     }
 #ifdef USING_VMA_EXTRA_API
     if (g_vma_api && s_user_params.is_vmazcopyread) {
-        for (int i = s_fd_min; i < s_fd_max; i++) {
+        for (int i = s_fd_min; i <= s_fd_max_zcopy; i++) {
             delete g_zeroCopyData[i];
         }
     }
@@ -2697,6 +2700,10 @@ int prepare_socket(int fd, struct fds_data *p_data)
             } else {
                 log_dbg("vma_api->register_recv_callback successful registered");
             }
+        } else if (!rc && (s_user_params.is_vmazcopyread && g_vma_api)) {
+            s_fd_max_zcopy = _max(s_fd_max_zcopy, fd);
+            g_zeroCopyData[fd] = new ZeroCopyData();
+            g_zeroCopyData[fd]->allocate();
         }
 #endif
 
@@ -3222,7 +3229,7 @@ void do_test() {
     info.fd_num = s_fd_num;
 #ifdef USING_VMA_EXTRA_API
     if (g_vma_api && s_user_params.is_vmazcopyread) {
-        for (int i = s_fd_min; i < s_fd_max; i++) {
+        for (int i = s_fd_min; i <= s_fd_max_zcopy; i++) {
             g_zeroCopyData[i] = new ZeroCopyData();
             g_zeroCopyData[i]->allocate();
         }
