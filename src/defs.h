@@ -323,17 +323,17 @@ typedef enum {
 
 inline void log_send(const char *name, int priority, const char *file_name, const int line_no,
                      const char *func_name, const char *format, ...) {
-    char buf[250];
-    va_list va;
-    int n = 0;
-
     if (priority) {
+        char buf[250];
+        va_list va;
+        int n = 0;
+
         va_start(va, format);
         n = vsnprintf(buf, sizeof(buf) - 1, format, va);
         va_end(va);
 
-        printf("[%s] %s: %s <%s: %s #%d>\n", "debug", (name ? name : ""), buf, file_name, func_name,
-               line_no);
+        printf("[%s] %s: %s <%s: %s #%d> size %d\n", "debug", (name ? name : ""), buf, file_name,
+               func_name, line_no, n);
     }
 }
 

@@ -102,9 +102,6 @@ static bool sock_lib_started = 0; //
 static int s_fd_max = 0;
 static int s_fd_min = 0; /* used as THE fd when single mc group is given (RECVFROM blocked mode) */
 static int s_fd_num = 0;
-#ifdef USING_VMA_EXTRA_API
-static int s_fd_max_zcopy = 0;
-#endif
 static struct mutable_params_t s_mutable_params;
 
 static void set_select_timeout(int time_out_msec);
@@ -2096,8 +2093,10 @@ void cleanup() {
     }
 #ifdef USING_VMA_EXTRA_API
     if (g_vma_api && s_user_params.is_vmazcopyread) {
-        for (int i = s_fd_min; i <= s_fd_max_zcopy; i++) {
-            delete g_zeroCopyData[i];
+        zeroCopyMap::iterator it;
+        while ((it = g_zeroCopyData.begin()) != g_zeroCopyData.end()) {
+            delete it->second;
+            g_zeroCopyData.erase(it);
         }
     }
 #endif
@@ -2701,7 +2700,6 @@ int prepare_socket(int fd, struct fds_data *p_data)
                 log_dbg("vma_api->register_recv_callback successful registered");
             }
         } else if (!rc && (s_user_params.is_vmazcopyread && g_vma_api)) {
-            s_fd_max_zcopy = _max(s_fd_max_zcopy, fd);
             g_zeroCopyData[fd] = new ZeroCopyData();
             g_zeroCopyData[fd]->allocate();
         }
@@ -3067,6 +3065,11 @@ int bringup(const int *p_daemonize) {
     if (!rc) {
         setbuf(stdout, NULL);
 
+        int _max_buff_size = _max(s_user_params.msg_size + 1, _vma_pkts_desc_size);
+        _max_buff_size = _max(_max_buff_size, MAX_PAYLOAD_SIZE);
+
+        Message::initMaxSize(_max_buff_size);
+
         /* initialize g_fds_array array */
         if (strlen(s_user_params.feedfile_name)) {
             rc = set_sockets_from_feedfile(s_user_params.feedfile_name);
@@ -3157,9 +3160,6 @@ int bringup(const int *p_daemonize) {
 
     /* Setup internal data */
     if (!rc) {
-        int _max_buff_size = _max(s_user_params.msg_size + 1, _vma_pkts_desc_size);
-        _max_buff_size = _max(_max_buff_size, MAX_PAYLOAD_SIZE);
-
         int64_t cycleDurationNsec = NSEC_IN_SEC * s_user_params.burst_size / s_user_params.mps;
 
         if (s_user_params.mps == UINT32_MAX) { // MAX MPS mode
@@ -3205,7 +3205,6 @@ int bringup(const int *p_daemonize) {
             _maxSequenceNo = UINT64_MAX;
         }
 
-        Message::initMaxSize(_max_buff_size);
         Message::initMaxSeqNo(_maxSequenceNo);
 
         if (!s_user_params.b_stream && (!s_user_params.mode) == MODE_SERVER) {
@@ -3227,14 +3226,6 @@ void do_test() {
     info.fd_min = s_fd_min;
     info.fd_max = s_fd_max;
     info.fd_num = s_fd_num;
-#ifdef USING_VMA_EXTRA_API
-    if (g_vma_api && s_user_params.is_vmazcopyread) {
-        for (int i = s_fd_min; i <= s_fd_max_zcopy; i++) {
-            g_zeroCopyData[i] = new ZeroCopyData();
-            g_zeroCopyData[i]->allocate();
-        }
-    }
-#endif
     switch (s_user_params.mode) {
     case MODE_CLIENT:
         client_handler(&info);
