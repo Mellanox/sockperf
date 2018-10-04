@@ -52,6 +52,47 @@ int read_int_from_sys_file(const char *path);
 // inline functions
 #ifdef USING_VMA_EXTRA_API
 //------------------------------------------------------------------------------
+static inline int msg_recv_socketxtreme(fds_data *l_fds_ifd, vma_buff_t *tmp_vma_buff,
+                                        struct sockaddr_in *recvfrom_addr) {
+    *recvfrom_addr = g_vma_comps->src;
+    if (l_fds_ifd->recv.cur_offset) {
+        l_fds_ifd->recv.cur_addr = l_fds_ifd->recv.buf;
+        l_fds_ifd->recv.cur_size = l_fds_ifd->recv.max_size - l_fds_ifd->recv.cur_offset;
+        memmove(l_fds_ifd->recv.cur_addr + l_fds_ifd->recv.cur_offset,
+                (uint8_t *)tmp_vma_buff->payload, tmp_vma_buff->len);
+    } else {
+        l_fds_ifd->recv.cur_addr = (uint8_t *)tmp_vma_buff->payload;
+        l_fds_ifd->recv.cur_size = l_fds_ifd->recv.max_size;
+        l_fds_ifd->recv.cur_offset = 0;
+    }
+    return tmp_vma_buff->len;
+}
+
+//------------------------------------------------------------------------------
+static inline int msg_process_next(fds_data *l_fds_ifd, vma_buff_t **tmp_vma_buff, int *nbytes) {
+    if (l_fds_ifd->recv.cur_offset) {
+        memmove(l_fds_ifd->recv.buf, l_fds_ifd->recv.cur_addr, l_fds_ifd->recv.cur_offset);
+        l_fds_ifd->recv.cur_addr = l_fds_ifd->recv.buf;
+        l_fds_ifd->recv.cur_size = l_fds_ifd->recv.max_size - l_fds_ifd->recv.cur_offset;
+        if ((*tmp_vma_buff)->next) {
+            *tmp_vma_buff = (*tmp_vma_buff)->next;
+            memmove(l_fds_ifd->recv.cur_addr + l_fds_ifd->recv.cur_offset,
+                    (uint8_t *)(*tmp_vma_buff)->payload, (*tmp_vma_buff)->len);
+            *nbytes = (*tmp_vma_buff)->len;
+        } else {
+            return 1;
+        }
+    } else if (0 == *nbytes && (*tmp_vma_buff)->next) {
+        *tmp_vma_buff = (*tmp_vma_buff)->next;
+        l_fds_ifd->recv.cur_addr = (uint8_t *)(*tmp_vma_buff)->payload;
+        l_fds_ifd->recv.cur_size = l_fds_ifd->recv.max_size;
+        l_fds_ifd->recv.cur_offset = 0;
+        *nbytes = (*tmp_vma_buff)->len;
+    }
+    return 0;
+}
+
+//------------------------------------------------------------------------------
 static inline int free_vma_packets(int fd, int nbytes) {
     int data_to_copy;
     int remain_buffer = 0;

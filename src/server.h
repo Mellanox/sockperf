@@ -170,18 +170,7 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_t
 #ifdef USING_VMA_EXTRA_API
     vma_buff_t *tmp_vma_buff = g_vma_buff;
     if (SOCKETXTREME == g_pApp->m_const_params.fd_handler_type && tmp_vma_buff) {
-        recvfrom_addr = g_vma_comps->src;
-        if (l_fds_ifd->recv.cur_offset) {
-            l_fds_ifd->recv.cur_addr = l_fds_ifd->recv.buf;
-            l_fds_ifd->recv.cur_size = l_fds_ifd->recv.max_size - l_fds_ifd->recv.cur_offset;
-            memmove(l_fds_ifd->recv.cur_addr + l_fds_ifd->recv.cur_offset,
-                    (uint8_t *)tmp_vma_buff->payload, tmp_vma_buff->len);
-        } else {
-            l_fds_ifd->recv.cur_addr = (uint8_t *)tmp_vma_buff->payload;
-            l_fds_ifd->recv.cur_size = l_fds_ifd->recv.max_size;
-            l_fds_ifd->recv.cur_offset = 0;
-        }
-        ret = tmp_vma_buff->len;
+        ret = msg_recv_socketxtreme(l_fds_ifd, tmp_vma_buff, &recvfrom_addr);
     } else if (g_pApp->m_const_params.is_vmazcopyread &&
                !(remain_buffer = free_vma_packets(ifd, l_fds_ifd->recv.cur_size))) {
         // Handled buffer is filled, free_vma_packets returns 0
@@ -345,24 +334,9 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_t
 #ifdef USING_VMA_EXTRA_API
     next:
         if (tmp_vma_buff) {
-            if (l_fds_ifd->recv.cur_offset) {
-                memmove(l_fds_ifd->recv.buf, l_fds_ifd->recv.cur_addr, l_fds_ifd->recv.cur_offset);
-                l_fds_ifd->recv.cur_addr = l_fds_ifd->recv.buf;
-                l_fds_ifd->recv.cur_size = l_fds_ifd->recv.max_size - l_fds_ifd->recv.cur_offset;
-                if (tmp_vma_buff->next) {
-                    tmp_vma_buff = tmp_vma_buff->next;
-                    memmove(l_fds_ifd->recv.cur_addr + l_fds_ifd->recv.cur_offset,
-                            (uint8_t *)tmp_vma_buff->payload, tmp_vma_buff->len);
-                    nbytes = tmp_vma_buff->len;
-                } else {
-                    return (!do_update);
-                }
-            } else if (0 == nbytes && tmp_vma_buff->next) {
-                tmp_vma_buff = tmp_vma_buff->next;
-                l_fds_ifd->recv.cur_addr = (uint8_t *)tmp_vma_buff->payload;
-                l_fds_ifd->recv.cur_size = l_fds_ifd->recv.max_size;
-                l_fds_ifd->recv.cur_offset = 0;
-                nbytes = tmp_vma_buff->len;
+            ret = msg_process_next(l_fds_ifd, &tmp_vma_buff, &nbytes);
+            if (ret) {
+                return (!do_update);
             }
         }
 #endif
