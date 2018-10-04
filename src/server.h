@@ -161,6 +161,7 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_t
     struct sockaddr_in sendto_addr;
     bool do_update = true;
     int ret = 0;
+    int remain_buffer = 0;
     fds_data *l_fds_ifd = g_fds_array[ifd];
 
     if (unlikely(!l_fds_ifd)) {
@@ -181,11 +182,16 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_t
             l_fds_ifd->recv.cur_offset = 0;
         }
         ret = tmp_vma_buff->len;
+    } else if (g_pApp->m_const_params.is_vmazcopyread &&
+               !(remain_buffer = free_vma_packets(ifd, l_fds_ifd->recv.cur_size))) {
+        // Handled buffer is filled, free_vma_packets returns 0
+        ret = l_fds_ifd->recv.cur_size;
     } else
 #endif
     {
         ret = msg_recvfrom(ifd, l_fds_ifd->recv.cur_addr + l_fds_ifd->recv.cur_offset,
-                           l_fds_ifd->recv.cur_size, &recvfrom_addr, &l_fds_ifd->recv.cur_addr);
+                           l_fds_ifd->recv.cur_size, &recvfrom_addr, &l_fds_ifd->recv.cur_addr,
+                           remain_buffer);
     }
     if (unlikely(ret <= 0)) {
         if (ret == RET_SOCKET_SHUTDOWN) {
