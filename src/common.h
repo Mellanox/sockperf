@@ -50,48 +50,64 @@ const char *handler2str(fd_block_handler_t type);
 int read_int_from_sys_file(const char *path);
 
 // inline functions
+#ifdef USING_VMA_EXTRA_API
+//------------------------------------------------------------------------------
+static inline int free_vma_packets(int fd, int nbytes) {
+    int data_to_copy;
+    int remain_buffer = 0;
+    struct vma_packet_t *pkt;
+    ZeroCopyData *z_ptr = g_zeroCopyData[fd];
+
+    if (z_ptr) {
+        remain_buffer = nbytes;
+        // Receive held data, and free VMA's previously received zero copied packets
+        if (z_ptr->m_pkts && z_ptr->m_pkts->n_packet_num > 0) {
+
+            pkt = &z_ptr->m_pkts->pkts[0];
+
+            while (z_ptr->m_pkt_index < pkt->sz_iov) {
+                data_to_copy = _min(remain_buffer, (int)(pkt->iov[z_ptr->m_pkt_index].iov_len -
+                                                         z_ptr->m_pkt_offset));
+                remain_buffer -= data_to_copy;
+                z_ptr->m_pkt_offset += data_to_copy;
+
+                // Handled buffer is filled
+                if (z_ptr->m_pkt_offset < pkt->iov[z_ptr->m_pkt_index].iov_len) return 0;
+
+                z_ptr->m_pkt_offset = 0;
+                z_ptr->m_pkt_index++;
+            }
+
+            g_vma_api->free_packets(fd, z_ptr->m_pkts->pkts, z_ptr->m_pkts->n_packet_num);
+            z_ptr->m_pkts = NULL;
+            z_ptr->m_pkt_index = 0;
+            z_ptr->m_pkt_offset = 0;
+
+            // Handled buffer is filled
+            if (remain_buffer == 0) return 0;
+        }
+
+        return remain_buffer;
+    }
+
+    return nbytes;
+}
+#endif
+
 //------------------------------------------------------------------------------
 static inline int msg_recvfrom(int fd, uint8_t *buf, int nbytes, struct sockaddr_in *recvfrom_addr,
-                               uint8_t **zcopy_pkt_addr) {
+                               uint8_t **zcopy_pkt_addr, int remain_buffer) {
     int ret = 0;
     socklen_t size = sizeof(struct sockaddr_in);
     int flags = 0;
 
 #ifdef USING_VMA_EXTRA_API
     if (g_pApp->m_const_params.is_vmazcopyread) {
-        int remain_buffer, data_to_copy;
+        int data_to_copy;
         struct vma_packet_t *pkt;
         ZeroCopyData *z_ptr = g_zeroCopyData[fd];
 
         if (z_ptr) {
-            remain_buffer = nbytes;
-            // Receive held data, and free VMA's previously received zero copied packets
-            if (z_ptr->m_pkts && z_ptr->m_pkts->n_packet_num > 0) {
-
-                pkt = &z_ptr->m_pkts->pkts[0];
-
-                while (z_ptr->m_pkt_index < pkt->sz_iov) {
-                    data_to_copy = _min(remain_buffer, (int)(pkt->iov[z_ptr->m_pkt_index].iov_len -
-                                                             z_ptr->m_pkt_offset));
-                    remain_buffer -= data_to_copy;
-                    z_ptr->m_pkt_offset += data_to_copy;
-
-                    // Handled buffer is filled
-                    if (z_ptr->m_pkt_offset < pkt->iov[z_ptr->m_pkt_index].iov_len) return nbytes;
-
-                    z_ptr->m_pkt_offset = 0;
-                    z_ptr->m_pkt_index++;
-                }
-
-                g_vma_api->free_packets(fd, z_ptr->m_pkts->pkts, z_ptr->m_pkts->n_packet_num);
-                z_ptr->m_pkts = NULL;
-                z_ptr->m_pkt_index = 0;
-                z_ptr->m_pkt_offset = 0;
-
-                // Handled buffer is filled
-                if (remain_buffer == 0) return nbytes;
-            }
-
             // Receive the next packet with zero copy API
             ret = g_vma_api->recvfrom_zcopy(fd, z_ptr->m_pkt_buf, Message::getMaxSize(), &flags,
                                             (struct sockaddr *)recvfrom_addr, &size);
@@ -105,7 +121,7 @@ static inline int msg_recvfrom(int fd, uint8_t *buf, int nbytes, struct sockaddr
                         pkt = &z_ptr->m_pkts->pkts[0];
 
                         // Make receive address point to the beginning of returned recvfrom_zcopy
-                        // buffer.
+                        // buffer
                         *zcopy_pkt_addr = (uint8_t *)pkt->iov[z_ptr->m_pkt_index].iov_base;
 
                         while (z_ptr->m_pkt_index < pkt->sz_iov) {
