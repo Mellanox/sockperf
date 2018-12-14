@@ -468,6 +468,8 @@ public:
         } else if (g_vma_comps->events & VMA_SOCKETXTREME_PACKET) {
             g_vma_buff = g_vma_comps->packet.buff_lst;
             ifd = g_vma_comps->user_data;
+        } else if (g_vma_comps->events & (EPOLLIN | EPOLLERR | EPOLLHUP | EPOLLRDHUP)) {
+            ifd = g_vma_comps->user_data;
         } else {
             ifd = 0;
         }
