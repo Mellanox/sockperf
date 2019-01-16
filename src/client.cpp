@@ -588,9 +588,9 @@ int Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration,
              * with the rest of the setsockopt
              */
             if (s_user_params.rate_limit > 0 &&
-                sock_set_rate_limit(ifd, s_user_params.rate_limit)) {
-                log_err("[fd=%d] failed setting rate limit on address %s\n", ifd,
-                        inet_ntoa(g_fds_array[ifd]->server_addr.sin_addr));
+                sock_set_rate_limit(ifd, s_user_params)) {
+                log_err("[fd=%d] failed setting rate limit on address %s\n",
+                        ifd, inet_ntoa(g_fds_array[ifd]->server_addr.sin_addr));
                 rc = SOCKPERF_ERR_SOCKET;
                 break;
             }
