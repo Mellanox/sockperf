@@ -285,7 +285,7 @@ private:
             if (!drops_num)
                 seq_num_map_itr->second.seq_num--;
             else {
-                char drops_num_str[10];
+                char drops_num_str[30];
                 char seq_num_info_str[50];
                 char ip_port_str[30];
                 sprintf(ip_port_str, "[%s:%d]", inet_ntoa(seq_num_map_itr->second.addr.sin_addr),

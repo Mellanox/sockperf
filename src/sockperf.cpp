@@ -2156,7 +2156,7 @@ void set_defaults() {
     int igmp_max_memberships = read_int_from_sys_file("/proc/sys/net/ipv4/igmp_max_memberships");
     if (igmp_max_memberships != -1) IGMP_MAX_MEMBERSHIPS = igmp_max_memberships;
 
-    memset(&s_user_params, 0, sizeof(struct user_params_t));
+    memset((char*)&s_user_params, 0, sizeof(s_user_params));
     memset(g_fds_array, 0, sizeof(fds_data *) * MAX_FDS_NUM);
     s_user_params.rx_mc_if_addr.s_addr = htonl(INADDR_ANY);
     s_user_params.tx_mc_if_addr.s_addr = htonl(INADDR_ANY);
