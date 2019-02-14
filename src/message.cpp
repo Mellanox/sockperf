@@ -93,7 +93,7 @@ Message::Message() {
 
     for (int len = 0; len < ms_maxSize; len++)
         m_addr[len] = (uint8_t)rand();
-    memset((char *)m_header, 0, MsgHeader::EFFECTIVE_SIZE);
+    memset((void *)m_header, 0, MsgHeader::EFFECTIVE_SIZE);
 
     /*
         log_msg("ms_maxSize=%d, m_buf=%p, alignment=%d, m_data=%p, m_header=%p", ms_maxSize, m_buf,
