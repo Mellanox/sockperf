@@ -1574,7 +1574,7 @@ static int parse_common_opt(const AOPT_OBJECT *common_obj) {
                 if (optarg) {
                     strncpy(feedfile_name, optarg, MAX_ARGV_SIZE);
                     feedfile_name[MAX_PATH_LENGTH - 1] = '\0';
-#if defined(WIN32) && defined(__FreeBSD__)
+#if defined(WIN32) || defined(__FreeBSD__)
                     s_user_params.fd_handler_type = SELECT;
 #else
                     s_user_params.fd_handler_type = EPOLL;

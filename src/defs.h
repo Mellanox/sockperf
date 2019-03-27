@@ -60,7 +60,11 @@ typedef uint16_t in_port_t;
 
 #include <stdbool.h>
 #include <stdint.h>
+#ifndef __FreeBSD__
 #include <tr1/unordered_map>
+#else
+#include <unordered_map>
+#endif
 #include <unistd.h>   /* getopt() and sleep()*/
 #include <inttypes.h> /* printf PRItn */
 #include <regex.h>
