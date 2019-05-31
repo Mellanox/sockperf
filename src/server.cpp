@@ -237,6 +237,9 @@ template <class IoType, class SwitchActivityInfo, class SwitchCalcGaps>
 int Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_accept(int ifd) {
     bool do_accept = false;
     int active_ifd = ifd;
+    int retVal = 0;
+    std::string createSockperfDirectoryCommand = "mkdir -p ";
+    std::string sockperfDataFile;
 
     if (!g_fds_array[ifd]) {
         return (int)INVALID_SOCKET; // TODO: use SOCKET all over the way and avoid this cast
@@ -318,6 +321,22 @@ int Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_accept(int ifd) {
                                         inet_ntoa(addr.sin_addr), ntohs(addr.sin_port), active_ifd);
                             }
                             do_accept = true;
+
+                            if (s_user_params.sockperfDumpDataToFile)
+                            {
+                                retVal = system((createSockperfDirectoryCommand.append(s_user_params.sockperfDumpDataDirectory)).c_str());
+                                if(retVal != 0)
+                                {
+                                    log_msg("%s","unable to create directory structure");
+                                }
+                                sockperfDataFile = generateDumpFileName(inet_ntoa(addr.sin_addr));
+                                bufferDumpFile = fopen(sockperfDataFile.c_str(), "w+");
+                                if (!bufferDumpFile)
+                                {
+                                    log_msg("%s","unable to open file");
+                                }
+                            }
+
                             break;
                         }
                     }
