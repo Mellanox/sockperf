@@ -30,7 +30,6 @@
 #define SERVER_H_
 
 #include "common.h"
-#include "time.h"
 
 FILE *bufferDumpFile;
 
@@ -161,18 +160,7 @@ void close_ifd(int fd, int ifd, fds_data *l_fds_ifd) {
 std::string generateDumpFileName(std::string ip)
 {
     std::string sockperfDataFile = "/bufferdump";
-    time_t now;
-    char the_date[256];
-
     sockperfDataFile.insert(0,s_user_params.sockperfDumpDataDirectory);
-    sockperfDataFile.append(ip);
-    the_date[0] = '\0';
-    now = time(NULL);
-    if (now != -1)
-    {
-       strftime(the_date, 256, "%d_%m_%Y_%H_%M_%S", gmtime(&now));
-    }
-    sockperfDataFile.append(std::string(the_date));
 
     return sockperfDataFile;
 }
