@@ -30,6 +30,7 @@
 #define SERVER_H_
 
 #include "common.h"
+#include <unistd.h>
 
 FILE *bufferDumpFile;
 
@@ -268,7 +269,10 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_t
         hexdump(m_pMsgReply->getBuf(), MsgHeader::EFFECTIVE_SIZE);
 #endif /* LOG_TRACE_MSG_IN */
         if (s_user_params.sockperfDumpDataToFile)
-            log_msg_buffer_file(bufferDumpFile, m_pMsgReply->getBuf());
+            {
+                log_msg_buffer_file(bufferDumpFile, m_pMsgReply->getBuf());
+                fsync(fileno(bufferDumpFile));
+            }
 
         if (g_b_exit) return (!do_update);
         if (!m_pMsgReply->isClient()) {
