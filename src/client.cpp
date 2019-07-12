@@ -321,6 +321,7 @@ void stream_statistics(Message *pMsgRequest) {
                   1024; /* No including IP + UDP Headers per fragment */
     if (ip_frags_per_msg == 1)
         log_msg("Summary: Message Rate is %d [msg/sec]", msgps);
+      
     else
         log_msg("Summary: Message Rate is %d [msg/sec], Packet Rate is about %d [pkt/sec] (%d ip "
                 "frags / msg)",

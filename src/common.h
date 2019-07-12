@@ -25,14 +25,20 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY
  * OF SUCH DAMAGE.
  */
-
+#include <stdio.h>
+#include <time.h>       /* time_t, time (for timestamp in second) */
+#include <sys/timeb.h>  /* ftime, timeb (for timestamp in millisecond) */
+#include <sys/time.h>   /* gettimeofday, timeval (for timestamp in microsecond) */
+#include <chrono>
+#include <cstdint>
+#include <iostream>
 #ifndef COMMON_H_
 #define COMMON_H_
-
+#include <chrono> 
+#include <ctime>
 #include "defs.h"
 //#include "switches.h"
 #include "message.h"
-
 extern user_params_t s_user_params;
 //------------------------------------------------------------------------------
 void recvfromError(int fd); // take out error code from inline function
@@ -63,7 +69,7 @@ static inline int msg_recv_socketxtreme(fds_data *l_fds_ifd, vma_buff_t *tmp_vma
     } else {
         l_fds_ifd->recv.cur_addr = (uint8_t *)tmp_vma_buff->payload;
         l_fds_ifd->recv.cur_size = l_fds_ifd->recv.max_size;
-        l_fds_ifd->recv.cur_offset = 0;
+		 l_fds_ifd->recv.cur_offset = 0;
     }
     return tmp_vma_buff->len;
 }
@@ -132,7 +138,7 @@ static inline int free_vma_packets(int fd, int nbytes) {
     }
 
     return nbytes;
-}
+	}
 #endif
 
 //------------------------------------------------------------------------------
@@ -202,7 +208,7 @@ static inline int msg_recvfrom(int fd, uint8_t *buf, int nbytes, struct sockaddr
     and EPIPE is returned. The signal is not sent when the write call specified
     the MSG_NOSIGNAL flag.
     Note: another way is call signal (SIGPIPE,SIG_IGN);
- */
+	*/
 #ifndef WIN32
         flags = MSG_NOSIGNAL;
 #endif
@@ -215,7 +221,7 @@ static inline int msg_recvfrom(int fd, uint8_t *buf, int nbytes, struct sockaddr
 #endif /* LOG_TRACE_MSG_IN */
 
 #if defined(LOG_TRACE_RECV) && (LOG_TRACE_RECV == TRUE)
-        LOG_TRACE("raw", "%s IP: %s:%d [fd=%d ret=%d] %s", __FUNCTION__,
+        LeOG_TRACE("raw", "%s IP: %s:%d [fd=%d ret=%d] %s", __FUNCTION__,
                   inet_ntoa(recvfrom_addr->sin_addr), ntohs(recvfrom_addr->sin_port), fd, ret,
                   strerror(errno));
 #endif /* LOG_TRACE_RECV */
@@ -243,7 +249,7 @@ static inline int msg_recvfrom(int fd, uint8_t *buf, int nbytes, struct sockaddr
 //------------------------------------------------------------------------------
 static inline int msg_sendto(int fd, uint8_t *buf, int nbytes,
                              const struct sockaddr_in *sendto_addr) {
-    int ret = 0;
+ 
     int flags = 0;
 
 #if defined(LOG_TRACE_MSG_OUT) && (LOG_TRACE_MSG_OUT == TRUE)
@@ -267,65 +273,104 @@ static inline int msg_sendto(int fd, uint8_t *buf, int nbytes,
      * Enables non-blocking operation; if the operation would block,
      * EAGAIN is returned (this can also be enabled using the O_NONBLOCK with
      * the F_SETFL fcntl()).
-     */
-    if (g_pApp->m_const_params.is_nonblocked_send) {
+	 */
+    if (g_pApp->m_const_params.is_nonblocked_send)
+        {
         flags |= MSG_DONTWAIT;
     }
 #endif
 
     int size = nbytes;
+/********************************************/
+static long long int previous_mili_sec =-999999;//static initialize to some random value 
+static long long int previous_micro_sec=-999999;//static  initialize to some random value (one time initializaton
 
-    while (nbytes) {
-        ret =
-            sendto(fd, buf, nbytes, flags, (struct sockaddr *)sendto_addr, sizeof(struct sockaddr));
+    /* Example of timestamp in second. */
+    time_t timestamp_sec; /* timestamp in second */
+    time(&timestamp_sec);  /* get current time; same as: timestamp_sec = time(NULL)  */
 
-#if defined(LOG_TRACE_SEND) && (LOG_TRACE_SEND == TRUE)
-        LOG_TRACE("raw", "%s IP: %s:%d [fd=%d ret=%d] %s", __FUNCTION__,
-                  inet_ntoa(sendto_addr->sin_addr), ntohs(sendto_addr->sin_port), fd, ret,
-                  strerror(errno));
-#endif /* LOG_TRACE_SEND */
 
-        if (likely(ret > 0)) {
-            nbytes -= ret;
-            buf += ret;
-            ret = size;
-        } else if (ret == 0 || errno == EPIPE || os_err_conn_reset()) {
-            /* If no messages are available to be received and the peer has performed an orderly
-             * shutdown,
-             * send()/sendto() shall return (RET_SOCKET_SHUTDOWN)
-             */
-            errno = 0;
-            ret = RET_SOCKET_SHUTDOWN;
-            break;
-        } else if (ret < 0 && (os_err_eagain() || errno == EWOULDBLOCK)) {
-            /* If space is not available at the sending socket to hold the message to be transmitted
-             * and
-             * the socket file descriptor does have O_NONBLOCK set and
-             * no bytes related message sent before
-             * send()/sendto() shall return (RET_SOCKET_SKIPPED)
-             */
-            errno = 0;
-            if (nbytes < size) continue;
+    /* Example of timestamp in millisecond. */
+    struct timeb timer_msec;
+    long long int timestamp_msec; /* timestamp in millisecond. */
+    if (!ftime(&timer_msec)) {
+            timestamp_msec = ((long long int) timer_msec.time) * 1000ll +(long long int) timer_msec.millitm;}
+    else {timestamp_msec = -1;}
 
-            ret = RET_SOCKET_SKIPPED;
-            break;
-        } else if (ret < 0 && (errno == EINTR)) {
-            /* A signal occurred.
-             */
-            errno = 0;
-            break;
-        } else {
-            /* Unprocessed error
-             */
-            sendtoError(fd, nbytes, sendto_addr);
-            errno = 0;
-            break;
-        }
-    }
 
-    return ret;
+
+    /* Example of timestamp in microsecond. */
+    struct timeval timer_usec;
+    long long int timestamp_usec; /* timestamp in microsecond */
+    if (!gettimeofday(&timer_usec, NULL)) {
+            timestamp_usec = ((long long int) timer_usec.tv_sec) * 1000000ll +(long long int) timer_usec.tv_usec;}
+    else {timestamp_usec = -1;}
+   // printf ("%ld seconds\t", timestamp_sec);
+   // printf("%lld milliseconds\t", timestamp_msec);
+   // printf("%lld microseconds \t", timestamp_usec);
+   
+ 
+
+
+
+
+/*case when first packet comes ,no delta value for first packet */
+  if(previous_mili_sec==-999999)
+  {
+         printf("%d Delta  milli\t",0);
+         printf("%d Delta micro\t",0);
+         previous_mili_sec=timestamp_msec;
+         previous_micro_sec=timestamp_usec;   // update values for next packet
+
+
+
+	  FILE *fp;
+          fp = fopen("Delta_time.txt","a");
+	 fprintf(fp, "%s\t%s\t%s\n","NO_VM","Delta_milli","Delta_micro");
+	 printf("\n STORING THE CPU DELTA TIME INTO Delta_Time.txt\n");
+	  fclose(fp);
+
+  }
+  else
+  {
+
+
+          FILE *fp;
+          fp = fopen("Delta_time.txt","a") ;//apending the delta time values into the Delta_Time.txt file
+          long long int delta_m=timestamp_msec-previous_mili_sec;
+          long long int delta_u=timestamp_usec-previous_micro_sec;
+	   
+
+
+ 
+
+         int no_of_vm=1;
+
+          fprintf(fp, " %d\t%lld\t%lld\n",no_of_vm,delta_m,delta_u);
+           fclose (fp);
+          
+       
+
+         //printf("%lld Delta_milli\t",delta_m);
+        // printf("%lld Delta_micro\t",delta_u);
+     
+         previous_mili_sec=timestamp_msec;  //update for next packet
+         previous_micro_sec=timestamp_usec;
+   
+
+}
+
+    /***************************************/
+   return size;  /*This fuction return sizesize of buffer)because for generating new thread this function must return number of bytes send , so i am sending dummy size */
+   /*NOT SENDING THE PACKETS   */
+
+
+
+
+
+
 }
 
 int sock_set_rate_limit(int fd, uint32_t rate_limit);
+#endif
 
-#endif /* COMMON_H_ */
