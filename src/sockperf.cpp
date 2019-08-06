@@ -3015,6 +3015,30 @@ static int set_sockets_from_feedfile(const char *feedfile_name) {
 }
 
 //------------------------------------------------------------------------------
+/* Sanity check for the sockets list inside g_fds_array. */
+static bool fds_array_is_valid()
+{
+    int i;
+    int fd;
+
+    /*
+     * This function checks that s_fd_max is reachable from s_fd_min in exactly
+     * s_fd_num steps. Additionally, s_fd_max's list element must point to
+     * s_fd_min.
+     * Note, the function doesn't require the list to be sorted.
+     */
+
+    for (fd = s_fd_min, i = 0; i < s_fd_num && fd != s_fd_max; ++i) {
+        if (g_fds_array[fd] == NULL)
+            return false;
+        fd = g_fds_array[fd]->next_fd;
+    }
+    return fd == s_fd_max &&
+           (i + 1) == s_fd_num &&
+           g_fds_array[fd]->next_fd == s_fd_min;
+}
+
+//------------------------------------------------------------------------------
 int bringup(const int *p_daemonize) {
     int rc = SOCKPERF_ERR_NONE;
 
@@ -3145,6 +3169,11 @@ int bringup(const int *p_daemonize) {
                     FREE(tmp);
                 }
             }
+        }
+
+        if (!rc && !fds_array_is_valid()) {
+            log_err("Sanity check failed for sockets list");
+            rc = SOCKPERF_ERR_FATAL;
         }
 
         if (!rc && (s_user_params.threads_num > s_fd_num || s_user_params.threads_num == 0)) {
