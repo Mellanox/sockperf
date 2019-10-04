@@ -35,6 +35,8 @@ sockperf_SOURCES = \
 	src/packet.h \
 	src/playback.cpp \
 	src/playback.h \
+	src/resources.cpp \
+	src/resources.h \
 	src/server.cpp \
 	src/server.h \
 	src/sockperf.cpp \

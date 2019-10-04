@@ -431,6 +431,9 @@ void Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration
 
     log_msg("Test ended");
 
+    resources_sub(&m_rusage_end, &m_rusage_start, &m_rusage);
+    resources_print(&m_rusage);
+
     if (!m_pMsgRequest->getSequenceCounter()) {
         log_msg("No messages were sent");
     } else if (g_pApp->m_const_params.b_stream) {
@@ -732,6 +735,7 @@ void Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration
     rc = initBeforeLoop();
 
     if (rc == SOCKPERF_ERR_NONE) {
+        resources_get(&m_rusage_start);
         if (g_pApp->m_const_params.pPlaybackVector)
             doPlayback();
         else if (g_pApp->m_const_params.b_client_ping_pong)
@@ -739,6 +743,7 @@ void Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration
         else
             doSendLoop();
 
+        resources_get(&m_rusage_end);
         cleanupAfterLoop();
     }
 }

@@ -31,6 +31,7 @@
 
 #include "common.h"
 #include "packet.h"
+#include "resources.h"
 
 //==============================================================================
 //==============================================================================
@@ -54,6 +55,9 @@ private:
     os_thread_t m_receiverTid;
     IoType m_ioHandler;
     addr_to_id m_ServerList;
+    resources_t m_rusage_start;
+    resources_t m_rusage_end;
+    resources_t m_rusage;
 
     SwitchDataIntegrity m_switchDataIntegrity;
     SwitchActivityInfo m_switchActivityInfo;
