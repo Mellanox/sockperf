@@ -2752,17 +2752,6 @@ static int set_sockets_from_feedfile(const char *feedfile_name) {
 #endif
 
     while (!rc && (res = fgets(line, MAX_MCFILE_LINE_LENGTH, file_fd))) {
-        if (!res) {
-            if (ferror(file_fd)) {
-                log_err("fread()");
-                fclose(file_fd);
-                return -1;
-            } else {
-                fclose(file_fd);
-                return 0; /* encountered EOF */
-            }
-        }
-
         /* skip empty lines and comments */
         if (line[0] == ' ' || line[0] == '\r' || line[0] == '\n' || line[0] == '#') {
             continue;
@@ -2972,7 +2961,19 @@ static int set_sockets_from_feedfile(const char *feedfile_name) {
         }
     }
 
+    if (!rc && (NULL == res) && ferror(file_fd)) {
+        /* An I/O error occured */
+        log_err("fread() failed to read feedfile '%s'!", feedfile_name);
+        rc = SOCKPERF_ERR_FATAL;
+    }
+
     fclose(file_fd);
+
+    /* Check for special case when feedfile is empty */
+    if (!rc && (0 == s_fd_num)) {
+        log_msg("Feedfile '%s' is empty!", feedfile_name);
+        rc = SOCKPERF_ERR_BAD_ARGUMENT;
+    }
 
     if (!rc) {
         g_fds_array[s_fd_max]->next_fd = s_fd_min; /* close loop for fast wrap around in client */
