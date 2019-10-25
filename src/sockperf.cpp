@@ -2921,7 +2921,7 @@ static int set_sockets_from_feedfile(const char *feedfile_name) {
                         // TODO: In the following malloc we have a one time memory allocation of
                         // 128KB that are not reclaimed
                         // This O(1) leak was introduced in revision 133
-                        tmp->recv.buf = (uint8_t *)malloc(sizeof(uint8_t) * 2 * MAX_PAYLOAD_SIZE);
+                        tmp->recv.buf = (uint8_t *)MALLOC(sizeof(uint8_t) * 2 * MAX_PAYLOAD_SIZE);
                         if (!tmp->recv.buf) {
                             log_err("Failed to allocate memory with malloc()");
                             FREE(tmp);
@@ -3116,7 +3116,7 @@ int bringup(const int *p_daemonize) {
                                 tmp->active_fd_list[i] = (int)INVALID_SOCKET;
                             }
                             tmp->recv.buf =
-                                (uint8_t *)malloc(sizeof(uint8_t) * 2 * MAX_PAYLOAD_SIZE);
+                                (uint8_t *)MALLOC(sizeof(uint8_t) * 2 * MAX_PAYLOAD_SIZE);
                             if (!tmp->recv.buf) {
                                 log_err("Failed to allocate memory with malloc()");
                                 FREE(tmp);

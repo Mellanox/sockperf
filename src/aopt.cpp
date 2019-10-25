@@ -33,6 +33,7 @@
 #include "os_abstract.h"
 
 #include "aopt.h"
+#include "defs.h"
 
 #define _AOPT_CONF_TRACE TRUE
 
@@ -81,7 +82,7 @@ const AOPT_OBJECT *aopt_init(int *argc, const char **argv, const AOPT_DESC *desc
             }
         }
         if (opt_count) {
-            arg_obj = (AOPT_OBJECT *)malloc((opt_count + 1) * sizeof(AOPT_OBJECT));
+            arg_obj = (AOPT_OBJECT *)MALLOC((opt_count + 1) * sizeof(AOPT_OBJECT));
             memset(arg_obj, 0, (opt_count + 1) * sizeof(AOPT_OBJECT));
         }
     }
@@ -319,7 +320,7 @@ const char *aopt_help(const AOPT_DESC *desc) {
         char *buf_temp = NULL;
         int ret = 0;
 
-        buf = (char *)malloc(buf_size);
+        buf = (char *)MALLOC(buf_size);
         memset(buf, 0, buf_size);
 
         for (; desc && desc->key && buf; desc++) {
@@ -398,7 +399,7 @@ const char *aopt_help(const AOPT_DESC *desc) {
                     buf_size *= 2;
 
                 buf_temp = buf;
-                buf = (char *)malloc(buf_size);
+                buf = (char *)MALLOC(buf_size);
                 memset(buf, 0, buf_size);
                 memcpy(buf, buf_temp, buf_offset);
                 free(buf_temp);
