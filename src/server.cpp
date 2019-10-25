@@ -252,7 +252,7 @@ int Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_accept(int ifd) {
             return (int)INVALID_SOCKET; // TODO: use SOCKET all over the way and avoid this cast
         }
         memcpy(tmp, g_fds_array[ifd], sizeof(struct fds_data));
-        tmp->recv.buf = (uint8_t *)malloc(sizeof(uint8_t) * 2 * MAX_PAYLOAD_SIZE);
+        tmp->recv.buf = (uint8_t *)MALLOC(sizeof(uint8_t) * 2 * MAX_PAYLOAD_SIZE);
         if (!tmp->recv.buf) {
             log_err("Failed to allocate memory with malloc()");
             FREE(tmp);
