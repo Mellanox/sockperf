@@ -540,7 +540,7 @@ static int proc_mode_under_load(int id, int argc, const char **argv) {
             int len;
             const char *optarg = aopt_value(self_obj, OPT_CLIENTIP);
             if (!optarg) { /* already in network byte order*/
-                log_msg("'-%c' Invalid address: %s", OPT_CLIENTIP, optarg);
+                log_msg("'-%c' Invalid address", OPT_CLIENTIP);
                 rc = SOCKPERF_ERR_BAD_ARGUMENT;
             } else if (4 != sscanf(optarg, "%d.%d.%d.%d", &len, &len, &len, &len)) {
                 log_msg("'-%c' Invalid address: %s", OPT_CLIENTIP, optarg);
@@ -805,7 +805,7 @@ static int proc_mode_ping_pong(int id, int argc, const char **argv) {
             int len;
             const char *optarg = aopt_value(self_obj, OPT_CLIENTIP);
             if (!optarg) { /* already in network byte order*/
-                log_msg("'-%c' Invalid address: %s", OPT_CLIENTIP, optarg);
+                log_msg("'-%c' Invalid address", OPT_CLIENTIP);
                 rc = SOCKPERF_ERR_BAD_ARGUMENT;
             } else if (4 != sscanf(optarg, "%d.%d.%d.%d", &len, &len, &len, &len)) {
                 log_msg("'-%c' Invalid address: %s", OPT_CLIENTIP, optarg);
@@ -1082,7 +1082,7 @@ static int proc_mode_throughput(int id, int argc, const char **argv) {
             int len;
             const char *optarg = aopt_value(self_obj, OPT_CLIENTIP);
             if (!optarg) { /* already in network byte order*/
-                log_msg("'-%c' Invalid address: %s", OPT_CLIENTIP, optarg);
+                log_msg("'-%c' Invalid address", OPT_CLIENTIP);
                 rc = SOCKPERF_ERR_BAD_ARGUMENT;
             } else if (4 != sscanf(optarg, "%d.%d.%d.%d", &len, &len, &len, &len)) {
                 log_msg("'-%c' Invalid address: %s", OPT_CLIENTIP, optarg);
@@ -1530,7 +1530,7 @@ static int parse_common_opt(const AOPT_OBJECT *common_obj) {
             const char *optarg = aopt_value(common_obj, 'i');
             int len;
             if (!optarg) { /* already in network byte order*/
-                log_msg("'-%c' Invalid address: %s", 'i', optarg);
+                log_msg("'-%c' Invalid address", 'i');
                 rc = SOCKPERF_ERR_BAD_ARGUMENT;
             } else if (4 != sscanf(optarg, "%d.%d.%d.%d", &len, &len, &len, &len)) {
                 log_msg("'-%c' Invalid address: %s", 'i', optarg);
@@ -2924,25 +2924,25 @@ static int set_sockets_from_feedfile(const char *feedfile_name) {
                         tmp->recv.buf = (uint8_t *)MALLOC(sizeof(uint8_t) * 2 * MAX_PAYLOAD_SIZE);
                         if (!tmp->recv.buf) {
                             log_err("Failed to allocate memory with malloc()");
-                            FREE(tmp);
                             rc = SOCKPERF_ERR_NO_MEMORY;
-                        }
-                        tmp->recv.cur_addr = tmp->recv.buf;
-                        tmp->recv.max_size = MAX_PAYLOAD_SIZE;
-                        tmp->recv.cur_offset = 0;
-                        tmp->recv.cur_size = tmp->recv.max_size;
+                        } else {
+                            tmp->recv.cur_addr = tmp->recv.buf;
+                            tmp->recv.max_size = MAX_PAYLOAD_SIZE;
+                            tmp->recv.cur_offset = 0;
+                            tmp->recv.cur_size = tmp->recv.max_size;
 
-                        if (new_socket_flag) {
-                            if (s_fd_num == 1) { /*it is the first fd*/
-                                s_fd_min = curr_fd;
-                                s_fd_max = curr_fd;
-                            } else {
-                                g_fds_array[last_fd]->next_fd = curr_fd;
-                                s_fd_min = _min(s_fd_min, curr_fd);
-                                s_fd_max = _max(s_fd_max, curr_fd);
+                            if (new_socket_flag) {
+                                if (s_fd_num == 1) { /*it is the first fd*/
+                                    s_fd_min = curr_fd;
+                                    s_fd_max = curr_fd;
+                                } else {
+                                    g_fds_array[last_fd]->next_fd = curr_fd;
+                                    s_fd_min = _min(s_fd_min, curr_fd);
+                                    s_fd_max = _max(s_fd_max, curr_fd);
+                                }
+                                last_fd = curr_fd;
+                                g_fds_array[curr_fd] = tmp;
                             }
-                            last_fd = curr_fd;
-                            g_fds_array[curr_fd] = tmp;
                         }
                     }
                 }
@@ -3143,17 +3143,17 @@ int bringup(const int *p_daemonize) {
                                 (uint8_t *)MALLOC(sizeof(uint8_t) * 2 * MAX_PAYLOAD_SIZE);
                             if (!tmp->recv.buf) {
                                 log_err("Failed to allocate memory with malloc()");
-                                FREE(tmp);
                                 rc = SOCKPERF_ERR_NO_MEMORY;
-                            }
-                            tmp->recv.cur_addr = tmp->recv.buf;
-                            tmp->recv.max_size = MAX_PAYLOAD_SIZE;
-                            tmp->recv.cur_offset = 0;
-                            tmp->recv.cur_size = tmp->recv.max_size;
+                            } else {
+                                tmp->recv.cur_addr = tmp->recv.buf;
+                                tmp->recv.max_size = MAX_PAYLOAD_SIZE;
+                                tmp->recv.cur_offset = 0;
+                                tmp->recv.cur_size = tmp->recv.max_size;
 
-                            s_fd_min = s_fd_max = curr_fd;
-                            g_fds_array[s_fd_min] = tmp;
-                            g_fds_array[s_fd_min]->next_fd = s_fd_min;
+                                s_fd_min = s_fd_max = curr_fd;
+                                g_fds_array[s_fd_min] = tmp;
+                                g_fds_array[s_fd_min]->next_fd = s_fd_min;
+                            }
                         }
                     }
                 }
