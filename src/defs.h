@@ -636,6 +636,7 @@ struct user_params_t {
     bool is_blocked;
     bool do_warmup;
     unsigned int pre_warmup_wait;
+    uint32_t cooldown_msec;
     uint32_t warmup_msec;
     bool is_vmarxfiltercb;
     bool is_vmazcopyread;
