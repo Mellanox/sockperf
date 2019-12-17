@@ -54,9 +54,11 @@ void print_average_results(double usecAvarage) {
 /* set the timer on client to the [-t sec] parameter given by user */
 void set_client_timer(struct itimerval *timer) {
     // extra sec and extra msec will be excluded from results
-    timer->it_value.tv_sec = (TEST_END_COOLDOWN_MSEC + g_pApp->m_const_params.warmup_msec) / 1000 +
-                             g_pApp->m_const_params.sec_test_duration;
-    timer->it_value.tv_usec = (TEST_END_COOLDOWN_MSEC + g_pApp->m_const_params.warmup_msec) % 1000;
+    timer->it_value.tv_sec =
+        (g_pApp->m_const_params.cooldown_msec + g_pApp->m_const_params.warmup_msec) / 1000 +
+        g_pApp->m_const_params.sec_test_duration;
+    timer->it_value.tv_usec =
+        (g_pApp->m_const_params.cooldown_msec + g_pApp->m_const_params.warmup_msec) % 1000;
     timer->it_interval.tv_sec = 0;
     timer->it_interval.tv_usec = 0;
 }
