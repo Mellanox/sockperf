@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2018 Mellanox Technologies Ltd.
+ * Copyright (c) 2011-2020 Mellanox Technologies Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -228,7 +228,7 @@ static const char *const round_trip_str[] = { "latency", "rtt" };
 
 #define MODULE_NAME "sockperf"
 #define MODULE_COPYRIGHT                                                                           \
-    "Copyright (C) 2011 Mellanox Technologies Ltd."                                                \
+    "Copyright (C) 2011-2020 Mellanox Technologies Ltd."                                           \
     "\nSockPerf is open source software, see http://github.com/mellanox/sockperf"
 #define log_msg(log_fmt, ...) printf(MODULE_NAME ": " log_fmt "\n", ##__VA_ARGS__)
 #define log_msg_file(file, log_fmt, ...) fprintf(file, MODULE_NAME ": " log_fmt "\n", ##__VA_ARGS__)
