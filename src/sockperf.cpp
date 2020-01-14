@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2018 Mellanox Technologies Ltd.
+ * Copyright (c) 2011-2020 Mellanox Technologies Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -3016,8 +3016,7 @@ static int set_sockets_from_feedfile(const char *feedfile_name) {
 
 //------------------------------------------------------------------------------
 /* Sanity check for the sockets list inside g_fds_array. */
-static bool fds_array_is_valid()
-{
+static bool fds_array_is_valid() {
     int i;
     int fd;
 
@@ -3029,13 +3028,12 @@ static bool fds_array_is_valid()
      */
 
     for (fd = s_fd_min, i = 0; i < s_fd_num && fd != s_fd_max; ++i) {
-        if (g_fds_array[fd] == NULL)
+        if (g_fds_array[fd] == NULL) {
             return false;
+        }
         fd = g_fds_array[fd]->next_fd;
     }
-    return fd == s_fd_max &&
-           (i + 1) == s_fd_num &&
-           g_fds_array[fd]->next_fd == s_fd_min;
+    return ((fd == s_fd_max) && ((i + 1) == s_fd_num) && (g_fds_array[fd]->next_fd == s_fd_min));
 }
 
 //------------------------------------------------------------------------------
