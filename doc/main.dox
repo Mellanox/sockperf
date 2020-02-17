@@ -171,7 +171,6 @@ sockperf: [tid 4805] using epoll() to block on socket(s)
 
    General client options are:
 @code
-         --srv-num              -Set num of servers the client works with to N.
          --sender-affinity      -Set sender thread affinity to the given core ids in list format (see: cat /proc/cpuinfo).
          --receiver-affinity    -Set receiver thread affinity to the given core ids in list format (see: cat /proc/cpuinfo).
          --full-log             -Dump full log of all messages send/receive time to the given file in CSV format.

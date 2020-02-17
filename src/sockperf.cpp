@@ -281,9 +281,6 @@ static const AOPT_DESC common_opt_desc[] = {
  * List of supported client options.
  */
 static const AOPT_DESC client_opt_desc[] = {
-    { OPT_CLIENT_WORK_WITH_SRV_NUM,                    AOPT_ARG,
-      aopt_set_literal(0),                             aopt_set_string("srv-num"),
-      "Set num of servers the client works with to N." },
     { OPT_SENDER_AFFINITY,
       AOPT_ARG,
       aopt_set_literal(0),
