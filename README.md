@@ -1,3 +1,5 @@
+## Introduction
+
 **sockperf** is a network benchmarking utility over socket API that was designed for testing performance (latency and throughput) of high-performance systems (it is also good for testing performance of regular networking systems as well). It covers most of the socket API calls and options.
 
 Specifically, in addition to the standard throughput tests, **sockperf**, does the following:
@@ -13,6 +15,8 @@ Specifically, in addition to the standard throughput tests, **sockperf**, does t
 
 ## Licensing
 
+   [View Here](https://github.com/Mellanox/sockperf/blob/sockperf_v2/copying)
+  
 ## What you will need to compile aLic on Unix systems
 
    * Perl 5.8+ (used by the automake tools)
