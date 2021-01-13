@@ -17,7 +17,7 @@ Source: <url://example.com>
 ### Please avoid to pick license terms that are more restrictive than the
 ### packaged work, as it may make Debian's contributions unacceptable upstream.
 
-Copyright: 2011-2020 Mellanox Technologies, Ltd.
+Copyright: 2011-2021 Mellanox Technologies, Ltd.
 License:   __UNKNOWN__
  Redistribution and use in source and binary forms, with or without modification,
  are permitted provided that the following conditions are met:
