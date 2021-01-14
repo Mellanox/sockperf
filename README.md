@@ -12,7 +12,7 @@ Specifically, in addition to the standard throughput tests, **sockperf** does th
   
   * Support MANY optional settings for good coverage of socket API and network configurations, while still keeping very low overhead in the fast path to allow cleanest results.
   
-## Prereqs: What you will need to compile aLic on Unix systems
+## Prereqs: What you will need to compile sockperf on Unix systems
 
    * Perl 5.8+ (used by the automake tools)
 
@@ -37,7 +37,7 @@ make install
 ### Configuration
 
    Type `./configure --help` for a list of all the configure
-   options. Some of the options are generic autoconf options, while the aLic
+   options. Some of the options are generic autoconf options, while the sockperf
    specific options are prefixed with "SOCKPERF:" in the help text.
    
  * To enable test scripts
