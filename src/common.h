@@ -32,6 +32,7 @@
 #include "defs.h"
 //#include "switches.h"
 #include "message.h"
+#include "tls.h"
 
 extern user_params_t s_user_params;
 //------------------------------------------------------------------------------
@@ -207,7 +208,14 @@ static inline int msg_recvfrom(int fd, uint8_t *buf, int nbytes, struct sockaddr
         flags = MSG_NOSIGNAL;
 #endif
 
-        ret = recvfrom(fd, buf, nbytes, flags, (struct sockaddr *)recvfrom_addr, &size);
+#if defined(DEFINED_TLS)
+        if (g_fds_array[fd]->tls_handle) {
+            ret = tls_read(g_fds_array[fd]->tls_handle, buf, nbytes);
+        } else
+#endif /* DEFINED_TLS */
+        {
+            ret = recvfrom(fd, buf, nbytes, flags, (struct sockaddr *)recvfrom_addr, &size);
+        }
 
 #if defined(LOG_TRACE_MSG_IN) && (LOG_TRACE_MSG_IN == TRUE)
         printf(">   ");
@@ -276,8 +284,15 @@ static inline int msg_sendto(int fd, uint8_t *buf, int nbytes,
     int size = nbytes;
 
     while (nbytes) {
-        ret =
-            sendto(fd, buf, nbytes, flags, (struct sockaddr *)sendto_addr, sizeof(struct sockaddr));
+#if defined(DEFINED_TLS)
+        if (g_fds_array[fd]->tls_handle) {
+            ret = tls_write(g_fds_array[fd]->tls_handle, buf, nbytes);
+        } else
+#endif /* DEFINED_TLS */
+        {
+            ret = sendto(fd, buf, nbytes, flags, (struct sockaddr *)sendto_addr,
+                         sizeof(struct sockaddr));
+        }
 
 #if defined(LOG_TRACE_SEND) && (LOG_TRACE_SEND == TRUE)
         LOG_TRACE("raw", "%s IP: %s:%d [fd=%d ret=%d] %s", __FUNCTION__,

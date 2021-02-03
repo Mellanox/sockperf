@@ -583,6 +583,16 @@ int Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration,
                         break;
                     }
                 }
+#if defined(DEFINED_TLS)
+                if (g_pApp->m_const_params.tls) {
+                    g_fds_array[ifd]->tls_handle = tls_connect(ifd);
+                    if (!g_fds_array[ifd]->tls_handle) {
+                        log_err("Failed tls_connect()");
+                        rc = SOCKPERF_ERR_SOCKET;
+                        break;
+                    }
+                }
+#endif /* DEFINED_TLS */
             }
             /*
              * since when using VMA there is no qp until the bind, and vma cannot
