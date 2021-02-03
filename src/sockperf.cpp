@@ -111,6 +111,7 @@ int prepare_socket(int fd, struct fds_data *p_data, bool stTest = false);
 #else
 int prepare_socket(int fd, struct fds_data *p_data);
 #endif
+
 void cleanup();
 
 #ifndef VERSION
@@ -272,6 +273,10 @@ static const AOPT_DESC common_opt_desc[] = {
       aopt_set_literal(0),
       aopt_set_string("set-sock-accl"),
       "Set socket accleration before run (available for some of Mellanox systems)" },
+#if defined(DEFINED_TLS)
+    { OPT_TLS,                AOPT_OPTARG,                                    aopt_set_literal(0),
+      aopt_set_string("tls"), "Use TLSv1.2 (default " TLS_CHIPER_DEFAULT ")." },
+#endif /* DEFINED_TLS */
     { 'd',                      AOPT_NOARG,                      aopt_set_literal('d'),
       aopt_set_string("debug"), "Print extra debug information." },
     { 0, AOPT_NOARG, aopt_set_literal(0), aopt_set_string(NULL), NULL }
@@ -1927,6 +1932,16 @@ static int parse_common_opt(const AOPT_OBJECT *common_obj) {
                 rc = SOCKPERF_ERR_BAD_ARGUMENT;
             }
         }
+
+#if defined(DEFINED_TLS)
+        if (!rc && aopt_check(common_obj, OPT_TLS)) {
+            const char *optarg = aopt_value(common_obj, OPT_TLS);
+            s_user_params.tls = true;
+            if (optarg && *optarg) {
+                tls_chipher(optarg);
+            }
+        }
+#endif /* DEFINED_TLS */
     }
 
     return rc;
@@ -2066,6 +2081,9 @@ static int st1, st2;
 //------------------------------------------------------------------------------
 void cleanup() {
     os_mutex_lock(&_mutex);
+#if defined(DEFINED_TLS)
+    tls_exit();
+#endif /* DEFINED_TLS */
     int ifd;
     if (g_fds_array) {
         for (ifd = 0; ifd <= s_fd_max; ifd++) {
@@ -2221,6 +2239,10 @@ void set_defaults() {
     s_user_params.dummy_mps = 0;
     memset(s_user_params.feedfile_name, 0, sizeof(s_user_params.feedfile_name));
     s_user_params.tos = 0x00;
+
+#if defined(DEFINED_TLS)
+    s_user_params.tls = false;
+#endif /* DEFINED_TLS */
 }
 
 //------------------------------------------------------------------------------
@@ -3080,6 +3102,10 @@ int bringup(const int *p_daemonize) {
         exit_with_err("Please compile with VMA Extra API to use these options", SOCKPERF_ERR_FATAL);
     }
 #endif
+
+#if defined(DEFINED_TLS)
+    rc = tls_init();
+#endif /* DEFINED_TLS */
 
     /* Create and initialize sockets */
     if (!rc) {

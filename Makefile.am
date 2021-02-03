@@ -42,6 +42,8 @@ sockperf_SOURCES = \
 	src/ticks.cpp \
 	src/ticks.h \
 	src/ticks_os.h \
+	src/tls.cpp \
+	src/tls.h \
 	src/vma-redirect.cpp \
 	src/vma-redirect.h
 

@@ -221,7 +221,10 @@ enum {
     OPT_DUMMY_SEND,               // 41
     OPT_RATE_LIMIT,               // 42
     OPT_UC_REUSEADDR,             // 43
-    OPT_FULL_RTT                  // 44
+    OPT_FULL_RTT,                 // 44
+#if defined(DEFINED_TLS)
+    OPT_TLS
+#endif /* DEFINED_TLS */
 };
 
 static const char *const round_trip_str[] = { "latency", "rtt" };
@@ -496,6 +499,9 @@ typedef struct fds_data {
 #ifdef USING_VMA_EXTRA_API
     Message *p_msg;
 #endif
+#if defined(DEFINED_TLS)
+    void *tls_handle;
+#endif /* DEFINED_TLS */
 } fds_data;
 
 /**
@@ -679,6 +685,9 @@ struct user_params_t {
     uint32_t dummy_mps;                   // client side only
     TicksDuration dummySendCycleDuration; // client side only
     uint32_t rate_limit;
+#if defined(DEFINED_TLS)
+    bool tls;
+#endif /* DEFINED_TLS */
 };
 
 struct mutable_params_t {};

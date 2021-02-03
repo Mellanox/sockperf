@@ -150,6 +150,11 @@ AS_IF([test "x$have_build32" = "xyes"], [
 
 AC_SUBST([OUR_CXXFLAGS])
 
+##########################
+# TLS support
+#
+TLS_CAPABILITY_SETUP
+
 #####################################
 # Checks for header files.
 #
