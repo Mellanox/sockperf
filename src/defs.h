@@ -123,6 +123,8 @@ const uint32_t REPLY_EVERY_DEFAULT = 100;
 
 const uint32_t TEST_START_WARMUP_MSEC = 400;
 const uint32_t TEST_END_COOLDOWN_MSEC = 50;
+const uint32_t TEST_START_WARMUP_OBS = 8000;
+const uint32_t TEST_END_COOLDOWN_OBS = 1000;
 
 const uint32_t TEST_FIRST_CONNECTION_FIRST_PACKET_TTL_THRESHOLD_MSEC = 50;
 #define TEST_ANY_CONNECTION_FIRST_PACKET_TTL_THRESHOLD_MSEC (0.1)
@@ -130,6 +132,7 @@ const uint32_t TEST_FIRST_CONNECTION_FIRST_PACKET_TTL_THRESHOLD_MSEC = 50;
 #define DEFAULT_CLIENT_WORK_WITH_SRV_NUM 1
 
 #define DEFAULT_TEST_DURATION 1 /* [sec] */
+#define DEFAULT_OBSERVATION_COUNT 0
 #define DEFAULT_MC_ADDR "0.0.0.0"
 #define DEFAULT_PORT 11111
 #define DEFAULT_IP_MTU 1500
@@ -160,6 +163,7 @@ const uint32_t TEST_FIRST_CONNECTION_FIRST_PACKET_TTL_THRESHOLD_MSEC = 50;
 
 #define MAX_ARGV_SIZE 256
 #define MAX_DURATION 36000000
+#define MAX_OBSERVATIONS 100000000
 extern const int MAX_FDS_NUM;
 #define SOCK_BUFF_DEFAULT_SIZE 0
 #define DEFAULT_SELECT_TIMEOUT_MSEC 10
@@ -607,6 +611,11 @@ typedef enum {
     MODE_BRIDGE
 } work_mode_t;
 
+typedef enum {
+    TIME_BASED = 1,
+    OBSERVATION_BASED
+} measurement_mode_t;
+
 typedef enum { // must be coordinated with s_fds_handle_desc in common.cpp
     RECVFROM = 0,
     RECVFROMMUX,
@@ -619,13 +628,15 @@ typedef enum { // must be coordinated with s_fds_handle_desc in common.cpp
     FD_HANDLE_MAX } fd_block_handler_t;
 
 struct user_params_t {
-    work_mode_t mode; // either  client or server
+    work_mode_t mode; // either client or server
+    measurement_mode_t measurement; // either time or observation
     struct in_addr rx_mc_if_addr;
     struct in_addr tx_mc_if_addr;
     struct in_addr mc_source_ip_addr;
     int msg_size;
     int msg_size_range;
     int sec_test_duration;
+    uint32_t observation_test_count;
     bool data_integrity;
     fd_block_handler_t fd_handler_type;
     unsigned int packetrate_stats_print_ratio;
@@ -642,6 +653,8 @@ struct user_params_t {
     unsigned int pre_warmup_wait;
     uint32_t cooldown_msec;
     uint32_t warmup_msec;
+    uint64_t cooldown_obs;
+    uint64_t warmup_obs;
     bool is_vmarxfiltercb;
     bool is_vmazcopyread;
     TicksDuration cycleDuration;

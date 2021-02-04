@@ -137,9 +137,9 @@ static const struct app_modes {
         aopt_set_string("ul"), "Run " MODULE_NAME " client for latency under load test." },
       { proc_mode_ping_pong,   "ping-pong",
         aopt_set_string("pp"), "Run " MODULE_NAME " client for latency test in ping pong mode." },
-      { proc_mode_playback, "playback", aopt_set_string("pb"),
-        "Run " MODULE_NAME " client for latency test using playback of predefined traffic, based "
-        "on timeline and message size." },
+      { proc_mode_playback, "playback",
+        aopt_set_string("pb"), "Run " MODULE_NAME " client for latency test using playback of predefined"
+                                                  " traffic, based on timeline and message size." },
       { proc_mode_throughput,  "throughput",
         aopt_set_string("tp"), "Run " MODULE_NAME " client for one way throughput test." },
       { proc_mode_server, "server", aopt_set_string("sr"), "Run " MODULE_NAME " as a server." },
@@ -648,6 +648,9 @@ static int proc_mode_ping_pong(int id, int argc, const char **argv) {
         { 't',                                                 AOPT_ARG,
           aopt_set_literal('t'),                               aopt_set_string("time"),
           "Run for <sec> seconds (default 1, max = 36000000)." },
+        { 'n',                                                 AOPT_ARG,
+          aopt_set_literal('n'),                               aopt_set_string("number-of-observations"),
+          "Run for observations (default 0, max = 100000000)." },
         { OPT_CLIENTPORT,
           AOPT_ARG,
           aopt_set_literal(0),
@@ -704,6 +707,7 @@ static int proc_mode_ping_pong(int id, int argc, const char **argv) {
 
     /* Set default values */
     s_user_params.mode = MODE_CLIENT;
+    s_user_params.measurement = TIME_BASED;
     s_user_params.b_client_ping_pong = true;
     s_user_params.mps = UINT32_MAX;
     s_user_params.reply_every = 1;
@@ -720,6 +724,24 @@ static int proc_mode_ping_pong(int id, int argc, const char **argv) {
 
     /* Set command line specific values */
     if (!rc && self_obj) {
+        if (!rc && aopt_check(self_obj, 'n')) {
+            const char *optarg = aopt_value(self_obj, 'n');
+            if (optarg) {
+                errno = 0;
+                int value = strtol(optarg, NULL, 0);
+                if (errno != 0 || value <= 0 || value > MAX_OBSERVATIONS) {
+                    log_msg("'-%c' Invalid observations: %s", 'n', optarg);
+                    rc = SOCKPERF_ERR_BAD_ARGUMENT;
+                } else {
+                    s_user_params.measurement = OBSERVATION_BASED;
+                    s_user_params.observation_test_count = value;
+                }
+            } else {
+                log_msg("'-%c' Invalid value", 'n');
+                rc = SOCKPERF_ERR_BAD_ARGUMENT;
+            }
+        }
+
         if (!rc && aopt_check(self_obj, 't')) {
             const char *optarg = aopt_value(self_obj, 't');
             if (optarg) {
@@ -729,7 +751,13 @@ static int proc_mode_ping_pong(int id, int argc, const char **argv) {
                     log_msg("'-%c' Invalid duration: %s", 't', optarg);
                     rc = SOCKPERF_ERR_BAD_ARGUMENT;
                 } else {
-                    s_user_params.sec_test_duration = value;
+                    if (s_user_params.measurement == OBSERVATION_BASED) {
+                        log_msg("Can't be both observation and time based");
+                        rc = SOCKPERF_ERR_BAD_ARGUMENT;
+                    } else {
+                        s_user_params.measurement = TIME_BASED;
+                        s_user_params.sec_test_duration = value;
+                    }
                 }
             } else {
                 log_msg("'-%c' Invalid value", 't');
@@ -873,10 +901,10 @@ static int proc_mode_ping_pong(int id, int argc, const char **argv) {
         printf("%s: %s\n", display_opt(id, temp_buf, sizeof(temp_buf)), sockperf_modes[id].note);
         printf("\n");
         printf("Usage: " MODULE_NAME " %s [options] [args]...\n", sockperf_modes[id].name);
-        printf(" " MODULE_NAME " %s -i ip  [-p port] [-m message_size] [-t time]\n",
+        printf(" " MODULE_NAME " %s -i ip  [-p port] [-m message_size] [-t time | -n number-of-observations]\n",
                sockperf_modes[id].name);
         printf(" " MODULE_NAME
-               " %s -f file [-F s/p/e] [-m message_size] [-r msg_size_range] [-t time]\n",
+               " %s -f file [-F s/p/e] [-m message_size] [-r msg_size_range] [-t time | -n number-of-observations]\n",
                sockperf_modes[id].name);
         printf("\n");
         printf("Options:\n");
@@ -2159,10 +2187,12 @@ void set_defaults() {
     s_user_params.tx_mc_if_addr.s_addr = htonl(INADDR_ANY);
     s_user_params.mc_source_ip_addr.s_addr = htonl(INADDR_ANY);
     s_user_params.sec_test_duration = DEFAULT_TEST_DURATION;
+    s_user_params.observation_test_count = DEFAULT_OBSERVATION_COUNT;
     s_user_params.client_bind_info.sin_family = AF_INET;
     s_user_params.client_bind_info.sin_addr.s_addr = INADDR_ANY;
     s_user_params.client_bind_info.sin_port = 0;
     s_user_params.mode = MODE_SERVER;
+    s_user_params.measurement = TIME_BASED;
     s_user_params.packetrate_stats_print_ratio = 0;
     s_user_params.packetrate_stats_print_details = false;
     s_user_params.burst_size = 1;
@@ -3214,6 +3244,8 @@ int bringup(const int *p_daemonize) {
                 TEST_FIRST_CONNECTION_FIRST_PACKET_TTL_THRESHOLD_MSEC * 1000,
                 (int)(TEST_ANY_CONNECTION_FIRST_PACKET_TTL_THRESHOLD_MSEC * 1000));
         }
+        s_user_params.warmup_obs = TEST_START_WARMUP_OBS;
+        s_user_params.cooldown_obs = TEST_END_COOLDOWN_OBS;
 
         uint64_t _maxTestDuration = 1 + s_user_params.sec_test_duration +
                                     (s_user_params.warmup_msec + s_user_params.cooldown_msec) /
@@ -3221,6 +3253,11 @@ int bringup(const int *p_daemonize) {
         uint64_t _maxSequenceNo = _maxTestDuration * s_user_params.mps +
                                   10 * s_user_params.reply_every; // + 10 replies for safety
         _maxSequenceNo += s_user_params.burst_size; // needed for the case burst_size > mps
+
+        if(s_user_params.measurement == OBSERVATION_BASED) {
+            // override to reach max count during observation based
+            _maxSequenceNo = TEST_START_WARMUP_OBS + MAX_OBSERVATIONS + TEST_END_COOLDOWN_OBS;
+        }
 
         if (s_user_params.pPlaybackVector) {
             _maxSequenceNo = s_user_params.pPlaybackVector->size();
@@ -3324,10 +3361,12 @@ int main(int argc, char *argv[]) {
         log_dbg(
             "+INFO:\n\t\
 mode = %d \n\t\
+measurement = %d \n\t\
 with_sock_accl = %d \n\t\
 msg_size = %d \n\t\
 msg_size_range = %d \n\t\
 sec_test_duration = %d \n\t\
+observation_test_count = %d \n\t\
 data_integrity = %d \n\t\
 packetrate_stats_print_ratio = %d \n\t\
 burst_size = %d \n\t\
@@ -3363,14 +3402,14 @@ daemonize = %d \n\t\
 feedfile_name = %s \n\t\
 tos = %d \n\t\
 packet pace limit = %d",
-            s_user_params.mode, s_user_params.withsock_accl, s_user_params.msg_size,
-            s_user_params.msg_size_range, s_user_params.sec_test_duration,
-            s_user_params.data_integrity, s_user_params.packetrate_stats_print_ratio,
-            s_user_params.burst_size, s_user_params.packetrate_stats_print_details,
-            s_user_params.fd_handler_type, s_user_params.mthread_server,
-            s_user_params.sock_buff_size, s_user_params.threads_num, s_user_params.threads_affinity,
-            s_user_params.is_blocked, s_user_params.is_nonblocked_send, s_user_params.do_warmup,
-            s_user_params.pre_warmup_wait, s_user_params.is_vmarxfiltercb,
+            s_user_params.mode, s_user_params.measurement, s_user_params.withsock_accl,
+            s_user_params.msg_size, s_user_params.msg_size_range, s_user_params.sec_test_duration,
+            s_user_params.observation_test_count, s_user_params.data_integrity,
+            s_user_params.packetrate_stats_print_ratio, s_user_params.burst_size,
+            s_user_params.packetrate_stats_print_details, s_user_params.fd_handler_type,
+            s_user_params.mthread_server, s_user_params.sock_buff_size, s_user_params.threads_num,
+            s_user_params.threads_affinity, s_user_params.is_blocked, s_user_params.is_nonblocked_send,
+            s_user_params.do_warmup, s_user_params.pre_warmup_wait, s_user_params.is_vmarxfiltercb,
             s_user_params.is_vmazcopyread, s_user_params.mc_loop_disable, s_user_params.mc_ttl,
             s_user_params.uc_reuseaddr, s_user_params.tcp_nodelay,
             s_user_params.client_work_with_srv_num, s_user_params.b_server_reply_via_uc,
