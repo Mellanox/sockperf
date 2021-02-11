@@ -46,7 +46,7 @@ sockperf_SOURCES = \
 	src/vma-redirect.h
 
 dist_doc_DATA = \
-	readme \
+	README.md \
 	authors \
 	news \
 	version \
