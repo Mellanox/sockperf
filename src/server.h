@@ -98,6 +98,16 @@ public:
     int server_accept(int ifd);
 
 private:
+    bool b_write_msg_file_init;
+    FILE *write_msg_file;
+    int write_msg_fd;
+    int open_fd_default_flags;
+    uint8_t *write_msg_buf;
+    uint8_t *write_msg_buf_aligned;
+    void setup_write_msg_to_file();
+    void cleanup_write_msg_to_file();
+    void open_fd_align_buffer(int flags);
+
     SwitchActivityInfo m_switchActivityInfo;
     SwitchCalcGaps m_switchCalcGaps;
 };
@@ -186,6 +196,7 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_t
         if (ret == RET_SOCKET_SHUTDOWN) {
             if (l_fds_ifd->sock_type == SOCK_STREAM) {
                 close_ifd(l_fds_ifd->next_fd, ifd, l_fds_ifd);
+                cleanup_write_msg_to_file();
             }
             return (do_update);
         }
@@ -223,6 +234,7 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_t
             print_log("Message received was larger than expected, message ignored.", l_fds_ifd);
 
             close_ifd(l_fds_ifd->next_fd, ifd, l_fds_ifd);
+            cleanup_write_msg_to_file();
             return (do_update);
         }
 
@@ -254,6 +266,38 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_t
         printf(">>> ");
         hexdump(m_pMsgReply->getBuf(), MsgHeader::EFFECTIVE_SIZE);
 #endif /* LOG_TRACE_MSG_IN */
+
+        /* if requested persist each message to file */
+        if (s_user_params.b_write_msg_to_file) {
+
+            uint8_t *msg = m_pMsgReply->getBuf();
+            int msg_len = m_pMsgReply->getLength();
+
+            if (write_msg_file) {
+                assert(s_user_params.write_msg_file_flags_opt == DEFAULT_FILE_FLAGS_OPT);
+
+                size_t wb = fwrite(msg, sizeof(uint8_t), msg_len, write_msg_file);
+
+                if (wb != (size_t)msg_len) {
+                    log_err("Failed to write complete message to file stream - wrote %zu of %d bytes.", wb, msg_len);
+                    exit_with_log("Failed to write message to file stream.", SOCKPERF_ERR_FATAL);
+                }
+
+                if (fflush(write_msg_file) != 0) {
+                    exit_with_log("Failed to flush file stream.", SOCKPERF_ERR_FATAL);
+                }
+            } else {
+                assert(s_user_params.write_msg_file_flags_opt != DEFAULT_FILE_FLAGS_OPT);
+
+                memcpy(write_msg_buf_aligned, msg, msg_len);
+                ssize_t wb = write(write_msg_fd, write_msg_buf_aligned, msg_len);
+
+                if (wb != msg_len) {
+                    log_err("Failed to write complete message to file descriptor - wrote %zu of %d bytes.", wb, msg_len);
+                    exit_with_log("Failed to write message to file descriptor.", SOCKPERF_ERR_FATAL);
+                }
+            }
+        }
 
         if (g_b_exit) return (!do_update);
         if (!m_pMsgReply->isClient()) {
@@ -322,6 +366,7 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_t
             if (unlikely(ret == RET_SOCKET_SHUTDOWN)) {
                 if (l_fds_ifd->sock_type == SOCK_STREAM) {
                     close_ifd(l_fds_ifd->next_fd, ifd, l_fds_ifd);
+                    cleanup_write_msg_to_file();
                 }
                 return (do_update);
             }

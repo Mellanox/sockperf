@@ -155,7 +155,11 @@ void ServerBase::cleanupAfterLoop() {
 //------------------------------------------------------------------------------
 template <class IoType, class SwitchActivityInfo, class SwitchCalcGaps>
 Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::Server(int _fd_min, int _fd_max, int _fd_num)
-    : ServerBase(m_ioHandler), m_ioHandler(_fd_min, _fd_max, _fd_num) {}
+    : ServerBase(m_ioHandler), m_ioHandler(_fd_min, _fd_max, _fd_num),
+    b_write_msg_file_init(false),
+    write_msg_file(NULL),
+    write_msg_fd(0), open_fd_default_flags(O_CREAT | O_RDWR | O_TRUNC),
+    write_msg_buf(NULL), write_msg_buf_aligned(NULL)  {}
 
 //------------------------------------------------------------------------------
 template <class IoType, class SwitchActivityInfo, class SwitchCalcGaps>
@@ -318,6 +322,11 @@ int Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_accept(int ifd) {
                                         inet_ntoa(addr.sin_addr), ntohs(addr.sin_port), active_ifd);
                             }
                             do_accept = true;
+
+                            if (s_user_params.b_write_msg_to_file && !b_write_msg_file_init) {
+                                setup_write_msg_to_file();
+                            }
+
                             break;
                         }
                     }
@@ -351,10 +360,90 @@ int Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_accept(int ifd) {
                 }
             }
         }
+    } else if (g_fds_array[ifd]->sock_type == SOCK_DGRAM) {
+        if (s_user_params.b_write_msg_to_file && !b_write_msg_file_init) {
+            setup_write_msg_to_file();
+        }
     }
 
     return active_ifd;
 }
+
+//------------------------------------------------------------------------------
+template <class IoType, class SwitchActivityInfo, class SwitchCalcGaps>
+void Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::setup_write_msg_to_file() {
+
+    /* 0 - write to file through a file stream
+     * 1 - open_fd_default_flags | O_DSYNC
+     * 2 - open_fd_default_flags | O_DIRECT | O_DSYNC */
+    switch (s_user_params.write_msg_file_flags_opt)
+    {
+        case 0:
+            write_msg_file = fopen(s_user_params.write_msg_filepath, "w+");
+            if (write_msg_file == NULL) {
+                log_err("Failed to open file stream for file: %s.", s_user_params.write_msg_filepath);
+                exit_with_log("Failed to enable writing messages to file. Exiting sockperf.", SOCKPERF_ERR_FATAL);
+            }
+            break;
+        case 1:
+            open_fd_align_buffer(O_DSYNC);
+            break;
+        case 2:
+            open_fd_align_buffer(O_DSYNC | O_DIRECT);
+            break;
+        default:
+            exit_with_log("Unrecognized file sync option provided. Exiting sockperf.", SOCKPERF_ERR_BAD_ARGUMENT);
+            break;
+    }
+
+    b_write_msg_file_init = true;
+}
+
+//------------------------------------------------------------------------------
+template <class IoType, class SwitchActivityInfo, class SwitchCalcGaps>
+void Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::cleanup_write_msg_to_file() {
+
+    if (write_msg_file != NULL) {
+        if (fclose(write_msg_file) != 0) {
+            log_err("Failed to close file stream for file: %s.", s_user_params.write_msg_filepath);
+        }
+        write_msg_file = NULL;
+    } else {
+        if (write_msg_fd > 0) {
+            if (close(write_msg_fd) != 0) {
+                log_err("Failed to close file descriptor for file: %s.", s_user_params.write_msg_filepath);
+            }
+        }
+        free(write_msg_buf);
+    }
+
+    b_write_msg_file_init = false;
+}
+
+/* To write to a file opened with O_DIRECT userspace buffer needs to be aligned
+ * by a multiple of 512 bytes and the buffer length needs to be a multiple of 512 bytes. */
+#define DIRECT_IO_BUF_ALIGN(PTR, ALIGNVAL) (((uintptr_t) (PTR) + ((ALIGNVAL) - 1)) & ~((uintptr_t) ((ALIGNVAL) - 1)))
+
+//------------------------------------------------------------------------------
+template <class IoType, class SwitchActivityInfo, class SwitchCalcGaps>
+void Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::open_fd_align_buffer(int flags) {
+
+    write_msg_fd = open(s_user_params.write_msg_filepath, open_fd_default_flags | flags, S_IRUSR | S_IWUSR);
+
+    if (write_msg_fd > 0) {
+        /* At server startup actual message sizes used by sockperf client are unknown,
+         * MAX_PAYLOAD_SIZE is used to ensure client is able to send messages of any supported size. */
+        write_msg_buf = (uint8_t*)MALLOC(MAX_PAYLOAD_SIZE + s_user_params.write_msg_buf_alignment);
+        if (write_msg_buf == NULL) {
+            exit_with_log("Failed to allocate memory for write_msg_buf.", SOCKPERF_ERR_NO_MEMORY);
+        }
+        write_msg_buf_aligned = (uint8_t*)DIRECT_IO_BUF_ALIGN(write_msg_buf, s_user_params.write_msg_buf_alignment);
+    } else {
+        log_err("Failed to open file: %s.", s_user_params.write_msg_filepath);
+        exit_with_log("Failed to enable writing messages to file. Exiting sockperf.", SOCKPERF_ERR_FATAL);
+    }
+}
+#undef DIRECT_IO_BUF_ALIGN
 
 //------------------------------------------------------------------------------
 template <class IoType, class SwitchActivityInfo, class SwitchCheckGaps>

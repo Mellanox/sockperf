@@ -138,6 +138,8 @@ const uint32_t TEST_FIRST_CONNECTION_FIRST_PACKET_TTL_THRESHOLD_MSEC = 50;
 #define MAX_ACTIVE_FD_NUM                                                                          \
     1024 /* maximum number of active connection to the single TCP addr:port                        \
             */
+#define DEFAULT_BUF_ALIGNMENT 512
+#define DEFAULT_FILE_FLAGS_OPT 0
 #ifdef USING_VMA_EXTRA_API
 #define MAX_VMA_COMPS 1024 /* maximum size for the VMA completions array for VMA Poll */
 #endif
@@ -221,7 +223,10 @@ enum {
     OPT_DUMMY_SEND,               // 41
     OPT_RATE_LIMIT,               // 42
     OPT_UC_REUSEADDR,             // 43
-    OPT_FULL_RTT                  // 44
+    OPT_FULL_RTT,                 // 44
+    OPT_WRITE_MSG_FILE_PATH,      // 45
+    OPT_WRITE_MSG_FILE_FLAGS,     // 46
+    OPT_WRITE_MSG_BUF_ALIGN       // 47
 };
 
 static const char *const round_trip_str[] = { "latency", "rtt" };
@@ -679,6 +684,10 @@ struct user_params_t {
     uint32_t dummy_mps;                   // client side only
     TicksDuration dummySendCycleDuration; // client side only
     uint32_t rate_limit;
+    bool b_write_msg_to_file;
+    char write_msg_filepath[MAX_PATH_LENGTH];
+    uint32_t write_msg_file_flags_opt;
+    uint32_t write_msg_buf_alignment;
 };
 
 struct mutable_params_t {};

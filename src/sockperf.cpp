@@ -1358,6 +1358,23 @@ static int proc_mode_server(int id, int argc, const char **argv) {
           "Set maximum message size that the server can receive <size> bytes (default 65507)." },
         { 'g',                              AOPT_NOARG,             aopt_set_literal('g'),
           aopt_set_string("gap-detection"), "Enable gap-detection." },
+        { OPT_WRITE_MSG_FILE_PATH,
+          AOPT_ARG,
+          aopt_set_literal('o'),
+          aopt_set_string("output-file"),
+          "Specify path to a file for sockperf server to write received messages to." },
+        { OPT_WRITE_MSG_FILE_FLAGS,
+          AOPT_ARG,
+          aopt_set_literal(0),
+          aopt_set_string("write-flags"),
+          "Flags to use to open the file, where received messages will be written to (default 0). "
+          " Accepted values: 0: No flags, use file stream; 1: D_SYNC; 2: (O_DIRECT | O_DSYNC) " },
+        { OPT_WRITE_MSG_BUF_ALIGN,
+          AOPT_ARG,
+          aopt_set_literal(0),
+          aopt_set_string("write-align"),
+          "Buffer alignment, required for O_DIRECT (default 512). "
+          "Specified value needs to be a power of two, greater or equal to 512." },
         { 0, AOPT_NOARG, aopt_set_literal(0), aopt_set_string(NULL), NULL }
     };
 
@@ -1465,6 +1482,57 @@ static int proc_mode_server(int id, int argc, const char **argv) {
 
         if (!rc && aopt_check(server_obj, 'g')) {
             s_user_params.b_server_detect_gaps = true;
+        }
+
+        if (!rc && aopt_check(server_obj, OPT_WRITE_MSG_FILE_PATH)) {
+            /* Writing messages to a file is currently only supported for a single-threaded sockperf server */
+            if (s_user_params.mthread_server || aopt_check(server_obj, OPT_THREADS_NUM)) {
+                log_msg("Writing messages to file (option '-o <filepath>') is not supported for multi-threaded server");
+                rc = SOCKPERF_ERR_UNSUPPORTED;
+            } else {
+                const char *optarg = aopt_value(server_obj, OPT_WRITE_MSG_FILE_PATH);
+                if (optarg) {
+                    strncpy(s_user_params.write_msg_filepath, optarg, MAX_ARGV_SIZE);
+                    s_user_params.write_msg_filepath[MAX_PATH_LENGTH - 1] = '\0';
+
+                    s_user_params.b_write_msg_to_file = true;
+                } else {
+                    log_msg("'-%c' Valid path to output file is required, when writing messages to file", 'o');
+                    rc = SOCKPERF_ERR_BAD_ARGUMENT;
+                }
+            }
+        }
+
+        if (!rc && aopt_check(server_obj, OPT_WRITE_MSG_FILE_FLAGS)) {
+            const char *optarg = aopt_value(server_obj, OPT_WRITE_MSG_FILE_FLAGS);
+            long int value = strtol(optarg, NULL, 0);
+
+            /* 0 - write to file through a file stream
+             * 1 - open_fd_default_flags | O_DSYNC
+             * 2 - open_fd_default_flags | O_DIRECT | O_DSYNC */
+            if (value < 0 || value > 2) {
+                log_err("Invalid sync flag value: %s . Setting the value to default: %d", optarg, DEFAULT_FILE_FLAGS_OPT);
+                s_user_params.write_msg_file_flags_opt = DEFAULT_FILE_FLAGS_OPT;
+            } else {
+                s_user_params.write_msg_file_flags_opt = value;
+
+                /* When not using a file stream to write messages to file, check that Direct IO (O_DIRECT)
+                 * requirements for userspace buffer alignment are met. */
+                if (value != DEFAULT_FILE_FLAGS_OPT) {
+                    if (aopt_check(server_obj, OPT_WRITE_MSG_BUF_ALIGN)) {
+                        const char *optarg = aopt_value(server_obj, OPT_WRITE_MSG_BUF_ALIGN);
+                        long int alignment = strtol(optarg, NULL, 0);
+
+                        if (alignment >= DEFAULT_BUF_ALIGNMENT && ((alignment & (alignment - 1)) == 0)) {
+                            s_user_params.write_msg_buf_alignment = alignment;
+                        } else {
+                            log_msg("Invalid buffer alignment value: %s . Setting the value to default: %d bytes",
+                                    optarg, DEFAULT_BUF_ALIGNMENT);
+                            /* The default alignment has already been set at args init, no need to assign again. */
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -2221,6 +2289,10 @@ void set_defaults() {
     s_user_params.dummy_mps = 0;
     memset(s_user_params.feedfile_name, 0, sizeof(s_user_params.feedfile_name));
     s_user_params.tos = 0x00;
+    s_user_params.b_write_msg_to_file = false;
+    memset(s_user_params.write_msg_filepath, 0, sizeof(s_user_params.write_msg_filepath));
+    s_user_params.write_msg_file_flags_opt = 0;
+    s_user_params.write_msg_buf_alignment = DEFAULT_BUF_ALIGNMENT;
 }
 
 //------------------------------------------------------------------------------
