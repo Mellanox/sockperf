@@ -653,13 +653,15 @@ int Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration,
                     log_msg("Starting test...");
 
                     if (!g_pApp->m_const_params.pPlaybackVector) {
-                        set_client_timer(&timer); // initializes ticks to timer
                         #ifndef NO_TIMERS
+                        struct itimerval timer;
+                        set_client_timer(&timer);
                         if (os_set_duration_timer(timer, client_sig_handler)) {
                             log_err("Failed setting test duration timer");
                             rc = SOCKPERF_ERR_FATAL;
                         }
                         #else
+                        set_client_timer(&timer);
                         parent = pthread_self();
                         os_set_signal_action(SIGUSR1, client_sig_handler);
 
