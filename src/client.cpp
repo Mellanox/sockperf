@@ -35,6 +35,11 @@
 
 TicksTime s_startTime, s_endTime;
 
+#ifdef NO_TIMERS
+    pthread_t parent;
+    struct itimerval timer;
+#endif
+
 //==============================================================================
 //==============================================================================
 
@@ -524,6 +529,17 @@ static int _connect_check(int ifd) {
     return rc;
 }
 
+#ifdef NO_TIMERS
+void* thread_sleep(void* args)
+{
+    // struct itimerval *temp_timer = (struct itimerval *) args;
+    log_msg("Start sleep for %d seconds", (int)((struct itimerval *)args)->it_value.tv_sec);
+    sleep(((struct itimerval *)args)->it_value.tv_sec);
+    pthread_kill(parent, SIGUSR1);
+    return NULL;
+}
+#endif
+
 //------------------------------------------------------------------------------
 template <class IoType, class SwitchDataIntegrity, class SwitchActivityInfo,
           class SwitchCycleDuration, class SwitchMsgSize, class PongModeCare>
@@ -637,12 +653,21 @@ int Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration,
                     log_msg("Starting test...");
 
                     if (!g_pApp->m_const_params.pPlaybackVector) {
-                        struct itimerval timer;
-                        set_client_timer(&timer);
+                        set_client_timer(&timer); // initializes ticks to timer
+                        #ifndef NO_TIMERS
                         if (os_set_duration_timer(timer, client_sig_handler)) {
                             log_err("Failed setting test duration timer");
                             rc = SOCKPERF_ERR_FATAL;
                         }
+                        #else
+                        parent = pthread_self();
+                        os_set_signal_action(SIGUSR1, client_sig_handler);
+
+                        os_thread_t thread;
+                        os_thread_init(&thread);
+                        os_thread_exec(&thread, thread_sleep, &timer);
+                        os_thread_detach(&thread);
+                        #endif
                     }
 
                     if (rc == SOCKPERF_ERR_NONE) {
