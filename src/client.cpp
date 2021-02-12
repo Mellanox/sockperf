@@ -35,9 +35,8 @@
 
 TicksTime s_startTime, s_endTime;
 
-#ifdef NO_TIMERS
+#ifdef NO_SETITIMERS_SYSCALL
     pthread_t parent;
-    struct itimerval timer;
 #endif
 
 //==============================================================================
@@ -529,12 +528,15 @@ static int _connect_check(int ifd) {
     return rc;
 }
 
-#ifdef NO_TIMERS
+#ifdef NO_SETITIMERS_SYSCALL
 void* thread_sleep(void* args)
 {
-    // struct itimerval *temp_timer = (struct itimerval *) args;
-    log_msg("Start sleep for %d seconds", (int)((struct itimerval *)args)->it_value.tv_sec);
-    sleep(((struct itimerval *)args)->it_value.tv_sec);
+    int sec = (g_pApp->m_const_params.cooldown_msec + g_pApp->m_const_params.warmup_msec) / 1000 + 
+        g_pApp->m_const_params.sec_test_duration;
+    int usec = (g_pApp->m_const_params.cooldown_msec + g_pApp->m_const_params.warmup_msec) % 1000;
+    log_msg("Start sleep for %d seconds %d useconds", sec, usec);
+    sleep(sec);
+    usleep(usec);
     pthread_kill(parent, SIGUSR1);
     return NULL;
 }
@@ -653,7 +655,7 @@ int Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration,
                     log_msg("Starting test...");
 
                     if (!g_pApp->m_const_params.pPlaybackVector) {
-                        #ifndef NO_TIMERS
+                        #ifndef NO_SETITIMERS_SYSCALL
                         struct itimerval timer;
                         set_client_timer(&timer);
                         if (os_set_duration_timer(timer, client_sig_handler)) {
@@ -661,13 +663,12 @@ int Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration,
                             rc = SOCKPERF_ERR_FATAL;
                         }
                         #else
-                        set_client_timer(&timer);
                         parent = pthread_self();
                         os_set_signal_action(SIGUSR1, client_sig_handler);
 
                         os_thread_t thread;
                         os_thread_init(&thread);
-                        os_thread_exec(&thread, thread_sleep, &timer);
+                        os_thread_exec(&thread, thread_sleep, NULL);
                         os_thread_detach(&thread);
                         #endif
                     }
