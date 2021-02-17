@@ -33,6 +33,8 @@
 #include "packet.h"
 #include "switches.h"
 
+#include <math.h>
+
 TicksTime s_startTime, s_endTime;
 
 //==============================================================================
@@ -66,7 +68,7 @@ void set_client_timer(struct itimerval *timer) {
 //------------------------------------------------------------------------------
 /*  set the timer on client to limit waiting based on [-n number-of-observations] parameter given by
     user and sampling data */
-void set_client_time_out_timer(struct itimerval *timer, TicksTime testStart) {
+void set_client_observation_timer(struct itimerval *timer, TicksTime testStart) {
     /*  Based off observation rate during sampling, estimate total run time.
         Using warmup as our sample includes a bias for higher latency, because the head of
         the test has less load and receiver has no recent cache. This works to our benefit
@@ -94,10 +96,8 @@ void set_client_time_out_timer(struct itimerval *timer, TicksTime testStart) {
 }
 
 //------------------------------------------------------------------------------
-void printPercentiles(FILE *f, TicksDuration *pLat, size_t size) {
-    qsort(pLat, size, sizeof(TicksDuration), TicksDuration::compare);
-
-    double percentile[] = { 0.99999, 0.9999, 0.999, 0.99, 0.90, 0.75, 0.50, 0.25 };
+void printPercentiles(FILE *f, TicksDuration *sortedpLat, size_t size) {
+    const double percentile[] = { 0.99999, 0.9999, 0.999, 0.99, 0.90, 0.75, 0.50, 0.25 };
     int num = sizeof(percentile) / sizeof(percentile[0]);
     double observationsInPercentile = (double)size / 100;
 
@@ -105,22 +105,22 @@ void printPercentiles(FILE *f, TicksDuration *pLat, size_t size) {
                              "; each percentile contains %.2lf observations",
                   (long unsigned)size, observationsInPercentile);
 
-    log_msg_file2(f, "---> <MAX> observation = %8.3lf", pLat[size - 1].toDecimalUsec());
+    log_msg_file2(f, "---> <MAX> observation = %8.3lf", sortedpLat[size - 1].toDecimalUsec());
     for (int i = 0; i < num; i++) {
         int index = (int)(0.5 + percentile[i] * size) - 1;
         if (index >= 0) {
             log_msg_file2(f, "---> percentile %6.3lf = %8.3lf", 100 * percentile[i],
-                          pLat[index].toDecimalUsec());
+                          sortedpLat[index].toDecimalUsec());
         }
     }
-    log_msg_file2(f, "---> <MIN> observation = %8.3lf", pLat[0].toDecimalUsec());
+    log_msg_file2(f, "---> <MIN> observation = %8.3lf", sortedpLat[0].toDecimalUsec());
 }
 
 //------------------------------------------------------------------------------
 typedef TicksTime RecordLog[2];
 
 //------------------------------------------------------------------------------
-void dumpFullLog(int serverNo, RecordLog *pFullLog, size_t size, TicksDuration *pLat) {
+void dumpFullLog(int serverNo, RecordLog *pFullLog, size_t size) {
     FILE *f = g_pApp->m_const_params.fileFullLog;
     uint32_t denominator = g_pApp->m_const_params.full_rtt ? 1 : 2;
     if (!f || !size) return;
@@ -135,6 +135,36 @@ void dumpFullLog(int serverNo, RecordLog *pFullLog, size_t size, TicksDuration *
         fprintf(f, "%zu, %.9lf, %.9lf, %.3lf\n", i, tx, rx, result);
     }
     fprintf(f, "------------------------------\n");
+}
+
+//------------------------------------------------------------------------------
+double RationalApproximation(double t) {
+    // Abramowitz and Stegun formula 26.2.23
+    // with constants from here: https://arxiv.org/pdf/1002.0567.pdf, Section 3
+    // Absolute value of error should be less than 8 e-5
+    const double c[] = {2.653962002601684482, 1.561533700212080345, 0.061146735765196993};
+    const double d[] = {1.904875182836498708, 0.454055536444233510, 0.009547745327068945};
+    return t - ((c[2]*t + c[1])*t + c[0]) /
+        (((d[2]*t + d[1])*t + d[0])*t + 1.0);
+}
+
+//------------------------------------------------------------------------------
+double NormalCDFInverse(double p) {
+    if (p < 0.0 || p > 1.0) {
+        log_err("NormalCDFInverse only accepts 0 < p < 1");
+        return 0;
+    }
+
+    // Approximation function is only valid for (0 < p < .5)
+    // Extend to (0 < p < 1) by taking advantage of normal CDF inverse odd symmetry shape
+    // Detailed explanation here: https://www.johndcook.com/blog/normal_cdf_inverse/#basic
+    if (p < 0.5) {
+        // F^-1(p) = - G^-1(p)
+        return -RationalApproximation( sqrt(-2.0*log(p)) );
+    } else {
+        // F^-1(p) = G^-1(1-p)
+        return RationalApproximation( sqrt(-2.0*log(1-p)) );
+    }
 }
 
 //------------------------------------------------------------------------------
@@ -303,17 +333,30 @@ void client_statistics(int serverNo, Message *pMsgRequest) {
                       validRunTime.toDecimalUsec() / 1000000, (endValidSeqNo - startValidSeqNo + 1),
                       (uint64_t)counter);
 
+        TicksDuration::sort(pLat, counter);
+        TicksDuration *sortedpLat = &pLat[0]; // alias for pLat after being sorted
         TicksDuration avgRtt = counter ? sumRtt / (int)counter : TicksDuration::TICKS0;
         TicksDuration avgLatency = avgRtt / 2;
-        double usecAvarage =
-            g_pApp->m_const_params.full_rtt ? avgRtt.toDecimalUsec() : avgLatency.toDecimalUsec();
-
         TicksDuration stdDev = TicksDuration::stdDev(pLat, counter);
-        log_msg_file2(f, MAGNETA "====> avg-%s=%.3lf (std-dev=%.3lf)" ENDCOLOR,
-                      round_trip_str[g_pApp->m_const_params.full_rtt], usecAvarage,
-                      stdDev.toDecimalUsec());
+        TicksDuration mad = TicksDuration::mad(pLat, counter);
+        TicksDuration medianad = TicksDuration::medianad(pLat, counter);
+        TicksDuration siqr = TicksDuration::siqr(pLat, counter);
+        double usecAvarage = g_pApp->m_const_params.full_rtt ? avgRtt.toDecimalUsec() : avgLatency.toDecimalUsec();
+        double coefficientOfVariance = stdDev.toDecimalUsec() / usecAvarage;
+        double standardError = stdDev.toDecimalUsec() / sqrt(counter);
+        double significanceLevel = s_user_params.ci_significance_level;
+        double zScore = 1 - (1 - significanceLevel/100) / 2;
+        double confidenceLevelValue = NormalCDFInverse(zScore);
+        double lowerInterval = usecAvarage - confidenceLevelValue * standardError;
+        double upperInterval = usecAvarage + confidenceLevelValue * standardError;
+        log_msg_file2(f, MAGNETA "====> avg-%s=%.3lf (std-dev=%.3lf, mean-ad=%.3lf, median-ad=%.3lf, siqr=%.3lf, "
+            "cv=%.3lf, std-error=%.3lf, %.1lf%% ci=[%.3lf, %.3lf])" ENDCOLOR,
+            round_trip_str[g_pApp->m_const_params.full_rtt], usecAvarage,
+            stdDev.toDecimalUsec(), mad.toDecimalUsec(), medianad.toDecimalUsec(), siqr.toDecimalUsec(),
+            coefficientOfVariance, standardError, significanceLevel, lowerInterval, upperInterval);
 
-        /* Display ERROR statistic */
+        /* Display ERROR statistic*/
+
         bool isColor =
             (g_pPacketTimes->getDroppedCount(SERVER_NO) || g_pPacketTimes->getDupCount(SERVER_NO) ||
              g_pPacketTimes->getOooCount(SERVER_NO));
@@ -327,9 +370,9 @@ void client_statistics(int serverNo, Message *pMsgRequest) {
 
         if (usecAvarage) print_average_results(usecAvarage);
 
-        printPercentiles(f, pLat, counter);
+        printPercentiles(f, sortedpLat, counter);
 
-        dumpFullLog(SERVER_NO, pFullLog, counter, pLat);
+        dumpFullLog(SERVER_NO, pFullLog, counter);
     }
 
     delete[] pLat;
@@ -775,9 +818,9 @@ void Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration
             prevRxTime = rxTime;
             counterValid++;
 
-            // Set timer to limit waiting on total observations
+            // Set timer to limit waiting on observations based off warmup sample
             if(counterValid == warmupObservations && timer.it_value.tv_sec == 0) {
-                set_client_time_out_timer(&timer, testStart);
+                set_client_observation_timer(&timer, testStart);
                 if (os_set_duration_timer(timer, client_sig_handler)) {
                     exit_with_log("Failed setting test observation timer", SOCKPERF_ERR_FATAL);
                 }
@@ -785,6 +828,12 @@ void Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration
 
             if(counterValid == stopCounting) {
                 s_endTime.setNowNonInline();
+                // Disarm timer
+                timer.it_value.tv_sec = 0;
+                timer.it_value.tv_usec = 0;
+                if (setitimer(ITIMER_REAL, &timer, NULL)) {
+                    log_err("ERROR: setitimer() failed when disarming");
+                }
                 log_msg("Test end (finished observation count)");
                 g_b_exit = true;
             }

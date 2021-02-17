@@ -345,6 +345,18 @@ public:
     //------------------------------------------------------------------------------
     static TicksDuration stdDev(TicksDuration *pArr, size_t size);
 
+    //------------------------------------------------------------------------------
+    static TicksDuration mad(TicksDuration *pArr, size_t size);
+
+    //------------------------------------------------------------------------------
+    static TicksDuration medianad(TicksDuration *pArr, size_t size);
+
+    //------------------------------------------------------------------------------
+    static TicksDuration siqr(TicksDuration *pArr, size_t size);
+
+    //------------------------------------------------------------------------------
+    static TicksDuration median(TicksDuration *pArr, size_t size, bool sortList);
+
 private:
     inline explicit TicksDuration(ticks_t _ticks, bool) : TicksBase(_ticks) {}
     explicit TicksDuration(int64_t _nsec, int); // provide non inline function for reducing code

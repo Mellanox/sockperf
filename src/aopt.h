@@ -161,6 +161,34 @@ int aopt_check(const AOPT_OBJECT *aopt_obj, int key);
 const char *aopt_value(const AOPT_OBJECT *aopt_obj, int key);
 
 /**
+ * aopt_get_desc
+ *
+ * @brief
+ *    Return AOPT Description struct of option selected via key.
+ *
+ * @param[in]    desc           Option description.
+ * @param[in]    key            Option key.
+ *
+ * @retval pointer to description struct - on success
+ * @retval NULL - on failure
+ ***************************************************************************/
+const AOPT_DESC *aopt_get_desc(const AOPT_DESC *aopt_desc, int key);
+
+/**
+ * aopt_get_long_name
+ *
+ * @brief
+ *    Return long name of option description selected via key.
+ *
+ * @param[in]    desc           Option description.
+ * @param[in]    key            Option key.
+ *
+ * @retval pointer to string - on success
+ * @retval NULL - on failure
+ ***************************************************************************/
+const char *aopt_get_long_name(const AOPT_DESC *aopt_desc, int key);
+
+/**
  * aopt_help
  *
  * @brief

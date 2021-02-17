@@ -138,8 +138,8 @@ static const struct app_modes {
       { proc_mode_ping_pong,   "ping-pong",
         aopt_set_string("pp"), "Run " MODULE_NAME " client for latency test in ping pong mode." },
       { proc_mode_playback, "playback",
-        aopt_set_string("pb"), "Run " MODULE_NAME " client for latency test using playback of predefined"
-                                                  " traffic, based on timeline and message size." },
+        aopt_set_string("pb"), "Run " MODULE_NAME " client for latency test using playback of predefined "
+                               "traffic, based on timeline and message size." },
       { proc_mode_throughput,  "throughput",
         aopt_set_string("tp"), "Run " MODULE_NAME " client for one way throughput test." },
       { proc_mode_server, "server", aopt_set_string("sr"), "Run " MODULE_NAME " as a server." },
@@ -395,6 +395,12 @@ static int proc_mode_under_load(int id, int argc, const char **argv) {
           aopt_set_literal('r'),
           aopt_set_string("range"),
           "comes with -m <size>, randomly change the messages size in range: <size> +- <N>." },
+        { OPT_CI_SIG_LVL,
+          AOPT_OPTARG,
+          aopt_set_literal(0),
+          aopt_set_string("ci_sig_level"),
+          "Normal confidence interval significance level for stat reported. Values are between 0 and 100 "
+          "exclusive (default 99). " },
         { 0, AOPT_NOARG, aopt_set_literal(0), aopt_set_string(NULL), NULL }
     };
 
@@ -590,6 +596,25 @@ static int proc_mode_under_load(int id, int argc, const char **argv) {
                 rc = SOCKPERF_ERR_BAD_ARGUMENT;
             }
         }
+
+        if (!rc && aopt_check(self_obj, OPT_CI_SIG_LVL)) {
+            const char *optarg = aopt_value(self_obj, OPT_CI_SIG_LVL);
+            if (optarg) {
+                errno = 0;
+                int value = strtol(optarg, NULL, 0);
+                if (errno != 0 || value <= 0 || value >= 100) {
+                    log_msg("'--%s' Invalid Significance level: %s",
+                        aopt_get_long_name(self_opt_desc, OPT_CI_SIG_LVL), optarg);
+                    rc = SOCKPERF_ERR_BAD_ARGUMENT;
+                } else {
+                    s_user_params.ci_significance_level = value;
+                }
+            } else {
+                log_msg("'--%s' Invalid value",
+                    aopt_get_long_name(self_opt_desc, OPT_CI_SIG_LVL));
+                rc = SOCKPERF_ERR_BAD_ARGUMENT;
+            }
+        }
     }
 
     if (rc) {
@@ -679,6 +704,12 @@ static int proc_mode_ping_pong(int id, int argc, const char **argv) {
           "comes with -m <size>, randomly change the messages size in range: <size> +- <N>." },
         { OPT_DATA_INTEGRITY,                AOPT_NOARG,                    aopt_set_literal(0),
           aopt_set_string("data-integrity"), "Perform data integrity test." },
+        { OPT_CI_SIG_LVL,
+          AOPT_OPTARG,
+          aopt_set_literal(0),
+          aopt_set_string("ci_sig_level"),
+          "Normal confidence interval significance level for stat reported. Values are between 0 and 100 "
+          "exclusive (default 99). " },
         { 0, AOPT_NOARG, aopt_set_literal(0), aopt_set_string(NULL), NULL }
     };
 
@@ -889,6 +920,25 @@ static int proc_mode_ping_pong(int id, int argc, const char **argv) {
                 s_user_params.data_integrity = true;
             } else {
                 log_msg("--data-integrity conflicts with -b option");
+                rc = SOCKPERF_ERR_BAD_ARGUMENT;
+            }
+        }
+
+        if (!rc && aopt_check(self_obj, OPT_CI_SIG_LVL)) {
+            const char *optarg = aopt_value(self_obj, OPT_CI_SIG_LVL);
+            if (optarg) {
+                errno = 0;
+                int value = strtol(optarg, NULL, 0);
+                if (errno != 0 || value <= 0 || value >= 100) {
+                    log_msg("'--%s' Invalid Significance level: %s",
+                        aopt_get_long_name(self_opt_desc, OPT_CI_SIG_LVL), optarg);
+                    rc = SOCKPERF_ERR_BAD_ARGUMENT;
+                } else {
+                    s_user_params.ci_significance_level = value;
+                }
+            } else {
+                log_msg("'--%s' Invalid value",
+                    aopt_get_long_name(self_opt_desc, OPT_CI_SIG_LVL));
                 rc = SOCKPERF_ERR_BAD_ARGUMENT;
             }
         }
@@ -1225,6 +1275,12 @@ static int proc_mode_playback(int id, int argc, const char **argv) {
         { OPT_PLAYBACK_DATA,                                         AOPT_ARG,
           aopt_set_literal(0),                                       aopt_set_string("data-file"),
           "Pre-prepared CSV file with timestamps and message sizes." },
+        { OPT_CI_SIG_LVL,
+          AOPT_OPTARG,
+          aopt_set_literal(0),
+          aopt_set_string("ci_sig_level"),
+          "Normal confidence interval significance level for stat reported. Values are between 0 and 100 "
+          "exclusive (default 99). " },
         { 0, AOPT_NOARG, aopt_set_literal(0), aopt_set_string(NULL), NULL }
     };
 
@@ -1293,6 +1349,25 @@ static int proc_mode_playback(int id, int argc, const char **argv) {
                 }
             } else {
                 log_msg("'-%d' Invalid value", OPT_REPLY_EVERY);
+                rc = SOCKPERF_ERR_BAD_ARGUMENT;
+            }
+        }
+
+        if (!rc && aopt_check(self_obj, OPT_CI_SIG_LVL)) {
+            const char *optarg = aopt_value(self_obj, OPT_CI_SIG_LVL);
+            if (optarg) {
+                errno = 0;
+                int value = strtol(optarg, NULL, 0);
+                if (errno != 0 || value <= 0 || value >= 100) {
+                    log_msg("'--%s' Invalid Significance level: %s",
+                        aopt_get_long_name(self_opt_desc, OPT_CI_SIG_LVL), optarg);
+                    rc = SOCKPERF_ERR_BAD_ARGUMENT;
+                } else {
+                    s_user_params.ci_significance_level = value;
+                }
+            } else {
+                log_msg("'--%s' Invalid value",
+                    aopt_get_long_name(self_opt_desc, OPT_CI_SIG_LVL));
                 rc = SOCKPERF_ERR_BAD_ARGUMENT;
             }
         }
@@ -2191,6 +2266,7 @@ void set_defaults() {
     s_user_params.client_bind_info.sin_family = AF_INET;
     s_user_params.client_bind_info.sin_addr.s_addr = INADDR_ANY;
     s_user_params.client_bind_info.sin_port = 0;
+    s_user_params.ci_significance_level = DEFAULT_CI_SIG_LEVEL;
     s_user_params.mode = MODE_SERVER;
     s_user_params.measurement = TIME_BASED;
     s_user_params.packetrate_stats_print_ratio = 0;
