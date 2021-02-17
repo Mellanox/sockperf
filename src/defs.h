@@ -137,6 +137,7 @@ const uint32_t TEST_FIRST_CONNECTION_FIRST_PACKET_TTL_THRESHOLD_MSEC = 50;
 #define DEFAULT_PORT 11111
 #define DEFAULT_IP_MTU 1500
 #define DEFAULT_IP_PAYLOAD_SZ (DEFAULT_IP_MTU - 28)
+#define DEFAULT_CI_SIG_LEVEL 99
 #define DUMMY_PORT 57341
 #define MAX_ACTIVE_FD_NUM                                                                          \
     1024 /* maximum number of active connection to the single TCP addr:port                        \
@@ -226,6 +227,11 @@ enum {
     OPT_RATE_LIMIT,               // 42
     OPT_UC_REUSEADDR,             // 43
     OPT_FULL_RTT,                 // 44
+    OPT_CI_SIG_LVL,               // 45
+    OPT_HISTOGRAM,                // 46
+    OPT_HISTOGRAM_UPPER_RANGE,    // 47
+    OPT_HISTOGRAM_LOWER_RANGE,    // 48
+    OPT_HISTOGRAM_BIN_SIZE,       // 49
 #if defined(DEFINED_TLS)
     OPT_TLS
 #endif /* DEFINED_TLS */
@@ -683,6 +689,11 @@ struct user_params_t {
     bool increase_output_precision;  // client side only
     bool b_stream;                   // client side only
     PlaybackVector *pPlaybackVector; // client side only
+    uint32_t ci_significance_level;  // client side only
+    bool b_histogram;                // client side only
+    uint32_t histogram_lower_range;  // client side only
+    uint32_t histogram_upper_range;  // client side only
+    uint32_t histogram_bin_size;     // client side only
     struct sockaddr_in addr;
     int sock_type;
     bool tcp_nodelay;
