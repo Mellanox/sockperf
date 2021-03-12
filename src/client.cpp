@@ -34,6 +34,7 @@
 #include "switches.h"
 
 #include <math.h>
+#include <map>
 
 TicksTime s_startTime, s_endTime;
 
@@ -93,6 +94,175 @@ void set_client_observation_timer(struct itimerval *timer, TicksTime testStart) 
     timer->it_value.tv_usec = 0;
     timer->it_interval.tv_sec = 0;
     timer->it_interval.tv_usec = 0;
+}
+
+//------------------------------------------------------------------------------
+int getStartOfRightOutlierBin(){
+    const int lowerRange = s_user_params.histogram_lower_range;
+    const int upperRange = s_user_params.histogram_upper_range;
+    const int binSize = s_user_params.histogram_bin_size;
+    int startBinEdge = upperRange;
+    /*
+        When range is not divisible by bin size, we can either truncate last bin within range to fit in
+        or have the bin overflow to keep bins a constant size. We choose to overflow which shifts outlier
+        bin.
+    */
+    int overflowRemainder = (upperRange - lowerRange) % binSize;
+
+    if(overflowRemainder != 0) {
+        startBinEdge += binSize - overflowRemainder;
+    }
+    return startBinEdge;
+} 
+
+//------------------------------------------------------------------------------
+int getLeftOutlierBinIndexReserved() {
+    return 0;
+}
+
+//------------------------------------------------------------------------------
+int getRightOutlierBinIndexReserved() {
+    int lowerRange = s_user_params.histogram_lower_range;
+    int upperRange = s_user_params.histogram_upper_range;
+    int binSize = s_user_params.histogram_bin_size;
+    /*
+        Normal bin index for value is calculated with: 1 + (value - lower_range)/bin_size
+        Right outliers all fall in the same bin which is one more than the last
+        bin within range.
+    */
+    return 2 + (upperRange - lowerRange)/binSize;
+}
+
+//------------------------------------------------------------------------------
+/*  Store frequencies for each non-empty bin. All bins include only start (exclusive) as
+    end (inclusive) can be inferred by adding bin size. Outlier bins include both
+    start and end of bin as size depends on outliers. */
+void storeHistogram(int binSize, std::map<int, int> &activeBins, int minValue, int maxValue) {
+    const int leftOutlierBinIndex = getLeftOutlierBinIndexReserved();
+    const int rightOutlierBinIndex = getRightOutlierBinIndexReserved();
+    const int lowerRange = s_user_params.histogram_lower_range;
+    int startBinEdge = 0;
+    int frequency = 0;
+    std::map<int, int>::iterator itr;
+    FILE *f = g_pApp->m_const_params.fileFullLog;
+
+    fprintf(f, "histogram was built using the following parameters: "
+            "--h_bin_size_us=%d --h_lower_range_us=%d --h_upper_range_us=%d\n",
+            (int)g_pApp->m_const_params.histogram_bin_size,
+            (int)g_pApp->m_const_params.histogram_lower_range,
+            (int)g_pApp->m_const_params.histogram_upper_range);
+    fprintf(f, "------------------------------\n");
+    fprintf(f, "bin (usec), frequency\n");
+    for(itr = activeBins.begin(); itr != activeBins.end(); ++itr) {
+        frequency = itr->second;
+        startBinEdge = (itr->first - 1) * binSize + lowerRange;
+        if (itr->first == leftOutlierBinIndex) {
+            fprintf(f, "%d-%d,\t\t%d\n", minValue, lowerRange, frequency);
+        } else if (itr->first == rightOutlierBinIndex) {
+            fprintf(f, "%d-%d,\t\t%d\n", getStartOfRightOutlierBin(), maxValue, frequency);
+        } else {
+            fprintf(f, "%d,\t\t%d\n",startBinEdge, frequency);
+        }
+    }
+    fprintf(f, "------------------------------\n");
+}
+
+//------------------------------------------------------------------------------
+/*  Display histogram to fit on terminal screen width (frequency rounded up) */
+void printHistogram(int binSize, std::map<int, int> &activeBins, int minValue, int maxValue) {
+    const int leftOutlierBinIndex = getLeftOutlierBinIndexReserved();
+    const int rightOutlierBinIndex = getRightOutlierBinIndexReserved();
+    const int lowerRange = s_user_params.histogram_lower_range;
+    int maxFrequency = 0;
+    int currFrequency = 0;
+    int terminalWidth = 0;
+    int scalingUnit = 0;
+    int maxDisplayWidth = 0;
+    std::string prefixToHistogramDisplay ("sockperf: bin XXX-XXX");
+    std::map<int, int>::iterator itr;
+
+    // Scale to terminal
+#ifndef WIN32
+    struct winsize size;
+    ioctl(STDOUT_FILENO, TIOCGWINSZ, &size);
+    terminalWidth = size.ws_col;
+#else
+    CONSOLE_SCREEN_BUFFER_INFO csbi;
+    GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE),&csbi);
+    terminal_width = csbi.dwSize.X;
+#endif
+    for(itr = activeBins.begin(); itr != activeBins.end(); ++itr) {
+        currFrequency = itr->second;
+        if (currFrequency > maxFrequency) {
+            maxFrequency = currFrequency;
+        }
+    }
+    maxDisplayWidth = terminalWidth - prefixToHistogramDisplay.length();
+    scalingUnit = (maxFrequency + maxDisplayWidth - 1)/maxDisplayWidth; // round up
+
+    int startBinEdge = 0;
+    int endBinEdge = 0;
+    int frequency = 0;
+    int frequencyScaledDownCount = 0;
+
+    if (scalingUnit == 1) {
+        log_msg("[Histogram] Display to scale");
+    } else {
+        log_msg("[Histogram] Display scaled to fit on screen (Key: '#' = up to %d samples)", scalingUnit);
+    }
+    for(itr = activeBins.begin(); itr != activeBins.end(); ++itr) {
+        frequency = itr->second;
+        frequencyScaledDownCount = (frequency + scalingUnit - 1) / scalingUnit; // round up
+        if (itr->first == leftOutlierBinIndex) {
+            log_msg("bin %d-%d " MAGNETA "%s (outliers)" ENDCOLOR, minValue, lowerRange,
+                std::string(frequencyScaledDownCount, '#').c_str());
+        } else if (itr->first == rightOutlierBinIndex) {
+            log_msg("bin %d-%d " MAGNETA "%s (outliers)" ENDCOLOR, getStartOfRightOutlierBin(), maxValue,
+                std::string(frequencyScaledDownCount, '#').c_str());
+        } else {
+            startBinEdge = (itr->first - 1) * binSize + lowerRange;
+            endBinEdge = startBinEdge + binSize;
+            log_msg("bin %d-%d %s",startBinEdge, endBinEdge, std::string(frequencyScaledDownCount, '#').c_str());
+        }
+    }
+}
+
+//------------------------------------------------------------------------------
+/* Sparce fixed bin histogram with outlier bins outside given range */
+void makeHistogram(TicksDuration *sortedpLat, size_t size) {
+    const int leftOutlierBinIndex = getLeftOutlierBinIndexReserved();
+    const int rightOutlierBinIndex = getRightOutlierBinIndexReserved();
+    const int lowerRange = s_user_params.histogram_lower_range;
+    const int upperRange = s_user_params.histogram_upper_range;
+    const int binSize = s_user_params.histogram_bin_size;
+    int binIndex = 0;
+    int minValue = sortedpLat[0].toDecimalUsec();
+    int maxValue = sortedpLat[size - 1].toDecimalUsec();
+    double value = 0;
+    std::map<int, int> activeBins;
+    size_t i = 0;
+
+    // build histogram
+    for(; i < size; i++) {
+        value = sortedpLat[i].toDecimalUsec();
+        if(value < lowerRange) {
+            activeBins[leftOutlierBinIndex]++;
+            continue;
+        }
+        if(value >= upperRange) {
+            activeBins[rightOutlierBinIndex]++;
+            continue;
+        }
+        binIndex = 1 + (value - lowerRange) / binSize;
+        activeBins[binIndex]++;
+    }
+
+    printHistogram(binSize, activeBins, minValue, maxValue);
+    if (g_pApp->m_const_params.fileFullLog) {
+        storeHistogram(binSize, activeBins, minValue, maxValue);
+    }
+
+    activeBins.clear();
 }
 
 //------------------------------------------------------------------------------
@@ -373,6 +543,8 @@ void client_statistics(int serverNo, Message *pMsgRequest) {
         printPercentiles(f, sortedpLat, counter);
 
         dumpFullLog(SERVER_NO, pFullLog, counter);
+
+        if(s_user_params.b_histogram) makeHistogram(sortedpLat, counter);
     }
 
     delete[] pLat;
