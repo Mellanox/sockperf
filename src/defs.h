@@ -227,7 +227,11 @@ enum {
     OPT_RATE_LIMIT,               // 42
     OPT_UC_REUSEADDR,             // 43
     OPT_FULL_RTT,                 // 44
-    OPT_CI_SIG_LVL                // 45
+    OPT_CI_SIG_LVL,               // 45
+    OPT_HISTOGRAM,                // 46
+    OPT_HISTOGRAM_UPPER_RANGE,    // 47
+    OPT_HISTOGRAM_LOWER_RANGE,    // 48
+    OPT_HISTOGRAM_BIN_SIZE        // 49
 };
 
 static const char *const round_trip_str[] = { "latency", "rtt" };
@@ -680,6 +684,10 @@ struct user_params_t {
     bool b_stream;                   // client side only
     PlaybackVector *pPlaybackVector; // client side only
     uint32_t ci_significance_level;  // client side only
+    bool b_histogram;                // client side only
+    uint32_t histogram_lower_range;  // client side only
+    uint32_t histogram_upper_range;  // client side only
+    uint32_t histogram_bin_size;     // client side only
     struct sockaddr_in addr;
     int sock_type;
     bool tcp_nodelay;
