@@ -197,8 +197,14 @@ void printHistogram(int binSize, std::map<int, int> &activeBins, int minValue, i
             maxFrequency = currFrequency;
         }
     }
-    maxDisplayWidth = terminalWidth - prefixToHistogramDisplay.length();
-    scalingUnit = (maxFrequency + maxDisplayWidth - 1)/maxDisplayWidth; // round up
+    if(terminalWidth == 0) {
+        // This may happen when run without terminal, but we still want the file output to contain the display
+        int standardTerminalLength = 80;
+        scalingUnit = (maxFrequency + standardTerminalLength - 1)/standardTerminalLength;
+    } else {
+        maxDisplayWidth = terminalWidth - prefixToHistogramDisplay.length();
+        scalingUnit = (maxFrequency + maxDisplayWidth - 1)/maxDisplayWidth; // round up
+    }
 
     int startBinEdge = 0;
     int endBinEdge = 0;
@@ -724,11 +730,19 @@ void Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration
         FILE *f = g_pApp->m_const_params.fileFullLog;
         if (f) {
             fprintf(f, "------------------------------\n");
+            if (g_pApp->m_const_params.measurement == TIME_BASED) {
+                fprintf(f, "test was performed using the following parameters: "
+                        "--mps=%d --burst=%d --reply-every=%d --msg-size=%d --time=%d",
+                        (int)g_pApp->m_const_params.mps, (int)g_pApp->m_const_params.burst_size,
+                        (int)g_pApp->m_const_params.reply_every, (int)g_pApp->m_const_params.msg_size,
+                        (int)g_pApp->m_const_params.sec_test_duration);
+            } else {
             fprintf(f, "test was performed using the following parameters: "
-                       "--mps=%d --burst=%d --reply-every=%d --msg-size=%d --time=%d",
+                       "--mps=%d --burst=%d --reply-every=%d --msg-size=%d --number-of-observations=%" PRIu32 "",
                     (int)g_pApp->m_const_params.mps, (int)g_pApp->m_const_params.burst_size,
                     (int)g_pApp->m_const_params.reply_every, (int)g_pApp->m_const_params.msg_size,
-                    (int)g_pApp->m_const_params.sec_test_duration);
+                    g_pApp->m_const_params.observation_test_count);
+            }
             if (g_pApp->m_const_params.dummy_mps) {
                 fprintf(f, " --dummy-send=%d", g_pApp->m_const_params.dummy_mps);
             }
