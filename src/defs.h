@@ -229,9 +229,6 @@ enum {
     OPT_FULL_RTT,                 // 44
     OPT_CI_SIG_LVL,               // 45
     OPT_HISTOGRAM,                // 46
-    OPT_HISTOGRAM_UPPER_RANGE,    // 47
-    OPT_HISTOGRAM_LOWER_RANGE,    // 48
-    OPT_HISTOGRAM_BIN_SIZE,       // 49
 #if defined(DEFINED_TLS)
     OPT_TLS
 #endif /* DEFINED_TLS */
