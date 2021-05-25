@@ -310,13 +310,13 @@ const char *aopt_value(const AOPT_OBJECT *aopt_obj, int key) {
  * @retval NULL - on failure
  ***************************************************************************/
 const AOPT_DESC *aopt_get_desc(const AOPT_DESC *aopt_desc, int key) {
+    const AOPT_DESC *desc = NULL;
+    int i = 0;
+
     if (key == 0) {
         log_err("Not a valid key for aopt");
         return NULL;
     }
-
-    const AOPT_DESC *desc = NULL;
-    int i = 0;
 
     while(aopt_desc[i].key != 0) {
         if(aopt_desc[i].key == key) {
