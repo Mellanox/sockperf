@@ -119,16 +119,16 @@ void close_ifd(int fd, int ifd, fds_data *l_fds_ifd) {
     fds_data *l_next_fd = g_fds_array[fd];
 
 #ifdef USING_VMA_EXTRA_API
-    if (g_vma_api) {
+    if (g_xlio_api) {
         ZeroCopyData *z_ptr = g_zeroCopyData[fd];
         if (z_ptr && z_ptr->m_pkts) {
-            g_vma_api->free_packets(fd, z_ptr->m_pkts->pkts, z_ptr->m_pkts->n_packet_num);
+            g_xlio_api->recvfrom_zcopy_free_packets(fd, z_ptr->m_pkts->pkts, z_ptr->m_pkts->n_packet_num);
             z_ptr->m_pkts = NULL;
             z_ptr->m_pkt_index = 0;
             z_ptr->m_pkt_offset = 0;
         }
 
-        g_vma_api->register_recv_callback(fd, NULL, NULL);
+        g_xlio_api->register_recv_callback(fd, NULL, NULL);
     }
 #endif
 
@@ -168,7 +168,7 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_t
         return (do_update);
     }
 #ifdef USING_VMA_EXTRA_API
-    vma_buff_t *tmp_vma_buff = g_vma_buff;
+    xlio_buff_t *tmp_vma_buff = g_vma_buff;
     if (SOCKETXTREME == g_pApp->m_const_params.fd_handler_type && tmp_vma_buff) {
         ret = msg_recv_socketxtreme(l_fds_ifd, tmp_vma_buff, &recvfrom_addr);
     } else if (g_pApp->m_const_params.is_vmazcopyread &&

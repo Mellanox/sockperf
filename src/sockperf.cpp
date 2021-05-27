@@ -2107,7 +2107,7 @@ void cleanup() {
         FREE(s_user_params.select_timeout);
     }
 #ifdef USING_VMA_EXTRA_API
-    if (g_vma_api && s_user_params.is_vmazcopyread) {
+    if (g_xlio_api && s_user_params.is_vmazcopyread) {
         zeroCopyMap::iterator it;
         while ((it = g_zeroCopyData.begin()) != g_zeroCopyData.end()) {
             delete it->second;
@@ -2247,9 +2247,9 @@ void set_defaults() {
 
 //------------------------------------------------------------------------------
 #ifdef USING_VMA_EXTRA_API
-vma_recv_callback_retval_t myapp_vma_recv_pkt_filter_callback(int fd, size_t iov_sz,
+xlio_recv_callback_retval_t myapp_vma_recv_pkt_filter_callback(int fd, size_t iov_sz,
                                                               struct iovec iov[],
-                                                              struct vma_info_t *vma_info,
+                                                              struct xlio_info_t *vma_info,
                                                               void *context) {
 #ifdef ST_TEST
     if (st1) {
@@ -2266,18 +2266,18 @@ vma_recv_callback_retval_t myapp_vma_recv_pkt_filter_callback(int fd, size_t iov
     };
 
     // Check info structure version
-    if (vma_info->struct_sz < sizeof(struct vma_info_t)) {
+    if (vma_info->struct_sz < sizeof(struct xlio_info_t)) {
         log_msg("VMA's info struct is not something we can handle so un-register the application's "
                 "callback function");
-        g_vma_api->register_recv_callback(fd, NULL, NULL);
-        return VMA_PACKET_RECV;
+        g_xlio_api->register_recv_callback(fd, NULL, NULL);
+        return XLIO_PACKET_RECV;
     }
 
     // If there is data in local buffer, then push new packet in TCP queue.Otherwise handle received
     // packet inside callback.
     if (g_zeroCopyData[fd] && g_zeroCopyData[fd]->m_pkts &&
         g_zeroCopyData[fd]->m_pkts->n_packet_num > 0) {
-        return VMA_PACKET_RECV;
+        return XLIO_PACKET_RECV;
     }
 
     size_t index;
@@ -2290,7 +2290,7 @@ vma_recv_callback_retval_t myapp_vma_recv_pkt_filter_callback(int fd, size_t iov
     l_fds_ifd = g_fds_array[fd];
 
     if (!l_fds_ifd) {
-        return VMA_PACKET_RECV;
+        return XLIO_PACKET_RECV;
     }
 
     msgReply = l_fds_ifd->p_msg;
@@ -2316,7 +2316,7 @@ vma_recv_callback_retval_t myapp_vma_recv_pkt_filter_callback(int fd, size_t iov
              * different buffers.
              * This should be fixed in sockperf, so we also won't need to call the above memmove.
              */
-            return VMA_PACKET_RECV;
+            return XLIO_PACKET_RECV;
         }
     }
     nbytes = 0;
@@ -2338,7 +2338,7 @@ vma_recv_callback_retval_t myapp_vma_recv_pkt_filter_callback(int fd, size_t iov
             if (l_fds_ifd->recv.cur_size < MsgHeader::EFFECTIVE_SIZE) {
                 l_fds_ifd->recv.cur_size = MsgHeader::EFFECTIVE_SIZE - l_fds_ifd->recv.cur_offset;
             }
-            return VMA_PACKET_DROP;
+            return XLIO_PACKET_DROP;
         } else if (l_fds_ifd->recv.cur_offset < MsgHeader::EFFECTIVE_SIZE) {
             /* 2: message header is got, match message to cycle buffer */
             msgReply->setBuf(l_fds_ifd->recv.cur_addr);
@@ -2350,7 +2350,7 @@ vma_recv_callback_retval_t myapp_vma_recv_pkt_filter_callback(int fd, size_t iov
 
         if ((unsigned)msgReply->getLength() > (unsigned)MAX_PAYLOAD_SIZE) {
             log_msg("Message received was larger than expected, handle from recv_from");
-            return VMA_PACKET_RECV;
+            return XLIO_PACKET_RECV;
         }
         /* 3: message is not complete */
         if ((l_fds_ifd->recv.cur_offset + nbytes) < msgReply->getLength()) {
@@ -2363,7 +2363,7 @@ vma_recv_callback_retval_t myapp_vma_recv_pkt_filter_callback(int fd, size_t iov
             if (l_fds_ifd->recv.cur_size < (int)msgReply->getMaxSize()) {
                 l_fds_ifd->recv.cur_size = msgReply->getLength() - l_fds_ifd->recv.cur_offset;
             }
-            return VMA_PACKET_DROP;
+            return XLIO_PACKET_DROP;
         }
         /* 5: message is complete shift to process next one */
         nbytes -= msgReply->getLength() - l_fds_ifd->recv.cur_offset;
@@ -2371,7 +2371,7 @@ vma_recv_callback_retval_t myapp_vma_recv_pkt_filter_callback(int fd, size_t iov
         l_fds_ifd->recv.cur_size -= msgReply->getLength() - l_fds_ifd->recv.cur_offset;
         l_fds_ifd->recv.cur_offset = 0;
 
-        if (g_b_exit) return VMA_PACKET_DROP;
+        if (g_b_exit) return XLIO_PACKET_DROP;
         if (!msgReply->isClient()) {
             /* 6: shift to start of cycle buffer in case receiving buffer is empty and
              * there is no uncompleted message
@@ -2381,7 +2381,7 @@ vma_recv_callback_retval_t myapp_vma_recv_pkt_filter_callback(int fd, size_t iov
                 l_fds_ifd->recv.cur_size = l_fds_ifd->recv.max_size;
                 l_fds_ifd->recv.cur_offset = 0;
             }
-            return VMA_PACKET_DROP;
+            return XLIO_PACKET_DROP;
         }
 
         if (msgReply->isWarmupMessage()) {
@@ -2394,7 +2394,7 @@ vma_recv_callback_retval_t myapp_vma_recv_pkt_filter_callback(int fd, size_t iov
                 l_fds_ifd->recv.cur_size = l_fds_ifd->recv.max_size;
                 l_fds_ifd->recv.cur_offset = 0;
             }
-            return VMA_PACKET_DROP;
+            return XLIO_PACKET_DROP;
         }
 
         g_receiveCount++;
@@ -2405,7 +2405,7 @@ vma_recv_callback_retval_t myapp_vma_recv_pkt_filter_callback(int fd, size_t iov
                 l_fds_ifd->recv.cur_addr = l_fds_ifd->recv.buf;
                 l_fds_ifd->recv.cur_size = l_fds_ifd->recv.max_size;
                 l_fds_ifd->recv.cur_offset = 0;
-                return VMA_PACKET_DROP;
+                return XLIO_PACKET_DROP;
             }
             /* prepare message header */
             if (g_pApp->m_const_params.mode != MODE_BRIDGE) {
@@ -2429,7 +2429,7 @@ vma_recv_callback_retval_t myapp_vma_recv_pkt_filter_callback(int fd, size_t iov
                 if (l_fds_ifd->sock_type == SOCK_STREAM) {
                     close_ifd( l_fds_ifd->next_fd,ifd,l_fds_ifd);
                 }
-                return VMA_PACKET_DROP;
+                return XLIO_PACKET_DROP;
             }*/
             msgReply->setHeaderToHost();
         }
@@ -2448,7 +2448,7 @@ vma_recv_callback_retval_t myapp_vma_recv_pkt_filter_callback(int fd, size_t iov
     l_fds_ifd->recv.cur_size = l_fds_ifd->recv.max_size;
     l_fds_ifd->recv.cur_offset = 0;
 
-    return VMA_PACKET_DROP;
+    return XLIO_PACKET_DROP;
 }
 #endif
 
@@ -2709,16 +2709,16 @@ int prepare_socket(int fd, struct fds_data *p_data)
 #ifdef ST_TEST
     if (!stTest)
 #endif
-        if (!rc && (s_user_params.is_vmarxfiltercb && g_vma_api)) {
+        if (!rc && (s_user_params.is_vmarxfiltercb && g_xlio_api)) {
             // Try to register application with VMA's special receive notification callback logic
-            if (g_vma_api->register_recv_callback(fd, myapp_vma_recv_pkt_filter_callback, NULL) <
+            if (g_xlio_api->register_recv_callback(fd, myapp_vma_recv_pkt_filter_callback, NULL) <
                 0) {
-                log_err("vma_api->register_recv_callback failed. Try running without option "
+                log_err("xlio_api->register_recv_callback failed. Try running without option "
                         "'vmarxfiltercb'");
             } else {
-                log_dbg("vma_api->register_recv_callback successful registered");
+                log_dbg("xlio_api->register_recv_callback successful registered");
             }
-        } else if (!rc && (s_user_params.is_vmazcopyread && g_vma_api)) {
+        } else if (!rc && (s_user_params.is_vmazcopyread && g_xlio_api)) {
             g_zeroCopyData[fd] = new ZeroCopyData();
             g_zeroCopyData[fd]->allocate();
         }
@@ -3084,8 +3084,8 @@ int bringup(const int *p_daemonize) {
     if (!rc && (s_user_params.is_vmarxfiltercb || s_user_params.is_vmazcopyread ||
                 s_user_params.fd_handler_type == SOCKETXTREME)) {
         // Get VMA extended API
-        g_vma_api = vma_get_api();
-        if (g_vma_api == NULL) {
+        g_xlio_api = xlio_get_api();
+        if (g_xlio_api == NULL) {
             errno = EPERM;
             exit_with_err("VMA Extra API is not available", SOCKPERF_ERR_FATAL);
         } else {
@@ -3093,7 +3093,7 @@ int bringup(const int *p_daemonize) {
         }
 
         _vma_pkts_desc_size =
-            sizeof(struct vma_packets_t) + sizeof(struct vma_packet_t) + sizeof(struct iovec) * 16;
+            sizeof(struct xlio_recvfrom_zcopy_packets_t) + sizeof(struct xlio_recvfrom_zcopy_packet_t) + sizeof(struct iovec) * 16;
     }
 #else
     if (!rc && (s_user_params.is_vmarxfiltercb || s_user_params.is_vmazcopyread ||

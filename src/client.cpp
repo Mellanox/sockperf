@@ -475,14 +475,14 @@ static int _connect_check_vma(int ifd) {
     int rc = SOCKPERF_ERR_SOCKET;
     int ring_fd = 0;
     int poll = 0;
-    rc = g_vma_api->get_socket_rings_fds(ifd, &ring_fd, 1);
+    rc = g_xlio_api->get_socket_rings_fds(ifd, &ring_fd, 1);
     if (rc == -1) {
         rc = SOCKPERF_ERR_SOCKET;
         return rc;
     }
     while (!g_b_exit && poll == 0) {
-        struct vma_completion_t vma_comps;
-        poll = g_vma_api->socketxtreme_poll(ring_fd, &vma_comps, 1, 0);
+        struct xlio_socketxtreme_completion_t vma_comps;
+        poll = g_xlio_api->socketxtreme_poll(ring_fd, &vma_comps, 1, 0);
         if (poll > 0) {
             if (vma_comps.events & EPOLLOUT) {
                 rc = SOCKPERF_ERR_NONE;
@@ -567,7 +567,7 @@ int Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration,
                             sizeof(struct sockaddr)) < 0) {
                     if (os_err_in_progress()) {
 #ifdef USING_VMA_EXTRA_API
-                        if (g_pApp->m_const_params.fd_handler_type == SOCKETXTREME && g_vma_api) {
+                        if (g_pApp->m_const_params.fd_handler_type == SOCKETXTREME && g_xlio_api) {
                             rc = _connect_check_vma(ifd);
                         } else
 #endif

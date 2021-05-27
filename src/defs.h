@@ -103,7 +103,7 @@ typedef uint16_t in_port_t;
 #if !defined(WIN32) && !defined(__FreeBSD__)
 #include "vma-redirect.h"
 #ifdef USING_VMA_EXTRA_API
-#include <mellanox/vma_extra.h>
+#include <mellanox/xlio_extra.h>
 #endif
 #endif
 
@@ -171,8 +171,8 @@ extern const int MAX_FDS_NUM;
 /*
 Used by offload libraries to do egress path warm-up of caches.
 It is not in use by kernel. WARNING: it will actually end this packet on the wire.
-DUMMY_SEND_FLAG value should be compatible with the value of VMA_SND_FLAGS_DUMMY (More info at
-vma_extra.h).
+DUMMY_SEND_FLAG value should be compatible with the value of XLIO_SND_FLAGS_DUMMY (More info at
+xlio_extra.h).
 */
 #define DUMMY_SEND_FLAG 0x400 // equals to MSG_SYN
 #define DUMMY_SEND_MPS_DEFAULT 10000
@@ -436,8 +436,8 @@ extern debug_level_t g_debug_level;
 
 #ifdef USING_VMA_EXTRA_API
 
-extern struct vma_buff_t *g_vma_buff;
-extern struct vma_completion_t *g_vma_comps;
+extern struct xlio_buff_t *g_vma_buff;
+extern struct xlio_socketxtreme_completion_t *g_vma_comps;
 
 class ZeroCopyData {
 public:
@@ -445,7 +445,7 @@ public:
     void allocate();
     ~ZeroCopyData();
     unsigned char *m_pkt_buf;
-    struct vma_packets_t *m_pkts;
+    struct xlio_recvfrom_zcopy_packets_t *m_pkts;
     unsigned int m_pkt_index;
     unsigned int m_pkt_offset;
 };
@@ -579,7 +579,7 @@ struct equal_to<struct in_addr> : public std::binary_function<struct in_addr, st
 
 #ifdef USING_VMA_EXTRA_API
 struct vma_ring_comps {
-    vma_completion_t vma_comp_list[MAX_VMA_COMPS];
+    xlio_socketxtreme_completion_t vma_comp_list[MAX_VMA_COMPS];
     int vma_comp_list_size;
     bool is_freed;
 };
@@ -604,7 +604,7 @@ extern int IGMP_MAX_MEMBERSHIPS;
 
 #ifdef USING_VMA_EXTRA_API
 typedef std::queue<int> vma_comps_queue;
-extern struct vma_api_t *g_vma_api;
+extern struct xlio_api_t *g_xlio_api;
 #endif
 
 typedef enum {

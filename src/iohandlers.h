@@ -424,19 +424,19 @@ public:
             if (!m_rings_vma_comps_map_itr->second->is_freed) {
                 for (int i = 0; i < m_rings_vma_comps_map_itr->second->vma_comp_list_size; i++) {
                     if (m_rings_vma_comps_map_itr->second->vma_comp_list[i].events &
-                        VMA_SOCKETXTREME_PACKET) {
-                        g_vma_api->socketxtreme_free_vma_packets(
+                        XLIO_SOCKETXTREME_PACKET) {
+                        g_xlio_api->socketxtreme_free_packets(
                             &m_rings_vma_comps_map_itr->second->vma_comp_list[i].packet, 1);
                     }
                 }
                 memset(m_rings_vma_comps_map_itr->second->vma_comp_list, 0,
                        m_rings_vma_comps_map_itr->second->vma_comp_list_size *
-                           sizeof(vma_completion_t));
+                           sizeof(xlio_socketxtreme_completion_t));
                 m_rings_vma_comps_map_itr->second->is_freed = true;
                 m_rings_vma_comps_map_itr->second->vma_comp_list_size = 0;
             }
-            m_rings_vma_comps_map_itr->second->vma_comp_list_size = g_vma_api->socketxtreme_poll(
-                ring_fd, (vma_completion_t *)(&m_rings_vma_comps_map_itr->second->vma_comp_list),
+            m_rings_vma_comps_map_itr->second->vma_comp_list_size = g_xlio_api->socketxtreme_poll(
+                ring_fd, (xlio_socketxtreme_completion_t *)(&m_rings_vma_comps_map_itr->second->vma_comp_list),
                 MAX_VMA_COMPS, 0);
 
             if (m_rings_vma_comps_map_itr->second->vma_comp_list_size > 0) {
@@ -462,10 +462,10 @@ public:
             }
         }
 
-        g_vma_comps = (vma_completion_t *)&m_current_vma_ring_comp->vma_comp_list[m_vma_comp_index];
-        if (g_vma_comps->events & VMA_SOCKETXTREME_NEW_CONNECTION_ACCEPTED) {
+        g_vma_comps = (xlio_socketxtreme_completion_t *)&m_current_vma_ring_comp->vma_comp_list[m_vma_comp_index];
+        if (g_vma_comps->events & XLIO_SOCKETXTREME_NEW_CONNECTION_ACCEPTED) {
             ifd = g_vma_comps->listen_fd;
-        } else if (g_vma_comps->events & VMA_SOCKETXTREME_PACKET) {
+        } else if (g_vma_comps->events & XLIO_SOCKETXTREME_PACKET) {
             g_vma_buff = g_vma_comps->packet.buff_lst;
             ifd = g_vma_comps->user_data;
         } else if (g_vma_comps->events & (EPOLLIN | EPOLLERR | EPOLLHUP | EPOLLRDHUP)) {

@@ -53,7 +53,7 @@ int read_int_from_sys_file(const char *path);
 // inline functions
 #ifdef USING_VMA_EXTRA_API
 //------------------------------------------------------------------------------
-static inline int msg_recv_socketxtreme(fds_data *l_fds_ifd, vma_buff_t *tmp_vma_buff,
+static inline int msg_recv_socketxtreme(fds_data *l_fds_ifd, xlio_buff_t *tmp_vma_buff,
                                         struct sockaddr_in *recvfrom_addr) {
     *recvfrom_addr = g_vma_comps->src;
     if (l_fds_ifd->recv.cur_offset) {
@@ -70,7 +70,7 @@ static inline int msg_recv_socketxtreme(fds_data *l_fds_ifd, vma_buff_t *tmp_vma
 }
 
 //------------------------------------------------------------------------------
-static inline int msg_process_next(fds_data *l_fds_ifd, vma_buff_t **tmp_vma_buff, int *nbytes) {
+static inline int msg_process_next(fds_data *l_fds_ifd, xlio_buff_t **tmp_vma_buff, int *nbytes) {
     if (l_fds_ifd->recv.cur_offset) {
         memmove(l_fds_ifd->recv.buf, l_fds_ifd->recv.cur_addr, l_fds_ifd->recv.cur_offset);
         l_fds_ifd->recv.cur_addr = l_fds_ifd->recv.buf;
@@ -97,7 +97,7 @@ static inline int msg_process_next(fds_data *l_fds_ifd, vma_buff_t **tmp_vma_buf
 static inline int free_vma_packets(int fd, int nbytes) {
     int data_to_copy;
     int remain_buffer = 0;
-    struct vma_packet_t *pkt;
+    struct xlio_recvfrom_zcopy_packet_t *pkt;
     ZeroCopyData *z_ptr = g_zeroCopyData[fd];
 
     if (z_ptr) {
@@ -120,7 +120,7 @@ static inline int free_vma_packets(int fd, int nbytes) {
                 z_ptr->m_pkt_index++;
             }
 
-            g_vma_api->free_packets(fd, z_ptr->m_pkts->pkts, z_ptr->m_pkts->n_packet_num);
+            g_xlio_api->recvfrom_zcopy_free_packets(fd, z_ptr->m_pkts->pkts, z_ptr->m_pkts->n_packet_num);
             z_ptr->m_pkts = NULL;
             z_ptr->m_pkt_index = 0;
             z_ptr->m_pkt_offset = 0;
@@ -146,18 +146,18 @@ static inline int msg_recvfrom(int fd, uint8_t *buf, int nbytes, struct sockaddr
 #ifdef USING_VMA_EXTRA_API
     if (g_pApp->m_const_params.is_vmazcopyread) {
         int data_to_copy;
-        struct vma_packet_t *pkt;
+        struct xlio_recvfrom_zcopy_packet_t *pkt;
         ZeroCopyData *z_ptr = g_zeroCopyData[fd];
 
         if (z_ptr) {
             // Receive the next packet with zero copy API
-            ret = g_vma_api->recvfrom_zcopy(fd, z_ptr->m_pkt_buf, Message::getMaxSize(), &flags,
+            ret = g_xlio_api->recvfrom_zcopy(fd, z_ptr->m_pkt_buf, Message::getMaxSize(), &flags,
                                             (struct sockaddr *)recvfrom_addr, &size);
 
             if (ret > 0) {
                 // Zcopy receive is performed
-                if (flags & MSG_VMA_ZCOPY) {
-                    z_ptr->m_pkts = (struct vma_packets_t *)z_ptr->m_pkt_buf;
+                if (flags & MSG_XLIO_ZCOPY) {
+                    z_ptr->m_pkts = (struct xlio_recvfrom_zcopy_packets_t *)z_ptr->m_pkt_buf;
                     if (z_ptr->m_pkts->n_packet_num > 0) {
 
                         pkt = &z_ptr->m_pkts->pkts[0];

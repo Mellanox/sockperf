@@ -146,7 +146,7 @@ private:
 
         TicksTime rxTime;
 #ifdef USING_VMA_EXTRA_API
-        vma_buff_t *tmp_vma_buff = g_vma_buff;
+        xlio_buff_t *tmp_vma_buff = g_vma_buff;
         if (SOCKETXTREME == g_pApp->m_const_params.fd_handler_type && tmp_vma_buff) {
             ret = msg_recv_socketxtreme(l_fds_ifd, tmp_vma_buff, &recvfrom_addr);
         } else if (g_pApp->m_const_params.is_vmazcopyread &&

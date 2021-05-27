@@ -292,7 +292,7 @@ int IoSocketxtreme::prepareNetwork() {
     for (int ifd = m_fd_min; ifd <= m_fd_max; ifd++) {
         if (g_fds_array[ifd]) {
             ring_fd = 0;
-            int rings = g_vma_api->get_socket_rings_fds(ifd, &ring_fd, 1);
+            int rings = g_xlio_api->get_socket_rings_fds(ifd, &ring_fd, 1);
             if (rings == -1) {
                 rc = SOCKPERF_ERR_SOCKET;
                 return rc;

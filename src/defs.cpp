@@ -42,8 +42,8 @@ TicksTime g_cycleStartTime;
 debug_level_t g_debug_level = LOG_LVL_INFO;
 
 #ifdef USING_VMA_EXTRA_API
-struct vma_buff_t *g_vma_buff = NULL;
-struct vma_completion_t *g_vma_comps;
+struct xlio_buff_t *g_vma_buff = NULL;
+struct xlio_socketxtreme_completion_t *g_vma_comps;
 
 ZeroCopyData::ZeroCopyData() : m_pkt_buf(NULL), m_pkts(NULL), m_pkt_index(0), m_pkt_offset(0) {};
 
@@ -67,7 +67,7 @@ int MAX_PAYLOAD_SIZE = 65507;
 int IGMP_MAX_MEMBERSHIPS = IP_MAX_MEMBERSHIPS;
 
 #ifdef USING_VMA_EXTRA_API
-struct vma_api_t *g_vma_api;
+struct xlio_api_t *g_xlio_api;
 #endif
 
 const App *g_pApp = NULL;
