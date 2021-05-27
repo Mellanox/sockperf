@@ -73,22 +73,22 @@ SP_CHECK_CXXFLAGS_APPEND([OUR_CXXFLAGS], [\
                          "--param inline-unit-growth=200"])
 
 ##########################################################################
-# check VMA extra API
+# check XLIO extra API
 #
 AC_ARG_ENABLE(
-    [vma-api],
-    AC_HELP_STRING([--enable-vma-api],
-                   [SOCKPERF: enable vma extra api support (default=no)]),
-    [have_vma_api=$enableval],
-    [have_vma_api=no])
-AS_IF([test "x${have_vma_api}" == "xyes"],
-    [AC_CHECK_HEADER([mellanox/vma_extra.h],
-        [AC_DEFINE([USING_VMA_EXTRA_API],[1],[[Enable using VMA extra API]])],
-        [AC_MSG_ERROR([vma_extra.h file not found])]
-        [have_vma_api=no])])
+    [xlio-api],
+    AC_HELP_STRING([--enable-xlio-api],
+                   [SOCKPERF: enable xlio extra api support (default=no)]),
+    [have_xlio_api=$enableval],
+    [have_xlio_api=no])
+AS_IF([test "x${have_xlio_api}" == "xyes"],
+    [AC_CHECK_HEADER([mellanox/xlio_extra.h],
+        [AC_DEFINE([USING_VMA_EXTRA_API],[1],[[Enable using XLIO extra API]])],
+        [AC_MSG_ERROR([xlio_extra.h file not found])]
+        [have_xlio_api=no])])
 AC_MSG_CHECKING(
-    [for vma extra api])
-AC_MSG_RESULT([${have_vma_api}])
+    [for xlio extra api])
+AC_MSG_RESULT([${have_xlio_api}])
 
 ##########################
 # Documentation
@@ -190,6 +190,6 @@ AC_MSG_RESULT([
 	doc:		${have_doc}
 	test:		${have_test}
 	tool:		${have_tool}
-	vma_api:	${have_vma_api}
+	xlio_api:	${have_xlio_api}
 	debug:		${have_debug}
 ])
