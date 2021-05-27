@@ -79,12 +79,12 @@ daemon_fptr_t fn_daemon = NULL;
 sigaction_fptr_t fn_sigaction = NULL;
 
 ////////////////////////////////////////////////////////////////////////////////
-#define VMA_LOG_CB_ENV_VAR "VMA_LOG_CB_FUNC_PTR"
+#define XLIO_LOG_CB_ENV_VAR "VMA_LOG_CB_FUNC_PTR"
 
 ////////////////////////////////////////////////////////////////////////////////
 static vma_log_cb_t vma_log_get_cb_func() {
     vma_log_cb_t log_cb = NULL;
-    const char *const CB_STR = getenv(VMA_LOG_CB_ENV_VAR);
+    const char *const CB_STR = getenv(XLIO_LOG_CB_ENV_VAR);
     if (!CB_STR || !*CB_STR) return NULL;
 
     if (1 != sscanf(CB_STR, "%p", &log_cb)) return NULL;
@@ -95,11 +95,11 @@ static vma_log_cb_t vma_log_get_cb_func() {
 bool vma_log_set_cb_func(vma_log_cb_t log_cb) {
     char str[64];
     sprintf(str, "%p", log_cb);
-    setenv(VMA_LOG_CB_ENV_VAR, str, 1);
+    setenv(XLIO_LOG_CB_ENV_VAR, str, 1);
 
     if (log_cb != vma_log_get_cb_func()) // verify that VMA will be able to read it correctly
     {
-        unsetenv(VMA_LOG_CB_ENV_VAR);
+        unsetenv(XLIO_LOG_CB_ENV_VAR);
         return false;
     }
 

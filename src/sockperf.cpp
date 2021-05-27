@@ -252,8 +252,8 @@ static const AOPT_DESC common_opt_desc[] = {
       "Time to wait before sending warm up messages (seconds)." },
 #ifndef WIN32
     { OPT_VMAZCOPYREAD,                                   AOPT_NOARG,
-      aopt_set_literal(0),                                aopt_set_string("vmazcopyread"),
-      "Use VMA's zero copy reads API (See VMA's readme)." },
+      aopt_set_literal(0),                                aopt_set_string("xliozcopyread"),
+      "Use XLIO's zero copy reads API (See XLIO's readme)." },
     { OPT_DAEMONIZE, AOPT_NOARG, aopt_set_literal(0), aopt_set_string("daemonize"), "Run as "
                                                                                     "daemon." },
     { OPT_NO_RDTSC,
@@ -262,10 +262,10 @@ static const AOPT_DESC common_opt_desc[] = {
       aopt_set_string("no-rdtsc"),
       "Don't use register when taking time; instead use monotonic clock." },
     { OPT_LOAD_VMA,                                             AOPT_OPTARG,
-      aopt_set_literal(0),                                      aopt_set_string("load-vma"),
-      "Load VMA dynamically even when LD_PRELOAD was not used." },
+      aopt_set_literal(0),                                      aopt_set_string("load-xlio"),
+      "Load XLIO dynamically even when LD_PRELOAD was not used." },
     { OPT_RATE_LIMIT, AOPT_ARG, aopt_set_literal(0), aopt_set_string("rate-limit"),
-      "use rate limit (packet-pacing), with VMA must be run with VMA_RING_ALLOCATION_LOGIC_TX "
+      "use rate limit (packet-pacing), with XLIO must be run with VMA_RING_ALLOCATION_LOGIC_TX "
       "mode." },
 #endif
     { OPT_SOCK_ACCL,
@@ -310,7 +310,7 @@ static const AOPT_DESC client_opt_desc[] = {
       aopt_set_string("increase_output_precision"),
       "Increase number of digits after decimal point of the throughput output (from 3 to 9). " },
     { OPT_DUMMY_SEND, AOPT_OPTARG, aopt_set_literal(0), aopt_set_string("dummy-send"),
-      "Use VMA's dummy send API instead of busy wait, must be higher than regular msg rate. "
+      "Use XLIO's dummy send API instead of busy wait, must be higher than regular msg rate. "
       "\n\t\t\t\t optional: set dummy-send rate per second (default 10,000), usage: --dummy-send "
       "[<rate>|max]" },
     { 0, AOPT_NOARG, aopt_set_literal(0), aopt_set_string(NULL), NULL }
@@ -1347,8 +1347,8 @@ static int proc_mode_server(int id, int argc, const char **argv) {
         { OPT_VMARXFILTERCB,
           AOPT_NOARG,
           aopt_set_literal(0),
-          aopt_set_string("vmarxfiltercb"),
-          "Use VMA's receive path message filter callback API (See VMA's readme)." },
+          aopt_set_string("xliorxfiltercb"),
+          "Use XLIO's receive path message filter callback API (See XLIO's readme)." },
 #endif
         { OPT_FORCE_UC_REPLY,                  AOPT_NOARG,
           aopt_set_literal(0),                 aopt_set_string("force-unicast-reply"),
@@ -1440,7 +1440,7 @@ static int proc_mode_server(int id, int argc, const char **argv) {
         }
 #ifndef WIN32
         if (!rc && aopt_check(server_obj, OPT_VMARXFILTERCB)) {
-            s_user_params.is_vmarxfiltercb = true;
+            s_user_params.is_xliorxfiltercb = true;
         }
 #endif
 
@@ -1852,7 +1852,7 @@ static int parse_common_opt(const AOPT_OBJECT *common_obj) {
 #ifndef WIN32
 
         if (!rc && aopt_check(common_obj, OPT_VMAZCOPYREAD)) {
-            s_user_params.is_vmazcopyread = true;
+            s_user_params.is_xliozcopyread = true;
         }
 
         if (!rc && aopt_check(common_obj, OPT_DAEMONIZE)) {
@@ -1890,11 +1890,11 @@ static int parse_common_opt(const AOPT_OBJECT *common_obj) {
         if (!rc && aopt_check(common_obj, OPT_LOAD_VMA)) {
             const char *optarg = aopt_value(common_obj, OPT_LOAD_VMA);
             // s_user_params.b_load_vma = true;
-            if (!optarg || !*optarg) optarg = (char *)"libvma.so"; // default value
+            if (!optarg || !*optarg) optarg = (char *)"libxlio.so"; // default value
             bool success = vma_set_func_pointers(optarg);
             if (!success) {
-                log_msg("Invalid --load-vma value: %s: failed to set function pointers using the "
-                        "given libvma.so path:",
+                log_msg("Invalid --load-xlio value: %s: failed to set function pointers using the "
+                        "given libxlio.so path:",
                         optarg);
                 log_msg("dlerror() says: %s:", dlerror());
                 rc = SOCKPERF_ERR_BAD_ARGUMENT;
@@ -2073,7 +2073,7 @@ static char *display_opt(int id, char *buf, size_t buf_size) {
 }
 
 //#define ST_TEST
-// use it with command such as: VMA ./sockperf -s -f conf/conf.inp --vmarxfiltercb
+// use it with command such as: VMA ./sockperf -s -f conf/conf.inp --xliorxfiltercb
 
 #ifdef ST_TEST
 static int st1, st2;
@@ -2107,7 +2107,7 @@ void cleanup() {
         FREE(s_user_params.select_timeout);
     }
 #ifdef USING_VMA_EXTRA_API
-    if (g_xlio_api && s_user_params.is_vmazcopyread) {
+    if (g_xlio_api && s_user_params.is_xliozcopyread) {
         zeroCopyMap::iterator it;
         while ((it = g_zeroCopyData.begin()) != g_zeroCopyData.end()) {
             delete it->second;
@@ -2198,8 +2198,8 @@ void set_defaults() {
     s_user_params.max_looping_over_recv = 1;
     s_user_params.do_warmup = true;
     s_user_params.pre_warmup_wait = 0;
-    s_user_params.is_vmarxfiltercb = false;
-    s_user_params.is_vmazcopyread = false;
+    s_user_params.is_xliorxfiltercb = false;
+    s_user_params.is_xliozcopyread = false;
     g_debug_level = LOG_LVL_INFO;
     s_user_params.mc_loop_disable = true;
     s_user_params.uc_reuseaddr = false;
@@ -2267,7 +2267,7 @@ xlio_recv_callback_retval_t myapp_vma_recv_pkt_filter_callback(int fd, size_t io
 
     // Check info structure version
     if (vma_info->struct_sz < sizeof(struct xlio_info_t)) {
-        log_msg("VMA's info struct is not something we can handle so un-register the application's "
+        log_msg("XLIO's info struct is not something we can handle so un-register the application's "
                 "callback function");
         g_xlio_api->register_recv_callback(fd, NULL, NULL);
         return XLIO_PACKET_RECV;
@@ -2709,16 +2709,16 @@ int prepare_socket(int fd, struct fds_data *p_data)
 #ifdef ST_TEST
     if (!stTest)
 #endif
-        if (!rc && (s_user_params.is_vmarxfiltercb && g_xlio_api)) {
-            // Try to register application with VMA's special receive notification callback logic
+        if (!rc && (s_user_params.is_xliorxfiltercb && g_xlio_api)) {
+            // Try to register application with XLIO's special receive notification callback logic
             if (g_xlio_api->register_recv_callback(fd, myapp_vma_recv_pkt_filter_callback, NULL) <
                 0) {
                 log_err("xlio_api->register_recv_callback failed. Try running without option "
-                        "'vmarxfiltercb'");
+                        "'xliorxfiltercb'");
             } else {
                 log_dbg("xlio_api->register_recv_callback successful registered");
             }
-        } else if (!rc && (s_user_params.is_vmazcopyread && g_xlio_api)) {
+        } else if (!rc && (s_user_params.is_xliozcopyread && g_xlio_api)) {
             g_zeroCopyData[fd] = new ZeroCopyData();
             g_zeroCopyData[fd]->allocate();
         }
@@ -3077,29 +3077,29 @@ int bringup(const int *p_daemonize) {
         }
     }
 
-    /* Setup VMA */
+    /* Setup XLIO */
     int _vma_pkts_desc_size = 0;
 
 #ifdef USING_VMA_EXTRA_API
-    if (!rc && (s_user_params.is_vmarxfiltercb || s_user_params.is_vmazcopyread ||
+    if (!rc && (s_user_params.is_xliorxfiltercb || s_user_params.is_xliozcopyread ||
                 s_user_params.fd_handler_type == SOCKETXTREME)) {
-        // Get VMA extended API
+        // Get XLIO extended API
         g_xlio_api = xlio_get_api();
         if (g_xlio_api == NULL) {
             errno = EPERM;
-            exit_with_err("VMA Extra API is not available", SOCKPERF_ERR_FATAL);
+            exit_with_err("XLIO Extra API is not available", SOCKPERF_ERR_FATAL);
         } else {
-            log_msg("VMA Extra API is in use");
+            log_msg("XLIO Extra API is in use");
         }
 
         _vma_pkts_desc_size =
             sizeof(struct xlio_recvfrom_zcopy_packets_t) + sizeof(struct xlio_recvfrom_zcopy_packet_t) + sizeof(struct iovec) * 16;
     }
 #else
-    if (!rc && (s_user_params.is_vmarxfiltercb || s_user_params.is_vmazcopyread ||
+    if (!rc && (s_user_params.is_xliorxfiltercb || s_user_params.is_xliozcopyread ||
                 s_user_params.fd_handler_type == SOCKETXTREME)) {
         errno = EPERM;
-        exit_with_err("Please compile with VMA Extra API to use these options", SOCKPERF_ERR_FATAL);
+        exit_with_err("Please compile with XLIO Extra API to use these options", SOCKPERF_ERR_FATAL);
     }
 #endif
 
@@ -3367,8 +3367,8 @@ is_blocked = %d \n\t\
 is_nonblocked_send = %d \n\t\
 do_warmup = %d \n\t\
 pre_warmup_wait = %d \n\t\
-is_vmarxfiltercb = %d \n\t\
-is_vmazcopyread = %d \n\t\
+is_xliorxfiltercb = %d \n\t\
+is_xliozcopyread = %d \n\t\
 mc_loop_disable = %d \n\t\
 mc_ttl = %d \n\t\
 uc_reuseaddr = %d \n\t\
@@ -3396,8 +3396,8 @@ packet pace limit = %d",
             s_user_params.fd_handler_type, s_user_params.mthread_server,
             s_user_params.sock_buff_size, s_user_params.threads_num, s_user_params.threads_affinity,
             s_user_params.is_blocked, s_user_params.is_nonblocked_send, s_user_params.do_warmup,
-            s_user_params.pre_warmup_wait, s_user_params.is_vmarxfiltercb,
-            s_user_params.is_vmazcopyread, s_user_params.mc_loop_disable, s_user_params.mc_ttl,
+            s_user_params.pre_warmup_wait, s_user_params.is_xliorxfiltercb,
+            s_user_params.is_xliozcopyread, s_user_params.mc_loop_disable, s_user_params.mc_ttl,
             s_user_params.uc_reuseaddr, s_user_params.tcp_nodelay,
             s_user_params.client_work_with_srv_num, s_user_params.b_server_reply_via_uc,
             s_user_params.b_server_dont_reply, s_user_params.b_server_detect_gaps,

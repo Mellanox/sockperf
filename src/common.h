@@ -144,7 +144,7 @@ static inline int msg_recvfrom(int fd, uint8_t *buf, int nbytes, struct sockaddr
     int flags = 0;
 
 #ifdef USING_VMA_EXTRA_API
-    if (g_pApp->m_const_params.is_vmazcopyread) {
+    if (g_pApp->m_const_params.is_xliozcopyread) {
         int data_to_copy;
         struct xlio_recvfrom_zcopy_packet_t *pkt;
         ZeroCopyData *z_ptr = g_zeroCopyData[fd];

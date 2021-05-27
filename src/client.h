@@ -149,7 +149,7 @@ private:
         xlio_buff_t *tmp_vma_buff = g_vma_buff;
         if (SOCKETXTREME == g_pApp->m_const_params.fd_handler_type && tmp_vma_buff) {
             ret = msg_recv_socketxtreme(l_fds_ifd, tmp_vma_buff, &recvfrom_addr);
-        } else if (g_pApp->m_const_params.is_vmazcopyread &&
+        } else if (g_pApp->m_const_params.is_xliozcopyread &&
                    !(remain_buffer = free_vma_packets(ifd, l_fds_ifd->recv.cur_size))) {
             // Handled buffer is filled, free_vma_packets returns 0
             ret = l_fds_ifd->recv.cur_size;
