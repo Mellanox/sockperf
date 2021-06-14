@@ -319,9 +319,8 @@ int Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_accept(int ifd) {
                             }
 #if defined(DEFINED_TLS)
                             if (g_pApp->m_const_params.tls) {
-                                g_fds_array[active_ifd]->tls_handle = tls_connect(active_ifd);
+                                g_fds_array[active_ifd]->tls_handle = tls_establish(active_ifd);
                                 if (!g_fds_array[active_ifd]->tls_handle) {
-                                    log_err("Failed tls_connect()");
                                     break;
                                 }
                             }

@@ -27,7 +27,6 @@
  */
 
 #include "common.h"
-
 #include "tls.h"
 
 #if defined(DEFINED_TLS)
@@ -172,6 +171,13 @@ const char *tls_chipher(const char *chipher) {
 
 #if (DEFINED_TLS == 1)
 
+#define IS_TLS_ERR_WANT_RW(e) (SSL_ERROR_WANT_READ == (e) || SSL_ERROR_WANT_WRITE == (e))
+#define TLS_WAIT_READ 1
+#define TLS_WAIT_WRITE 2
+#define TLS_WAIT_WHICH(e)                                                                          \
+    (((e) == SSL_ERROR_WANT_READ || (e) == SSL_ERROR_WANT_CONNECT) ? TLS_WAIT_READ : 0) |          \
+        (((e) == SSL_ERROR_WANT_WRITE || (e) == SSL_ERROR_WANT_CONNECT) ? TLS_WAIT_WRITE : 0)
+
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 
@@ -183,6 +189,26 @@ const char *tls_chipher(const char *chipher) {
 #endif
 
 static SSL_CTX *ssl_ctx = NULL;
+
+static int wait_for_single_socket(int fd, int which) {
+    fd_set read_fds;
+    fd_set write_fds;
+    FD_ZERO(&read_fds);
+    FD_ZERO(&write_fds);
+
+    if (which & TLS_WAIT_READ) FD_SET(fd, &read_fds);
+
+    if (which & TLS_WAIT_WRITE) FD_SET(fd, &write_fds);
+
+    struct timeval timeout_timeval;
+    memcpy(&timeout_timeval, g_pApp->m_const_params.select_timeout, sizeof(struct timeval));
+
+    // No exceptfds handling for now.
+    int ret = select(fd + 1, &read_fds, &write_fds, NULL, &timeout_timeval);
+    if (ret > 0 && !FD_ISSET(fd, &read_fds) && !FD_ISSET(fd, &write_fds)) return 0;
+
+    return ret;
+}
 
 int tls_init(void) {
     int rc = SOCKPERF_ERR_NONE;
@@ -263,10 +289,41 @@ void tls_exit(void) {
     }
 }
 
-void *tls_connect(int fd) {
+int tls_connect_or_accept(SSL *ssl) {
+    int ret;
+    bool try_again;
+    auto ssl_func = (SSL_is_server(ssl) ? SSL_accept : SSL_connect);
+
+    do {
+        try_again = false;
+        ret = ssl_func(ssl);
+        if (ret <= 0 && !g_b_exit) {
+            int err = SSL_get_error(ssl, ret);
+            if (IS_TLS_ERR_WANT_RW(err) || err == SSL_ERROR_WANT_CONNECT) {
+                log_dbg("tls_connect_or_accept waiting for socket");
+
+                int rc = wait_for_single_socket(SSL_get_fd(ssl), TLS_WAIT_WHICH(err));
+                if (0 > rc && errno != EINTR) {
+                    log_err("Failed to wait for event while establishing TLS");
+                } else if (!g_b_exit) {
+                    try_again = true;
+                }
+            } else {
+                unsigned long e = ERR_peek_error();
+                log_err("Failed to establish, TLS-Error: %d Reason: %d, %s, %s", err,
+                        ERR_GET_REASON(e), ERR_lib_error_string(e), ERR_reason_error_string(e));
+            }
+        }
+    } while (try_again);
+
+    return ret;
+}
+
+void *tls_establish(int fd) {
     SSL *ssl = NULL;
 
     if (!ssl_ctx) {
+        log_err("Failed tls_establish(), no ssl_ctx");
         goto err;
     }
 
@@ -279,19 +336,11 @@ void *tls_connect(int fd) {
         log_err("Failed SSL_set_fd()");
         goto err;
     }
-    if (SSL_is_server(ssl)) {
-        if (SSL_accept(ssl) != 1) {
-            log_err("Failed SSL_accept()");
-            goto err;
-        }
-    } else {
-        if (SSL_connect(ssl) != 1) {
-            log_err("Failed SSL_connect()");
-            goto err;
-        }
-    }
+
+    if (tls_connect_or_accept(ssl) <= 0) goto err;
 
     return (void *)ssl;
+
 err:
     if (ssl) {
         SSL_free(ssl);

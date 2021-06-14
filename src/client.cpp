@@ -521,6 +521,7 @@ static int _connect_check(int ifd) {
             rc = SOCKPERF_ERR_SOCKET;
         }
     }
+
     return rc;
 }
 
@@ -585,9 +586,8 @@ int Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration,
                 }
 #if defined(DEFINED_TLS)
                 if (g_pApp->m_const_params.tls) {
-                    g_fds_array[ifd]->tls_handle = tls_connect(ifd);
+                    g_fds_array[ifd]->tls_handle = tls_establish(ifd);
                     if (!g_fds_array[ifd]->tls_handle) {
-                        log_err("Failed tls_connect()");
                         rc = SOCKPERF_ERR_SOCKET;
                         break;
                     }
