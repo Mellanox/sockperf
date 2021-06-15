@@ -311,19 +311,17 @@ const char *aopt_value(const AOPT_OBJECT *aopt_obj, int key) {
  ***************************************************************************/
 const AOPT_DESC *aopt_get_desc(const AOPT_DESC *aopt_desc, int key) {
     const AOPT_DESC *desc = NULL;
-    int i = 0;
 
     if (key == 0) {
-        log_err("Not a valid key for aopt");
+        log_err("Not a valid key for aopt. Tried getting descriptor");
         return NULL;
     }
 
-    while(aopt_desc[i].key != 0) {
-        if(aopt_desc[i].key == key) {
+    for (int i = 0; aopt_desc[i].key != 0; ++i) {
+        if (aopt_desc[i].key == key) {
             desc = &aopt_desc[i];
             break;
         }
-        i++;
     }
 
     return desc;
@@ -342,12 +340,14 @@ const AOPT_DESC *aopt_get_desc(const AOPT_DESC *aopt_desc, int key) {
  * @retval NULL - on failure
  ***************************************************************************/
 const char *aopt_get_long_name(const AOPT_DESC *aopt_desc, int key) {
-    if (key == 0) {
-        log_err("Not a valid key for aopt");
+    const AOPT_DESC *desc = aopt_get_desc(aopt_desc, key);
+
+    if (key == 0 || desc == NULL) {
+        log_err("Not a valid key for aopt. Tried getting long name");
         return NULL;
     }
 
-    return *aopt_get_desc(aopt_desc, key)->longs;
+    return *desc->longs;
 }
 
 /**

@@ -212,7 +212,7 @@ public:
     double scaleToConsistentEstimatorForStdDev = 1.48260221851;
 
     for (size_t i = 0; i < size; i++) {
-        if(pArr[i] < median) {
+        if (pArr[i] < median) {
             deviationsFromMedian[i] = median - pArr[i];
         } else {
             deviationsFromMedian[i] = pArr[i] - median;

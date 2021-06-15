@@ -138,7 +138,7 @@ static const struct app_modes {
         aopt_set_string("ul"), "Run " MODULE_NAME " client for latency under load test." },
       { proc_mode_ping_pong,   "ping-pong",
         aopt_set_string("pp"), "Run " MODULE_NAME " client for latency test in ping pong mode." },
-      { proc_mode_playback, "playback",
+      { proc_mode_playback,    "playback",
         aopt_set_string("pb"), "Run " MODULE_NAME " client for latency test using playback of predefined "
                                "traffic, based on timeline and message size." },
       { proc_mode_throughput,  "throughput",
@@ -407,10 +407,10 @@ static int proc_mode_under_load(int id, int argc, const char **argv) {
           "Normal confidence interval significance level for stat reported. Values are between 0 and 100 "
           "exclusive (default 99). " },
         { OPT_HISTOGRAM,
-          AOPT_OPTARG,
+          AOPT_ARG,
           aopt_set_literal(0),
           aopt_set_string("histogram"),
-          "Build histogram of latencies. Optional histogram arguments formated as binsize:lowerrange:upperrange " },
+          "Build histogram of latencies. Histogram arguments formated as binsize:lowerrange:upperrange " },
         { 0, AOPT_NOARG, aopt_set_literal(0), aopt_set_string(NULL), NULL }
     };
 
@@ -632,50 +632,17 @@ static int proc_mode_under_load(int id, int argc, const char **argv) {
 
             if (optarg && optarg[0]) {
                 char *buf = strdup(optarg);
-                char *cur_buf = buf;
-                char *cur_ptr = buf;
-                char *end_ptr = NULL;
-                int arg_index = 0;
                 int required_args = 3;
-                int parsed_arg [required_args]; // TODO: coello, should we make all 3 required?
 
-                /* Parse cpu list */
-                while (cur_buf) {
-                    errno = 0;
-                    if (*cur_ptr == '\0') {
-                        parsed_arg[arg_index] = strtol(cur_buf, &end_ptr, 0);
-                        if ((errno != 0) || (cur_buf == end_ptr)) {
-                            log_err("Invalid argument: %s", optarg);
-                            rc = SOCKPERF_ERR_BAD_ARGUMENT;
-                            break;
-                        }
-                        cur_buf = NULL;
-                    } else if (*cur_ptr == ':') {
-                        *cur_ptr = '\0';
-                        parsed_arg[arg_index] = strtol(cur_buf, &end_ptr, 0);
-                        arg_index++;
-                        if ((errno != 0) || (cur_buf == end_ptr)) {
-                            log_err("Invalid argument: %s", optarg);
-                            rc = SOCKPERF_ERR_BAD_ARGUMENT;
-                            break;
-                        }
-                        cur_buf = cur_ptr + 1;
-                        cur_ptr++;
-                        continue;
-                    } else {
-                        cur_ptr++;
-                        continue;
-                    }
-                }
-
-                if (arg_index != required_args - 1) {
+                /* Parse histogram options list */
+                char suffix; //< needed to check for garbage at the end
+                if (sscanf(optarg, "%" PRIu32 ":%" PRIu32 ":%" PRIu32 "%c",
+                    &s_user_params.histogram_bin_size, &s_user_params.histogram_lower_range,
+                    &s_user_params.histogram_upper_range, &suffix) != required_args) {
                     log_err("Invalid argument: %s "
                             "Format should be binsize:lowerrange:upperrange", optarg);
                     rc = SOCKPERF_ERR_BAD_ARGUMENT;
                 }
-                s_user_params.histogram_bin_size = parsed_arg[0];
-                s_user_params.histogram_lower_range = parsed_arg[1];
-                s_user_params.histogram_upper_range = parsed_arg[2];
 
                 if (buf) {
                     free(buf);
@@ -745,8 +712,8 @@ static int proc_mode_ping_pong(int id, int argc, const char **argv) {
           aopt_set_literal('t'),                               aopt_set_string("time"),
           "Run for <sec> seconds (default 1, max = 36000000)." },
         { 'n',                                                 AOPT_ARG,
-          aopt_set_literal('n'),                               aopt_set_string("number-of-observations"),
-          "Run for observations (default 0, max = 100000000)." },
+          aopt_set_literal('n'),                               aopt_set_string("number-of-packets"),
+          "Run for n packets sent and received (default 0, max = 100000000)." },
         { OPT_CLIENTPORT,
           AOPT_ARG,
           aopt_set_literal(0),
@@ -782,10 +749,10 @@ static int proc_mode_ping_pong(int id, int argc, const char **argv) {
           "Normal confidence interval significance level for stat reported. Values are between 0 and 100 "
           "exclusive (default 99). " },
         { OPT_HISTOGRAM,
-          AOPT_OPTARG,
+          AOPT_ARG,
           aopt_set_literal(0),
           aopt_set_string("histogram"),
-          "Build histogram of latencies. Optional histogram arguments formated as binsize:lowerrange:upperrange " },
+          "Build histogram of latencies. Histogram arguments formated as binsize:lowerrange:upperrange " },
         { 0, AOPT_NOARG, aopt_set_literal(0), aopt_set_string(NULL), NULL }
     };
 
@@ -832,42 +799,47 @@ static int proc_mode_ping_pong(int id, int argc, const char **argv) {
     /* Set command line specific values */
     if (!rc && self_obj) {
         if (!rc && aopt_check(self_obj, 'n')) {
-            const char *optarg = aopt_value(self_obj, 'n');
-            if (optarg) {
-                errno = 0;
-                int value = strtol(optarg, NULL, 0);
-                if (errno != 0 || value <= 0 || value > MAX_OBSERVATIONS) {
-                    log_msg("'-%c' Invalid observations: %s", 'n', optarg);
-                    rc = SOCKPERF_ERR_BAD_ARGUMENT;
+            if (!aopt_check(self_obj, 't') && !aopt_check(self_obj, OPT_MPS)) {
+                const char *optarg = aopt_value(self_obj, 'n');
+                if (optarg) {
+                    errno = 0;
+                    int value = strtol(optarg, NULL, 0);
+                    if (errno != 0 || value <= 0 || value > MAX_PACKET_NUMBER) {
+                        log_msg("'-%c' Invalid number of packets: %s", 'n', optarg);
+                        rc = SOCKPERF_ERR_BAD_ARGUMENT;
+                    } else {
+                        s_user_params.measurement = NUMBER_BASED;
+                        s_user_params.number_test_target = value;
+                    }
                 } else {
-                    s_user_params.measurement = OBSERVATION_BASED;
-                    s_user_params.observation_count_target = value;
+                    log_msg("'-%c' Invalid value", 'n');
+                    rc = SOCKPERF_ERR_BAD_ARGUMENT;
                 }
             } else {
-                log_msg("'-%c' Invalid value", 'n');
+                log_msg("-n conflicts with -t,--mps options");
                 rc = SOCKPERF_ERR_BAD_ARGUMENT;
             }
         }
 
         if (!rc && aopt_check(self_obj, 't')) {
-            const char *optarg = aopt_value(self_obj, 't');
-            if (optarg) {
-                errno = 0;
-                int value = strtol(optarg, NULL, 0);
-                if (errno != 0 || value <= 0 || value > MAX_DURATION) {
-                    log_msg("'-%c' Invalid duration: %s", 't', optarg);
-                    rc = SOCKPERF_ERR_BAD_ARGUMENT;
-                } else {
-                    if (s_user_params.measurement == OBSERVATION_BASED) {
-                        log_msg("Can't be both observation and time based");
+            if (!aopt_check(self_obj, 'n')) {
+                const char *optarg = aopt_value(self_obj, 't');
+                if (optarg) {
+                    errno = 0;
+                    int value = strtol(optarg, NULL, 0);
+                    if (errno != 0 || value <= 0 || value > MAX_DURATION) {
+                        log_msg("'-%c' Invalid duration: %s", 't', optarg);
                         rc = SOCKPERF_ERR_BAD_ARGUMENT;
                     } else {
                         s_user_params.measurement = TIME_BASED;
                         s_user_params.sec_test_duration = value;
                     }
+                } else {
+                    log_msg("'-%c' Invalid value", 't');
+                    rc = SOCKPERF_ERR_BAD_ARGUMENT;
                 }
             } else {
-                log_msg("'-%c' Invalid value", 't');
+                log_msg("-t conflicts with -n option");
                 rc = SOCKPERF_ERR_BAD_ARGUMENT;
             }
         }
@@ -1025,50 +997,17 @@ static int proc_mode_ping_pong(int id, int argc, const char **argv) {
 
             if (optarg && optarg[0]) {
                 char *buf = strdup(optarg);
-                char *cur_buf = buf;
-                char *cur_ptr = buf;
-                char *end_ptr = NULL;
-                int arg_index = 0;
                 int required_args = 3;
-                int parsed_arg [required_args]; // TODO: coello, should we make all 3 required?
 
-                /* Parse cpu list */
-                while (cur_buf) {
-                    errno = 0;
-                    if (*cur_ptr == '\0') {
-                        parsed_arg[arg_index] = strtol(cur_buf, &end_ptr, 0);
-                        if ((errno != 0) || (cur_buf == end_ptr)) {
-                            log_err("Invalid argument: %s", optarg);
-                            rc = SOCKPERF_ERR_BAD_ARGUMENT;
-                            break;
-                        }
-                        cur_buf = NULL;
-                    } else if (*cur_ptr == ':') {
-                        *cur_ptr = '\0';
-                        parsed_arg[arg_index] = strtol(cur_buf, &end_ptr, 0);
-                        arg_index++;
-                        if ((errno != 0) || (cur_buf == end_ptr)) {
-                            log_err("Invalid argument: %s", optarg);
-                            rc = SOCKPERF_ERR_BAD_ARGUMENT;
-                            break;
-                        }
-                        cur_buf = cur_ptr + 1;
-                        cur_ptr++;
-                        continue;
-                    } else {
-                        cur_ptr++;
-                        continue;
-                    }
-                }
-
-                if (arg_index != required_args - 1) {
+                /* Parse histogram options list */
+                char suffix; //< needed to check for garbage at the end
+                if (sscanf(optarg, "%" PRIu32 ":%" PRIu32 ":%" PRIu32 "%c",
+                    &s_user_params.histogram_bin_size, &s_user_params.histogram_lower_range,
+                    &s_user_params.histogram_upper_range, &suffix) != required_args) {
                     log_err("Invalid argument: %s "
                             "Format should be binsize:lowerrange:upperrange", optarg);
                     rc = SOCKPERF_ERR_BAD_ARGUMENT;
                 }
-                s_user_params.histogram_bin_size = parsed_arg[0];
-                s_user_params.histogram_lower_range = parsed_arg[1];
-                s_user_params.histogram_upper_range = parsed_arg[2];
 
                 if (buf) {
                     free(buf);
@@ -1088,10 +1027,10 @@ static int proc_mode_ping_pong(int id, int argc, const char **argv) {
         printf("%s: %s\n", display_opt(id, temp_buf, sizeof(temp_buf)), sockperf_modes[id].note);
         printf("\n");
         printf("Usage: " MODULE_NAME " %s [options] [args]...\n", sockperf_modes[id].name);
-        printf(" " MODULE_NAME " %s -i ip  [-p port] [-m message_size] [-t time | -n number-of-observations]\n",
+        printf(" " MODULE_NAME " %s -i ip  [-p port] [-m message_size] [-t time | -n number-of-packets]\n",
                sockperf_modes[id].name);
         printf(" " MODULE_NAME
-               " %s -f file [-F s/p/e] [-m message_size] [-r msg_size_range] [-t time | -n number-of-observations]\n",
+               " %s -f file [-F s/p/e] [-m message_size] [-r msg_size_range] [-t time | -n number-of-packets]\n",
                sockperf_modes[id].name);
         printf("\n");
         printf("Options:\n");
@@ -1419,10 +1358,10 @@ static int proc_mode_playback(int id, int argc, const char **argv) {
           "Normal confidence interval significance level for stat reported. Values are between 0 and 100 "
           "exclusive (default 99). " },
         { OPT_HISTOGRAM,
-          AOPT_OPTARG,
+          AOPT_ARG,
           aopt_set_literal(0),
           aopt_set_string("histogram"),
-          "Build histogram of latencies. Optional histogram arguments formated as binsize:lowerrange:upperrange " },
+          "Build histogram of latencies. Histogram arguments formated as binsize:lowerrange:upperrange " },
         { 0, AOPT_NOARG, aopt_set_literal(0), aopt_set_string(NULL), NULL }
     };
 
@@ -1520,50 +1459,17 @@ static int proc_mode_playback(int id, int argc, const char **argv) {
 
             if (optarg && optarg[0]) {
                 char *buf = strdup(optarg);
-                char *cur_buf = buf;
-                char *cur_ptr = buf;
-                char *end_ptr = NULL;
-                int arg_index = 0;
                 int required_args = 3;
-                int parsed_arg [required_args]; // TODO: coello, should we make all 3 required?
 
-                /* Parse cpu list */
-                while (cur_buf) {
-                    errno = 0;
-                    if (*cur_ptr == '\0') {
-                        parsed_arg[arg_index] = strtol(cur_buf, &end_ptr, 0);
-                        if ((errno != 0) || (cur_buf == end_ptr)) {
-                            log_err("Invalid argument: %s", optarg);
-                            rc = SOCKPERF_ERR_BAD_ARGUMENT;
-                            break;
-                        }
-                        cur_buf = NULL;
-                    } else if (*cur_ptr == ':') {
-                        *cur_ptr = '\0';
-                        parsed_arg[arg_index] = strtol(cur_buf, &end_ptr, 0);
-                        arg_index++;
-                        if ((errno != 0) || (cur_buf == end_ptr)) {
-                            log_err("Invalid argument: %s", optarg);
-                            rc = SOCKPERF_ERR_BAD_ARGUMENT;
-                            break;
-                        }
-                        cur_buf = cur_ptr + 1;
-                        cur_ptr++;
-                        continue;
-                    } else {
-                        cur_ptr++;
-                        continue;
-                    }
-                }
-
-                if (arg_index != required_args - 1) {
+                /* Parse histogram options list */
+                char suffix; //< needed to check for garbage at the end
+                if (sscanf(optarg, "%" PRIu32 ":%" PRIu32 ":%" PRIu32 "%c",
+                    &s_user_params.histogram_bin_size, &s_user_params.histogram_lower_range,
+                    &s_user_params.histogram_upper_range, &suffix) != required_args) {
                     log_err("Invalid argument: %s "
                             "Format should be binsize:lowerrange:upperrange", optarg);
                     rc = SOCKPERF_ERR_BAD_ARGUMENT;
                 }
-                s_user_params.histogram_bin_size = parsed_arg[0];
-                s_user_params.histogram_lower_range = parsed_arg[1];
-                s_user_params.histogram_upper_range = parsed_arg[2];
 
                 if (buf) {
                     free(buf);
@@ -2478,7 +2384,7 @@ void set_defaults() {
     s_user_params.tx_mc_if_addr.s_addr = htonl(INADDR_ANY);
     s_user_params.mc_source_ip_addr.s_addr = htonl(INADDR_ANY);
     s_user_params.sec_test_duration = DEFAULT_TEST_DURATION;
-    s_user_params.observation_count_target = DEFAULT_OBSERVATION_COUNT;
+    s_user_params.number_test_target = DEFAULT_TEST_NUMBER;
     s_user_params.client_bind_info.sin_family = AF_INET;
     s_user_params.client_bind_info.sin_addr.s_addr = INADDR_ANY;
     s_user_params.client_bind_info.sin_port = 0;
@@ -3548,8 +3454,8 @@ int bringup(const int *p_daemonize) {
                 TEST_FIRST_CONNECTION_FIRST_PACKET_TTL_THRESHOLD_MSEC * 1000,
                 (int)(TEST_ANY_CONNECTION_FIRST_PACKET_TTL_THRESHOLD_MSEC * 1000));
         }
-        s_user_params.warmup_obs = TEST_START_WARMUP_OBS;
-        s_user_params.cooldown_obs = TEST_END_COOLDOWN_OBS;
+        s_user_params.warmup_num = TEST_START_WARMUP_NUM;
+        s_user_params.cooldown_num = TEST_END_COOLDOWN_NUM;
 
         uint64_t _maxTestDuration = 1 + s_user_params.sec_test_duration +
                                     (s_user_params.warmup_msec + s_user_params.cooldown_msec) /
@@ -3558,9 +3464,9 @@ int bringup(const int *p_daemonize) {
                                   10 * s_user_params.reply_every; // + 10 replies for safety
         _maxSequenceNo += s_user_params.burst_size; // needed for the case burst_size > mps
 
-        if(s_user_params.measurement == OBSERVATION_BASED) {
-            // override to reach max count during observation based
-            _maxSequenceNo = TEST_START_WARMUP_OBS + MAX_OBSERVATIONS + TEST_END_COOLDOWN_OBS;
+        if (s_user_params.measurement == NUMBER_BASED) {
+            // override to reach max packet count during number based
+            _maxSequenceNo = TEST_START_WARMUP_NUM + MAX_PACKET_NUMBER + TEST_END_COOLDOWN_NUM;
         }
 
         if (s_user_params.pPlaybackVector) {
@@ -3670,7 +3576,7 @@ with_sock_accl = %d \n\t\
 msg_size = %d \n\t\
 msg_size_range = %d \n\t\
 sec_test_duration = %d \n\t\
-observation_count_target = %lu \n\t\
+number_test_target = %lu \n\t\
 data_integrity = %d \n\t\
 packetrate_stats_print_ratio = %d \n\t\
 burst_size = %d \n\t\
@@ -3708,7 +3614,7 @@ tos = %d \n\t\
 packet pace limit = %d",
             s_user_params.mode, s_user_params.measurement, s_user_params.withsock_accl,
             s_user_params.msg_size, s_user_params.msg_size_range, s_user_params.sec_test_duration,
-            s_user_params.observation_count_target, s_user_params.data_integrity,
+            s_user_params.number_test_target, s_user_params.data_integrity,
             s_user_params.packetrate_stats_print_ratio, s_user_params.burst_size,
             s_user_params.packetrate_stats_print_details, s_user_params.fd_handler_type,
             s_user_params.mthread_server, s_user_params.sock_buff_size, s_user_params.threads_num,
