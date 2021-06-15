@@ -832,42 +832,52 @@ static int proc_mode_ping_pong(int id, int argc, const char **argv) {
     /* Set command line specific values */
     if (!rc && self_obj) {
         if (!rc && aopt_check(self_obj, 'n')) {
-            const char *optarg = aopt_value(self_obj, 'n');
-            if (optarg) {
-                errno = 0;
-                int value = strtol(optarg, NULL, 0);
-                if (errno != 0 || value <= 0 || value > MAX_OBSERVATIONS) {
-                    log_msg("'-%c' Invalid observations: %s", 'n', optarg);
-                    rc = SOCKPERF_ERR_BAD_ARGUMENT;
+            if (!aopt_check(self_obj, 't') && !aopt_check(self_obj, OPT_MPS)) {
+                const char *optarg = aopt_value(self_obj, 'n');
+                if (optarg) {
+                    errno = 0;
+                    int value = strtol(optarg, NULL, 0);
+                    if (errno != 0 || value <= 0 || value > MAX_OBSERVATIONS) {
+                        log_msg("'-%c' Invalid observations: %s", 'n', optarg);
+                        rc = SOCKPERF_ERR_BAD_ARGUMENT;
+                    } else {
+                        s_user_params.measurement = OBSERVATION_BASED;
+                        s_user_params.observation_count_target = value;
+                    }
                 } else {
-                    s_user_params.measurement = OBSERVATION_BASED;
-                    s_user_params.observation_count_target = value;
+                    log_msg("'-%c' Invalid value", 'n');
+                    rc = SOCKPERF_ERR_BAD_ARGUMENT;
                 }
             } else {
-                log_msg("'-%c' Invalid value", 'n');
+                log_msg("-n conflicts with -t,--mps options");
                 rc = SOCKPERF_ERR_BAD_ARGUMENT;
             }
         }
 
         if (!rc && aopt_check(self_obj, 't')) {
-            const char *optarg = aopt_value(self_obj, 't');
-            if (optarg) {
-                errno = 0;
-                int value = strtol(optarg, NULL, 0);
-                if (errno != 0 || value <= 0 || value > MAX_DURATION) {
-                    log_msg("'-%c' Invalid duration: %s", 't', optarg);
-                    rc = SOCKPERF_ERR_BAD_ARGUMENT;
-                } else {
-                    if (s_user_params.measurement == OBSERVATION_BASED) {
-                        log_msg("Can't be both observation and time based");
+            if (!aopt_check(self_obj, 'n')) {
+                const char *optarg = aopt_value(self_obj, 't');
+                if (optarg) {
+                    errno = 0;
+                    int value = strtol(optarg, NULL, 0);
+                    if (errno != 0 || value <= 0 || value > MAX_DURATION) {
+                        log_msg("'-%c' Invalid duration: %s", 't', optarg);
                         rc = SOCKPERF_ERR_BAD_ARGUMENT;
                     } else {
-                        s_user_params.measurement = TIME_BASED;
-                        s_user_params.sec_test_duration = value;
+                        if (s_user_params.measurement == OBSERVATION_BASED) {
+                            log_msg("Can't be both observation and time based");
+                            rc = SOCKPERF_ERR_BAD_ARGUMENT;
+                        } else {
+                            s_user_params.measurement = TIME_BASED;
+                            s_user_params.sec_test_duration = value;
+                        }
                     }
+                } else {
+                    log_msg("'-%c' Invalid value", 't');
+                    rc = SOCKPERF_ERR_BAD_ARGUMENT;
                 }
             } else {
-                log_msg("'-%c' Invalid value", 't');
+                log_msg("-t conflicts with -n option");
                 rc = SOCKPERF_ERR_BAD_ARGUMENT;
             }
         }
