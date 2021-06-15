@@ -123,8 +123,8 @@ const uint32_t REPLY_EVERY_DEFAULT = 100;
 
 const uint32_t TEST_START_WARMUP_MSEC = 400;
 const uint32_t TEST_END_COOLDOWN_MSEC = 50;
-const uint32_t TEST_START_WARMUP_OBS = 8000;
-const uint32_t TEST_END_COOLDOWN_OBS = 1000;
+const uint64_t TEST_START_WARMUP_NUM = 8000;
+const uint64_t TEST_END_COOLDOWN_NUM = 1000;
 
 const uint32_t TEST_FIRST_CONNECTION_FIRST_PACKET_TTL_THRESHOLD_MSEC = 50;
 #define TEST_ANY_CONNECTION_FIRST_PACKET_TTL_THRESHOLD_MSEC (0.1)
@@ -645,7 +645,7 @@ struct user_params_t {
     int msg_size;
     int msg_size_range;
     int sec_test_duration;
-    uint32_t observation_test_count;
+    uint64_t observation_count_target;
     bool data_integrity;
     fd_block_handler_t fd_handler_type;
     unsigned int packetrate_stats_print_ratio;

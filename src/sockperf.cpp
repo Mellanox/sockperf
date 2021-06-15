@@ -841,7 +841,7 @@ static int proc_mode_ping_pong(int id, int argc, const char **argv) {
                     rc = SOCKPERF_ERR_BAD_ARGUMENT;
                 } else {
                     s_user_params.measurement = OBSERVATION_BASED;
-                    s_user_params.observation_test_count = value;
+                    s_user_params.observation_count_target = value;
                 }
             } else {
                 log_msg("'-%c' Invalid value", 'n');
@@ -2478,7 +2478,7 @@ void set_defaults() {
     s_user_params.tx_mc_if_addr.s_addr = htonl(INADDR_ANY);
     s_user_params.mc_source_ip_addr.s_addr = htonl(INADDR_ANY);
     s_user_params.sec_test_duration = DEFAULT_TEST_DURATION;
-    s_user_params.observation_test_count = DEFAULT_OBSERVATION_COUNT;
+    s_user_params.observation_count_target = DEFAULT_OBSERVATION_COUNT;
     s_user_params.client_bind_info.sin_family = AF_INET;
     s_user_params.client_bind_info.sin_addr.s_addr = INADDR_ANY;
     s_user_params.client_bind_info.sin_port = 0;
@@ -3670,7 +3670,7 @@ with_sock_accl = %d \n\t\
 msg_size = %d \n\t\
 msg_size_range = %d \n\t\
 sec_test_duration = %d \n\t\
-observation_test_count = %d \n\t\
+observation_count_target = %lu \n\t\
 data_integrity = %d \n\t\
 packetrate_stats_print_ratio = %d \n\t\
 burst_size = %d \n\t\
@@ -3708,7 +3708,7 @@ tos = %d \n\t\
 packet pace limit = %d",
             s_user_params.mode, s_user_params.measurement, s_user_params.withsock_accl,
             s_user_params.msg_size, s_user_params.msg_size_range, s_user_params.sec_test_duration,
-            s_user_params.observation_test_count, s_user_params.data_integrity,
+            s_user_params.observation_count_target, s_user_params.data_integrity,
             s_user_params.packetrate_stats_print_ratio, s_user_params.burst_size,
             s_user_params.packetrate_stats_print_details, s_user_params.fd_handler_type,
             s_user_params.mthread_server, s_user_params.sock_buff_size, s_user_params.threads_num,

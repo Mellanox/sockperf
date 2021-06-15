@@ -78,7 +78,7 @@ void set_client_observation_timer(struct itimerval *timer, TicksTime testStart) 
     TicksDuration sampleTime = endSampling - testStart;
     uint64_t warmupObservations = s_user_params.warmup_obs;
     uint64_t cooldownObservations = s_user_params.cooldown_obs;
-    uint64_t observationTarget = g_pApp->m_const_params.observation_test_count;
+    uint64_t observationTarget = g_pApp->m_const_params.observation_count_target;
     uint64_t totalObservations = warmupObservations + observationTarget + cooldownObservations;
     uint64_t sampleObservations = warmupObservations;
 
@@ -465,7 +465,7 @@ void client_statistics(int serverNo, Message *pMsgRequest) {
 
     if (g_pApp->m_const_params.measurement == OBSERVATION_BASED) {
         start_searching_here += g_pApp->m_const_params.warmup_obs;
-        end_observation_here = start_searching_here + g_pApp->m_const_params.observation_test_count;
+        end_observation_here = start_searching_here + g_pApp->m_const_params.observation_count_target;
     }
 
     for (uint64_t i = start_searching_here; (counter < SIZE); i++) {
@@ -761,10 +761,10 @@ void Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration
                         (int)g_pApp->m_const_params.sec_test_duration);
             } else {
             fprintf(f, "test was performed using the following parameters: "
-                       "--mps=%d --burst=%d --reply-every=%d --msg-size=%d --number-of-observations=%" PRIu32 "",
+                       "--mps=%d --burst=%d --reply-every=%d --msg-size=%d --number-of-observations=%" PRIu64 "",
                     (int)g_pApp->m_const_params.mps, (int)g_pApp->m_const_params.burst_size,
                     (int)g_pApp->m_const_params.reply_every, (int)g_pApp->m_const_params.msg_size,
-                    g_pApp->m_const_params.observation_test_count);
+                    g_pApp->m_const_params.observation_count_target);
             }
             if (g_pApp->m_const_params.dummy_mps) {
                 fprintf(f, " --dummy-send=%d", g_pApp->m_const_params.dummy_mps);
@@ -1004,7 +1004,7 @@ void Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration
         uint64_t counterValid = 0;
         uint64_t warmupObservations = s_user_params.warmup_obs;
         uint64_t cooldownObservations = s_user_params.cooldown_obs;
-        uint64_t observationTarget = g_pApp->m_const_params.observation_test_count;
+        uint64_t observationTarget = g_pApp->m_const_params.observation_count_target;
         uint64_t stopCounting = warmupObservations + observationTarget + cooldownObservations;
         const uint64_t replyEvery = g_pApp->m_const_params.reply_every;
         const int SERVER_NO = 0; // TODO: should be one per server (as of 1/27/21 sockperf handles only one server)
