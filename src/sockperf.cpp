@@ -138,7 +138,7 @@ static const struct app_modes {
         aopt_set_string("ul"), "Run " MODULE_NAME " client for latency under load test." },
       { proc_mode_ping_pong,   "ping-pong",
         aopt_set_string("pp"), "Run " MODULE_NAME " client for latency test in ping pong mode." },
-      { proc_mode_playback, "playback",
+      { proc_mode_playback,    "playback",
         aopt_set_string("pb"), "Run " MODULE_NAME " client for latency test using playback of predefined "
                                "traffic, based on timeline and message size." },
       { proc_mode_throughput,  "throughput",

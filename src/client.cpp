@@ -190,18 +190,20 @@ void printHistogram(int binSize, std::map<int, int> &activeBins, int minValue, i
     const int rightOutlierBinIndex = getRightOutlierBinIndexReserved();
     const int lowerRange = s_user_params.histogram_lower_range;
     const int upperRange = s_user_params.histogram_upper_range;
+    const std::string prefixToHistogramDisplay ("sockperf: ");
     int maxFrequency = 0;
     int currFrequency = 0;
     int terminalWidth = 0;
     int scalingUnit = 0;
     int maxDisplayWidth = 0;
-    int maxValueDigits = getNumberOfDigits(maxValue);
+    int maxStartBinDigits = getNumberOfDigits(maxValue - binSize);
+    int maxEndBinDigits = getNumberOfDigits(maxValue);
     int whitespaceBeforeFrequencies = 2;
     int outlierMessageWidth = 11;
     int whitespaceAfterFrequencies = outlierMessageWidth + 1;
-    int columnWidthOfEndBinEdge = maxValueDigits + whitespaceBeforeFrequencies;
-    int maxBinMessage = getNumberOfDigits(upperRange + binSize) + 1 + maxValueDigits; // align after longest message
-    std::string prefixToHistogramDisplay ("sockperf: bin ");
+    int columnWidthOfEndBinEdge = maxEndBinDigits + whitespaceBeforeFrequencies;
+    int columnWidthOfStartBinEdge = maxStartBinDigits;
+    int maxBinMessage = getNumberOfDigits(upperRange + binSize) + 1 + maxEndBinDigits; // align after longest message
     std::map<int, int>::iterator itr;
 
     // Scale to terminal
@@ -225,10 +227,15 @@ void printHistogram(int binSize, std::map<int, int> &activeBins, int minValue, i
         int standardTerminalLength = 80;
         scalingUnit = (maxFrequency + standardTerminalLength - 1)/standardTerminalLength;
     } else {
-        maxDisplayWidth = terminalWidth - prefixToHistogramDisplay.length() - maxBinMessage - whitespaceAfterFrequencies;
+        maxDisplayWidth = terminalWidth - prefixToHistogramDisplay.length() - maxBinMessage - whitespaceAfterFrequencies
+            - whitespaceBeforeFrequencies;
         scalingUnit = (maxFrequency + maxDisplayWidth - 1)/maxDisplayWidth; // round up
     }
 
+    const std::string freqString = "frequency";
+    const std::string binsString = "bins";
+    int binsHeaderWidth = (maxStartBinDigits + maxEndBinDigits + 2)/2 + binsString.length()/2;
+    int frequencyHeaderWidth = (maxDisplayWidth)/2 + freqString.length()/2;
     int startBinEdge = 0;
     int endBinEdge = 0;
     int frequency = 0;
@@ -239,19 +246,21 @@ void printHistogram(int binSize, std::map<int, int> &activeBins, int minValue, i
     } else {
         log_msg("[Histogram] Display scaled to fit on screen (Key: '#' = up to %d samples)", scalingUnit);
     }
+    log_msg("%*s %*s", binsHeaderWidth, binsString.c_str(), frequencyHeaderWidth, freqString.c_str());
     for(itr = activeBins.begin(); itr != activeBins.end(); ++itr) {
         frequency = itr->second;
         frequencyScaledDownCount = (frequency + scalingUnit - 1) / scalingUnit; // round up
         if (itr->first == leftOutlierBinIndex) {
-            log_msg("bin %d-%-*d" MAGNETA "%s (outliers)" ENDCOLOR, minValue, columnWidthOfEndBinEdge, lowerRange,
-                std::string(frequencyScaledDownCount, '#').c_str());
+            log_msg("%*d-%-*d" MAGNETA "%s (outliers)" ENDCOLOR, columnWidthOfStartBinEdge, minValue, columnWidthOfEndBinEdge,
+                lowerRange, std::string(frequencyScaledDownCount, '#').c_str());
         } else if (itr->first == rightOutlierBinIndex) {
-            log_msg("bin %d-%-*d" MAGNETA "%s (outliers)" ENDCOLOR, getStartOfRightOutlierBin(), columnWidthOfEndBinEdge,
-                maxValue, std::string(frequencyScaledDownCount, '#').c_str());
+            log_msg("%*d-%-*d" MAGNETA "%s (outliers)" ENDCOLOR, columnWidthOfStartBinEdge, getStartOfRightOutlierBin(),
+                columnWidthOfEndBinEdge, maxValue, std::string(frequencyScaledDownCount, '#').c_str());
         } else {
             startBinEdge = (itr->first - 1) * binSize + lowerRange;
             endBinEdge = startBinEdge + binSize;
-            log_msg("bin %d-%-*d%s",startBinEdge, columnWidthOfEndBinEdge, endBinEdge, std::string(frequencyScaledDownCount, '#').c_str());
+            log_msg("%*d-%-*d%s", columnWidthOfStartBinEdge, startBinEdge, columnWidthOfEndBinEdge, endBinEdge,
+                std::string(frequencyScaledDownCount, '#').c_str());
         }
     }
 }
