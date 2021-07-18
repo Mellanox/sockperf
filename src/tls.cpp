@@ -175,6 +175,13 @@ const char *tls_chipher(const char *chipher) {
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 
+// This define is only applicable for OpenSSL 3, in OpenSSL 1.1.1 the behaviour
+// of unclean shutdown is not strict and does not generate an error.
+// So this flag was introduced for OpenSSL 3 as to imitate the old behaviour.
+#ifndef SSL_OP_IGNORE_UNEXPECTED_EOF
+#define SSL_OP_IGNORE_UNEXPECTED_EOF 0
+#endif
+
 static SSL_CTX *ssl_ctx = NULL;
 
 int tls_init(void) {
@@ -195,7 +202,8 @@ int tls_init(void) {
         }
 
         if (SSL_CTX_set_options(ctx, SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_TLSv1 |
-                                         SSL_OP_NO_TLSv1_1 | SSL_OP_NO_TLSv1_3) <= 0) {
+                                         SSL_OP_NO_TLSv1_1 | SSL_OP_NO_TLSv1_3 |
+                                         SSL_OP_IGNORE_UNEXPECTED_EOF) <= 0) {
             SSL_CTX_free(ctx);
             log_err("Unable to set protocol: %s", "TLSv1.2");
             rc = SOCKPERF_ERR_FATAL;
