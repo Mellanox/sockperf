@@ -1670,7 +1670,7 @@ static int parse_common_opt(const AOPT_OBJECT *common_obj) {
             const char *optarg = aopt_value(common_obj, OPT_RX_MC_IF);
             if (!optarg || ((s_user_params.rx_mc_if_addr.s_addr = inet_addr(optarg)) ==
                             INADDR_NONE)) { /* already in network byte order*/
-                log_msg("'-%d' Invalid address: %s", OPT_RX_MC_IF, optarg);
+                log_msg("'-%s' Invalid value", "mc-rx-if");
                 rc = SOCKPERF_ERR_BAD_ARGUMENT;
             }
         }
@@ -1679,7 +1679,7 @@ static int parse_common_opt(const AOPT_OBJECT *common_obj) {
             const char *optarg = aopt_value(common_obj, OPT_TX_MC_IF);
             if (!optarg || ((s_user_params.tx_mc_if_addr.s_addr = inet_addr(optarg)) ==
                             INADDR_NONE)) { /* already in network byte order*/
-                log_msg("'-%d' Invalid address: %s", OPT_TX_MC_IF, optarg);
+                log_msg("'-%s' Invalid value", "mc-tx-if");
                 rc = SOCKPERF_ERR_BAD_ARGUMENT;
             }
         }
@@ -1698,7 +1698,7 @@ static int parse_common_opt(const AOPT_OBJECT *common_obj) {
                     }
                 }
             } else {
-                log_msg("'-%d' Invalid address: %s", OPT_MC_SOURCE_IP, optarg);
+                log_msg("'-%s' Invalid value", "mc-source-filter");
                 rc = SOCKPERF_ERR_BAD_ARGUMENT;
             }
         }
