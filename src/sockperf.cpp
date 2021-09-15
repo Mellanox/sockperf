@@ -1935,10 +1935,15 @@ static int parse_common_opt(const AOPT_OBJECT *common_obj) {
 
 #if defined(DEFINED_TLS)
         if (!rc && aopt_check(common_obj, OPT_TLS)) {
-            const char *optarg = aopt_value(common_obj, OPT_TLS);
-            s_user_params.tls = true;
-            if (optarg && *optarg) {
-                tls_chipher(optarg);
+            if (!aopt_check(common_obj, OPT_LOAD_VMA)) {
+                const char *optarg = aopt_value(common_obj, OPT_TLS);
+                s_user_params.tls = true;
+                if (optarg && *optarg) {
+                    tls_chipher(optarg);
+                }
+            } else {
+                log_msg("--tls conflicts with --load-xlio option");
+                rc = SOCKPERF_ERR_BAD_ARGUMENT;
             }
         }
 #endif /* DEFINED_TLS */
