@@ -401,7 +401,7 @@ void client_statistics(int serverNo, Message *pMsgRequest) {
                             totalRunTime.toDecimalUsec() / 1000000,
                             g_pApp->m_const_params.warmup_msec, sendCount, receiveCount, g_skipCount);
             } else {
-            log_msg_file2(f, "[Total Run] RunTime=%.3lf sec; Warm up packets=%" PRIu64
+                log_msg_file2(f, "[Total Run] RunTime=%.3lf sec; Warm up packets=%" PRIu64
                              "; SentMessages=%" PRIu64 "; ReceivedMessages=%" PRIu64
                              "; SkippedMessages=%" PRIu64 "",
                           totalRunTime.toDecimalUsec() / 1000000,
