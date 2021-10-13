@@ -340,12 +340,14 @@ const AOPT_DESC *aopt_get_desc(const AOPT_DESC *aopt_desc, int key) {
  * @retval NULL - on failure
  ***************************************************************************/
 const char *aopt_get_long_name(const AOPT_DESC *aopt_desc, int key) {
-    if (key == 0 || aopt_get_desc(aopt_desc, key) == NULL) {
+    const AOPT_DESC *desc = aopt_get_desc(aopt_desc, key);
+
+    if (key == 0 || desc == NULL) {
         log_err("Not a valid key for aopt. Tried getting long name");
         return NULL;
     }
 
-    return *aopt_desc->longs;
+    return *desc->longs;
 }
 
 /**

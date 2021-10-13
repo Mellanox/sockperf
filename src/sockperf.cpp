@@ -635,13 +635,10 @@ static int proc_mode_under_load(int id, int argc, const char **argv) {
                 int required_args = 3;
 
                 /* Parse histogram options list */
-                long bin_size, lower_range, upper_range;
                 char suffix; //< needed to check for garbage at the end
-                if (sscanf(optarg, "%ld:%ld:%ld%c", &bin_size, &lower_range, &upper_range, &suffix) == required_args) {
-                    s_user_params.histogram_bin_size = bin_size;
-                    s_user_params.histogram_lower_range = lower_range;
-                    s_user_params.histogram_upper_range = upper_range;
-                } else {
+                if (sscanf(optarg, "%" PRIu32 ":%" PRIu32 ":%" PRIu32 "%c",
+                    &s_user_params.histogram_bin_size, &s_user_params.histogram_lower_range,
+                    &s_user_params.histogram_upper_range, &suffix) != required_args) {
                     log_err("Invalid argument: %s "
                             "Format should be binsize:lowerrange:upperrange", optarg);
                     rc = SOCKPERF_ERR_BAD_ARGUMENT;
@@ -1003,13 +1000,10 @@ static int proc_mode_ping_pong(int id, int argc, const char **argv) {
                 int required_args = 3;
 
                 /* Parse histogram options list */
-                long bin_size, lower_range, upper_range;
                 char suffix; //< needed to check for garbage at the end
-                if (sscanf(optarg, "%ld:%ld:%ld%c", &bin_size, &lower_range, &upper_range, &suffix) == required_args) {
-                    s_user_params.histogram_bin_size = bin_size;
-                    s_user_params.histogram_lower_range = lower_range;
-                    s_user_params.histogram_upper_range = upper_range;
-                } else {
+                if (sscanf(optarg, "%" PRIu32 ":%" PRIu32 ":%" PRIu32 "%c",
+                    &s_user_params.histogram_bin_size, &s_user_params.histogram_lower_range,
+                    &s_user_params.histogram_upper_range, &suffix) != required_args) {
                     log_err("Invalid argument: %s "
                             "Format should be binsize:lowerrange:upperrange", optarg);
                     rc = SOCKPERF_ERR_BAD_ARGUMENT;
@@ -1468,13 +1462,10 @@ static int proc_mode_playback(int id, int argc, const char **argv) {
                 int required_args = 3;
 
                 /* Parse histogram options list */
-                long bin_size, lower_range, upper_range;
                 char suffix; //< needed to check for garbage at the end
-                if (sscanf(optarg, "%ld:%ld:%ld%c", &bin_size, &lower_range, &upper_range, &suffix) == required_args) {
-                    s_user_params.histogram_bin_size = bin_size;
-                    s_user_params.histogram_lower_range = lower_range;
-                    s_user_params.histogram_upper_range = upper_range;
-                } else {
+                if (sscanf(optarg, "%" PRIu32 ":%" PRIu32 ":%" PRIu32 "%c",
+                    &s_user_params.histogram_bin_size, &s_user_params.histogram_lower_range,
+                    &s_user_params.histogram_upper_range, &suffix) != required_args) {
                     log_err("Invalid argument: %s "
                             "Format should be binsize:lowerrange:upperrange", optarg);
                     rc = SOCKPERF_ERR_BAD_ARGUMENT;
