@@ -102,6 +102,7 @@ int set_affinity_list(os_thread_t thread, const char *cpu_list) {
         os_cpuset_t mycpuset;
         os_init_cpuset(&mycpuset);
 
+        // TODO: consider using sscanf for parsing below
         /* Parse cpu list */
         while (cur_buf) {
             errno = 0;

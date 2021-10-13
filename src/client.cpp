@@ -97,34 +97,34 @@ void set_client_expiration_timer(struct itimerval *timer, TicksTime testStart) {
 }
 
 //------------------------------------------------------------------------------
-int getStartOfRightOutlierBin(){
-    const int lowerRange = s_user_params.histogram_lower_range;
-    const int upperRange = s_user_params.histogram_upper_range;
-    const int binSize = s_user_params.histogram_bin_size;
-    int startBinEdge = upperRange;
+uint32_t getStartOfRightOutlierBin(){
+    const uint32_t lowerRange = s_user_params.histogram_lower_range;
+    const uint32_t upperRange = s_user_params.histogram_upper_range;
+    const uint32_t binSize = s_user_params.histogram_bin_size;
+    uint32_t startBinEdge = upperRange;
     /*
         When range is not divisible by bin size, we can either truncate last bin within range to fit in
         or have the bin overflow to keep bins a constant size. We choose to overflow which shifts outlier
         bin.
     */
-    int overflowRemainder = (upperRange - lowerRange) % binSize;
+    uint32_t overflowRemainder = (upperRange - lowerRange) % binSize;
 
-    if(overflowRemainder != 0) {
+    if (overflowRemainder != 0) {
         startBinEdge += binSize - overflowRemainder;
     }
     return startBinEdge;
 } 
 
 //------------------------------------------------------------------------------
-int getLeftOutlierBinIndexReserved() {
+uint32_t getLeftOutlierBinIndexReserved() {
     return 0;
 }
 
 //------------------------------------------------------------------------------
-int getRightOutlierBinIndexReserved() {
-    int lowerRange = s_user_params.histogram_lower_range;
-    int upperRange = s_user_params.histogram_upper_range;
-    int binSize = s_user_params.histogram_bin_size;
+uint32_t getRightOutlierBinIndexReserved() {
+    uint32_t lowerRange = s_user_params.histogram_lower_range;
+    uint32_t upperRange = s_user_params.histogram_upper_range;
+    uint32_t binSize = s_user_params.histogram_bin_size;
     /*
         Normal bin index for value is calculated with: 1 + (value - lower_range)/bin_size
         Right outliers all fall in the same bin which is one more than the last
@@ -134,7 +134,7 @@ int getRightOutlierBinIndexReserved() {
 }
 
 //------------------------------------------------------------------------------
-int getNumberOfDigits(int input) {
+uint32_t getNumberOfDigits(uint32_t input) {
     return (int)log10(input) + 1;
 }
 
@@ -142,33 +142,30 @@ int getNumberOfDigits(int input) {
 /*  Store frequencies for each non-empty bin. All bins include only start (exclusive) as
     end (inclusive) can be inferred by adding bin size. Outlier bins include both
     start and end of bin as size depends on outliers. */
-void storeHistogram(int binSize, std::map<int, int> &activeBins, int minValue, int maxValue) {
-    const int leftOutlierBinIndex = getLeftOutlierBinIndexReserved();
-    const int rightOutlierBinIndex = getRightOutlierBinIndexReserved();
-    const int lowerRange = s_user_params.histogram_lower_range;
-    const int upperRange = s_user_params.histogram_upper_range;
-    int startBinEdge = 0;
-    int frequency = 0;
+void storeHistogram(uint32_t binSize, const std::map<uint32_t, uint32_t> &activeBins, uint32_t minValue, uint32_t maxValue) {
+    const uint32_t leftOutlierBinIndex = getLeftOutlierBinIndexReserved();
+    const uint32_t rightOutlierBinIndex = getRightOutlierBinIndexReserved();
+    const uint32_t lowerRange = s_user_params.histogram_lower_range;
+    const uint32_t upperRange = s_user_params.histogram_upper_range;
+    uint32_t startBinEdge = 0;
+    uint32_t frequency = 0;
     // Align columns with the following variables
-    const int whitespaceAfterMaxBinMessage = 20;
-    int upperRangeDigits = getNumberOfDigits(upperRange);
-    int maxValueDigits = getNumberOfDigits(maxValue);
-    int minValueDigits = getNumberOfDigits(minValue);
-    int columnWidth = maxValueDigits + 1 + upperRangeDigits + whitespaceAfterMaxBinMessage;
-    int columnWidthLeftOutlier = columnWidth - 1 - minValueDigits; // - 1 for "-"
-    int columnWidthRightOutlier = columnWidth - 1 - upperRangeDigits; // - 1 for "-"
+    const uint32_t whitespaceAfterMaxBinMessage = 20;
+    uint32_t upperRangeDigits = getNumberOfDigits(upperRange);
+    uint32_t maxValueDigits = getNumberOfDigits(maxValue);
+    uint32_t minValueDigits = getNumberOfDigits(minValue);
+    uint32_t columnWidth = maxValueDigits + 1 + upperRangeDigits + whitespaceAfterMaxBinMessage;
+    uint32_t columnWidthLeftOutlier = columnWidth - 1 - minValueDigits; // - 1 for "-"
+    uint32_t columnWidthRightOutlier = columnWidth - 1 - upperRangeDigits; // - 1 for "-"
 
-    std::map<int, int>::iterator itr;
     FILE *f = g_pApp->m_const_params.fileFullLog;
 
     fprintf(f, "histogram was built using the following parameters: "
-            "--h_bin_size_us=%d --h_lower_range_us=%d --h_upper_range_us=%d\n",
-            (int)g_pApp->m_const_params.histogram_bin_size,
-            (int)g_pApp->m_const_params.histogram_lower_range,
-            (int)g_pApp->m_const_params.histogram_upper_range);
+            "--h_bin_size_us=%" PRIu32 " --h_lower_range_us=%" PRIu32 " --h_upper_range_us=%" PRIu32 "\n",
+            binSize, lowerRange, upperRange);
     fprintf(f, "------------------------------\n");
     fprintf(f, "bin (usec)            frequency\n");
-    for(itr = activeBins.begin(); itr != activeBins.end(); ++itr) {
+    for(std::map<uint32_t, uint32_t>::const_iterator itr = activeBins.begin(); itr != activeBins.end(); ++itr) {
         frequency = itr->second;
         startBinEdge = (itr->first - 1) * binSize + lowerRange;
         if (itr->first == leftOutlierBinIndex) {
@@ -185,26 +182,26 @@ void storeHistogram(int binSize, std::map<int, int> &activeBins, int minValue, i
 
 //------------------------------------------------------------------------------
 /*  Display histogram to fit on terminal screen width (frequency rounded up) */
-void printHistogram(int binSize, std::map<int, int> &activeBins, int minValue, int maxValue) {
-    const int leftOutlierBinIndex = getLeftOutlierBinIndexReserved();
-    const int rightOutlierBinIndex = getRightOutlierBinIndexReserved();
-    const int lowerRange = s_user_params.histogram_lower_range;
-    const int upperRange = s_user_params.histogram_upper_range;
+void printHistogram(uint32_t binSize, std::map<uint32_t, uint32_t> &activeBins, uint32_t minValue, uint32_t maxValue) {
+    const uint32_t leftOutlierBinIndex = getLeftOutlierBinIndexReserved();
+    const uint32_t rightOutlierBinIndex = getRightOutlierBinIndexReserved();
+    const uint32_t lowerRange = s_user_params.histogram_lower_range;
+    const uint32_t upperRange = s_user_params.histogram_upper_range;
     const std::string prefixToHistogramDisplay ("sockperf: ");
-    int maxFrequency = 0;
-    int currFrequency = 0;
-    int terminalWidth = 0;
-    int scalingUnit = 0;
-    int maxDisplayWidth = 0;
-    int maxStartBinDigits = getNumberOfDigits(maxValue - binSize);
-    int maxEndBinDigits = getNumberOfDigits(maxValue);
-    int whitespaceBeforeFrequencies = 2;
-    int outlierMessageWidth = 11;
-    int whitespaceAfterFrequencies = outlierMessageWidth + 1;
-    int columnWidthOfEndBinEdge = maxEndBinDigits + whitespaceBeforeFrequencies;
-    int columnWidthOfStartBinEdge = maxStartBinDigits;
-    int maxBinMessage = getNumberOfDigits(upperRange + binSize) + 1 + maxEndBinDigits; // align after longest message
-    std::map<int, int>::iterator itr;
+    uint32_t maxFrequency = 0;
+    uint32_t currFrequency = 0;
+    uint32_t terminalWidth = 0;
+    uint32_t scalingUnit = 0;
+    uint32_t maxDisplayWidth = 0;
+    uint32_t maxStartBinDigits = getNumberOfDigits(getStartOfRightOutlierBin());
+    uint32_t maxEndBinDigits = getNumberOfDigits(maxValue);
+    uint32_t whitespaceBeforeFrequencies = 2;
+    uint32_t outlierMessageWidth = 11;
+    uint32_t whitespaceAfterFrequencies = outlierMessageWidth + 1;
+    uint32_t columnWidthOfEndBinEdge = maxEndBinDigits + whitespaceBeforeFrequencies;
+    uint32_t columnWidthOfStartBinEdge = maxStartBinDigits;
+    uint32_t maxBinMessage = getNumberOfDigits(upperRange + binSize) + 1 + maxEndBinDigits; // align after longest message
+    std::map<uint32_t, uint32_t>::iterator itr;
 
     // Scale to terminal
 #ifndef WIN32
@@ -222,9 +219,9 @@ void printHistogram(int binSize, std::map<int, int> &activeBins, int minValue, i
             maxFrequency = currFrequency;
         }
     }
-    if(terminalWidth == 0) {
+    if (terminalWidth == 0) {
         // This may happen when run without terminal, but we still want the file output to contain the display
-        int standardTerminalLength = 80;
+        uint32_t standardTerminalLength = 80;
         scalingUnit = (maxFrequency + standardTerminalLength - 1)/standardTerminalLength;
     } else {
         maxDisplayWidth = terminalWidth - prefixToHistogramDisplay.length() - maxBinMessage - whitespaceAfterFrequencies
@@ -234,19 +231,19 @@ void printHistogram(int binSize, std::map<int, int> &activeBins, int minValue, i
 
     const std::string freqString = "frequency";
     const std::string binsString = "bins";
-    int binsHeaderWidth = (maxStartBinDigits + maxEndBinDigits + 2)/2 + binsString.length()/2;
-    int frequencyHeaderWidth = (maxDisplayWidth)/2 + freqString.length()/2;
-    int startBinEdge = 0;
-    int endBinEdge = 0;
-    int frequency = 0;
-    int frequencyScaledDownCount = 0;
+    uint32_t binsHeaderWidth = (maxStartBinDigits + maxEndBinDigits + 2)/2 + binsString.length()/2;
+    uint32_t frequencyHeaderWidth = (maxDisplayWidth)/2 + freqString.length()/2;
+    uint32_t startBinEdge = 0;
+    uint32_t endBinEdge = 0;
+    uint32_t frequency = 0;
+    uint32_t frequencyScaledDownCount = 0;
 
     if (scalingUnit == 1) {
         log_msg("[Histogram] Display to scale");
     } else {
         log_msg("[Histogram] Display scaled to fit on screen (Key: '#' = up to %d samples)", scalingUnit);
     }
-    log_msg("%*s %*s", binsHeaderWidth, binsString.c_str(), frequencyHeaderWidth, freqString.c_str());
+    log_msg("%*s  %*s", binsHeaderWidth, binsString.c_str(), frequencyHeaderWidth, freqString.c_str());
     for(itr = activeBins.begin(); itr != activeBins.end(); ++itr) {
         frequency = itr->second;
         frequencyScaledDownCount = (frequency + scalingUnit - 1) / scalingUnit; // round up
@@ -266,28 +263,28 @@ void printHistogram(int binSize, std::map<int, int> &activeBins, int minValue, i
 }
 
 //------------------------------------------------------------------------------
-/* Sparce fixed bin histogram with outlier bins outside given range */
+/* Sparse fixed bin histogram with outlier bins outside given range */
 void makeHistogram(TicksDuration *sortedpLat, size_t size) {
-    const int leftOutlierBinIndex = getLeftOutlierBinIndexReserved();
-    const int rightOutlierBinIndex = getRightOutlierBinIndexReserved();
-    const int lowerRange = s_user_params.histogram_lower_range;
-    const int upperRange = s_user_params.histogram_upper_range;
-    const int binSize = s_user_params.histogram_bin_size;
-    int binIndex = 0;
-    int minValue = sortedpLat[0].toDecimalUsec();
-    int maxValue = sortedpLat[size - 1].toDecimalUsec();
+    const uint32_t leftOutlierBinIndex = getLeftOutlierBinIndexReserved();
+    const uint32_t rightOutlierBinIndex = getRightOutlierBinIndexReserved();
+    const uint32_t lowerRange = s_user_params.histogram_lower_range;
+    const uint32_t upperRange = s_user_params.histogram_upper_range;
+    const uint32_t binSize = s_user_params.histogram_bin_size;
+    uint32_t binIndex = 0;
+    uint32_t minValue = sortedpLat[0].toDecimalUsec();
+    uint32_t maxValue = sortedpLat[size - 1].toDecimalUsec();
     double value = 0;
-    std::map<int, int> activeBins;
+    std::map<uint32_t, uint32_t> activeBins;
     size_t i = 0;
 
     // build histogram
-    for(; i < size; i++) {
+    for (; i < size; i++) {
         value = sortedpLat[i].toDecimalUsec();
-        if(value < lowerRange) {
+        if (value < lowerRange) {
             activeBins[leftOutlierBinIndex]++;
             continue;
         }
-        if(value >= upperRange) {
+        if (value >= upperRange) {
             activeBins[rightOutlierBinIndex]++;
             continue;
         }
@@ -299,8 +296,6 @@ void makeHistogram(TicksDuration *sortedpLat, size_t size) {
     if (g_pApp->m_const_params.fileFullLog) {
         storeHistogram(binSize, activeBins, minValue, maxValue);
     }
-
-    activeBins.clear();
 }
 
 //------------------------------------------------------------------------------
@@ -394,21 +389,21 @@ void client_statistics(int serverNo, Message *pMsgRequest) {
     if (SERVER_NO == 0) {
         TicksDuration totalRunTime = s_endTime - s_startTime;
         if (g_skipCount) {
-            if(g_pApp->m_const_params.measurement == TIME_BASED) {
+            if (g_pApp->m_const_params.measurement == TIME_BASED) {
                 log_msg_file2(f, "[Total Run] RunTime=%.3lf sec; Warm up time=%" PRIu32
                                 " msec; SentMessages=%" PRIu64 "; ReceivedMessages=%" PRIu64
                                 "; SkippedMessages=%" PRIu64 "",
                             totalRunTime.toDecimalUsec() / 1000000,
                             g_pApp->m_const_params.warmup_msec, sendCount, receiveCount, g_skipCount);
             } else {
-            log_msg_file2(f, "[Total Run] RunTime=%.3lf sec; Warm up packets=%" PRIu64
+                log_msg_file2(f, "[Total Run] RunTime=%.3lf sec; Warm up packets=%" PRIu64
                              "; SentMessages=%" PRIu64 "; ReceivedMessages=%" PRIu64
                              "; SkippedMessages=%" PRIu64 "",
                           totalRunTime.toDecimalUsec() / 1000000,
                           g_pApp->m_const_params.warmup_num, sendCount, receiveCount, g_skipCount);
             }
         } else {
-            if(g_pApp->m_const_params.measurement == TIME_BASED) {
+            if (g_pApp->m_const_params.measurement == TIME_BASED) {
                 log_msg_file2(f, "[Total Run] RunTime=%.3lf sec; Warm up time=%" PRIu32
                                 " msec; SentMessages=%" PRIu64 "; ReceivedMessages=%" PRIu64 "",
                             totalRunTime.toDecimalUsec() / 1000000,
@@ -444,7 +439,7 @@ void client_statistics(int serverNo, Message *pMsgRequest) {
         g_pPacketTimes->getTxTime(sendCount); // will be "truncated" to last pong request packet
 
     if (!g_pApp->m_const_params.pPlaybackVector) { // no warmup in playback mode
-        if(g_pApp->m_const_params.measurement == TIME_BASED) {
+        if (g_pApp->m_const_params.measurement == TIME_BASED) {
             testStart += TicksDuration::TICKS1MSEC * TEST_START_WARMUP_MSEC;
             testEnd -= TicksDuration::TICKS1MSEC * TEST_END_COOLDOWN_MSEC;
         }
@@ -452,7 +447,7 @@ void client_statistics(int serverNo, Message *pMsgRequest) {
     log_dbg("testStart: %.9lf sec testEnd: %.9lf sec",
             (double)testStart.debugToNsec() / 1000 / 1000 / 1000,
             (double)testEnd.debugToNsec() / 1000 / 1000 / 1000);
-    if(testEnd < testStart) {
+    if (testEnd < testStart) {
         log_msg_file2(f, "Test end before test start. Ending statistics early");
         return;
     }
@@ -486,7 +481,7 @@ void client_statistics(int serverNo, Message *pMsgRequest) {
             break;
         }
 
-        if(g_pApp->m_const_params.measurement == NUMBER_BASED && seqNo >= endNumberSearchHere) {
+        if (g_pApp->m_const_params.measurement == NUMBER_BASED && seqNo >= endNumberSearchHere) {
             break;
         }
 
@@ -582,7 +577,7 @@ void client_statistics(int serverNo, Message *pMsgRequest) {
 
         dumpFullLog(SERVER_NO, pFullLog, counter);
 
-        if(s_user_params.b_histogram) makeHistogram(sortedpLat, counter);
+        if (s_user_params.b_histogram) makeHistogram(sortedpLat, counter);
     }
 
     delete[] pLat;
@@ -668,7 +663,7 @@ void client_sig_handler(int signum) {
 
     switch (signum) {
     case SIGALRM:
-        if(g_pApp->m_const_params.measurement == TIME_BASED) {
+        if (g_pApp->m_const_params.measurement == TIME_BASED) {
             log_msg("Test end (interrupted by timer)");
         } else {
             exit_with_log("Test ends uncompleted, number of packets requested taking "
@@ -762,19 +757,11 @@ void Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration
         FILE *f = g_pApp->m_const_params.fileFullLog;
         if (f) {
             fprintf(f, "------------------------------\n");
-            if (g_pApp->m_const_params.measurement == TIME_BASED) {
-                fprintf(f, "test was performed using the following parameters: "
-                        "--mps=%d --burst=%d --reply-every=%d --msg-size=%d --time=%d",
-                        (int)g_pApp->m_const_params.mps, (int)g_pApp->m_const_params.burst_size,
-                        (int)g_pApp->m_const_params.reply_every, (int)g_pApp->m_const_params.msg_size,
-                        (int)g_pApp->m_const_params.sec_test_duration);
-            } else {
             fprintf(f, "test was performed using the following parameters: "
-                       "--mps=%d --burst=%d --reply-every=%d --msg-size=%d --number-of-packets=%" PRIu64 "",
+                    "--mps=%d --burst=%d --reply-every=%d --msg-size=%d --time=%d",
                     (int)g_pApp->m_const_params.mps, (int)g_pApp->m_const_params.burst_size,
                     (int)g_pApp->m_const_params.reply_every, (int)g_pApp->m_const_params.msg_size,
-                    g_pApp->m_const_params.number_test_target);
-            }
+                    (int)g_pApp->m_const_params.sec_test_duration);
             if (g_pApp->m_const_params.dummy_mps) {
                 fprintf(f, " --dummy-send=%d", g_pApp->m_const_params.dummy_mps);
             }
@@ -977,7 +964,7 @@ int Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration,
 
                     if (!g_pApp->m_const_params.pPlaybackVector) {
                         struct itimerval timer;
-                        if(g_pApp->m_const_params.measurement == TIME_BASED) {
+                        if (g_pApp->m_const_params.measurement == TIME_BASED) {
                             set_client_timer(&timer);
                             if (os_set_duration_timer(timer, client_sig_handler)) {
                                 log_err("Failed setting test duration timer");
@@ -1015,7 +1002,6 @@ void Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration
         uint64_t cooldownNumber = s_user_params.cooldown_num;
         uint64_t numberTarget = g_pApp->m_const_params.number_test_target;
         uint64_t stopCounting = warmupNumber + numberTarget + cooldownNumber;
-        const uint64_t replyEvery = g_pApp->m_const_params.reply_every;
         const int SERVER_NO = 0; // TODO: should be one per server (as of 1/27/21 sockperf handles only one server)
         TicksTime testStart;
         TicksTime prevRxTime;
@@ -1030,11 +1016,11 @@ void Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration
                 continue;
             }
 
-            if(seqNo == 0) {
-                testStart = g_pPacketTimes->getTxTime(replyEvery); // first pong request packet
+            if (seqNo == 0) {
+                testStart = g_pPacketTimes->getTxTime(1); // first pong request packet
             }
 
-            seqNo+= replyEvery;
+            seqNo+= 1;
 
             // Validate packet observation
             const TicksTime &txTime = g_pPacketTimes->getTxTime(seqNo);
@@ -1047,14 +1033,14 @@ void Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration
             counterValid++;
 
             // Set timer to limit wait on number of packets based off warmup sample
-            if(counterValid == warmupNumber && timer.it_value.tv_sec == 0) {
+            if (counterValid == warmupNumber && timer.it_value.tv_sec == 0) {
                 set_client_expiration_timer(&timer, testStart);
                 if (os_set_duration_timer(timer, client_sig_handler)) {
                     exit_with_log("Failed setting test expiration timer", SOCKPERF_ERR_FATAL);
                 }
             }
 
-            if(counterValid == stopCounting) {
+            if (counterValid == stopCounting) {
                 s_endTime.setNowNonInline();
                 // Disarm timer
                 timer.it_value.tv_sec = 0;

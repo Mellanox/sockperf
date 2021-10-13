@@ -407,10 +407,10 @@ static int proc_mode_under_load(int id, int argc, const char **argv) {
           "Normal confidence interval significance level for stat reported. Values are between 0 and 100 "
           "exclusive (default 99). " },
         { OPT_HISTOGRAM,
-          AOPT_OPTARG,
+          AOPT_ARG,
           aopt_set_literal(0),
           aopt_set_string("histogram"),
-          "Build histogram of latencies. Optional histogram arguments formated as binsize:lowerrange:upperrange " },
+          "Build histogram of latencies. Histogram arguments formated as binsize:lowerrange:upperrange " },
         { 0, AOPT_NOARG, aopt_set_literal(0), aopt_set_string(NULL), NULL }
     };
 
@@ -632,50 +632,20 @@ static int proc_mode_under_load(int id, int argc, const char **argv) {
 
             if (optarg && optarg[0]) {
                 char *buf = strdup(optarg);
-                char *cur_buf = buf;
-                char *cur_ptr = buf;
-                char *end_ptr = NULL;
-                int arg_index = 0;
                 int required_args = 3;
-                int parsed_arg [required_args]; // TODO: coello, should we make all 3 required?
 
-                /* Parse cpu list */
-                while (cur_buf) {
-                    errno = 0;
-                    if (*cur_ptr == '\0') {
-                        parsed_arg[arg_index] = strtol(cur_buf, &end_ptr, 0);
-                        if ((errno != 0) || (cur_buf == end_ptr)) {
-                            log_err("Invalid argument: %s", optarg);
-                            rc = SOCKPERF_ERR_BAD_ARGUMENT;
-                            break;
-                        }
-                        cur_buf = NULL;
-                    } else if (*cur_ptr == ':') {
-                        *cur_ptr = '\0';
-                        parsed_arg[arg_index] = strtol(cur_buf, &end_ptr, 0);
-                        arg_index++;
-                        if ((errno != 0) || (cur_buf == end_ptr)) {
-                            log_err("Invalid argument: %s", optarg);
-                            rc = SOCKPERF_ERR_BAD_ARGUMENT;
-                            break;
-                        }
-                        cur_buf = cur_ptr + 1;
-                        cur_ptr++;
-                        continue;
-                    } else {
-                        cur_ptr++;
-                        continue;
-                    }
-                }
-
-                if (arg_index != required_args - 1) {
+                /* Parse histogram options list */
+                long bin_size, lower_range, upper_range;
+                char suffix; //< needed to check for garbage at the end
+                if (sscanf(optarg, "%ld:%ld:%ld%c", &bin_size, &lower_range, &upper_range, &suffix) == required_args) {
+                    s_user_params.histogram_bin_size = bin_size;
+                    s_user_params.histogram_lower_range = lower_range;
+                    s_user_params.histogram_upper_range = upper_range;
+                } else {
                     log_err("Invalid argument: %s "
                             "Format should be binsize:lowerrange:upperrange", optarg);
                     rc = SOCKPERF_ERR_BAD_ARGUMENT;
                 }
-                s_user_params.histogram_bin_size = parsed_arg[0];
-                s_user_params.histogram_lower_range = parsed_arg[1];
-                s_user_params.histogram_upper_range = parsed_arg[2];
 
                 if (buf) {
                     free(buf);
@@ -782,10 +752,10 @@ static int proc_mode_ping_pong(int id, int argc, const char **argv) {
           "Normal confidence interval significance level for stat reported. Values are between 0 and 100 "
           "exclusive (default 99). " },
         { OPT_HISTOGRAM,
-          AOPT_OPTARG,
+          AOPT_ARG,
           aopt_set_literal(0),
           aopt_set_string("histogram"),
-          "Build histogram of latencies. Optional histogram arguments formated as binsize:lowerrange:upperrange " },
+          "Build histogram of latencies. Histogram arguments formated as binsize:lowerrange:upperrange " },
         { 0, AOPT_NOARG, aopt_set_literal(0), aopt_set_string(NULL), NULL }
     };
 
@@ -1030,50 +1000,20 @@ static int proc_mode_ping_pong(int id, int argc, const char **argv) {
 
             if (optarg && optarg[0]) {
                 char *buf = strdup(optarg);
-                char *cur_buf = buf;
-                char *cur_ptr = buf;
-                char *end_ptr = NULL;
-                int arg_index = 0;
                 int required_args = 3;
-                int parsed_arg [required_args]; // TODO: coello, should we make all 3 required?
 
-                /* Parse cpu list */
-                while (cur_buf) {
-                    errno = 0;
-                    if (*cur_ptr == '\0') {
-                        parsed_arg[arg_index] = strtol(cur_buf, &end_ptr, 0);
-                        if ((errno != 0) || (cur_buf == end_ptr)) {
-                            log_err("Invalid argument: %s", optarg);
-                            rc = SOCKPERF_ERR_BAD_ARGUMENT;
-                            break;
-                        }
-                        cur_buf = NULL;
-                    } else if (*cur_ptr == ':') {
-                        *cur_ptr = '\0';
-                        parsed_arg[arg_index] = strtol(cur_buf, &end_ptr, 0);
-                        arg_index++;
-                        if ((errno != 0) || (cur_buf == end_ptr)) {
-                            log_err("Invalid argument: %s", optarg);
-                            rc = SOCKPERF_ERR_BAD_ARGUMENT;
-                            break;
-                        }
-                        cur_buf = cur_ptr + 1;
-                        cur_ptr++;
-                        continue;
-                    } else {
-                        cur_ptr++;
-                        continue;
-                    }
-                }
-
-                if (arg_index != required_args - 1) {
+                /* Parse histogram options list */
+                long bin_size, lower_range, upper_range;
+                char suffix; //< needed to check for garbage at the end
+                if (sscanf(optarg, "%ld:%ld:%ld%c", &bin_size, &lower_range, &upper_range, &suffix) == required_args) {
+                    s_user_params.histogram_bin_size = bin_size;
+                    s_user_params.histogram_lower_range = lower_range;
+                    s_user_params.histogram_upper_range = upper_range;
+                } else {
                     log_err("Invalid argument: %s "
                             "Format should be binsize:lowerrange:upperrange", optarg);
                     rc = SOCKPERF_ERR_BAD_ARGUMENT;
                 }
-                s_user_params.histogram_bin_size = parsed_arg[0];
-                s_user_params.histogram_lower_range = parsed_arg[1];
-                s_user_params.histogram_upper_range = parsed_arg[2];
 
                 if (buf) {
                     free(buf);
@@ -1424,10 +1364,10 @@ static int proc_mode_playback(int id, int argc, const char **argv) {
           "Normal confidence interval significance level for stat reported. Values are between 0 and 100 "
           "exclusive (default 99). " },
         { OPT_HISTOGRAM,
-          AOPT_OPTARG,
+          AOPT_ARG,
           aopt_set_literal(0),
           aopt_set_string("histogram"),
-          "Build histogram of latencies. Optional histogram arguments formated as binsize:lowerrange:upperrange " },
+          "Build histogram of latencies. Histogram arguments formated as binsize:lowerrange:upperrange " },
         { 0, AOPT_NOARG, aopt_set_literal(0), aopt_set_string(NULL), NULL }
     };
 
@@ -1525,50 +1465,20 @@ static int proc_mode_playback(int id, int argc, const char **argv) {
 
             if (optarg && optarg[0]) {
                 char *buf = strdup(optarg);
-                char *cur_buf = buf;
-                char *cur_ptr = buf;
-                char *end_ptr = NULL;
-                int arg_index = 0;
                 int required_args = 3;
-                int parsed_arg [required_args]; // TODO: coello, should we make all 3 required?
 
-                /* Parse cpu list */
-                while (cur_buf) {
-                    errno = 0;
-                    if (*cur_ptr == '\0') {
-                        parsed_arg[arg_index] = strtol(cur_buf, &end_ptr, 0);
-                        if ((errno != 0) || (cur_buf == end_ptr)) {
-                            log_err("Invalid argument: %s", optarg);
-                            rc = SOCKPERF_ERR_BAD_ARGUMENT;
-                            break;
-                        }
-                        cur_buf = NULL;
-                    } else if (*cur_ptr == ':') {
-                        *cur_ptr = '\0';
-                        parsed_arg[arg_index] = strtol(cur_buf, &end_ptr, 0);
-                        arg_index++;
-                        if ((errno != 0) || (cur_buf == end_ptr)) {
-                            log_err("Invalid argument: %s", optarg);
-                            rc = SOCKPERF_ERR_BAD_ARGUMENT;
-                            break;
-                        }
-                        cur_buf = cur_ptr + 1;
-                        cur_ptr++;
-                        continue;
-                    } else {
-                        cur_ptr++;
-                        continue;
-                    }
-                }
-
-                if (arg_index != required_args - 1) {
+                /* Parse histogram options list */
+                long bin_size, lower_range, upper_range;
+                char suffix; //< needed to check for garbage at the end
+                if (sscanf(optarg, "%ld:%ld:%ld%c", &bin_size, &lower_range, &upper_range, &suffix) == required_args) {
+                    s_user_params.histogram_bin_size = bin_size;
+                    s_user_params.histogram_lower_range = lower_range;
+                    s_user_params.histogram_upper_range = upper_range;
+                } else {
                     log_err("Invalid argument: %s "
                             "Format should be binsize:lowerrange:upperrange", optarg);
                     rc = SOCKPERF_ERR_BAD_ARGUMENT;
                 }
-                s_user_params.histogram_bin_size = parsed_arg[0];
-                s_user_params.histogram_lower_range = parsed_arg[1];
-                s_user_params.histogram_upper_range = parsed_arg[2];
 
                 if (buf) {
                     free(buf);
@@ -3563,7 +3473,7 @@ int bringup(const int *p_daemonize) {
                                   10 * s_user_params.reply_every; // + 10 replies for safety
         _maxSequenceNo += s_user_params.burst_size; // needed for the case burst_size > mps
 
-        if(s_user_params.measurement == NUMBER_BASED) {
+        if (s_user_params.measurement == NUMBER_BASED) {
             // override to reach max packet count during number based
             _maxSequenceNo = TEST_START_WARMUP_NUM + MAX_PACKET_NUMBER + TEST_END_COOLDOWN_NUM;
         }
