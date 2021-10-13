@@ -196,7 +196,7 @@ void printHistogram(int binSize, std::map<int, int> &activeBins, int minValue, i
     int terminalWidth = 0;
     int scalingUnit = 0;
     int maxDisplayWidth = 0;
-    int maxStartBinDigits = getNumberOfDigits(maxValue - binSize);
+    int maxStartBinDigits = getNumberOfDigits(getStartOfRightOutlierBin());
     int maxEndBinDigits = getNumberOfDigits(maxValue);
     int whitespaceBeforeFrequencies = 2;
     int outlierMessageWidth = 11;
@@ -246,7 +246,7 @@ void printHistogram(int binSize, std::map<int, int> &activeBins, int minValue, i
     } else {
         log_msg("[Histogram] Display scaled to fit on screen (Key: '#' = up to %d samples)", scalingUnit);
     }
-    log_msg("%*s %*s", binsHeaderWidth, binsString.c_str(), frequencyHeaderWidth, freqString.c_str());
+    log_msg("%*s  %*s", binsHeaderWidth, binsString.c_str(), frequencyHeaderWidth, freqString.c_str());
     for(itr = activeBins.begin(); itr != activeBins.end(); ++itr) {
         frequency = itr->second;
         frequencyScaledDownCount = (frequency + scalingUnit - 1) / scalingUnit; // round up
