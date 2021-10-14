@@ -253,13 +253,13 @@ static inline bool add_key_and_certificate(SSL_CTX *ctx, int keytype,
 static inline EVP_PKEY* generate_EC_pkey_with_NID(int nid=NID_secp384r1)
 {
     bool result;
-    EVP_PKEY *pkey = NULL;
-    EVP_PKEY_CTX *ctx = NULL;
-    result = ((ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_EC, NULL)) != NULL) &&
+    EVP_PKEY *pkey = nullptr;
+    EVP_PKEY_CTX *ctx = nullptr;
+    result = ((ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_EC, nullptr)) != nullptr) &&
         (EVP_PKEY_keygen_init(ctx) == 1) &&
         (EVP_PKEY_CTX_set_ec_paramgen_curve_nid(ctx, nid) > 0) &&
         (EVP_PKEY_keygen(ctx, &pkey) == 1);
-    return result ? pkey : NULL;
+    return result ? pkey : nullptr;
 }
 
 static inline EVP_PKEY* generate_RSA_pkey(void)
@@ -294,12 +294,12 @@ X509 * generate_self_signed_x509_with_key(EVP_PKEY * pkey)
 {
     X509 * x509;
     X509_NAME * name;
-    bool result = ((x509 = X509_new()) != NULL) &&
+    bool result = ((x509 = X509_new()) != nullptr) &&
         (ASN1_INTEGER_set(X509_get_serialNumber(x509), 1) == 1) &&
-        (X509_gmtime_adj(X509_get_notBefore(x509), 0) != NULL) &&
-        (X509_gmtime_adj(X509_get_notAfter(x509), 31536000L) != NULL) &&
+        (X509_gmtime_adj(X509_get_notBefore(x509), 0) != nullptr) &&
+        (X509_gmtime_adj(X509_get_notAfter(x509), 31536000L) != nullptr) &&
         (X509_set_pubkey(x509, pkey) == 1) &&
-        ((name = X509_get_subject_name(x509)) != NULL) &&
+        ((name = X509_get_subject_name(x509)) != nullptr) &&
         (X509_add_feild("C", (unsigned char *)"IL") == 1) &&
         (X509_add_feild("O", (unsigned char *)"Nvidia") == 1) &&
         (X509_add_feild("CN", (unsigned char *)"localhost") == 1) &&
@@ -307,11 +307,10 @@ X509 * generate_self_signed_x509_with_key(EVP_PKEY * pkey)
         (X509_sign(x509, pkey, EVP_sha256()) != 0);
 
     if (result) {
-        return x509;
-    } else {
-        X509_free(x509);
-        return NULL;
+      return x509;
     }
+    X509_free(x509);
+    return nullptr;
 }
 
 #undef X509_add_feild
@@ -334,8 +333,8 @@ static inline bool add_rsa2048_key_and_certificate(SSL_CTX *ctx)
     EVP_PKEY *pkey;
     X509 *x509;
 
-    return ((pkey = generate_RSA_pkey()) != NULL) &&
-        ((x509 = generate_self_signed_x509_with_key(pkey)) != NULL) &&
+    return ((pkey = generate_RSA_pkey()) != nullptr) &&
+        ((x509 = generate_self_signed_x509_with_key(pkey)) != nullptr) &&
         add_key_and_certificate(ctx, pkey, x509);
 }
 
@@ -344,8 +343,8 @@ static inline bool add_ec_sec384r1_key_and_certificate(SSL_CTX *ctx)
     EVP_PKEY *pkey;
     X509 *x509;
 
-    return ((pkey = generate_EC_pkey_with_NID()) != NULL) &&
-        ((x509 = generate_self_signed_x509_with_key(pkey)) != NULL) &&
+    return ((pkey = generate_EC_pkey_with_NID()) != nullptr) &&
+        ((x509 = generate_self_signed_x509_with_key(pkey)) != nullptr) &&
         add_key_and_certificate(ctx, pkey, x509);
 }
 #else
