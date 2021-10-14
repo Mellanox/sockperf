@@ -757,11 +757,18 @@ void Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration
         FILE *f = g_pApp->m_const_params.fileFullLog;
         if (f) {
             fprintf(f, "------------------------------\n");
+            if (g_pApp->m_const_params.measurement == TIME_BASED) {
+                fprintf(f, "test was performed using the following parameters: "
+                        "--mps=%d --burst=%d --reply-every=%d --msg-size=%d --time=%d",
+                        (int)g_pApp->m_const_params.mps, (int)g_pApp->m_const_params.burst_size,
+                        (int)g_pApp->m_const_params.reply_every, (int)g_pApp->m_const_params.msg_size,
+                        (int)g_pApp->m_const_params.sec_test_duration);
+            } else {
             fprintf(f, "test was performed using the following parameters: "
-                    "--mps=%d --burst=%d --reply-every=%d --msg-size=%d --time=%d",
-                    (int)g_pApp->m_const_params.mps, (int)g_pApp->m_const_params.burst_size,
-                    (int)g_pApp->m_const_params.reply_every, (int)g_pApp->m_const_params.msg_size,
-                    (int)g_pApp->m_const_params.sec_test_duration);
+                       "--burst=%d --msg-size=%d --number-of-packets=%" PRIu64 "",
+                        (int)g_pApp->m_const_params.burst_size,
+                        (int)g_pApp->m_const_params.msg_size, g_pApp->m_const_params.number_test_target);
+            }
             if (g_pApp->m_const_params.dummy_mps) {
                 fprintf(f, " --dummy-send=%d", g_pApp->m_const_params.dummy_mps);
             }
