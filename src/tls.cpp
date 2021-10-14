@@ -85,7 +85,6 @@ static int wait_for_single_socket(int fd, int which) {
     return ret;
 }
 
-static inline EVP_PKEY* generate_EC_pkey_with_NID(int nid);
 int tls_init(void) {
     int rc = SOCKPERF_ERR_NONE;
     SSL_CTX *ctx = NULL;
@@ -259,6 +258,9 @@ static inline EVP_PKEY* generate_EC_pkey_with_NID(int nid=NID_secp384r1)
         (EVP_PKEY_keygen_init(ctx) == 1) &&
         (EVP_PKEY_CTX_set_ec_paramgen_curve_nid(ctx, nid) > 0) &&
         (EVP_PKEY_keygen(ctx, &pkey) == 1);
+
+    EVP_PKEY_CTX_free(ctx);
+
     return result ? pkey : nullptr;
 }
 
@@ -280,15 +282,15 @@ static inline EVP_PKEY* generate_RSA_pkey(void)
 
     if (result) {
         return pkey;
-    } else {
-        RSA_free(rsa);
-        EVP_PKEY_free(pkey);
-        return nullptr;
     }
+
+    RSA_free(rsa);
+    EVP_PKEY_free(pkey);
+    return nullptr;
 }
 
-#define X509_add_feild(feild, value) \
-    X509_NAME_add_entry_by_txt(name, feild, MBSTRING_ASC, value, -1, -1, 0)
+#define X509_add_field(field, value) \
+    X509_NAME_add_entry_by_txt(name, field, MBSTRING_ASC, value, -1, -1, 0)
 
 X509 * generate_self_signed_x509_with_key(EVP_PKEY * pkey)
 {
@@ -300,9 +302,9 @@ X509 * generate_self_signed_x509_with_key(EVP_PKEY * pkey)
         (X509_gmtime_adj(X509_get_notAfter(x509), 31536000L) != nullptr) &&
         (X509_set_pubkey(x509, pkey) == 1) &&
         ((name = X509_get_subject_name(x509)) != nullptr) &&
-        (X509_add_feild("C", (unsigned char *)"IL") == 1) &&
-        (X509_add_feild("O", (unsigned char *)"Nvidia") == 1) &&
-        (X509_add_feild("CN", (unsigned char *)"localhost") == 1) &&
+        (X509_add_field("C", (unsigned char *)"IL") == 1) &&
+        (X509_add_field("O", (unsigned char *)"Nvidia") == 1) &&
+        (X509_add_field("CN", (unsigned char *)"localhost") == 1) &&
         (X509_set_issuer_name(x509, name) == 1) &&
         (X509_sign(x509, pkey, EVP_sha256()) != 0);
 
@@ -313,7 +315,7 @@ X509 * generate_self_signed_x509_with_key(EVP_PKEY * pkey)
     return nullptr;
 }
 
-#undef X509_add_feild
+#undef X509_add_field
 
 static inline bool add_key_and_certificate(SSL_CTX *ctx,
                                            EVP_PKEY *pkey,
