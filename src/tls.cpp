@@ -27,11 +27,11 @@
  * OF SUCH DAMAGE.
  */
 
-#include "common.h" // FIXME Circlular include/dependency?
+#include "common.h"
 #include "tls.h"
 
 #if defined(DEFINED_TLS)
-const char *tls_chipher(const char *chipher) { // FIXME Uninformative name and unclear purpose
+const char *tls_chipher(const char *chipher) {
     static char tls_chiper_current[256] = TLS_CHIPER_DEFAULT;
     if (chipher) {
         memset(tls_chiper_current, 0, sizeof(tls_chiper_current));
@@ -48,7 +48,7 @@ const char *tls_chipher(const char *chipher) { // FIXME Uninformative name and u
 #define TLS_WAIT_WRITE 2
 #define TLS_WAIT_WHICH(e)                                                                          \
     (((e) == SSL_ERROR_WANT_READ || (e) == SSL_ERROR_WANT_CONNECT) ? TLS_WAIT_READ : 0) |          \
-        (((e) == SSL_ERROR_WANT_WRITE || (e) == SSL_ERROR_WANT_CONNECT) ? TLS_WAIT_WRITE : 0)
+    (((e) == SSL_ERROR_WANT_WRITE || (e) == SSL_ERROR_WANT_CONNECT) ? TLS_WAIT_WRITE : 0)
 
 #include <openssl/ssl.h>
 #include <openssl/err.h>
@@ -104,8 +104,8 @@ int tls_init(void) {
         }
 
         if (SSL_CTX_set_options(ctx, SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_TLSv1 |
-                                         SSL_OP_NO_TLSv1_1 | SSL_OP_NO_TLSv1_3 |
-                                         SSL_OP_IGNORE_UNEXPECTED_EOF) <= 0) {
+                                SSL_OP_NO_TLSv1_1 | SSL_OP_NO_TLSv1_3 |
+                                SSL_OP_IGNORE_UNEXPECTED_EOF) <= 0) {
             SSL_CTX_free(ctx);
             log_err("Unable to set protocol: %s", "TLSv1.2");
             rc = SOCKPERF_ERR_FATAL;
@@ -240,12 +240,12 @@ static inline bool add_key_and_certificate(SSL_CTX *ctx, int keytype,
                                            unsigned char *key, size_t key_size)
 {
     if (SSL_CTX_use_certificate_ASN1(ctx, cert_size, cert) <= 0){
-      log_err("unable to use certificate");
-      return false;
+        log_err("unable to use certificate");
+        return false;
     }
     if (SSL_CTX_use_PrivateKey_ASN1(keytype, ctx, key, key_size) <= 0){
-      log_err("unable to use key");
-      return false;
+        log_err("unable to use key");
+        return false;
     }
     return true;
 }
@@ -256,34 +256,34 @@ static inline EVP_PKEY* generate_EC_pkey_with_NID(int nid=NID_secp384r1)
     EVP_PKEY *pkey = NULL;
     EVP_PKEY_CTX *ctx = NULL;
     result = ((ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_EC, NULL)) != NULL) &&
-             (EVP_PKEY_keygen_init(ctx) == 1) &&
-             (EVP_PKEY_CTX_set_ec_paramgen_curve_nid(ctx, nid) > 0) &&
-             (EVP_PKEY_keygen(ctx, &pkey) == 1);
+        (EVP_PKEY_keygen_init(ctx) == 1) &&
+        (EVP_PKEY_CTX_set_ec_paramgen_curve_nid(ctx, nid) > 0) &&
+        (EVP_PKEY_keygen(ctx, &pkey) == 1);
     return result ? pkey : NULL;
 }
 
 static inline EVP_PKEY* generate_RSA_pkey(void)
 {
-  RSA *rsa{nullptr};
-  EVP_PKEY *pkey{nullptr};
-  BIGNUM *bignum{nullptr};
+    RSA *rsa{nullptr};
+    EVP_PKEY *pkey{nullptr};
+    BIGNUM *bignum{nullptr};
 
-  bool result =
-	((pkey = EVP_PKEY_new()) != nullptr) &&
-	((bignum = BN_new()) != nullptr) &&
-	((rsa = RSA_new()) != nullptr) &&
-	BN_set_word(bignum, RSA_F4) == 1 &&
-    RSA_generate_key_ex(rsa, 2048, bignum, nullptr) == 1 &&
-    EVP_PKEY_assign(pkey,EVP_PKEY_RSA, rsa) == 1;
+    bool result =
+        ((pkey = EVP_PKEY_new()) != nullptr) &&
+        ((bignum = BN_new()) != nullptr) &&
+        ((rsa = RSA_new()) != nullptr) &&
+        BN_set_word(bignum, RSA_F4) == 1 &&
+        RSA_generate_key_ex(rsa, 2048, bignum, nullptr) == 1 &&
+        EVP_PKEY_assign(pkey,EVP_PKEY_RSA, rsa) == 1;
 
     BN_free(bignum);
 
     if (result) {
-      return pkey;
+        return pkey;
     } else {
-      RSA_free(rsa);
-      EVP_PKEY_free(pkey);
-      return nullptr;
+        RSA_free(rsa);
+        EVP_PKEY_free(pkey);
+        return nullptr;
     }
 }
 
@@ -295,22 +295,22 @@ X509 * generate_self_signed_x509_with_key(EVP_PKEY * pkey)
     X509 * x509;
     X509_NAME * name;
     bool result = ((x509 = X509_new()) != NULL) &&
-      (ASN1_INTEGER_set(X509_get_serialNumber(x509), 1) == 1) &&
-      (X509_gmtime_adj(X509_get_notBefore(x509), 0) != NULL) &&
-      (X509_gmtime_adj(X509_get_notAfter(x509), 31536000L) != NULL) &&
-      (X509_set_pubkey(x509, pkey) == 1) &&
-      ((name = X509_get_subject_name(x509)) != NULL) &&
-      (X509_add_feild("C", (unsigned char *)"IL") == 1) &&
-      (X509_add_feild("O", (unsigned char *)"Nvidia") == 1) &&
-      (X509_add_feild("CN", (unsigned char *)"localhost") == 1) &&
-      (X509_set_issuer_name(x509, name) == 1) &&
-      (X509_sign(x509, pkey, EVP_sha256()) != 0);
+        (ASN1_INTEGER_set(X509_get_serialNumber(x509), 1) == 1) &&
+        (X509_gmtime_adj(X509_get_notBefore(x509), 0) != NULL) &&
+        (X509_gmtime_adj(X509_get_notAfter(x509), 31536000L) != NULL) &&
+        (X509_set_pubkey(x509, pkey) == 1) &&
+        ((name = X509_get_subject_name(x509)) != NULL) &&
+        (X509_add_feild("C", (unsigned char *)"IL") == 1) &&
+        (X509_add_feild("O", (unsigned char *)"Nvidia") == 1) &&
+        (X509_add_feild("CN", (unsigned char *)"localhost") == 1) &&
+        (X509_set_issuer_name(x509, name) == 1) &&
+        (X509_sign(x509, pkey, EVP_sha256()) != 0);
 
     if (result) {
-      return x509;
+        return x509;
     } else {
-      X509_free(x509);
-      return NULL;
+        X509_free(x509);
+        return NULL;
     }
 }
 
@@ -320,33 +320,33 @@ static inline bool add_key_and_certificate(SSL_CTX *ctx,
                                            EVP_PKEY *pkey,
                                            X509 *x509)
 {
-  if ((SSL_CTX_use_certificate(ctx, x509) == 1)
-   && (SSL_CTX_use_PrivateKey(ctx, pkey) == 1)) {
-    return true;
-  } else {
-    X509_free(x509);
-    EVP_PKEY_free(pkey);
-    return false;
-  }
+    if ((SSL_CTX_use_certificate(ctx, x509) == 1)
+        && (SSL_CTX_use_PrivateKey(ctx, pkey) == 1)) {
+        return true;
+    } else {
+        X509_free(x509);
+        EVP_PKEY_free(pkey);
+        return false;
+    }
 }
 static inline bool add_rsa2048_key_and_certificate(SSL_CTX *ctx)
 {
-  EVP_PKEY *pkey;
-  X509 *x509;
+    EVP_PKEY *pkey;
+    X509 *x509;
 
-  return ((pkey = generate_RSA_pkey()) != NULL) &&
-         ((x509 = generate_self_signed_x509_with_key(pkey)) != NULL) &&
-         add_key_and_certificate(ctx, pkey, x509);
+    return ((pkey = generate_RSA_pkey()) != NULL) &&
+        ((x509 = generate_self_signed_x509_with_key(pkey)) != NULL) &&
+        add_key_and_certificate(ctx, pkey, x509);
 }
 
 static inline bool add_ec_sec384r1_key_and_certificate(SSL_CTX *ctx)
 {
-  EVP_PKEY *pkey;
-  X509 *x509;
+    EVP_PKEY *pkey;
+    X509 *x509;
 
-  return ((pkey = generate_EC_pkey_with_NID()) != NULL) &&
-         ((x509 = generate_self_signed_x509_with_key(pkey)) != NULL) &&
-         add_key_and_certificate(ctx, pkey, x509);
+    return ((pkey = generate_EC_pkey_with_NID()) != NULL) &&
+        ((x509 = generate_self_signed_x509_with_key(pkey)) != NULL) &&
+        add_key_and_certificate(ctx, pkey, x509);
 }
 #else
 #error Unsupported TLS
