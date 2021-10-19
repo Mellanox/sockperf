@@ -334,10 +334,12 @@ static inline bool add_ec_sec384r1_key_and_certificate(SSL_CTX *ctx)
         add_key_and_certificate(ctx, pkey, x509);
 }
 
+#define DH_PARAMS_AUTO_ON (1)
 static inline bool add_keys_and_certificates(SSL_CTX *ctx)
 {
     return add_ec_sec384r1_key_and_certificate(ctx) &&
-        add_rsa2048_key_and_certificate(ctx);
+        add_rsa2048_key_and_certificate(ctx) &&
+        SSL_CTX_set_dh_auto(ctx, DH_PARAMS_AUTO_ON) == 1;
 }
 
 using cipher_set = std::set<std::string>;
@@ -346,12 +348,12 @@ static inline bool set_tls_1_2_version_and_ciphers(SSL_CTX *ctx,
 {
     cipher_set tls1_2_ciphers{"AES128-GCM-SHA256",
         "AES256-GCM-SHA384",
+        "DHE-RSA-AES128-GCM-SHA256",
+        "DHE-RSA-AES256-GCM-SHA384",
         "ECDHE-ECDSA-AES128-GCM-SHA256",
         "ECDHE-ECDSA-AES256-GCM-SHA384",
         "ECDHE-RSA-AES128-GCM-SHA256",
         "ECDHE-RSA-AES256-GCM-SHA384"
-            /* "DHE-RSA-AES128-GCM-SHA256", */
-            /* "DHE-RSA-AES256-GCM-SHA384", */
     };
     return tls1_2_ciphers.find(cipher) != tls1_2_ciphers.end() &&
         SSL_CTX_set_min_proto_version(ctx, TLS1_2_VERSION) == 1 &&
