@@ -89,7 +89,6 @@ static int wait_for_single_socket(int fd, int which) {
 }
 
 int tls_init(void) {
-    int rc = SOCKPERF_ERR_NONE;
     SSL_CTX *ctx = NULL;
 
     ssl_ctx = NULL;
@@ -274,7 +273,7 @@ static inline EVP_PKEY* generate_RSA_pkey(void)
     return nullptr;
 }
 
-#define X509_add_field(field, value) \
+#define X509_ADD_FIELD(field, value) \
     X509_NAME_add_entry_by_txt(name, field, MBSTRING_ASC, value, -1, -1, 0)
 
 X509 * generate_self_signed_x509_with_key(EVP_PKEY * pkey)
@@ -287,9 +286,9 @@ X509 * generate_self_signed_x509_with_key(EVP_PKEY * pkey)
         (X509_gmtime_adj(X509_get_notAfter(x509), 31536000L) != nullptr) &&
         (X509_set_pubkey(x509, pkey) == 1) &&
         ((name = X509_get_subject_name(x509)) != nullptr) &&
-        (X509_add_field("C", (unsigned char *)"IL") == 1) &&
-        (X509_add_field("O", (unsigned char *)"Nvidia") == 1) &&
-        (X509_add_field("CN", (unsigned char *)"localhost") == 1) &&
+        (X509_ADD_FIELD("C", (unsigned char *)"IL") == 1) &&
+        (X509_ADD_FIELD("O", (unsigned char *)"Nvidia") == 1) &&
+        (X509_ADD_FIELD("CN", (unsigned char *)"localhost") == 1) &&
         (X509_set_issuer_name(x509, name) == 1) &&
         (X509_sign(x509, pkey, EVP_sha256()) != 0);
 
@@ -300,7 +299,7 @@ X509 * generate_self_signed_x509_with_key(EVP_PKEY * pkey)
     return nullptr;
 }
 
-#undef X509_add_field
+#undef X509_ADD_FIELD
 
 static inline bool add_key_and_certificate(SSL_CTX *ctx,
                                            EVP_PKEY *pkey,
