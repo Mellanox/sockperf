@@ -56,8 +56,7 @@ const char *tls_chipher(const char *chipher) {
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 
-static bool add_rsa2048_key_and_certificate(SSL_CTX *ctx);
-static bool add_ec_sec384r1_key_and_certificate(SSL_CTX *ctx);
+static bool add_keys_and_certificates(SSL_CTX *ctx);
 static bool set_tls_version_and_ciphers(SSL_CTX *ctx);
 
 // This define is only applicable for OpenSSL 3, in OpenSSL 1.1.1 the behaviour
@@ -102,43 +101,34 @@ int tls_init(void) {
         ctx = SSL_CTX_new(TLS_server_method());
         if (!ctx) {
             log_err("Unable to create SSL context");
-            rc = SOCKPERF_ERR_FATAL;
-            goto err;
+            goto error_ctx_not_allocated;
         }
 
-        if (!add_ec_sec384r1_key_and_certificate(ctx)) {
-            SSL_CTX_free(ctx);
-            log_err("Unable to use EC certificate");
-            rc = SOCKPERF_ERR_FATAL;
-            goto err;
-        }
-
-        if (!add_rsa2048_key_and_certificate(ctx)) {
-            SSL_CTX_free(ctx);
-            log_err("Unable to use RSA certificate");
-            rc = SOCKPERF_ERR_FATAL;
-            goto err;
+        if (!add_keys_and_certificates(ctx)) {
+            log_err("Unable to add keys and certificates");
+            goto error_free_ctx;
         }
     } else {
         ctx = SSL_CTX_new(TLS_client_method());
         if (!ctx) {
             log_err("Unable to create SSL context");
-            rc = SOCKPERF_ERR_FATAL;
-            goto err;
+            goto error_ctx_not_allocated;
         }
 
     }
 
     if  (!set_tls_version_and_ciphers(ctx)) {
-        SSL_CTX_free(ctx);
         log_err("Unable protocol and cipher");
-        rc = SOCKPERF_ERR_FATAL;
-        goto err;
+        goto error_free_ctx;
     }
+
     ssl_ctx = ctx;
 
-err:
-    return rc;
+    return SOCKPERF_ERR_NONE;
+error_free_ctx:
+    SSL_CTX_free(ctx);
+error_ctx_not_allocated:
+    return SOCKPERF_ERR_FATAL;
 }
 
 void tls_exit(void) {
@@ -343,6 +333,12 @@ static inline bool add_ec_sec384r1_key_and_certificate(SSL_CTX *ctx)
     return ((pkey = generate_EC_pkey_with_NID()) != nullptr) &&
         ((x509 = generate_self_signed_x509_with_key(pkey)) != nullptr) &&
         add_key_and_certificate(ctx, pkey, x509);
+}
+
+static inline bool add_keys_and_certificates(SSL_CTX *ctx)
+{
+    return add_ec_sec384r1_key_and_certificate(ctx) &&
+        add_rsa2048_key_and_certificate(ctx);
 }
 
 using cipher_set = std::set<std::string>;
