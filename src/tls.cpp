@@ -27,6 +27,9 @@
  * OF SUCH DAMAGE.
  */
 
+
+#include <string>
+#include <set>
 #include "common.h"
 #include "tls.h"
 
@@ -55,6 +58,7 @@ const char *tls_chipher(const char *chipher) {
 
 static bool add_rsa2048_key_and_certificate(SSL_CTX *ctx);
 static bool add_ec_sec384r1_key_and_certificate(SSL_CTX *ctx);
+static bool set_tls_version_and_ciphers(SSL_CTX *ctx);
 
 // This define is only applicable for OpenSSL 3, in OpenSSL 1.1.1 the behaviour
 // of unclean shutdown is not strict and does not generate an error.
@@ -102,22 +106,6 @@ int tls_init(void) {
             goto err;
         }
 
-        if (SSL_CTX_set_options(ctx, SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_TLSv1 |
-                                SSL_OP_NO_TLSv1_1 | SSL_OP_NO_TLSv1_3 |
-                                SSL_OP_IGNORE_UNEXPECTED_EOF) <= 0) {
-            SSL_CTX_free(ctx);
-            log_err("Unable to set protocol: %s", "TLSv1.2");
-            rc = SOCKPERF_ERR_FATAL;
-            goto err;
-        }
-
-        if (SSL_CTX_set_cipher_list(ctx, tls_chipher()) <= 0) {
-            SSL_CTX_free(ctx);
-            log_err("Unable to use cipher: %s", tls_chipher());
-            rc = SOCKPERF_ERR_FATAL;
-            goto err;
-        }
-
         if (!add_ec_sec384r1_key_and_certificate(ctx)) {
             SSL_CTX_free(ctx);
             log_err("Unable to use EC certificate");
@@ -138,8 +126,15 @@ int tls_init(void) {
             rc = SOCKPERF_ERR_FATAL;
             goto err;
         }
+
     }
 
+    if  (!set_tls_version_and_ciphers(ctx)) {
+        SSL_CTX_free(ctx);
+        log_err("Unable protocol and cipher");
+        rc = SOCKPERF_ERR_FATAL;
+        goto err;
+    }
     ssl_ctx = ctx;
 
 err:
@@ -348,6 +343,51 @@ static inline bool add_ec_sec384r1_key_and_certificate(SSL_CTX *ctx)
     return ((pkey = generate_EC_pkey_with_NID()) != nullptr) &&
         ((x509 = generate_self_signed_x509_with_key(pkey)) != nullptr) &&
         add_key_and_certificate(ctx, pkey, x509);
+}
+
+using cipher_set = std::set<std::string>;
+static inline bool set_tls_1_2_version_and_ciphers(SSL_CTX *ctx,
+                                                   const char *cipher)
+{
+    cipher_set tls1_2_ciphers{"AES128-GCM-SHA256",
+        "AES256-GCM-SHA384",
+        "ECDHE-ECDSA-AES128-GCM-SHA256",
+        "ECDHE-ECDSA-AES256-GCM-SHA384",
+        "ECDHE-RSA-AES128-GCM-SHA256",
+        "ECDHE-RSA-AES256-GCM-SHA384"
+            /* "DHE-RSA-AES128-GCM-SHA256", */
+            /* "DHE-RSA-AES256-GCM-SHA384", */
+    };
+    return tls1_2_ciphers.find(cipher) != tls1_2_ciphers.end() &&
+        SSL_CTX_set_min_proto_version(ctx, TLS1_2_VERSION) == 1 &&
+        SSL_CTX_set_max_proto_version(ctx, TLS1_2_VERSION) == 1 &&
+        SSL_CTX_set_cipher_list(ctx, cipher) == 1;
+}
+
+static inline bool set_tls_1_3_version_and_ciphers(SSL_CTX *ctx,
+                                                   const char *cipher)
+{
+    cipher_set tls1_3_ciphers{"TLS_AES_128_GCM_SHA256",
+        "TLS_AES_256_GCM_SHA384"
+    };
+    return tls1_3_ciphers.find(cipher) != tls1_3_ciphers.end() &&
+        SSL_CTX_set_min_proto_version(ctx, TLS1_3_VERSION) == 1 &&
+        SSL_CTX_set_max_proto_version(ctx, TLS1_3_VERSION) == 1 &&
+        SSL_CTX_set_ciphersuites(ctx, cipher) == 1;
+}
+
+static inline bool set_tls_version_and_ciphers(SSL_CTX *ctx)
+{
+    std::string cipher{tls_chipher()};
+    const char* p_cipher = cipher.c_str();
+
+    if (!set_tls_1_2_version_and_ciphers(ctx, p_cipher) &&
+        !set_tls_1_3_version_and_ciphers(ctx, p_cipher)) {
+        log_err("Unsupported cipher: %s", p_cipher);
+        return false;
+    }
+
+    return true;
 }
 #else
 #error Unsupported TLS
