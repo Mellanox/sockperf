@@ -239,6 +239,8 @@ static inline EVP_PKEY* generate_RSA_pkey(void)
     EVP_PKEY *pkey{nullptr};
     BIGNUM *bignum{nullptr};
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
     bool result =
         ((pkey = EVP_PKEY_new()) != nullptr) &&
         ((bignum = BN_new()) != nullptr) &&
@@ -255,6 +257,7 @@ static inline EVP_PKEY* generate_RSA_pkey(void)
 
     RSA_free(rsa);
     EVP_PKEY_free(pkey);
+#pragma GCC diagnostic pop
     return nullptr;
 }
 
