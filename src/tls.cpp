@@ -218,21 +218,6 @@ int tls_read(void *handle, void *buf, int num) {
     return SSL_read((SSL *)handle, buf, num);
 }
 
-static inline bool add_key_and_certificate(SSL_CTX *ctx, int keytype,
-                                           unsigned char *cert, size_t cert_size,
-                                           unsigned char *key, size_t key_size)
-{
-    if (SSL_CTX_use_certificate_ASN1(ctx, cert_size, cert) <= 0){
-        log_err("unable to use certificate");
-        return false;
-    }
-    if (SSL_CTX_use_PrivateKey_ASN1(keytype, ctx, key, key_size) <= 0){
-        log_err("unable to use key");
-        return false;
-    }
-    return true;
-}
-
 static inline EVP_PKEY* generate_EC_pkey_with_NID(int nid=NID_secp384r1)
 {
     bool result;
