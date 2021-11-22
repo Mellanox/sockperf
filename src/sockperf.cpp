@@ -1906,7 +1906,7 @@ static int parse_common_opt(const AOPT_OBJECT *common_obj) {
                     }
                 }
             } else {
-                log_msg("'-%d' Invalid address: %s", OPT_MC_SOURCE_IP, optarg);
+                log_msg("'-%d' value is expected", OPT_MC_SOURCE_IP);
                 rc = SOCKPERF_ERR_BAD_ARGUMENT;
             }
         }
