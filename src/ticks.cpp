@@ -219,6 +219,7 @@ public:
         }
     }
     median = TicksDuration::median(deviationsFromMedian, size, true);
+    delete [] deviationsFromMedian;
     return TicksDuration(ticks_t(median.m_ticks * scaleToConsistentEstimatorForStdDev), true);
 }
 
