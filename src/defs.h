@@ -309,16 +309,17 @@ typedef enum {
  * @brief List of supported error codes.
  */
 typedef enum {
-    SOCKPERF_ERR_NONE = 0x0,   /**< the function completed */
-    SOCKPERF_ERR_BAD_ARGUMENT, /**< incorrect parameter */
-    SOCKPERF_ERR_INCORRECT,    /**< incorrect format of object */
-    SOCKPERF_ERR_UNSUPPORTED,  /**< this function is not supported */
-    SOCKPERF_ERR_NOT_EXIST,    /**< requested object does not exist */
-    SOCKPERF_ERR_NO_MEMORY,    /**< dynamic memory error */
-    SOCKPERF_ERR_FATAL,        /**< system fatal error */
-    SOCKPERF_ERR_SOCKET,       /**< socket operation error */
-    SOCKPERF_ERR_TIMEOUT,      /**< the time limit expires */
-    SOCKPERF_ERR_UNKNOWN       /**< general error */
+    SOCKPERF_ERR_NONE_EXIT = -1,    /**< the function completed but require to exit */
+    SOCKPERF_ERR_NONE = 0x0,        /**< the function completed */
+    SOCKPERF_ERR_BAD_ARGUMENT,      /**< incorrect parameter */
+    SOCKPERF_ERR_INCORRECT,         /**< incorrect format of object */
+    SOCKPERF_ERR_UNSUPPORTED,       /**< this function is not supported */
+    SOCKPERF_ERR_NOT_EXIST,         /**< requested object does not exist */
+    SOCKPERF_ERR_NO_MEMORY,         /**< dynamic memory error */
+    SOCKPERF_ERR_FATAL,             /**< system fatal error */
+    SOCKPERF_ERR_SOCKET,            /**< socket operation error */
+    SOCKPERF_ERR_TIMEOUT,           /**< the time limit expires */
+    SOCKPERF_ERR_UNKNOWN            /**< general error */
 } SOCKPERF_ERROR;
 
 /*
