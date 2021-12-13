@@ -29,6 +29,7 @@
 #ifndef CLIENT_H_
 #define CLIENT_H_
 
+#include "defs.h"
 #include "common.h"
 #include "input_handlers.h"
 #include "packet.h"
@@ -67,23 +68,26 @@ private:
         Client<IoType, SwitchDataIntegrity, SwitchActivityInfo,
               SwitchCycleDuration, SwitchMsgSize, PongModeCare> &m_client;
         int m_ifd;
-        struct sockaddr_in &m_recvfrom_addr;
+        struct sockaddr_store_t &m_recvfrom_addr;
+        socklen_t m_recvfrom_addrlen;
         int m_receiveCount;
 
     public:
         inline ClientMessageHandlerCallback(Client<IoType, SwitchDataIntegrity, SwitchActivityInfo,
                 SwitchCycleDuration, SwitchMsgSize, PongModeCare> &client,
-                int ifd, struct sockaddr_in &recvfrom_addr) :
+                int ifd, struct sockaddr_store_t &recvfrom_addr,
+                socklen_t recvfrom_addrlen) :
             m_client(client),
             m_ifd(ifd),
             m_recvfrom_addr(recvfrom_addr),
+            m_recvfrom_addrlen(recvfrom_addrlen),
             m_receiveCount(0)
         {
         }
 
         inline bool handle_message()
         {
-            return m_client.handle_message(m_ifd, m_recvfrom_addr, m_receiveCount);
+            return m_client.handle_message(m_ifd, m_recvfrom_addr, m_recvfrom_addrlen, m_receiveCount);
         }
 
         inline int getReceiveCount() const
@@ -106,8 +110,10 @@ private:
     void cleanupAfterLoop();
 
     //------------------------------------------------------------------------------
-    inline int client_get_server_id(int ifd, struct sockaddr_in *recvfrom_addr) {
+    inline int client_get_server_id(int ifd, struct sockaddr_store_t &recvfrom_addr, socklen_t recvfrom_addrlen) {
         int serverNo = 0;
+
+        IPAddress ip_addr(reinterpret_cast<sockaddr *>(&recvfrom_addr), recvfrom_addrlen);
 
         assert((g_fds_array[ifd]) && "invalid fd");
         if (g_pApp->m_const_params.client_work_with_srv_num == DEFAULT_CLIENT_WORK_WITH_SRV_NUM) {
@@ -117,7 +123,7 @@ private:
         }
         if (g_fds_array[ifd] && g_fds_array[ifd]->is_multicast) {
 
-            addr_to_id::iterator itr = m_ServerList.find(recvfrom_addr->sin_addr);
+            addr_to_id::iterator itr = m_ServerList.find(ip_addr);
             if (itr == m_ServerList.end()) {
                 if ((int)m_ServerList.size() >= g_pApp->m_const_params.client_work_with_srv_num) {
                     /* To recognize case when more then expected servers are working */
@@ -125,7 +131,7 @@ private:
                 } else {
                     serverNo = (int)m_ServerList.size();
                     std::pair<addr_to_id::iterator, bool> ret = m_ServerList.insert(
-                        addr_to_id::value_type(recvfrom_addr->sin_addr, m_ServerList.size()));
+                        addr_to_id::value_type(ip_addr, m_ServerList.size()));
                     if (!ret.second) {
                         log_err("Failed to insert new server.");
                         serverNo = -1;
@@ -169,11 +175,12 @@ private:
     template <class InputHandler>
     inline unsigned int client_receive_from_selected(int ifd) {
         int ret = 0;
-        struct sockaddr_in recvfrom_addr;
+        struct sockaddr_store_t recvfrom_addr;
+        socklen_t recvfrom_len = sizeof(recvfrom_addr);
         fds_data *l_fds_ifd = g_fds_array[ifd];
 
         InputHandler input_handler(m_pMsgReply, l_fds_ifd->recv);
-        ret = input_handler.receive_pending_data(ifd, &recvfrom_addr);
+        ret = input_handler.receive_pending_data(ifd, reinterpret_cast<sockaddr *>(&recvfrom_addr), recvfrom_len);
         if (unlikely(ret <= 0)) {
             input_handler.cleanup();
             if (ret == RET_SOCKET_SHUTDOWN) {
@@ -185,7 +192,7 @@ private:
             else /* (ret < 0) */ return 0;
         }
 
-        ClientMessageHandlerCallback callback(*this, ifd, recvfrom_addr);
+        ClientMessageHandlerCallback callback(*this, ifd, recvfrom_addr, recvfrom_len);
         input_handler.iterate_over_buffers(callback);
         input_handler.cleanup();
 
@@ -205,7 +212,7 @@ private:
         }
     }
 
-    inline bool handle_message(int ifd, struct sockaddr_in &recvfrom_addr, int &receiveCount)
+    inline bool handle_message(int ifd, struct sockaddr_store_t &recvfrom_addr, socklen_t recvfrom_addrlen, int &receiveCount)
     {
         int serverNo = 0;
 
@@ -254,7 +261,7 @@ private:
         }
 #endif
 
-        serverNo = client_get_server_id(ifd, &recvfrom_addr);
+        serverNo = client_get_server_id(ifd, recvfrom_addr, recvfrom_addrlen);
         if (unlikely(serverNo < 0)) {
             exit_with_log("Number of servers more than expected", SOCKPERF_ERR_FATAL);
         } else {

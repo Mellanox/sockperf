@@ -28,6 +28,8 @@
 
 #ifndef IOHANDLERS_H_
 #define IOHANDLERS_H_
+
+#include "defs.h"
 #include "common.h"
 
 //==============================================================================

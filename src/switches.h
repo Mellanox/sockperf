@@ -44,7 +44,7 @@ public:
     inline void execute(uint64_t) {}
     inline void execute(int, uint64_t) {}
     inline void execute(TicksTime &) {}
-    inline void execute(struct sockaddr_in *, uint64_t, bool) {}
+    inline void execute(struct sockaddr_store_t &, socklen_t, uint64_t, bool) {}
     inline void execute(Message *, Message *) {}
     inline void execute(Message *) {}
     inline void execute(Message *, int) {}
@@ -116,8 +116,7 @@ public:
                 // We don't use Sockperf's msg_sendto() for dummy messages because we want to ignore
                 // the error handling.
                 sendto(ifd, pMsgRequest->getBuf(), pMsgRequest->getLength(), DUMMY_SEND_FLAG,
-                       (struct sockaddr *)&(g_fds_array[ifd]->server_addr),
-                       sizeof(struct sockaddr));
+                       &reinterpret_cast<sockaddr &>(g_fds_array[ifd]->server_addr), g_fds_array[ifd]->server_addr_len);
                 nextDummySendTime += g_pApp->m_const_params.dummySendCycleDuration;
             }
 
@@ -145,7 +144,7 @@ public:
             g_pPacketTimes->setTxTime(m_pMsgRequest->getSequenceCounter());
             m_pMsgRequest->setHeaderToNetwork();
             int ret = ::msg_sendto(ifd, m_pMsgRequest->getBuf(), length,
-                                   &(g_fds_array[ifd]->server_addr));
+                    &reinterpret_cast<sockaddr &>(g_fds_array[ifd]->server_addr), g_fds_array[ifd]->server_addr_len);
             m_pMsgRequest->setHeaderToHost();
             /* check skip send operation case */
             if (ret == RET_SOCKET_SKIPPED) {
@@ -156,7 +155,7 @@ public:
         } else {
             m_pMsgRequest->setHeaderToNetwork();
             int ret = ::msg_sendto(ifd, m_pMsgRequest->getBuf(), length,
-                                   &(g_fds_array[ifd]->server_addr));
+                    (struct sockaddr *)&(g_fds_array[ifd]->server_addr), g_fds_array[ifd]->server_addr_len);
             m_pMsgRequest->setHeaderToHost();
             return ret;
         }
@@ -179,8 +178,8 @@ public:
         int length = m_pMsgRequest->getLength();
         g_pPacketTimes->setTxTime(m_pMsgRequest->getSequenceCounter());
         m_pMsgRequest->setHeaderToNetwork();
-        int ret =
-            ::msg_sendto(ifd, m_pMsgRequest->getBuf(), length, &(g_fds_array[ifd]->server_addr));
+        int ret = ::msg_sendto(ifd, m_pMsgRequest->getBuf(), length,
+                &reinterpret_cast<sockaddr &>(g_fds_array[ifd]->server_addr), g_fds_array[ifd]->server_addr_len);
         m_pMsgRequest->setHeaderToHost();
         /* check skip send operation case */
         if (ret == RET_SOCKET_SKIPPED) {
@@ -205,8 +204,8 @@ public:
     inline int msg_sendto(int ifd) {
         int length = m_pMsgRequest->getLength();
         m_pMsgRequest->setHeaderToNetwork();
-        int ret =
-            ::msg_sendto(ifd, m_pMsgRequest->getBuf(), length, &(g_fds_array[ifd]->server_addr));
+        int ret = ::msg_sendto(ifd, m_pMsgRequest->getBuf(), length,
+            &reinterpret_cast<sockaddr &>(g_fds_array[ifd]->server_addr), g_fds_array[ifd]->server_addr_len);
         m_pMsgRequest->setHeaderToHost();
         return ret;
     }
@@ -251,7 +250,7 @@ private:
 
 class SwitchOnCalcGaps {
 public:
-    /*inline*/ void execute(struct sockaddr_in *clt_addr, uint64_t seq_num, bool is_warmup);
+    /*inline*/ void execute(sockaddr_store_t &clt_addr, socklen_t clt_len, uint64_t seq_num, bool is_warmup);
 
     static void print_summary() {
         seq_num_map::iterator itr;
@@ -264,12 +263,9 @@ public:
     }
 
     static void print_session_summary(clt_session_info *p_clt_session) {
-        char ip_port_str[30];
-
         if (p_clt_session) {
-            sprintf(ip_port_str, "[%s:%d]", inet_ntoa(p_clt_session->addr.sin_addr),
-                    ntohs(p_clt_session->addr.sin_port));
-            log_msg("%-23s Summary: Total Dropped/OOO: %" PRIu64, ip_port_str,
+            std::string ip_port_str = "[" + sockaddr_to_hostport(p_clt_session->addr) + "]";
+            log_msg("%-23s Summary: Total Dropped/OOO: %" PRIu64, ip_port_str.c_str(),
                     p_clt_session->total_drops);
         }
     }
@@ -287,13 +283,11 @@ private:
             else {
                 char drops_num_str[30];
                 char seq_num_info_str[50];
-                char ip_port_str[30];
-                sprintf(ip_port_str, "[%s:%d]", inet_ntoa(seq_num_map_itr->second.addr.sin_addr),
-                        ntohs(seq_num_map_itr->second.addr.sin_port));
+                std::string ip_port_str = "[" + sockaddr_to_hostport(seq_num_map_itr->second.addr) + "]";
                 sprintf(drops_num_str, "(%" PRIu64 ")", drops_num);
                 sprintf(seq_num_info_str, "[%" PRIu64 " - %" PRIu64 "]",
                         seq_num_map_itr->second.seq_num, received_seq_num - 1);
-                log_msg("%-23s Total Dropped/OOO: %-12" PRIu64 "GAP:%-7s %s", ip_port_str,
+                log_msg("%-23s Total Dropped/OOO: %-12" PRIu64 "GAP:%-7s %s", ip_port_str.c_str(),
                         seq_num_map_itr->second.total_drops, drops_num_str, seq_num_info_str);
                 seq_num_map_itr->second.seq_num = received_seq_num;
             }
@@ -306,10 +300,8 @@ private:
 
     inline void print_new_session_info(clt_session_info *p_clt_session) {
         if (p_clt_session) {
-            char ip_port_str[30];
-            sprintf(ip_port_str, "[%s:%d]", inet_ntoa(p_clt_session->addr.sin_addr),
-                    ntohs(p_clt_session->addr.sin_port));
-            log_msg("Starting new session: %-23s", ip_port_str);
+            std::string ip_port_str = "[" + sockaddr_to_hostport(p_clt_session->addr) + "]";
+            log_msg("Starting new session: %-23s", ip_port_str.c_str());
         }
     }
 

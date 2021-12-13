@@ -101,10 +101,13 @@ sockperf: [tid 4805] using epoll() to block on socket(s)
 
    Every line in feed file should have following format as
    [U|T]:address:port
+   or
+   [U|T]:address:port:mc_src_addr
    where
    - [U|T] - UDP or TCP protocol;
-   - address - Internet Protocol (IP) address;
+   - address - Internet Protocol (IP) address or host name (IPv6 addresses must be enclosed in square brackets);
    - port - Port number;
+   - mc_src_addr - Optional multicast source IP address or host name.
 
 
 @subsection _option 3.1 Available options

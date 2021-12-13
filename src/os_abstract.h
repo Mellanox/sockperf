@@ -74,7 +74,6 @@
 #define __func__ __FUNCTION__
 
 // Socket api
-#define inet_aton(x, y) inet_pton(AF_INET, x, y)
 #define getsockopt(a, b, c, d, e) getsockopt(a, b, c, (char *)d, e)
 #define setsockopt(a, b, c, d, e) setsockopt(a, b, c, (char *)d, e)
 #define recvfrom(a, b, c, d, e, f) recvfrom(a, (char *)b, c, d, e, f)

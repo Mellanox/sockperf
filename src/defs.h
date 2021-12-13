@@ -38,8 +38,6 @@
 #include <Winbase.h>
 #include <stdint.h>
 
-typedef uint16_t in_port_t;
-
 #else
 
 #ifdef __linux__
@@ -76,7 +74,7 @@ typedef uint16_t in_port_t;
 #include <sys/syscall.h>
 #include <arpa/inet.h>   /* internet address manipulation */
 #include <netinet/in.h>  /* internet address manipulation */
-#include <netdb.h>       /* gethostbyname() */
+#include <netdb.h>       /* getaddrinfo() */
 #include <netinet/tcp.h> /* tcp specific */
 #include <sys/resource.h>
 
@@ -99,6 +97,7 @@ typedef uint16_t in_port_t;
 #include "ticks.h"
 #include "message.h"
 #include "playback.h"
+#include "ip_address.h"
 
 #if !defined(WIN32) && !defined(__FreeBSD__)
 #include "vma-redirect.h"
@@ -133,8 +132,7 @@ const uint32_t TEST_FIRST_CONNECTION_FIRST_PACKET_TTL_THRESHOLD_MSEC = 50;
 
 #define DEFAULT_TEST_DURATION 1 /* [sec] */
 #define DEFAULT_TEST_NUMBER 0   /* [number of packets] */
-#define DEFAULT_MC_ADDR "0.0.0.0"
-#define DEFAULT_PORT 11111
+#define DEFAULT_PORT_STR "11111"
 #define DEFAULT_IP_MTU 1500
 #define DEFAULT_IP_PAYLOAD_SZ (DEFAULT_IP_MTU - 28)
 #define DEFAULT_CI_SIG_LEVEL 99
@@ -149,16 +147,13 @@ const uint32_t TEST_FIRST_CONNECTION_FIRST_PACKET_TTL_THRESHOLD_MSEC = 50;
 #ifndef MAX_PATH_LENGTH
 #define MAX_PATH_LENGTH 1024
 #endif
-#define MAX_MCFILE_LINE_LENGTH 41 /* sizeof("U:255.255.255.255:11111:255.255.255.255\0") */
+#define MAX_MCFILE_LINE_LENGTH 1024 /* big enough to store IPv6 addresses and hostnames */
 
 #define IP_PORT_FORMAT_REG_EXP                                                                     \
-    "^([UuTt]:)*([a-zA-Z0-9\\.\\-]+):(6553[0-5]|655[0-2][0-9]|65[0-4][0-9]{2}|6[0-4][0-9]{3}|[0-"  \
-    "5]?[0-9]{1,4})(:[a-zA-Z0-9\\.\\-]+)?[\r\n]"
-/*
-#define IP_PORT_FORMAT_REG_EXP		"^([UuTt]:)*((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}"\
-                    "(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?):"\
-                    "(6553[0-5]|655[0-2][0-9]|65[0-4][0-9]{2}|6[0-4][0-9]{3}|[0-5]?[0-9]{1,4})\n"
-*/
+    "^([UuTt]:)?"                                                                                  \
+    "([a-zA-Z0-9\\.\\-]+|\\[([a-fA-F0-9.:]+(%[0-9a-zA-z])?)\\])"                                   \
+    ":(6553[0-5]|655[0-2][0-9]|65[0-4][0-9]{2}|6[0-4][0-9]{3}|[0-5]?[0-9]{1,4})"                   \
+    "(:([a-zA-Z0-9\\.\\-]+|\\[([a-fA-F0-9.:]+)\\]))?[\r\n]"
 #define PRINT_PROTOCOL(type)                                                                       \
     ((type) == SOCK_DGRAM ? "UDP" : ((type) == SOCK_STREAM ? "TCP" : "<?>"))
 
@@ -473,11 +468,6 @@ typedef struct spike {
     int next;
 } spike;
 
-typedef struct port_and_type {
-    int sock_type; /**< SOCK_STREAM (tcp), SOCK_DGRAM (udp), SOCK_RAW (ip) */
-    in_port_t port;
-} port_type;
-
 struct SocketRecvData {
     uint8_t *buf;       // buffer for input messages (double size is reserved)
     int max_size;       // maximum message size
@@ -486,21 +476,31 @@ struct SocketRecvData {
     int cur_size;       // maximum number of bytes for the next chunk
 };
 
+// big enough to store sockaddr_in and sockaddr_in6
+struct sockaddr_store_t {
+    union {
+        sa_family_t ss_family;
+        sockaddr_in addr4;
+        sockaddr_in6 addr6;
+    };
+};
+
 /**
  * @struct fds_data
  * @brief Socket related info
  */
 
 typedef struct fds_data {
-    struct sockaddr_in server_addr; /**< server address information */
+    struct sockaddr_store_t server_addr; /**< server address information */
+    socklen_t server_addr_len;      /**< server address length */
     int is_multicast;               /**< if this socket is multicast */
     int sock_type;                  /**< SOCK_STREAM (tcp), SOCK_DGRAM (udp), SOCK_RAW (ip) */
     int next_fd;
     int active_fd_count; /**< number of active connections (by default 1-for UDP; 0-for TCP) */
     int *
     active_fd_list; /**< list of fd related active connections (UDP has the same fd by default) */
-    struct sockaddr_in *memberships_addr; /**< more servers on the same socket information */
-    struct in_addr mc_source_ip_addr;     /**< message source ip for multicast packet filtering */
+    struct sockaddr_store_t *memberships_addr; /**< more servers on the same socket information */
+    IPAddress mc_source_ip_addr;    /**< message source ip for multicast packet filtering */
     int memberships_size;
     struct SocketRecvData recv;
 #ifdef USING_VMA_EXTRA_API
@@ -525,7 +525,7 @@ typedef struct handler_info {
 typedef struct clt_session_info {
     uint64_t seq_num;
     uint64_t total_drops;
-    sockaddr_in addr;
+    sockaddr_store_t addr;
     bool started;
 } clt_session_info_t;
 
@@ -536,53 +536,54 @@ namespace std {
 #if !defined(WIN32) && !defined(__FreeBSD__)
 namespace tr1 {
 #endif
-template <> struct hash<struct sockaddr_in> : public std::unary_function<struct sockaddr_in, int> {
-    int operator()(struct sockaddr_in const &key) const {
+template <> struct hash<struct sockaddr_store_t> : public std::unary_function<struct sockaddr_store_t, int> {
+    int operator()(struct sockaddr_store_t const &key) const {
         // XOR "a.b" part of "a.b.c.d" address with 16bit port; leave "c.d" part untouched for
         // maximum hashing
-        return key.sin_addr.s_addr ^ key.sin_port;
+        switch (key.ss_family) {
+        case AF_INET: {
+            const sockaddr_in &k = reinterpret_cast<const sockaddr_in &>(key);
+            return k.sin_addr.s_addr ^ (k.sin_port << 16);
+        }
+        case AF_INET6: {
+            const sockaddr_in6 &k = reinterpret_cast<const sockaddr_in6 &>(key);
+            const uint32_t *addr = reinterpret_cast<const uint32_t *>(&k.sin6_addr);
+            return addr[0] ^ addr[1] ^ addr[2] ^ addr[3] ^ (k.sin6_port << 16);
+        }
+        default:
+            return 0;
+        }
     }
-};
-
-template <>
-struct hash<struct port_and_type> : public std::unary_function<struct port_and_type, int> {
-    int operator()(struct port_and_type const &key) const {
-        // XOR "a.b" part of "a.b.c.d" address with 16bit port; leave "c.d" part untouched for
-        // maximum hashing
-        return key.sock_type ^ key.port;
-    }
-};
-
-template <> struct hash<struct in_addr> : public std::unary_function<struct in_addr, int> {
-    int operator()(struct in_addr const &key) const { return key.s_addr & 0xFF; }
 };
 #if !defined(WIN32) && !defined(__FreeBSD__)
 } // closes namespace tr1
 #endif
 template <>
-struct equal_to<struct sockaddr_in> : public std::binary_function<struct sockaddr_in,
-                                                                  struct sockaddr_in, bool> {
-    bool operator()(struct sockaddr_in const &key1, struct sockaddr_in const &key2) const {
-        return key1.sin_port == key2.sin_port && key1.sin_addr.s_addr == key2.sin_addr.s_addr;
+struct equal_to<struct sockaddr_store_t> :
+        public std::binary_function<struct sockaddr_store_t,
+                struct sockaddr_store_t, bool> {
+    bool operator()(struct sockaddr_store_t const &key1, struct sockaddr_store_t const &key2) const {
+        if (key1.ss_family != key2.ss_family) {
+            return false;
+        }
+        switch (key1.ss_family) {
+        case AF_INET: {
+            const sockaddr_in &k1 = reinterpret_cast<const sockaddr_in &>(key1);
+            const sockaddr_in &k2 = reinterpret_cast<const sockaddr_in &>(key2);
+            return k1.sin_port == k2.sin_port &&
+                k1.sin_addr.s_addr == k2.sin_addr.s_addr;
+        }
+        case AF_INET6: {
+            const sockaddr_in6 &k1 = reinterpret_cast<const sockaddr_in6 &>(key1);
+            const sockaddr_in6 &k2 = reinterpret_cast<const sockaddr_in6 &>(key2);
+            return k1.sin6_port == k2.sin6_port &&
+                IN6_ARE_ADDR_EQUAL(&k1.sin6_addr, &k2.sin6_addr);
+        }
+        }
+        return true;
     }
 };
-
-template <>
-struct equal_to<struct port_and_type> : public std::binary_function<struct port_and_type,
-                                                                    struct port_and_type, bool> {
-    bool operator()(struct port_and_type const &key1, struct port_and_type const &key2) const {
-        return key1.sock_type == key2.sock_type && key1.port == key2.port;
-    }
-};
-
-template <>
-struct equal_to<struct in_addr> : public std::binary_function<struct in_addr, struct in_addr,
-                                                              bool> {
-    bool operator()(struct in_addr const &key1, struct in_addr const &key2) const {
-        return key1.s_addr == key2.s_addr;
-    }
-};
-}
+} // namespace std
 
 #ifdef USING_VMA_EXTRA_API
 struct vma_ring_comps {
@@ -593,14 +594,14 @@ struct vma_ring_comps {
 #endif
 
 #ifndef __FreeBSD__
-typedef std::tr1::unordered_map<struct sockaddr_in, clt_session_info_t> seq_num_map;
-typedef std::tr1::unordered_map<struct in_addr, size_t> addr_to_id;
+typedef std::tr1::unordered_map<struct sockaddr_store_t, clt_session_info_t> seq_num_map;
+typedef std::tr1::unordered_map<IPAddress, size_t> addr_to_id;
 #ifdef USING_VMA_EXTRA_API
 typedef std::tr1::unordered_map<int, struct vma_ring_comps *> rings_vma_comps_map;
 #endif
 #else
-typedef std::unordered_map<struct sockaddr_in, clt_session_info_t> seq_num_map;
-typedef std::unordered_map<struct in_addr, size_t> addr_to_id;
+typedef std::unordered_map<struct sockaddr_store_t, clt_session_info_t> seq_num_map;
+typedef std::unordered_map<IPAddress, size_t> addr_to_id;
 #ifdef USING_VMA_EXTRA_API
 typedef std::unordered_map<int, struct vma_ring_comps *> rings_vma_comps_map;
 #endif
@@ -639,9 +640,9 @@ typedef enum { // must be coordinated with s_fds_handle_desc in common.cpp
 struct user_params_t {
     work_mode_t mode; // either client or server
     measurement_mode_t measurement; // either time or number
-    struct in_addr rx_mc_if_addr;
-    struct in_addr tx_mc_if_addr;
-    struct in_addr mc_source_ip_addr;
+    IPAddress rx_mc_if_addr;
+    IPAddress tx_mc_if_addr;
+    IPAddress mc_source_ip_addr;
     int msg_size;
     int msg_size_range;
     int sec_test_duration;
@@ -674,7 +675,8 @@ struct user_params_t {
     bool b_server_dont_reply;
     bool b_server_detect_gaps;
     uint32_t mps; // client side only
-    struct sockaddr_in client_bind_info;
+    struct sockaddr_store_t client_bind_info;
+    socklen_t client_bind_info_len;
     uint32_t reply_every;    // client side only
     bool b_client_ping_pong; // client side only
     bool b_no_rdtsc;
@@ -691,7 +693,8 @@ struct user_params_t {
     uint32_t histogram_lower_range;  // client side only
     uint32_t histogram_upper_range;  // client side only
     uint32_t histogram_bin_size;     // client side only
-    struct sockaddr_in addr;
+    struct sockaddr_store_t addr;
+    socklen_t addr_len;
     int sock_type;
     bool tcp_nodelay;
     bool is_nonblocked_send;
