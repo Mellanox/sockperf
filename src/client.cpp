@@ -860,34 +860,27 @@ int Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration,
     if (rc == SOCKPERF_ERR_NONE) {
         // cycle through all set fds in the array (with wrap around to beginning)
         for (int ifd = m_ioHandler.m_fd_min; ifd <= m_ioHandler.m_fd_max; ifd++) {
+            fds_data *data = g_fds_array[ifd];
 
-            if (!(g_fds_array[ifd] && (g_fds_array[ifd]->active_fd_list))) continue;
+            if (!(data && (data->active_fd_list))) continue;
 
-            struct sockaddr_in *p_client_bind_addr =
-                (struct sockaddr_in *)&g_pApp->m_const_params.client_bind_info;
-            if (p_client_bind_addr->sin_port || p_client_bind_addr->sin_addr.s_addr) {
-                log_dbg("[fd=%d] Binding to: %s:%d...", ifd,
-                        inet_ntoa(p_client_bind_addr->sin_addr),
-                        ntohs(p_client_bind_addr->sin_port));
-                if (bind(ifd, (struct sockaddr *)p_client_bind_addr, sizeof(struct sockaddr)) < 0) {
-                    log_err("[fd=%d] Can`t bind socket %s:%d", ifd,
-                            inet_ntoa(p_client_bind_addr->sin_addr),
-                            ntohs(p_client_bind_addr->sin_port));
+            const sockaddr_store_t *p_client_bind_addr = &g_pApp->m_const_params.client_bind_info;
+            if (p_client_bind_addr->ss_family != AF_UNSPEC) {
+                socklen_t client_bind_addr_len = g_pApp->m_const_params.client_bind_info_len;
+                std::string hostport = sockaddr_to_hostport(p_client_bind_addr);
+                log_dbg("[fd=%d] Binding to: %s...", ifd, hostport.c_str());
+                if (bind(ifd, reinterpret_cast<const sockaddr *>(p_client_bind_addr), client_bind_addr_len) < 0) {
+                    log_err("[fd=%d] Can`t bind socket %s", ifd, hostport.c_str());
                     rc = SOCKPERF_ERR_SOCKET;
                     break;
                 }
-            } else {
-                log_dbg("[fd=%d] Binding to: %s:%d...", ifd,
-                        inet_ntoa(p_client_bind_addr->sin_addr),
-                        ntohs(p_client_bind_addr->sin_port));
             }
-            if (g_fds_array[ifd]->sock_type == SOCK_STREAM) {
-                log_dbg("[fd=%d] Connecting to: %s:%d...", ifd,
-                        inet_ntoa(g_fds_array[ifd]->server_addr.sin_addr),
-                        ntohs(g_fds_array[ifd]->server_addr.sin_port));
+            if (data->sock_type == SOCK_STREAM) {
+                std::string hostport = sockaddr_to_hostport(data->server_addr);
+                log_dbg("[fd=%d] Connecting to: %s...", ifd, hostport.c_str());
 
-                if (connect(ifd, (struct sockaddr *)&(g_fds_array[ifd]->server_addr),
-                            sizeof(struct sockaddr)) < 0) {
+                if (connect(ifd, reinterpret_cast<const sockaddr *>(&(data->server_addr)),
+                            data->server_addr_len) < 0) {
                     if (os_err_in_progress()) {
 #ifdef USING_VMA_EXTRA_API
                         if (g_pApp->m_const_params.fd_handler_type == SOCKETXTREME && g_vma_api) {
@@ -909,8 +902,8 @@ int Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration,
                 }
 #if defined(DEFINED_TLS)
                 if (g_pApp->m_const_params.tls) {
-                    g_fds_array[ifd]->tls_handle = tls_establish(ifd);
-                    if (!g_fds_array[ifd]->tls_handle) {
+                    data->tls_handle = tls_establish(ifd);
+                    if (!data->tls_handle) {
                         rc = SOCKPERF_ERR_SOCKET;
                         break;
                     }
@@ -923,9 +916,10 @@ int Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration,
              * with the rest of the setsockopt
              */
             if (s_user_params.rate_limit > 0 &&
-                sock_set_rate_limit(ifd, s_user_params.rate_limit)) {
+                    sock_set_rate_limit(ifd, s_user_params.rate_limit)) {
+                std::string hostport = sockaddr_to_hostport(data->server_addr);
                 log_err("[fd=%d] failed setting rate limit on address %s\n", ifd,
-                        inet_ntoa(g_fds_array[ifd]->server_addr.sin_addr));
+                        hostport.c_str());
                 rc = SOCKPERF_ERR_SOCKET;
                 break;
             }

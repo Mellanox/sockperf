@@ -74,23 +74,31 @@ int ServerBase::initBeforeLoop() {
 #ifdef USING_VMA_EXTRA_API
             g_fds_array[ifd]->p_msg = m_pMsgReply;
 #endif
-            struct sockaddr_in *p_bind_addr = &g_fds_array[ifd]->server_addr;
+            const sockaddr_store_t *p_bind_addr = &g_fds_array[ifd]->server_addr;
+            socklen_t bind_addr_len = g_fds_array[ifd]->server_addr_len;
 
-            struct sockaddr_in bind_addr;
+            struct sockaddr_store_t bind_addr;
             // Meny: Can't bind to a multicast addr in Windows
             if (g_fds_array[ifd]->memberships_size ||
-                IN_MULTICAST(ntohl(p_bind_addr->sin_addr.s_addr))) {
+                is_multicast_addr(*p_bind_addr)) {
                 // if more then one address on socket (for multiple MC join case oon same port)
-                memcpy(&bind_addr, p_bind_addr, sizeof(struct sockaddr_in));
-                bind_addr.sin_addr.s_addr = INADDR_ANY;
+                memcpy(&bind_addr, p_bind_addr, bind_addr_len);
+                switch (bind_addr.ss_family) {
+                case AF_INET:
+                    reinterpret_cast<sockaddr_in &>(bind_addr).sin_addr.s_addr = INADDR_ANY;
+                    break;
+                case AF_INET6:
+                    reinterpret_cast<sockaddr_in6 &>(bind_addr).sin6_addr = in6addr_any;
+                    break;
+                }
                 p_bind_addr = &bind_addr;
             }
 
-            log_dbg("[fd=%d] Binding to: %s:%d...", ifd, inet_ntoa(p_bind_addr->sin_addr),
-                    ntohs(p_bind_addr->sin_port));
-            if (bind(ifd, (struct sockaddr *)p_bind_addr, sizeof(struct sockaddr)) < 0) {
-                log_err("[fd=%d] Can`t bind socket, IP to bind: %s:%d\n", ifd,
-                        inet_ntoa(p_bind_addr->sin_addr), ntohs(p_bind_addr->sin_port));
+            std::string hostport = sockaddr_to_hostport(p_bind_addr);
+            log_dbg("[fd=%d] Binding to: %s...", ifd, hostport.c_str());
+            if (bind(ifd, reinterpret_cast<const sockaddr *>(p_bind_addr), bind_addr_len) < 0) {
+                log_err("[fd=%d] Can`t bind socket, IP to bind: %s\n", ifd,
+                        hostport.c_str());
                 rc = SOCKPERF_ERR_SOCKET;
                 break;
             }
@@ -102,7 +110,7 @@ int ServerBase::initBeforeLoop() {
             if (s_user_params.rate_limit > 0 &&
                 sock_set_rate_limit(ifd, s_user_params.rate_limit)) {
                 log_err("[fd=%d] failed setting rate limit, %s\n", ifd,
-                        inet_ntoa(p_bind_addr->sin_addr));
+                        hostport.c_str());
                 rc = SOCKPERF_ERR_SOCKET;
                 break;
             }
@@ -119,10 +127,10 @@ int ServerBase::initBeforeLoop() {
 
     if (rc == SOCKPERF_ERR_NONE) {
         if (g_pApp->m_const_params.mode == MODE_BRIDGE) {
-            char to_array[20];
-            sprintf(to_array, "%s", inet_ntoa(g_pApp->m_const_params.tx_mc_if_addr));
+            std::string tx_mc_if_addr_str = g_pApp->m_const_params.tx_mc_if_addr.toString();
+            std::string rx_mc_if_addr_str = g_pApp->m_const_params.rx_mc_if_addr.toString();
             printf(MODULE_NAME ": [BRIDGE] transferring messages from %s to %s on:",
-                   inet_ntoa(g_pApp->m_const_params.rx_mc_if_addr), to_array);
+                   rx_mc_if_addr_str.c_str(), tx_mc_if_addr_str.c_str());
         } else {
             printf(MODULE_NAME ": [SERVER] listen on:");
         }
@@ -242,7 +250,7 @@ int Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_accept(int ifd) {
         return (int)INVALID_SOCKET; // TODO: use SOCKET all over the way and avoid this cast
     }
     if (g_fds_array[ifd]->sock_type == SOCK_STREAM && g_fds_array[ifd]->active_fd_list) {
-        struct sockaddr_in addr;
+        struct sockaddr_store_t addr;
         socklen_t addr_size = sizeof(addr);
         fds_data *tmp;
 
@@ -251,7 +259,7 @@ int Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_accept(int ifd) {
             log_err("Failed to allocate memory with malloc()");
             return (int)INVALID_SOCKET; // TODO: use SOCKET all over the way and avoid this cast
         }
-        memcpy(tmp, g_fds_array[ifd], sizeof(struct fds_data));
+        *tmp = *g_fds_array[ifd];
         tmp->recv.buf = (uint8_t *)MALLOC(sizeof(uint8_t) * 2 * MAX_PAYLOAD_SIZE);
         if (!tmp->recv.buf) {
             log_err("Failed to allocate memory with malloc()");
@@ -308,14 +316,15 @@ int Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_accept(int ifd) {
 #ifdef USING_VMA_EXTRA_API
                             if (g_vma_api &&
                                 g_pApp->m_const_params.fd_handler_type == SOCKETXTREME) {
-                                log_dbg("peer address to accept: %s:%d [%d]",
-                                        inet_ntoa(g_vma_comps->src.sin_addr),
-                                        ntohs(g_vma_comps->src.sin_port), active_ifd);
+                                std::string hostport = sockaddr_to_hostport(g_vma_comps->src);
+                                log_dbg("peer address to accept: %s [%d]",
+                                        hostport.c_str(), active_ifd);
                             } else
 #endif
                             {
-                                log_dbg("peer address to accept: %s:%d [%d]",
-                                        inet_ntoa(addr.sin_addr), ntohs(addr.sin_port), active_ifd);
+                                std::string hostport = sockaddr_to_hostport(addr);
+                                log_dbg("peer address to accept: %s [%d]",
+                                        hostport.c_str(), active_ifd);
                             }
 #if defined(DEFINED_TLS)
                             if (g_pApp->m_const_params.tls) {
@@ -348,14 +357,15 @@ int Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_accept(int ifd) {
                 FREE(tmp);
 #ifdef USING_VMA_EXTRA_API
                 if (g_vma_api && g_pApp->m_const_params.fd_handler_type == SOCKETXTREME) {
-                    log_dbg("peer address to refuse: %s:%d [%d]",
-                            inet_ntoa(g_vma_comps->src.sin_addr), ntohs(g_vma_comps->src.sin_port),
-                            active_ifd);
+                    std::string hostport = sockaddr_to_hostport(g_vma_comps->src);
+                    log_dbg("peer address to refuse: %s [%d]",
+                            hostport.c_str(), active_ifd);
                 } else
 #endif
                 {
-                    log_dbg("peer address to refuse: %s:%d [%d]", inet_ntoa(addr.sin_addr),
-                            ntohs(addr.sin_port), active_ifd);
+                    std::string hostport = sockaddr_to_hostport(addr);
+                    log_dbg("peer address to refuse: %s [%d]", hostport.c_str(),
+                            active_ifd);
                 }
             }
         }
@@ -632,19 +642,19 @@ void server_select_per_thread(int _fd_num) {
 
 // Temp location because of compilation issue (inline-unit-growth=200) with the way this method was
 // inlined
-void SwitchOnCalcGaps::execute(struct sockaddr_in *clt_addr, uint64_t seq_num, bool is_warmup) {
-    seq_num_map::iterator itr = ms_seq_num_map.find(*clt_addr);
+void SwitchOnCalcGaps::execute(struct sockaddr_store_t &clt_addr, socklen_t clt_len, uint64_t seq_num, bool is_warmup) {
+    seq_num_map::iterator itr = ms_seq_num_map.find(clt_addr);
     bool starting_new_session = false;
     bool print_summary = false;
 
     if (itr == ms_seq_num_map.end()) {
         clt_session_info_t new_session;
-        memcpy(&new_session.addr, clt_addr, sizeof(struct sockaddr_in));
+        memcpy(&new_session.addr, &clt_addr, clt_len);
         new_session.seq_num = seq_num;
         new_session.total_drops = 0;
         new_session.started = false;
         std::pair<seq_num_map::iterator, bool> ret_val =
-            ms_seq_num_map.insert(seq_num_map::value_type(*clt_addr, new_session));
+            ms_seq_num_map.insert(seq_num_map::value_type(clt_addr, new_session));
         if (ret_val.second)
             itr = ret_val.first;
         else {

@@ -83,6 +83,7 @@
 #include "message.h"
 #include "message_parser.h"
 #include "packet.h"
+#include "port_descriptor.h"
 #include "switches.h"
 #include "aopt.h"
 #include <stdio.h>
@@ -152,6 +153,8 @@ os_mutex_t _mutex;
 static int parse_common_opt(const AOPT_OBJECT *);
 static int parse_client_opt(const AOPT_OBJECT *);
 static char *display_opt(int, char *, size_t);
+static int resolve_sockaddr(const char *host, const char *port, int sock_type,
+        bool is_server_mode, sockaddr *addr, socklen_t &addr_len);
 
 /*
  * List of supported general options.
@@ -357,6 +360,54 @@ static int proc_mode_version(int id, int argc, const char **argv) {
 }
 
 //------------------------------------------------------------------------------
+static int parse_client_bind_info(const AOPT_OBJECT *common_obj, const AOPT_OBJECT *self_obj)
+{
+    int rc = SOCKPERF_ERR_NONE;
+    const char *host_str = NULL;
+    const char *port_str = NULL;
+
+    if (self_obj) {
+        if (!rc && aopt_check(self_obj, OPT_CLIENTPORT)) {
+            if (aopt_check(common_obj, 'f')) {
+                log_msg("--client_port conflicts with -f option");
+                rc = SOCKPERF_ERR_BAD_ARGUMENT;
+            } else {
+                const char *optarg = aopt_value(self_obj, OPT_CLIENTPORT);
+                if (optarg && isNumeric(optarg)) {
+                    port_str = optarg;
+                } else {
+                    log_msg("'--client_port' Invalid value");
+                    rc = SOCKPERF_ERR_BAD_ARGUMENT;
+                }
+            }
+        }
+
+        if (!rc && aopt_check(self_obj, OPT_CLIENTIP)) {
+            const char *optarg = aopt_value(self_obj, OPT_CLIENTIP);
+            if (optarg) {
+                host_str = optarg;
+            } else {
+                log_msg("'--client_ip' Invalid address");
+                rc = SOCKPERF_ERR_BAD_ARGUMENT;
+            }
+        }
+    }
+
+    if (!rc && (host_str || port_str)) {
+        int res = resolve_sockaddr(host_str, port_str, s_user_params.sock_type,
+                true, reinterpret_cast<sockaddr*>(&s_user_params.client_bind_info),
+                s_user_params.client_bind_info_len);
+        if (res != 0) {
+            log_msg("'--client_ip/--client_port': invalid host:port values: %s\n",
+                gai_strerror(res));
+            rc = SOCKPERF_ERR_BAD_ARGUMENT;
+        }
+    }
+
+    return rc;
+}
+
+//------------------------------------------------------------------------------
 static int proc_mode_under_load(int id, int argc, const char **argv) {
     int rc = SOCKPERF_ERR_NONE;
     const AOPT_OBJECT *common_obj = NULL;
@@ -444,7 +495,7 @@ static int proc_mode_under_load(int id, int argc, const char **argv) {
     s_user_params.reply_every = REPLY_EVERY_DEFAULT;
 
     /* Set command line common options */
-    if (!rc && common_obj) {
+    if (!rc) {
         rc = parse_common_opt(common_obj);
     }
 
@@ -523,44 +574,6 @@ static int proc_mode_under_load(int id, int argc, const char **argv) {
                 }
             } else {
                 log_msg("'-%d' Invalid value", OPT_MPS);
-                rc = SOCKPERF_ERR_BAD_ARGUMENT;
-            }
-        }
-
-        if (!rc && aopt_check(self_obj, OPT_CLIENTPORT)) {
-            if (aopt_check(common_obj, 'f')) {
-                log_msg("--client_port conflicts with -f option");
-                rc = SOCKPERF_ERR_BAD_ARGUMENT;
-            } else {
-                const char *optarg = aopt_value(self_obj, OPT_CLIENTPORT);
-                if (optarg) {
-                    errno = 0;
-                    long value = strtol(optarg, NULL, 0);
-                    /* strtol() returns 0 if there were no digits at all */
-                    if (errno != 0) {
-                        log_msg("'-%c' Invalid port: %s", OPT_CLIENTPORT, optarg);
-                        rc = SOCKPERF_ERR_BAD_ARGUMENT;
-                    } else {
-                        s_user_params.client_bind_info.sin_port = htons((uint16_t)value);
-                    }
-                } else {
-                    log_msg("'-%c' Invalid value", OPT_CLIENTPORT);
-                    rc = SOCKPERF_ERR_BAD_ARGUMENT;
-                }
-            }
-        }
-
-        if (!rc && aopt_check(self_obj, OPT_CLIENTIP)) {
-            int len;
-            const char *optarg = aopt_value(self_obj, OPT_CLIENTIP);
-            if (!optarg) { /* already in network byte order*/
-                log_msg("'-%c' Invalid address", OPT_CLIENTIP);
-                rc = SOCKPERF_ERR_BAD_ARGUMENT;
-            } else if (4 != sscanf(optarg, "%d.%d.%d.%d", &len, &len, &len, &len)) {
-                log_msg("'-%c' Invalid address: %s", OPT_CLIENTIP, optarg);
-                rc = SOCKPERF_ERR_BAD_ARGUMENT;
-            } else if (!inet_aton(optarg, &s_user_params.client_bind_info.sin_addr)) {
-                log_msg("'-%c' Invalid address: %s", OPT_CLIENTIP, optarg);
                 rc = SOCKPERF_ERR_BAD_ARGUMENT;
             }
         }
@@ -654,6 +667,11 @@ static int proc_mode_under_load(int id, int argc, const char **argv) {
                 rc = SOCKPERF_ERR_BAD_ARGUMENT;
             }
         }
+    }
+
+    if (!rc) {
+        // --tcp option must be processed before
+        rc = parse_client_bind_info(common_obj, self_obj);
     }
 
     if (rc) {
@@ -788,7 +806,7 @@ static int proc_mode_ping_pong(int id, int argc, const char **argv) {
     s_user_params.reply_every = 1;
 
     /* Set command line common options */
-    if (!rc && common_obj) {
+    if (!rc) {
         rc = parse_common_opt(common_obj);
     }
 
@@ -879,44 +897,6 @@ static int proc_mode_ping_pong(int id, int argc, const char **argv) {
                 }
             } else {
                 log_msg("'-%d' Invalid value", OPT_MPS);
-                rc = SOCKPERF_ERR_BAD_ARGUMENT;
-            }
-        }
-
-        if (!rc && aopt_check(self_obj, OPT_CLIENTPORT)) {
-            if (aopt_check(common_obj, 'f')) {
-                log_msg("--client_port conflicts with -f option");
-                rc = SOCKPERF_ERR_BAD_ARGUMENT;
-            } else {
-                const char *optarg = aopt_value(self_obj, OPT_CLIENTPORT);
-                if (optarg) {
-                    errno = 0;
-                    long value = strtol(optarg, NULL, 0);
-                    /* strtol() returns 0 if there were no digits at all */
-                    if (errno != 0) {
-                        log_msg("'-%c' Invalid port: %s", OPT_CLIENTPORT, optarg);
-                        rc = SOCKPERF_ERR_BAD_ARGUMENT;
-                    } else {
-                        s_user_params.client_bind_info.sin_port = htons((uint16_t)value);
-                    }
-                } else {
-                    log_msg("'-%c' Invalid value", OPT_CLIENTPORT);
-                    rc = SOCKPERF_ERR_BAD_ARGUMENT;
-                }
-            }
-        }
-
-        if (!rc && aopt_check(self_obj, OPT_CLIENTIP)) {
-            int len;
-            const char *optarg = aopt_value(self_obj, OPT_CLIENTIP);
-            if (!optarg) { /* already in network byte order*/
-                log_msg("'-%c' Invalid address", OPT_CLIENTIP);
-                rc = SOCKPERF_ERR_BAD_ARGUMENT;
-            } else if (4 != sscanf(optarg, "%d.%d.%d.%d", &len, &len, &len, &len)) {
-                log_msg("'-%c' Invalid address: %s", OPT_CLIENTIP, optarg);
-                rc = SOCKPERF_ERR_BAD_ARGUMENT;
-            } else if (!inet_aton(optarg, &s_user_params.client_bind_info.sin_addr)) {
-                log_msg("'-%c' Invalid address: %s", OPT_CLIENTIP, optarg);
                 rc = SOCKPERF_ERR_BAD_ARGUMENT;
             }
         }
@@ -1019,6 +999,11 @@ static int proc_mode_ping_pong(int id, int argc, const char **argv) {
                 rc = SOCKPERF_ERR_BAD_ARGUMENT;
             }
         }
+    }
+
+    if (!rc) {
+        // --tcp option must be processed before
+        rc = parse_client_bind_info(common_obj, self_obj);
     }
 
     if (rc) {
@@ -1141,7 +1126,7 @@ static int proc_mode_throughput(int id, int argc, const char **argv) {
     s_user_params.reply_every = 1 << (8 * sizeof(s_user_params.reply_every) - 2);
 
     /* Set command line common options */
-    if (!rc && common_obj) {
+    if (!rc) {
         rc = parse_common_opt(common_obj);
     }
 
@@ -1207,44 +1192,6 @@ static int proc_mode_throughput(int id, int argc, const char **argv) {
             }
         }
 
-        if (!rc && aopt_check(self_obj, OPT_CLIENTPORT)) {
-            if (aopt_check(common_obj, 'f')) {
-                log_msg("--client_port conflicts with -f option");
-                rc = SOCKPERF_ERR_BAD_ARGUMENT;
-            } else {
-                const char *optarg = aopt_value(self_obj, OPT_CLIENTPORT);
-                if (optarg) {
-                    errno = 0;
-                    long value = strtol(optarg, NULL, 0);
-                    /* strtol() returns 0 if there were no digits at all */
-                    if (errno != 0) {
-                        log_msg("'-%c' Invalid port: %s", OPT_CLIENTPORT, optarg);
-                        rc = SOCKPERF_ERR_BAD_ARGUMENT;
-                    } else {
-                        s_user_params.client_bind_info.sin_port = htons((uint16_t)value);
-                    }
-                } else {
-                    log_msg("'-%c' Invalid value", OPT_CLIENTPORT);
-                    rc = SOCKPERF_ERR_BAD_ARGUMENT;
-                }
-            }
-        }
-
-        if (!rc && aopt_check(self_obj, OPT_CLIENTIP)) {
-            int len;
-            const char *optarg = aopt_value(self_obj, OPT_CLIENTIP);
-            if (!optarg) { /* already in network byte order*/
-                log_msg("'-%c' Invalid address", OPT_CLIENTIP);
-                rc = SOCKPERF_ERR_BAD_ARGUMENT;
-            } else if (4 != sscanf(optarg, "%d.%d.%d.%d", &len, &len, &len, &len)) {
-                log_msg("'-%c' Invalid address: %s", OPT_CLIENTIP, optarg);
-                rc = SOCKPERF_ERR_BAD_ARGUMENT;
-            } else if (!inet_aton(optarg, &s_user_params.client_bind_info.sin_addr)) {
-                log_msg("'-%c' Invalid address: %s", OPT_CLIENTIP, optarg);
-                rc = SOCKPERF_ERR_BAD_ARGUMENT;
-            }
-        }
-
         if (!rc && aopt_check(self_obj, 'm')) {
             const char *optarg = aopt_value(self_obj, 'm');
             if (optarg) {
@@ -1287,6 +1234,11 @@ static int proc_mode_throughput(int id, int argc, const char **argv) {
                 rc = SOCKPERF_ERR_BAD_ARGUMENT;
             }
         }
+    }
+
+    if (!rc) {
+        // --tcp option must be processed before
+        rc = parse_client_bind_info(common_obj, self_obj);
     }
 
     if (rc) {
@@ -1395,7 +1347,7 @@ static int proc_mode_playback(int id, int argc, const char **argv) {
     s_user_params.reply_every = REPLY_EVERY_DEFAULT;
 
     /* Set command line common options */
-    if (!rc && common_obj) {
+    if (!rc) {
         rc = parse_common_opt(common_obj);
     }
 
@@ -1600,18 +1552,18 @@ static int proc_mode_server(int id, int argc, const char **argv) {
     s_user_params.msg_size = MAX_PAYLOAD_SIZE;
 
     /* Set command line common options */
-    if (!rc && common_obj) {
+    if (!rc) {
         rc = parse_common_opt(common_obj);
     }
 
     /* Set command line specific values */
     if (!rc && server_obj) {
-        struct sockaddr_in *p_addr = &s_user_params.addr;
+        struct sockaddr_store_t *p_addr = &s_user_params.addr;
 
         if (!rc && aopt_check(server_obj, 'B')) {
             log_msg("update to bridge mode");
             s_user_params.mode = MODE_BRIDGE;
-            p_addr->sin_port = htons(5001); /*iperf's default port*/
+            sockaddr_set_portn(*p_addr, htons(5001)); /*iperf's default port*/
         }
 
         if (!rc && aopt_check(server_obj, OPT_THREADS_NUM)) {
@@ -1723,12 +1675,62 @@ static int proc_mode_server(int id, int argc, const char **argv) {
     return rc;
 }
 
+// Get resolved socket address from getaddrinfo() result. IPv6 is preferred.
+static void get_socket_address(struct addrinfo *result, struct sockaddr *addr, socklen_t &addrlen)
+{
+    for (addrinfo *rp = result; rp != NULL; rp = rp->ai_next) {
+        if (rp->ai_family == AF_INET6) {
+            std::memcpy(addr, rp->ai_addr, rp->ai_addrlen);
+            addrlen = rp->ai_addrlen;
+            return;
+        }
+    }
+    for (addrinfo *rp = result; rp != NULL; rp = rp->ai_next) {
+        std::memcpy(addr, rp->ai_addr, rp->ai_addrlen);
+        addrlen = rp->ai_addrlen;
+        return;
+    }
+    // This point is unreachable because getaddrinfo() returns EAI_NODATA if
+    // there are no network addresses defined for a host
+}
+
+//------------------------------------------------------------------------------
+static int resolve_sockaddr(const char *host, const char *port, int sock_type,
+        bool is_server_mode, sockaddr *addr, socklen_t &addr_len)
+{
+    struct addrinfo hints;
+
+    memset(&hints, 0, sizeof(hints));
+    // allow IPv4 or IPv6
+    hints.ai_family = AF_UNSPEC;
+    // return addresses only from configured address families
+    hints.ai_flags = AI_ADDRCONFIG;
+    // if host is NULL then server address will be 0.0.0.0/:: and client address will be 127.0.0.1/::1
+    if (is_server_mode) {
+        // use wilcard address if host is NULL
+        hints.ai_flags |= AI_PASSIVE;
+    }
+    // any protocol
+    hints.ai_protocol = 0;
+    hints.ai_socktype = sock_type;
+
+    struct addrinfo *result;
+    int res = getaddrinfo(host, port, &hints, &result);
+    if (res == 0) {
+        get_socket_address(result, addr, addr_len);
+    }
+    freeaddrinfo(result);
+
+    return res;
+}
+
 //------------------------------------------------------------------------------
 static int parse_common_opt(const AOPT_OBJECT *common_obj) {
     int rc = SOCKPERF_ERR_NONE;
+    const char *host_str = NULL;
+    const char *port_str = DEFAULT_PORT_STR;
 
     if (common_obj) {
-        struct sockaddr_in *p_addr = &s_user_params.addr;
         int *p_daemonize = &s_user_params.daemonize;
         char *feedfile_name = s_user_params.feedfile_name;
 
@@ -1738,23 +1740,11 @@ static int parse_common_opt(const AOPT_OBJECT *common_obj) {
 
         if (!rc && aopt_check(common_obj, 'i')) {
             const char *optarg = aopt_value(common_obj, 'i');
-            int len;
-            if (!optarg) { /* already in network byte order*/
+            if (!optarg) {
                 log_msg("'-%c' Invalid address", 'i');
                 rc = SOCKPERF_ERR_BAD_ARGUMENT;
-            } else if (4 != sscanf(optarg, "%d.%d.%d.%d", &len, &len, &len, &len)) {
-                log_msg("'-%c' Invalid address: %s", 'i', optarg);
-                rc = SOCKPERF_ERR_BAD_ARGUMENT;
-            } else if (!inet_aton(optarg, &p_addr->sin_addr)) {
-                struct hostent *hostip = gethostbyname(optarg);
-                if (hostip) {
-                    memcpy(&p_addr->sin_addr, hostip->h_addr_list[0], hostip->h_length);
-                    s_user_params.fd_handler_type = RECVFROM;
-                } else {
-                    log_msg("'-%c' Invalid address: %s", 'i', optarg);
-                    rc = SOCKPERF_ERR_BAD_ARGUMENT;
-                }
             } else {
+                host_str = optarg;
                 s_user_params.fd_handler_type = RECVFROM;
             }
         }
@@ -1762,18 +1752,10 @@ static int parse_common_opt(const AOPT_OBJECT *common_obj) {
         if (!rc && aopt_check(common_obj, 'p')) {
             const char *optarg = aopt_value(common_obj, 'p');
             if (optarg && (isNumeric(optarg))) {
-                errno = 0;
-                long value = strtol(optarg, NULL, 0);
-                /* strtol() returns 0 if there were no digits at all */
-                if (errno != 0) {
-                    log_msg("'-%c' Invalid port: %s", 'p', optarg);
-                    rc = SOCKPERF_ERR_BAD_ARGUMENT;
-                } else {
-                    p_addr->sin_port = htons((uint16_t)value);
-                    s_user_params.fd_handler_type = RECVFROM;
-                }
+                port_str = optarg;
+                s_user_params.fd_handler_type = RECVFROM;
             } else {
-                log_msg("'-%c' Invalid value", 'p');
+                log_msg("'-%c' Invalid port", 'p');
                 rc = SOCKPERF_ERR_BAD_ARGUMENT;
             }
         }
@@ -1876,18 +1858,28 @@ static int parse_common_opt(const AOPT_OBJECT *common_obj) {
 
         if (!rc && aopt_check(common_obj, OPT_RX_MC_IF)) {
             const char *optarg = aopt_value(common_obj, OPT_RX_MC_IF);
-            if (!optarg || ((s_user_params.rx_mc_if_addr.s_addr = inet_addr(optarg)) ==
-                            INADDR_NONE)) { /* already in network byte order*/
-                log_msg("'-%d' Invalid address: %s", OPT_RX_MC_IF, optarg);
+            if (optarg) {
+                std::string err;
+                if (!IPAddress::resolve(optarg, s_user_params.rx_mc_if_addr, err)) {
+                    log_msg("'--mc-rx-if' Invalid address '%s': %s", optarg, err.c_str());
+                    rc = SOCKPERF_ERR_BAD_ARGUMENT;
+                }
+            } else {
+                log_msg("'--mc-rx-if' value is expected");
                 rc = SOCKPERF_ERR_BAD_ARGUMENT;
             }
         }
 
         if (!rc && aopt_check(common_obj, OPT_TX_MC_IF)) {
             const char *optarg = aopt_value(common_obj, OPT_TX_MC_IF);
-            if (!optarg || ((s_user_params.tx_mc_if_addr.s_addr = inet_addr(optarg)) ==
-                            INADDR_NONE)) { /* already in network byte order*/
-                log_msg("'-%d' Invalid address: %s", OPT_TX_MC_IF, optarg);
+            if (optarg) {
+                std::string err;
+                if (!IPAddress::resolve(optarg, s_user_params.tx_mc_if_addr, err)) {
+                    log_msg("'--mc-tx-if' Invalid address '%s': %s", optarg, err.c_str());
+                    rc = SOCKPERF_ERR_BAD_ARGUMENT;
+                }
+            } else {
+                log_msg("'--mc-tx-if' value is expected");
                 rc = SOCKPERF_ERR_BAD_ARGUMENT;
             }
         }
@@ -1895,18 +1887,13 @@ static int parse_common_opt(const AOPT_OBJECT *common_obj) {
         if (!rc && aopt_check(common_obj, OPT_MC_SOURCE_IP)) {
             const char *optarg = aopt_value(common_obj, OPT_MC_SOURCE_IP);
             if (optarg) {
-                if (!inet_aton(optarg, &(s_user_params.mc_source_ip_addr))) {
-                    struct hostent *hostip = gethostbyname(optarg);
-                    if (hostip) {
-                        memcpy(&(s_user_params.mc_source_ip_addr), hostip->h_addr_list[0],
-                               hostip->h_length);
-                    } else {
-                        log_msg("Invalid multicast source address: '%s'", optarg);
-                        rc = SOCKPERF_ERR_BAD_ARGUMENT;
-                    }
+                std::string err;
+                if (!IPAddress::resolve(optarg, s_user_params.mc_source_ip_addr, err)) {
+                    log_msg("Invalid multicast source address '%s': %s", optarg, err.c_str());
+                    rc = SOCKPERF_ERR_BAD_ARGUMENT;
                 }
             } else {
-                log_msg("'-%d' value is expected", OPT_MC_SOURCE_IP);
+                log_msg("'--mc-source-filter' value is expected");
                 rc = SOCKPERF_ERR_BAD_ARGUMENT;
             }
         }
@@ -2152,6 +2139,17 @@ static int parse_common_opt(const AOPT_OBJECT *common_obj) {
 #endif /* DEFINED_TLS */
     }
 
+    // resolve address: -i, -p and --tcp options must be processed before
+    if (!rc) {
+        int res = resolve_sockaddr(host_str, port_str, s_user_params.sock_type,
+                s_user_params.mode == MODE_SERVER, (sockaddr*)&s_user_params.addr,
+                s_user_params.addr_len);
+        if (res != 0) {
+            log_msg("'-i/-p': invalid host:port value: %s\n", gai_strerror(res));
+            rc = SOCKPERF_ERR_BAD_ARGUMENT;
+        }
+    }
+
     return rc;
 }
 
@@ -2381,14 +2379,12 @@ void set_defaults() {
 
     memset((void *)&s_user_params, 0, sizeof(s_user_params));
     memset(g_fds_array, 0, sizeof(fds_data *) * MAX_FDS_NUM);
-    s_user_params.rx_mc_if_addr.s_addr = htonl(INADDR_ANY);
-    s_user_params.tx_mc_if_addr.s_addr = htonl(INADDR_ANY);
-    s_user_params.mc_source_ip_addr.s_addr = htonl(INADDR_ANY);
+    s_user_params.rx_mc_if_addr = IPAddress::zero();
+    s_user_params.tx_mc_if_addr = IPAddress::zero();
+    s_user_params.mc_source_ip_addr = IPAddress::zero();
     s_user_params.sec_test_duration = DEFAULT_TEST_DURATION;
     s_user_params.number_test_target = DEFAULT_TEST_NUMBER;
-    s_user_params.client_bind_info.sin_family = AF_INET;
-    s_user_params.client_bind_info.sin_addr.s_addr = INADDR_ANY;
-    s_user_params.client_bind_info.sin_port = 0;
+    s_user_params.client_bind_info.ss_family = AF_UNSPEC;
     s_user_params.ci_significance_level = DEFAULT_CI_SIG_LEVEL;
     s_user_params.mode = MODE_SERVER;
     s_user_params.measurement = TIME_BASED;
@@ -2441,9 +2437,6 @@ void set_defaults() {
     s_user_params.increase_output_precision = false;
     s_user_params.pPlaybackVector = NULL;
 
-    s_user_params.addr.sin_family = AF_INET;
-    s_user_params.addr.sin_port = htons(DEFAULT_PORT);
-    inet_aton(DEFAULT_MC_ADDR, &s_user_params.addr.sin_addr);
     s_user_params.sock_type = SOCK_DGRAM;
     s_user_params.tcp_nodelay = true;
     s_user_params.mc_ttl = 2;
@@ -2529,7 +2522,8 @@ vma_recv_callback_retval_t myapp_vma_recv_pkt_filter_callback(int fd, size_t iov
 
 inline bool CallbackMessageHandler::handle_message()
 {
-    struct sockaddr_in sendto_addr;
+    struct sockaddr_store_t sendto_addr;
+    socklen_t sendto_len;
 
     Message *msgReply = m_fds_ifd->p_msg;
 
@@ -2560,18 +2554,21 @@ inline bool CallbackMessageHandler::handle_message()
         }
         /* get source addr to reply. memcpy is not used to improve performance */
         sendto_addr = m_fds_ifd->server_addr;
+        sendto_len = m_fds_ifd->server_addr_len;
 
         if (m_fds_ifd->memberships_size || !m_fds_ifd->is_multicast ||
             g_pApp->m_const_params.b_server_reply_via_uc) { // In unicast case reply to sender
             /* get source addr to reply. memcpy is not used to improve performance */
-            sendto_addr = *m_vma_info->src;
+            //TODO: update after IPv6 will be supported in libvma
+            sendto_len = sizeof(sockaddr_in);
+            std::memcpy(&sendto_addr, m_vma_info->src, sendto_len);
         } else if (m_fds_ifd->is_multicast) {
             /* always send to the same port recved from */
-            sendto_addr.sin_port = m_vma_info->src->sin_port;
+            sockaddr_set_portn(sendto_addr, sockaddr_get_portn((sockaddr_store_t &)*m_vma_info->src));
         }
         int length = msgReply->getLength();
         msgReply->setHeaderToNetwork();
-        msg_sendto(m_fd, msgReply->getBuf(), length, &sendto_addr);
+        msg_sendto(m_fd, msgReply->getBuf(), length, reinterpret_cast<sockaddr *>(&sendto_addr), sendto_len);
         /*if (ret == RET_SOCKET_SHUTDOWN) {
             if (m_fds_ifd->sock_type == SOCK_STREAM) {
                 close_ifd( m_fds_ifd->next_fd,ifd,m_fds_ifd);
@@ -2704,58 +2701,90 @@ int sock_set_tos(int fd) {
     return rc;
 }
 
+static int sock_join_multicast_v4(int fd, struct fds_data *p_data, const sockaddr_in *p_addr)
+{
+    if (s_user_params.rx_mc_if_addr.family() != AF_UNSPEC &&
+            s_user_params.rx_mc_if_addr.family() != AF_INET) {
+        log_err("multicast source IP address must be IPv4!");
+        return SOCKPERF_ERR_SOCKET;
+    }
+
+    if (p_data->mc_source_ip_addr.is_specified()) {
+        if (p_data->mc_source_ip_addr.family() != AF_INET) {
+            log_err("multicast source IP address must be IPv4!");
+            return SOCKPERF_ERR_SOCKET;
+        }
+
+        struct ip_mreq_source mreq_src;
+        memset(&mreq_src, 0, sizeof(struct ip_mreq_source));
+        mreq_src.imr_multiaddr = p_addr->sin_addr;
+        mreq_src.imr_interface.s_addr = s_user_params.rx_mc_if_addr.addr4().s_addr;
+        mreq_src.imr_sourceaddr.s_addr = p_data->mc_source_ip_addr.addr4().s_addr;
+        if (setsockopt(fd, IPPROTO_IP, IP_ADD_SOURCE_MEMBERSHIP, &mreq_src, sizeof(mreq_src)) <
+                0) {
+            if (errno == ENOBUFS) {
+                log_err("setsockopt(IP_ADD_SOURCE_MEMBERSHIP) - Maximum multicast source "
+                        "addresses that can be filtered is limited by "
+                        "/proc/sys/net/ipv4/igmp_max_msf");
+            } else {
+                log_err("setsockopt(IP_ADD_SOURCE_MEMBERSHIP)");
+            }
+            return SOCKPERF_ERR_SOCKET;
+        }
+    } else {
+        struct ip_mreq mreq;
+        memset(&mreq, 0, sizeof(struct ip_mreq));
+        mreq.imr_multiaddr = p_addr->sin_addr;
+        mreq.imr_interface.s_addr = s_user_params.rx_mc_if_addr.addr4().s_addr;
+        if (setsockopt(fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq)) < 0) {
+            if (errno == ENOBUFS) {
+                log_err("setsockopt(IP_ADD_MEMBERSHIP) - Maximum multicast addresses that can "
+                        "join same group is limited by "
+                        "/proc/sys/net/ipv4/igmp_max_memberships");
+            } else {
+                log_err("setsockopt(IP_ADD_MEMBERSHIP)");
+            }
+            return SOCKPERF_ERR_SOCKET;
+        }
+    }
+    return SOCKPERF_ERR_NONE;
+}
+
 int sock_set_multicast(int fd, struct fds_data *p_data) {
     int rc = SOCKPERF_ERR_NONE;
-    struct sockaddr_in *p_addr = NULL;
-    p_addr = &(p_data->server_addr);
+    struct sockaddr_store_t *p_addr = &(p_data->server_addr);
 
     /* use setsockopt() to request that the kernel join a multicast group */
     /* and specify a specific interface address on which to receive the packets of this socket */
     /* and may specify message source IP address on which to receive from */
     /* NOTE: we don't do this if case of client (sender) in stream mode */
     if (!s_user_params.b_stream || s_user_params.mode != MODE_CLIENT) {
-        if (p_data->mc_source_ip_addr.s_addr != INADDR_ANY) {
-            struct ip_mreq_source mreq_src;
-            memset(&mreq_src, 0, sizeof(struct ip_mreq_source));
-            mreq_src.imr_multiaddr = p_addr->sin_addr;
-            mreq_src.imr_interface.s_addr = s_user_params.rx_mc_if_addr.s_addr;
-            mreq_src.imr_sourceaddr.s_addr = p_data->mc_source_ip_addr.s_addr;
-            if (setsockopt(fd, IPPROTO_IP, IP_ADD_SOURCE_MEMBERSHIP, &mreq_src, sizeof(mreq_src)) <
-                0) {
-                if (errno == ENOBUFS) {
-                    log_err("setsockopt(IP_ADD_SOURCE_MEMBERSHIP) - Maximum multicast source "
-                            "addresses that can be filtered is limited by "
-                            "/proc/sys/net/ipv4/igmp_max_msf");
-                } else {
-                    log_err("setsockopt(IP_ADD_SOURCE_MEMBERSHIP)");
-                }
-                rc = SOCKPERF_ERR_SOCKET;
-            }
-        } else {
-            struct ip_mreq mreq;
-            memset(&mreq, 0, sizeof(struct ip_mreq));
-            mreq.imr_multiaddr = p_addr->sin_addr;
-            mreq.imr_interface.s_addr = s_user_params.rx_mc_if_addr.s_addr;
-            if (setsockopt(fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq)) < 0) {
-                if (errno == ENOBUFS) {
-                    log_err("setsockopt(IP_ADD_MEMBERSHIP) - Maximum multicast addresses that can "
-                            "join same group is limited by "
-                            "/proc/sys/net/ipv4/igmp_max_memberships");
-                } else {
-                    log_err("setsockopt(IP_ADD_MEMBERSHIP)");
-                }
-                rc = SOCKPERF_ERR_SOCKET;
-            }
+        switch (p_addr->ss_family) {
+        case AF_INET:
+            rc = sock_join_multicast_v4(fd, p_data, reinterpret_cast<sockaddr_in *>(p_addr));
+            break;
+        case AF_INET6:
+            //TODO; add IPv6 multicasting suport
+            log_err("IPv6 multicast is not supported");
+            rc = SOCKPERF_ERR_UNSUPPORTED;
+            break;
         }
     }
 
     /* specify a specific interface address on which to transmitted the multicast packets of this
      * socket */
-    if (!rc && (s_user_params.tx_mc_if_addr.s_addr != INADDR_ANY)) {
-        if (setsockopt(fd, IPPROTO_IP, IP_MULTICAST_IF, &s_user_params.tx_mc_if_addr,
-                       sizeof(s_user_params.tx_mc_if_addr)) < 0) {
-            log_err("setsockopt(IP_MULTICAST_IF)");
-            rc = SOCKPERF_ERR_SOCKET;
+    if (!rc && s_user_params.tx_mc_if_addr.is_specified()) {
+        switch (s_user_params.tx_mc_if_addr.family()) {
+        case AF_INET:
+            if (setsockopt(fd, IPPROTO_IP, IP_MULTICAST_IF,
+                        &s_user_params.tx_mc_if_addr.addr4(), sizeof(in_addr)) < 0) {
+                log_err("setsockopt(IP_MULTICAST_IF)");
+                rc = SOCKPERF_ERR_SOCKET;
+            }
+            break;
+        case AF_INET6:
+            //TODO; add IPv6 multicasting suport
+            break;
         }
     }
 
@@ -2816,13 +2845,24 @@ int prepare_socket(int fd, struct fds_data *p_data)
         rc = sock_set_accl(fd);
     }
 
-    if (!rc && ((p_data->is_multicast) || (s_user_params.uc_reuseaddr)) &&
-        ((s_user_params.mode == MODE_SERVER && p_data->server_addr.sin_port) ||
-         (s_user_params.mode == MODE_CLIENT && s_user_params.client_bind_info.sin_port))) {
+    if (!rc && ((p_data->is_multicast) || (s_user_params.uc_reuseaddr))) {
         /* allow multiple sockets to use the same PORT (SO_REUSEADDR) number
          * only if it is a well know L4 port only for MC or if uc_reuseaddr parameter was set.
          */
-        rc = sock_set_reuseaddr(fd);
+        const sockaddr_store_t *addr;
+        switch (s_user_params.mode) {
+        case MODE_SERVER:
+            addr = &p_data->server_addr;
+            break;
+        case MODE_CLIENT:
+            addr = &s_user_params.client_bind_info;
+            break;
+        default:
+            addr = NULL;
+        }
+        if (addr && sockaddr_get_portn(*addr) != 0) {
+            rc = sock_set_reuseaddr(fd);
+        }
     }
 
     if (!rc && (s_user_params.lls_is_set == true)) {
@@ -2869,21 +2909,47 @@ int prepare_socket(int fd, struct fds_data *p_data)
 }
 
 //------------------------------------------------------------------------------
+static bool is_unspec_addr(const sockaddr_store_t &addr)
+{
+    switch (addr.ss_family) {
+    case AF_INET:
+        return reinterpret_cast<const sockaddr_in &>(addr).sin_addr.s_addr == INADDR_ANY;
+    case AF_INET6:
+        return IN6_IS_ADDR_UNSPECIFIED(&reinterpret_cast<const sockaddr_in6 &>(addr).sin6_addr);
+    }
+    return true;
+}
+
+//------------------------------------------------------------------------------
 /* get IP:port pairs from the file and initialize the list */
+/* Example file content:
+# old format
+192.168.1.2:1123
+# current format
+T:192.168.1.3:1124
+T:localhost:1120
+U:192.168.1.4:1125
+U:192.168.1.5:1126:1.2.3.4
+U:main.example.org:1125:src.example.org
+# IPv6 addresses
+U:[::1]:1127
+U:[2001:0db8:0000:0000:0000:ff00:0042:8329]:1128
+U:[2001:0db8:0000:0000:0000:ff00:0042:8329]:1129:[ff02::1]
+T:[::ffff:192.0.2.128]:1130
+U:[fe80::9a03:9bff:fea3:b01c%enp3s0f0]:1131
+*/
 static int set_sockets_from_feedfile(const char *feedfile_name) {
     int rc = SOCKPERF_ERR_NONE;
     FILE *file_fd = NULL;
     char line[MAX_MCFILE_LINE_LENGTH];
     char *res;
     int sock_type = SOCK_DGRAM;
-    char *ip = NULL;
-    char *port = NULL;
-    char *mc_src_ip = NULL;
     fds_data *tmp;
     int curr_fd = 0, last_fd = 0;
 #ifndef WIN32
-    int regexpres;
     regex_t regexpr;
+#else
+    #error "unsupported platform"
 #endif
 
     struct stat st_buf;
@@ -2905,63 +2971,71 @@ static int set_sockets_from_feedfile(const char *feedfile_name) {
     }
 /* a map to keep records on the address we received */
 #ifndef __FreeBSD__
-    std::tr1::unordered_map<port_and_type, int> fd_socket_map; //<port,fd>
+    std::tr1::unordered_map<port_descriptor, int> fd_socket_map; //<port,fd>
 #else
-    std::unordered_map<port_and_type, int> fd_socket_map; //<port,fd>
+    std::unordered_map<port_descriptor, int> fd_socket_map; //<port,fd>
 #endif
+    
+    int regexp_error = regcomp(&regexpr, IP_PORT_FORMAT_REG_EXP, REG_EXTENDED);
+    if (regexp_error != 0) {
+        log_msg("Failed to compile regexp");
+        rc = SOCKPERF_ERR_FATAL;
+    }
 
     while (!rc && (res = fgets(line, MAX_MCFILE_LINE_LENGTH, file_fd))) {
         /* skip empty lines and comments */
         if (line[0] == ' ' || line[0] == '\r' || line[0] == '\n' || line[0] == '#') {
             continue;
         }
-#ifndef WIN32
-        regexpres = regcomp(&regexpr, IP_PORT_FORMAT_REG_EXP, REG_EXTENDED | REG_NOSUB);
-        if (regexpres) {
-            log_msg("Failed to compile regexp");
-            rc = SOCKPERF_ERR_FATAL;
-            break;
-        } else {
-            regexpres = regexec(&regexpr, line, (size_t)0, NULL, 0);
-            regfree(&regexpr);
-            if (regexpres) {
-                log_msg("Invalid input in line %s: "
-                        "each line must have the following format: ip:port or type:ip:port or "
-                        "type:ip:port:mc_src_ip",
-                        line);
-                rc = SOCKPERF_ERR_INCORRECT;
-                break;
-            }
-        }
-#endif
+        std::string type, ip, port, mc_src_ip;
 
-        /* this code support backward compatibility with old format of file */
-        if (line[0] == 'U' || line[0] == 'u' || line[0] == 'T' || line[0] == 't') {
-            sock_type = (line[0] == 'T' || line[0] == 't' ? SOCK_STREAM : SOCK_DGRAM);
-            strtok(line, ":");
-            ip = strtok(NULL, ":");
+        const size_t NUM_RE_GROUPS = 9;
+        regmatch_t m[NUM_RE_GROUPS];
+        int regexpres = regexec(&regexpr, line, NUM_RE_GROUPS, m, 0);
+        if (regexpres == 0) {
+            type = std::string(line + m[1].rm_so, line + m[1].rm_eo);
+            // server address
+            if (m[3].rm_so < 0) {
+                // IPv4 or hostname
+                ip = std::string(line + m[2].rm_so, line + m[2].rm_eo);
+            } else {
+                // IPv6 in brackets
+                ip = std::string(line + m[3].rm_so, line + m[3].rm_eo);
+            }
+            port = std::string(line + m[5].rm_so, line + m[5].rm_eo);
+            // multicast source address
+            if (m[8].rm_so < 0) {
+                // IPv4 or hostname
+                mc_src_ip = std::string(line + m[7].rm_so, line + m[7].rm_eo);
+            } else {
+                // IPv6 in brackets
+                mc_src_ip = std::string(line + m[8].rm_so, line + m[8].rm_eo);
+            }
+        } else {
+            log_msg("Invalid input in line %s: "
+                    "each line must have the following format: ip:port or type:ip:port or "
+                    "type:ip:port:mc_src_ip. "
+                    "IPv6 addresses must be enclosed in square brackets.",
+                    line);
+            rc = SOCKPERF_ERR_INCORRECT;
+            break;
+        }
+
+        if (!type.empty()) {
+            /* this code support backward compatibility with old format of file */
+            sock_type = (type[0] == 'T' || type[0] == 't' ? SOCK_STREAM : SOCK_DGRAM);
         } else {
             sock_type = SOCK_DGRAM;
-            ip = strtok(line, ":");
         }
+
         if (sock_type == SOCK_DGRAM && s_user_params.mode == MODE_CLIENT) {
             if (s_user_params.fd_handler_type == SOCKETXTREME &&
-                s_user_params.client_bind_info.sin_addr.s_addr == INADDR_ANY) {
+                is_unspec_addr(s_user_params.client_bind_info)) {
                 log_msg("socketxtreme requires forcing the client side to bind to a specific ip "
                         "address (use --client_ip) option");
                 rc = SOCKPERF_ERR_INCORRECT;
                 break;
             }
-        }
-        port = strtok(NULL, ":\n");
-        mc_src_ip = strtok(NULL, ":\n");
-        if (!ip || !port) {
-            log_msg("Invalid input in line %s: "
-                    "each line must have the following format: ip:port or type:ip:port or "
-                    "type:ip:port:mc_src_ip",
-                    line);
-            rc = SOCKPERF_ERR_INCORRECT;
-            break;
         }
 
         tmp = (struct fds_data *)MALLOC(sizeof(struct fds_data));
@@ -2969,49 +3043,46 @@ static int set_sockets_from_feedfile(const char *feedfile_name) {
             log_err("Failed to allocate memory with malloc()");
             rc = SOCKPERF_ERR_NO_MEMORY;
         } else {
-            memset(tmp, 0, sizeof(struct fds_data));
-            tmp->server_addr.sin_family = AF_INET;
-            tmp->server_addr.sin_port = htons(atoi(port));
-            tmp->mc_source_ip_addr.s_addr = s_user_params.mc_source_ip_addr.s_addr;
-            if (!inet_aton(ip, &tmp->server_addr.sin_addr)) {
-                struct hostent *hostip = gethostbyname(ip);
-                if (hostip) {
-                    memcpy(&(tmp->server_addr.sin_addr), hostip->h_addr_list[0], hostip->h_length);
-                } else {
-                    log_msg("Invalid address in line %s: '%s:%s'", line, ip, port);
+            memset(reinterpret_cast<void *>(tmp), 0, sizeof(struct fds_data));
+
+            int res = resolve_sockaddr(ip.c_str(), port.c_str(), sock_type,
+                    false, reinterpret_cast<sockaddr *>(&tmp->server_addr), tmp->server_addr_len);
+            if (res != 0) {
+                log_msg("Invalid address in line %s: %s\n", line, gai_strerror(res));
+                FREE(tmp);
+                rc = SOCKPERF_ERR_INCORRECT;
+                break;
+            }
+
+            tmp->mc_source_ip_addr = s_user_params.mc_source_ip_addr;
+            if (!mc_src_ip.empty()) {
+                std::string err;
+                if (!IPAddress::resolve(mc_src_ip.c_str(), tmp->mc_source_ip_addr, err)) {
+                    log_msg("Invalid multicast source address '%s' in line %s: %s",
+                        mc_src_ip.c_str(), line, err.c_str());
                     FREE(tmp);
                     rc = SOCKPERF_ERR_INCORRECT;
                     break;
                 }
             }
-            if ((mc_src_ip) && (!inet_aton(mc_src_ip, &(tmp->mc_source_ip_addr)))) {
-                struct hostent *hostip = gethostbyname(mc_src_ip);
-                if (hostip) {
-                    memcpy(&(tmp->mc_source_ip_addr), hostip->h_addr_list[0], hostip->h_length);
-                } else {
-                    log_msg("Invalid multicast source address in line %s: '%s'", line, mc_src_ip);
-                    FREE(tmp);
-                    rc = SOCKPERF_ERR_INCORRECT;
-                    break;
-                }
-            }
-            tmp->is_multicast = IN_MULTICAST(ntohl(tmp->server_addr.sin_addr.s_addr));
+            tmp->is_multicast = is_multicast_addr(tmp->server_addr);
             tmp->sock_type = sock_type;
 
             /* Check if the same value exists */
             bool is_exist = false;
-            port_and_type port_type_tmp = { tmp->sock_type, tmp->server_addr.sin_port };
+            in_port_t port_tmp = ntohs(sockaddr_get_portn(tmp->server_addr));
+            port_descriptor port_desc_tmp = { tmp->sock_type, tmp->server_addr.ss_family, port_tmp };
             for (int i = s_fd_min; i <= s_fd_max; i++) {
                 /* duplicated values are accepted in case client connection using TCP */
                 /* or in case source address is set for multicast socket */
                 if (((s_user_params.mode == MODE_CLIENT) && (tmp->sock_type == SOCK_STREAM)) ||
-                    ((tmp->is_multicast) && (tmp->mc_source_ip_addr.s_addr != INADDR_ANY))) {
+                    ((tmp->is_multicast) && tmp->mc_source_ip_addr.is_specified())) {
                     continue;
                 }
 
                 if (g_fds_array[i] && !memcmp(&(g_fds_array[i]->server_addr), &(tmp->server_addr),
                                               sizeof(tmp->server_addr)) &&
-                    fd_socket_map[port_type_tmp]) {
+                    fd_socket_map[port_desc_tmp]) {
                     is_exist = true;
                     break;
                 }
@@ -3033,28 +3104,28 @@ static int set_sockets_from_feedfile(const char *feedfile_name) {
                 rc = SOCKPERF_ERR_NO_MEMORY;
             } else {
                 /* if this port already been received before, join socket - multicast only */
-                if ((0 != fd_socket_map[port_type_tmp]) && (tmp->is_multicast)) {
+                if ((0 != fd_socket_map[port_desc_tmp]) && (tmp->is_multicast)) {
                     /* join socket */
-                    curr_fd = fd_socket_map[port_type_tmp];
+                    curr_fd = fd_socket_map[port_desc_tmp];
                     new_socket_flag = false;
                     if (g_fds_array[curr_fd]->memberships_addr == NULL) {
-                        g_fds_array[curr_fd]->memberships_addr = (struct sockaddr_in *)MALLOC(
-                            IGMP_MAX_MEMBERSHIPS * sizeof(struct sockaddr_in));
+                        g_fds_array[curr_fd]->memberships_addr = reinterpret_cast<sockaddr_store_t *>(MALLOC(
+                            IGMP_MAX_MEMBERSHIPS * sizeof(struct sockaddr_store_t)));
                     }
                     g_fds_array[curr_fd]->memberships_addr[g_fds_array[curr_fd]->memberships_size] =
                         tmp->server_addr;
                     g_fds_array[curr_fd]->memberships_size++;
                 } else {
                     /* create a socket */
-                    if ((curr_fd = (int)socket(AF_INET, tmp->sock_type, 0)) <
+                    if ((curr_fd = (int)socket(tmp->server_addr.ss_family, tmp->sock_type, 0)) <
                         0) { // TODO: use SOCKET all over the way and avoid this cast
-                        log_err("socket(AF_INET, SOCK_x)");
+                        log_err("socket(AF_INET4/6, SOCK_x)");
                         rc = SOCKPERF_ERR_SOCKET;
                     }
-                    fd_socket_map[port_type_tmp] = curr_fd;
+                    fd_socket_map[port_desc_tmp] = curr_fd;
                     if (tmp->is_multicast) {
-                        tmp->memberships_addr = (struct sockaddr_in *)MALLOC(
-                            IGMP_MAX_MEMBERSHIPS * sizeof(struct sockaddr_in));
+                        tmp->memberships_addr = reinterpret_cast<sockaddr_store_t *>(MALLOC(
+                            IGMP_MAX_MEMBERSHIPS * sizeof(struct sockaddr_store_t)));
                     } else {
                         tmp->memberships_addr = NULL;
                     }
@@ -3119,6 +3190,9 @@ static int set_sockets_from_feedfile(const char *feedfile_name) {
             }
         }
     }
+    if (regexp_error == 0) {
+        regfree(&regexpr);
+    }
 
     if (!rc && (NULL == res) && ferror(file_fd)) {
         /* An I/O error occured */
@@ -3139,32 +3213,36 @@ static int set_sockets_from_feedfile(const char *feedfile_name) {
 
 #ifdef ST_TEST
         {
-            char *ip = "224.3.2.1";
-            char *port = "11111";
+            const char *ip = "224.3.2.1";
+            uint32_t port = 11111;
             static fds_data data1, data2;
 
             tmp = &data1;
             memset(tmp, 0, sizeof(struct fds_data));
-            tmp->server_addr.sin_family = AF_INET;
-            tmp->server_addr.sin_port = htons(atoi(port));
-            if (!inet_aton(ip, &tmp->server_addr.sin_addr)) {
-                log_msg("Invalid input: '%s:%s'", ip, port);
+            tmp->server_addr_len = sizeof(sockaddr_in);
+            sockaddr_in &sa1 = reinterpret_cast<sockaddr_in &>(tmp->server_addr);
+            sa1.sin_family = AF_INET;
+            sockaddr_set_portn(tmp->server_addr, htons(port));
+            if (!inet_aton(ip, &((sockaddr_in &)tmp->server_addr).sin_addr)) {
+                log_msg("Invalid input: '%s:%d'", ip, port);
                 exit_with_log(SOCKPERF_ERR_INCORRECT);
             }
             tmp->sock_type = sock_type;
-            tmp->is_multicast = IN_MULTICAST(ntohl(tmp->server_addr.sin_addr.s_addr));
+            tmp->is_multicast = IN_MULTICAST(ntohl(sa1.sin_addr.s_addr));
             st1 = prepare_socket(tmp, true);
 
             tmp = &data2;
             memset(tmp, 0, sizeof(struct fds_data));
-            tmp->server_addr.sin_family = AF_INET;
-            tmp->server_addr.sin_port = htons(atoi(port));
-            if (!inet_aton(ip, &tmp->server_addr.sin_addr)) {
-                log_msg("Invalid input: '%s:%s'", ip, port);
+            tmp->server_addr_len = sizeof(sockaddr_in);
+            sockaddr_in &sa2 = reinterpret_cast<sockaddr_in &>(tmp->server_addr);
+            sa2.sin_family = AF_INET;
+            sockaddr_set_portn(tmp->server_addr, htons(port));
+            if (!inet_aton(ip, &((sockaddr_in &)tmp->server_addr).sin_addr)) {
+                log_msg("Invalid input: '%s:%d'", ip, port);
                 exit_with_log(SOCKPERF_ERR_INCORRECT);
             }
             tmp->sock_type = sock_type;
-            tmp->is_multicast = IN_MULTICAST(ntohl(tmp->server_addr.sin_addr.s_addr));
+            tmp->is_multicast = IN_MULTICAST(ntohl(sa2.sin_addr.s_addr));
             st2 = prepare_socket(tmp, true);
         }
 #endif
@@ -3267,10 +3345,11 @@ int bringup(const int *p_daemonize) {
                 log_err("Failed to allocate memory with malloc()");
                 rc = SOCKPERF_ERR_NO_MEMORY;
             } else {
-                memset(tmp, 0, sizeof(struct fds_data));
-                memcpy(&tmp->server_addr, &(s_user_params.addr), sizeof(struct sockaddr_in));
-                tmp->mc_source_ip_addr.s_addr = s_user_params.mc_source_ip_addr.s_addr;
-                tmp->is_multicast = IN_MULTICAST(ntohl(tmp->server_addr.sin_addr.s_addr));
+                memset(reinterpret_cast<void *>(tmp), 0, sizeof(struct fds_data));
+                memcpy(&tmp->server_addr, &(s_user_params.addr), sizeof(s_user_params.addr));
+                tmp->server_addr_len = s_user_params.addr_len;
+                tmp->mc_source_ip_addr = s_user_params.mc_source_ip_addr;
+                tmp->is_multicast = is_multicast_addr(tmp->server_addr);
                 tmp->sock_type = s_user_params.sock_type;
 
                 tmp->active_fd_count = 0;
@@ -3280,9 +3359,9 @@ int bringup(const int *p_daemonize) {
                     rc = SOCKPERF_ERR_NO_MEMORY;
                 } else {
                     /* create a socket */
-                    if ((curr_fd = (int)socket(AF_INET, tmp->sock_type, 0)) <
+                    if ((curr_fd = (int)socket(tmp->server_addr.ss_family, tmp->sock_type, 0)) <
                         0) { // TODO: use SOCKET all over the way and avoid this cast
-                        log_err("socket(AF_INET, SOCK_x)");
+                        log_err("socket(AF_INET4/6, SOCK_x)");
                         rc = SOCKPERF_ERR_SOCKET;
                     } else {
                         if ((curr_fd >= MAX_FDS_NUM) ||
@@ -3494,6 +3573,8 @@ int main(int argc, char *argv[]) {
             exit_with_log(rc); // will also perform cleanup
         }
 
+        std::string client_bind_info_str = sockaddr_to_hostport(s_user_params.client_bind_info);
+
         log_dbg(
             "+INFO:\n\t\
 mode = %d \n\t\
@@ -3527,7 +3608,7 @@ b_server_reply_via_uc = %d \n\t\
 b_server_dont_reply = %d \n\t\
 b_server_detect_gaps = %d\n\t\
 mps = %d \n\t\
-client_bind_info = %s:%d \n\t\
+client_bind_info = %s \n\t\
 reply_every = %d \n\t\
 b_client_ping_pong = %d \n\t\
 b_no_rdtsc = %d \n\t\
@@ -3550,8 +3631,7 @@ packet pace limit = %d",
             s_user_params.uc_reuseaddr, s_user_params.tcp_nodelay,
             s_user_params.client_work_with_srv_num, s_user_params.b_server_reply_via_uc,
             s_user_params.b_server_dont_reply, s_user_params.b_server_detect_gaps,
-            s_user_params.mps, inet_ntoa(s_user_params.client_bind_info.sin_addr),
-            ntohs(s_user_params.client_bind_info.sin_port), s_user_params.reply_every,
+            s_user_params.mps, client_bind_info_str.c_str(), s_user_params.reply_every,
             s_user_params.b_client_ping_pong, s_user_params.b_no_rdtsc,
             (strlen(s_user_params.sender_affinity) ? s_user_params.sender_affinity : "<empty>"),
             (strlen(s_user_params.receiver_affinity) ? s_user_params.receiver_affinity : "<empty>"),

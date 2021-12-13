@@ -43,10 +43,46 @@ void recvfromError(int fd) {
 }
 
 //------------------------------------------------------------------------------
-void sendtoError(int fd, int nbytes, const struct sockaddr_in *sendto_addr) {
+std::string sockaddr_to_hostport(const struct sockaddr *addr)
+{
+    char hbuf[NI_MAXHOST] = "(unknown)";
+    char pbuf[NI_MAXSERV] = "(unk)";
+    socklen_t addrlen = 0;
+    switch (addr->sa_family) {
+    case AF_INET:
+        addrlen = sizeof(sockaddr_in);
+        break;
+    case AF_INET6:
+        addrlen = sizeof(sockaddr_in6);
+        break;
+    }
+    getnameinfo(addr, addrlen, hbuf, sizeof(hbuf), pbuf, sizeof(pbuf),
+            NI_NUMERICHOST | NI_NUMERICSERV);
+    if (addr->sa_family == AF_INET6) {
+        return "[" + std::string(hbuf) + "]:" + std::string(pbuf);
+    } else {
+        return std::string(hbuf) + ":" + std::string(pbuf);
+    }
+}
+
+//------------------------------------------------------------------------------
+bool is_multicast_addr(const sockaddr_store_t &addr)
+{
+    switch (addr.ss_family) {
+    case AF_INET:
+        return IN_MULTICAST(ntohl(reinterpret_cast<const sockaddr_in &>(addr).sin_addr.s_addr));
+    case AF_INET6:
+        return IN6_IS_ADDR_MULTICAST(&(reinterpret_cast<const sockaddr_in6 &>(addr)).sin6_addr);
+    }
+    return false;
+}
+
+//------------------------------------------------------------------------------
+void sendtoError(int fd, int nbytes, const struct sockaddr *sendto_addr) {
     if (!g_b_exit) {
-        log_err("sendto() Failed sending on fd[%d] to %s:%d msg size of %d bytes", fd,
-                inet_ntoa(sendto_addr->sin_addr), ntohs(sendto_addr->sin_port), nbytes);
+        std::string hostport = sockaddr_to_hostport(sendto_addr);
+        log_err("sendto() Failed sending on fd[%d] to %s msg size of %d bytes", fd,
+                hostport.c_str(), nbytes);
         exit_with_log(SOCKPERF_ERR_SOCKET);
     }
 }
@@ -67,9 +103,9 @@ void exit_with_log(const char *error, int status) {
 }
 
 //------------------------------------------------------------------------------
-void exit_with_log(const char *error, int status, fds_data *fds) {
-    printf("IP = %-15s PORT = %5d # %s ", inet_ntoa(fds->server_addr.sin_addr),
-           ntohs(fds->server_addr.sin_port), PRINT_PROTOCOL(fds->sock_type));
+void exit_with_log(const char *error, int status, const fds_data *fds) {
+    std::string hostport = sockaddr_to_hostport(reinterpret_cast<const sockaddr *>(&fds->server_addr));
+    printf("ADDR = %s # %s ", hostport.c_str(), PRINT_PROTOCOL(fds->sock_type));
     exit_with_log(error, status);
 }
 
@@ -83,8 +119,9 @@ void exit_with_err(const char *error, int status) {
 }
 
 //------------------------------------------------------------------------------
-void print_log_dbg(struct in_addr sin_addr, in_port_t sin_port, int ifd) {
-    log_dbg("peer address to close: %s:%d [%d]", inet_ntoa(sin_addr), ntohs(sin_port), ifd);
+void print_log_dbg(struct sockaddr *addr, int ifd) {
+    std::string hostport = sockaddr_to_hostport(addr);
+    log_dbg("peer address to close: %s [%d]", hostport.c_str(), ifd);
 }
 
 //------------------------------------------------------------------------------

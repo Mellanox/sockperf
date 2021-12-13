@@ -29,21 +29,33 @@
 #ifndef COMMON_H_
 #define COMMON_H_
 
+#include <string>
+
 #include "defs.h"
-//#include "switches.h"
 #include "message.h"
 #include "tls.h"
 
 extern user_params_t s_user_params;
 //------------------------------------------------------------------------------
 void recvfromError(int fd); // take out error code from inline function
+std::string sockaddr_to_hostport(const struct sockaddr *addr);
+inline std::string sockaddr_to_hostport(const struct sockaddr_store_t *addr) {
+    return sockaddr_to_hostport(reinterpret_cast<const sockaddr *>(addr));
+}
+inline std::string sockaddr_to_hostport(const struct sockaddr_in &addr) {
+    return sockaddr_to_hostport(reinterpret_cast<const sockaddr *>(&addr));
+}
+inline std::string sockaddr_to_hostport(const struct sockaddr_store_t &addr) {
+    return sockaddr_to_hostport(reinterpret_cast<const sockaddr *>(&addr));
+}
+bool is_multicast_addr(const sockaddr_store_t &addr);
 void sendtoError(int fd, int nbytes,
-                 const struct sockaddr_in *sendto_addr); // take out error code from inline function
+                 const struct sockaddr *sendto_addr); // take out error code from inline function
 void exit_with_log(int status);
 void exit_with_log(const char *error, int status);
-void exit_with_log(const char *error, int status, fds_data *fds);
+void exit_with_log(const char *error, int status, const fds_data *fds);
 void exit_with_err(const char *error, int status);
-void print_log_dbg(struct in_addr sin_addr, in_port_t sin_port, int ifd);
+void print_log_dbg(struct sockaddr *addr, int ifd);
 
 int set_affinity_list(os_thread_t thread, const char *cpu_list);
 void hexdump(void *ptr, int buflen);
@@ -53,7 +65,7 @@ int read_int_from_sys_file(const char *path);
 // inline functions
 //------------------------------------------------------------------------------
 static inline int msg_sendto(int fd, uint8_t *buf, int nbytes,
-                             const struct sockaddr_in *sendto_addr) {
+                     const struct sockaddr *sendto_addr, socklen_t addrlen) {
     int ret = 0;
     int flags = 0;
 
@@ -93,13 +105,13 @@ static inline int msg_sendto(int fd, uint8_t *buf, int nbytes,
         } else
 #endif /* DEFINED_TLS */
         {
-            ret = sendto(fd, buf, nbytes, flags, (struct sockaddr *)sendto_addr,
-                         sizeof(struct sockaddr));
+            ret = sendto(fd, buf, nbytes, flags, sendto_addr, addrlen);
         }
 
 #if defined(LOG_TRACE_SEND) && (LOG_TRACE_SEND == TRUE)
-        LOG_TRACE("raw", "%s IP: %s:%d [fd=%d ret=%d] %s", __FUNCTION__,
-                  inet_ntoa(sendto_addr->sin_addr), ntohs(sendto_addr->sin_port), fd, ret,
+        std::string hostport = sockaddr_to_hostport(sendto_addr);
+        LOG_TRACE("raw", "%s IP: %s [fd=%d ret=%d] %s", __FUNCTION__,
+                  hostport.c_str(), fd, ret,
                   strerror(errno));
 #endif /* LOG_TRACE_SEND */
 
@@ -145,5 +157,29 @@ static inline int msg_sendto(int fd, uint8_t *buf, int nbytes,
 }
 
 int sock_set_rate_limit(int fd, uint32_t rate_limit);
+
+/** @brief extract port in network byte order from socket address.
+ */
+static inline uint16_t sockaddr_get_portn(const sockaddr_store_t &addr)
+{
+    switch (addr.ss_family) {
+    case AF_INET:
+        return reinterpret_cast<const sockaddr_in &>(addr).sin_port;
+    case AF_INET6:
+        return reinterpret_cast<const sockaddr_in6 &>(addr).sin6_port;
+    }
+    return 0;
+}
+/** @brief set port in network byte order in socket address.
+ */
+static inline void sockaddr_set_portn(sockaddr_store_t &addr, uint16_t port)
+{
+    switch (addr.ss_family) {
+    case AF_INET:
+        reinterpret_cast<sockaddr_in &>(addr).sin_port = port;
+    case AF_INET6:
+        reinterpret_cast<sockaddr_in6 &>(addr).sin6_port = port;
+    }
+}
 
 #endif /* COMMON_H_ */

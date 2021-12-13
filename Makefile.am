@@ -28,6 +28,8 @@ sockperf_SOURCES = \
 	src/input_handlers.h \
 	src/iohandlers.cpp \
 	src/iohandlers.h \
+	src/ip_address.cpp \
+	src/ip_address.h \
 	src/message.cpp \
 	src/message.h \
 	src/message_parser.h \
@@ -37,6 +39,7 @@ sockperf_SOURCES = \
 	src/packet.h \
 	src/playback.cpp \
 	src/playback.h \
+	src/port_descriptor.h \
 	src/server.cpp \
 	src/server.h \
 	src/sockperf.cpp \

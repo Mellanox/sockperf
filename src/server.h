@@ -29,6 +29,7 @@
 #ifndef SERVER_H_
 #define SERVER_H_
 
+#include "defs.h"
 #include "common.h"
 #include "input_handlers.h"
 
@@ -85,22 +86,26 @@ private:
     class ServerMessageHandlerCallback {
         Server<IoType, SwitchActivityInfo, SwitchCalcGaps> &m_server;
         int m_ifd;
-        struct sockaddr_in &m_recvfrom_addr;
+        struct sockaddr_store_t &m_recvfrom_addr;
+        socklen_t m_recvfrom_len;
         fds_data *m_fds_ifd;
 
     public:
         inline ServerMessageHandlerCallback(Server<IoType, SwitchActivityInfo, SwitchCalcGaps> &server,
-                int ifd, struct sockaddr_in &recvfrom_addr, fds_data *l_fds_ifd) :
+                int ifd, struct sockaddr_store_t &recvfrom_addr, socklen_t recvfrom_len,
+                fds_data *l_fds_ifd) :
             m_server(server),
             m_ifd(ifd),
             m_recvfrom_addr(recvfrom_addr),
+            m_recvfrom_len(recvfrom_len),
             m_fds_ifd(l_fds_ifd)
         {
         }
 
         inline bool handle_message()
         {
-            return m_server.handle_message(m_ifd, m_recvfrom_addr, m_fds_ifd);
+            return m_server.handle_message(m_ifd, m_recvfrom_addr, m_recvfrom_len,
+                    m_fds_ifd);
         }
     };
 
@@ -132,7 +137,8 @@ public:
         }
     }
 
-    /*inline*/ bool handle_message(int ifd, struct sockaddr_in &recvfrom_addr, fds_data *l_fds_ifd);
+    /*inline*/ bool handle_message(int ifd, struct sockaddr_store_t &recvfrom_addr,
+            socklen_t recvfrom_len, fds_data *l_fds_ifd);
 
     //------------------------------------------------------------------------------
     int server_accept(int ifd);
@@ -142,11 +148,12 @@ private:
     SwitchCalcGaps m_switchCalcGaps;
 };
 
-void print_log(const char *error, fds_data *fds) {
-    printf("IP = %-15s PORT = %5d # %s ", inet_ntoa(fds->server_addr.sin_addr),
-           ntohs(fds->server_addr.sin_port), PRINT_PROTOCOL(fds->sock_type));
+void print_log(const char *error, const fds_data *fds) {
+    std::string hostport = sockaddr_to_hostport(reinterpret_cast<const sockaddr *>(&fds->server_addr));
+    printf("ADDR = %s # %s ", hostport.c_str(), PRINT_PROTOCOL(fds->sock_type));
     log_err("%s", error);
 }
+
 void print_log(const char *error, int fds) {
     printf("actual_fd = %d ", fds);
     log_err("%s", error);
@@ -173,7 +180,7 @@ void close_ifd(int fd, int ifd, fds_data *l_fds_ifd) {
 
     for (int i = 0; i < MAX_ACTIVE_FD_NUM; i++) {
         if (l_next_fd->active_fd_list[i] == ifd) {
-            print_log_dbg(l_fds_ifd->server_addr.sin_addr, l_fds_ifd->server_addr.sin_port, ifd);
+            print_log_dbg(reinterpret_cast<sockaddr *>(&l_fds_ifd->server_addr), ifd);
             close(ifd);
             l_next_fd->active_fd_count--;
             l_next_fd->active_fd_list[i] =
@@ -197,7 +204,8 @@ void close_ifd(int fd, int ifd, fds_data *l_fds_ifd) {
 template <class IoType, class SwitchActivityInfo, class SwitchCalcGaps>
 template <class InputHandler>
 inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_then_send(int ifd) {
-    struct sockaddr_in recvfrom_addr;
+    struct sockaddr_store_t recvfrom_addr;
+    socklen_t recvfrom_len = sizeof(recvfrom_addr);
     static const bool do_update = true;
     int ret = 0;
     fds_data *l_fds_ifd = g_fds_array[ifd];
@@ -207,7 +215,7 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_t
     }
 
     InputHandler input_handler(m_pMsgReply, l_fds_ifd->recv);
-    ret = input_handler.receive_pending_data(ifd, &recvfrom_addr);
+    ret = input_handler.receive_pending_data(ifd, reinterpret_cast<sockaddr *>(&recvfrom_addr), recvfrom_len);
     if (unlikely(ret <= 0)) {
         input_handler.cleanup();
         if (ret == RET_SOCKET_SHUTDOWN) {
@@ -220,7 +228,8 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_t
         }
     }
 
-    ServerMessageHandlerCallback callback(*this, ifd, recvfrom_addr, l_fds_ifd);
+    ServerMessageHandlerCallback callback(*this, ifd, recvfrom_addr,
+            recvfrom_len, l_fds_ifd);
     bool ok = input_handler.iterate_over_buffers(callback);
     input_handler.cleanup();
 
@@ -236,9 +245,10 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_t
 
 template <class IoType, class SwitchActivityInfo, class SwitchCalcGaps>
 inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::handle_message(int ifd,
-        struct sockaddr_in &recvfrom_addr, fds_data *l_fds_ifd)
+        struct sockaddr_store_t &recvfrom_addr, socklen_t recvfrom_len, fds_data *l_fds_ifd)
 {
-    struct sockaddr_in sendto_addr;
+    struct sockaddr_store_t sendto_addr;
+    socklen_t sendto_addr_len = 0;
 
 #if defined(LOG_TRACE_MSG_IN) && (LOG_TRACE_MSG_IN == TRUE)
     printf(">>> ");
@@ -256,7 +266,7 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::handle_message(i
         return true;
     }
     if (unlikely(m_pMsgReply->isWarmupMessage())) {
-        m_switchCalcGaps.execute(&recvfrom_addr, 0, true);
+        m_switchCalcGaps.execute(recvfrom_addr, recvfrom_len, 0, true);
         return true;
     }
 
@@ -273,19 +283,22 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::handle_message(i
         }
         /* get source addr to reply. memcpy is not used to improve performance */
         sendto_addr = l_fds_ifd->server_addr;
+        sendto_addr_len = l_fds_ifd->server_addr_len;
 
         if (l_fds_ifd->memberships_size || !l_fds_ifd->is_multicast ||
             g_pApp->m_const_params.b_server_reply_via_uc) { // In unicast case reply to sender
             /* get source addr to reply. memcpy is not used to improve performance */
             sendto_addr = recvfrom_addr;
+            sendto_addr_len = recvfrom_len;
         } else if (l_fds_ifd->is_multicast) {
             /* always send to the same port recved from */
-            sendto_addr.sin_port = recvfrom_addr.sin_port;
+            sockaddr_set_portn(sendto_addr, sockaddr_get_portn(recvfrom_addr));
         }
         int length = m_pMsgReply->getLength();
         m_pMsgReply->setHeaderToNetwork();
 
-        int ret = msg_sendto(ifd, m_pMsgReply->getBuf(), length, &sendto_addr);
+        int ret = msg_sendto(ifd, m_pMsgReply->getBuf(), length,
+                reinterpret_cast<sockaddr *>(&sendto_addr), sendto_addr_len);
         if (unlikely(ret == RET_SOCKET_SHUTDOWN)) {
             if (l_fds_ifd->sock_type == SOCK_STREAM) {
                 close_ifd(l_fds_ifd->next_fd, ifd, l_fds_ifd);
@@ -295,7 +308,7 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::handle_message(i
         m_pMsgReply->setHeaderToHost();
     }
 
-    m_switchCalcGaps.execute(&recvfrom_addr, m_pMsgReply->getSequenceCounter(), false);
+    m_switchCalcGaps.execute(recvfrom_addr, recvfrom_len, m_pMsgReply->getSequenceCounter(), false);
     m_switchActivityInfo.execute(g_receiveCount);
 
     return true;

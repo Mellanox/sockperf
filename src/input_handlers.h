@@ -46,12 +46,12 @@ public:
     /** Receive pending data from a socket
      * @param [in] socket descriptor
      * @param [out] recvfrom_addr address to save peer address into
+     * @param [inout] in - storage size, out - actual address size
      * @return status code
      */
-    inline int receive_pending_data(int fd, struct sockaddr_in *recvfrom_addr)
+    inline int receive_pending_data(int fd, struct sockaddr *recvfrom_addr, socklen_t &size)
     {
         int ret = 0;
-        socklen_t size = sizeof(struct sockaddr_in);
         int flags = 0;
         uint8_t *buf = m_recv_data.cur_addr + m_recv_data.cur_offset;
 
@@ -84,8 +84,9 @@ public:
 #endif /* LOG_TRACE_MSG_IN */
 
 #if defined(LOG_TRACE_RECV) && (LOG_TRACE_RECV == TRUE)
-        LOG_TRACE("raw", "%s IP: %s:%d [fd=%d ret=%d] %s", __FUNCTION__,
-                  inet_ntoa(recvfrom_addr->sin_addr), ntohs(recvfrom_addr->sin_port), fd, ret,
+        std::string hostport = sockaddr_to_hostport(recvfrom_addr);
+        LOG_TRACE("raw", "%s IP: %s [fd=%d ret=%d] %s", __FUNCTION__,
+                  hostport.c_str(), fd, ret,
                   strerror(errno));
 #endif /* LOG_TRACE_RECV */
 
@@ -133,11 +134,14 @@ public:
     /** Receive pending data from a socket
      * @param [in] socket descriptor
      * @param [out] recvfrom_addr address to save peer address into
+     * @param [inout] in - storage size, out - actual address size
      * @return status code
      */
-    inline int receive_pending_data(int fd, struct sockaddr_in *recvfrom_addr)
+    inline int receive_pending_data(int fd, struct sockaddr *recvfrom_addr, socklen_t &size)
     {
-        *recvfrom_addr = g_vma_comps->src;
+        //TODO: update after IPv6 will be supported in libvma
+        size = sizeof(sockaddr_in);
+        std::memcpy(recvfrom_addr, &g_vma_comps->src, size);
         m_vma_buff = g_vma_buff;
         if (likely(m_vma_buff)) {
             return m_vma_buff->len;
@@ -182,12 +186,12 @@ public:
     /** Receive pending data from a socket
      * @param [in] socket descriptor
      * @param [out] recvfrom_addr address to save peer address into
+     * @param [inout] in - storage size, out - actual address size
      * @return status code
      */
-    inline int receive_pending_data(int fd, struct sockaddr_in *recvfrom_addr)
+    inline int receive_pending_data(int fd, struct sockaddr *recvfrom_addr, socklen_t &size)
     {
         int ret = 0;
-        socklen_t size = sizeof(struct sockaddr_in);
         int flags = 0;
 
         m_fd = fd;
