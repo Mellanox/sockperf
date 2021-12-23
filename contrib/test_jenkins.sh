@@ -58,6 +58,7 @@ jenkins_test_cov=${jenkins_test_cov:="no"}
 jenkins_test_cppcheck=${jenkins_test_cppcheck:="yes"}
 jenkins_test_csbuild=${jenkins_test_csbuild:="no"}
 jenkins_test_run=${jenkins_test_run:="no"}
+jenkins_test_gtest=${jenkins_test_gtest:="yes"}
 jenkins_test_style=${jenkins_test_style:="no"}
 
 
@@ -159,6 +160,16 @@ for target_v in "${target_list[@]}"; do
 	    fi
     fi
     if [ 7 -lt "$jenkins_opt_exit" -o "$rc" -eq 0 ]; then
+	    if [ "$jenkins_test_gtest" = "yes" ]; then
+	        $WORKSPACE/contrib/jenkins_tests/gtest.sh
+	        ret=$?
+	        if [ $ret -gt 0 ]; then
+	           do_err "case: [gtest: ret=$ret]"
+	        fi
+	        rc=$((rc + $ret))
+	    fi
+    fi
+    if [ 8 -lt "$jenkins_opt_exit" -o "$rc" -eq 0 ]; then
 	    if [ "$jenkins_test_style" = "yes" ]; then
 	        $WORKSPACE/contrib/jenkins_tests/style.sh
 	        ret=$?
