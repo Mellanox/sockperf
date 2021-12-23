@@ -1,0 +1,270 @@
+/*
+ * Copyright (c) 2021 Mellanox Technologies Ltd.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without modification,
+ * are permitted provided that the following conditions are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ * 3. Neither the name of the Mellanox Technologies Ltd nor the names of its
+ *    contributors may be used to endorse or promote products derived from this
+ *    software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+ * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
+ * SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT
+ * OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+ * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY
+ * OF SUCH DAMAGE.
+ */
+
+#ifndef INPUT_HANDLERS_H_
+#define INPUT_HANDLERS_H_
+
+#include "message_parser.h"
+
+class RecvFromInputHandler : public MessageParser<InPlaceAccumulation> {
+private:
+    SocketRecvData &m_recv_data;
+    uint8_t *m_actual_buf;
+    int m_actual_buf_size;
+public:
+    inline RecvFromInputHandler(Message *msg, SocketRecvData &recv_data):
+        MessageParser<InPlaceAccumulation>(msg),
+        m_recv_data(recv_data),
+        m_actual_buf_size(0)
+    {}
+
+    /** Receive pending data from a socket
+     * @param [in] socket descriptor
+     * @param [out] recvfrom_addr address to save peer address into
+     * @return status code
+     */
+    inline int receive_pending_data(int fd, struct sockaddr_in *recvfrom_addr)
+    {
+        int ret = 0;
+        socklen_t size = sizeof(struct sockaddr_in);
+        int flags = 0;
+        uint8_t *buf = m_recv_data.cur_addr + m_recv_data.cur_offset;
+
+/*
+    When writing onto a connection-oriented socket that has been shut down
+    (by the local or the remote end) SIGPIPE is sent to the writing process
+    and EPIPE is returned. The signal is not sent when the write call specified
+    the MSG_NOSIGNAL flag.
+    Note: another way is call signal (SIGPIPE,SIG_IGN);
+ */
+#ifndef WIN32
+        flags = MSG_NOSIGNAL;
+#endif
+
+#if defined(DEFINED_TLS)
+        if (g_fds_array[fd]->tls_handle) {
+            ret = tls_read(g_fds_array[fd]->tls_handle, buf, m_recv_data.cur_size);
+        } else
+#endif /* DEFINED_TLS */
+        {
+            ret = recvfrom(fd, buf, m_recv_data.cur_size,
+                    flags, (struct sockaddr *)recvfrom_addr, &size);
+        }
+        m_actual_buf = buf;
+        m_actual_buf_size = ret;
+
+#if defined(LOG_TRACE_MSG_IN) && (LOG_TRACE_MSG_IN == TRUE)
+        printf(">   ");
+        hexdump(buf, MsgHeader::EFFECTIVE_SIZE);
+#endif /* LOG_TRACE_MSG_IN */
+
+#if defined(LOG_TRACE_RECV) && (LOG_TRACE_RECV == TRUE)
+        LOG_TRACE("raw", "%s IP: %s:%d [fd=%d ret=%d] %s", __FUNCTION__,
+                  inet_ntoa(recvfrom_addr->sin_addr), ntohs(recvfrom_addr->sin_port), fd, ret,
+                  strerror(errno));
+#endif /* LOG_TRACE_RECV */
+
+        if (ret == 0 || errno == EPIPE || os_err_conn_reset()) {
+            /* If no messages are available to be received and the peer has
+             * performed an orderly shutdown, recv()/recvfrom() shall return 0
+             * */
+            ret = RET_SOCKET_SHUTDOWN;
+            errno = 0;
+        }
+        /* ret < MsgHeader::EFFECTIVE_SIZE
+         * ret value less than MsgHeader::EFFECTIVE_SIZE
+         * is bad case for UDP so error could be actual but it is possible value for TCP
+         */
+        else if (ret < 0 && !os_err_eagain() && errno != EINTR) {
+            recvfromError(fd);
+        }
+
+        return ret;
+    }
+
+    template <class Callback>
+    inline bool iterate_over_buffers(Callback &callback)
+    {
+        return process_buffer(callback, m_recv_data, m_actual_buf, m_actual_buf_size);
+    }
+
+    inline void cleanup()
+    {
+    }
+};
+
+#ifdef USING_VMA_EXTRA_API
+class SocketXtremeInputHandler : public MessageParser<BufferAccumulation> {
+private:
+    SocketRecvData &m_recv_data;
+    vma_buff_t *m_vma_buff;
+public:
+    inline SocketXtremeInputHandler(Message *msg, SocketRecvData &recv_data):
+        MessageParser<BufferAccumulation>(msg),
+        m_recv_data(recv_data),
+        m_vma_buff(NULL)
+    {}
+
+    /** Receive pending data from a socket
+     * @param [in] socket descriptor
+     * @param [out] recvfrom_addr address to save peer address into
+     * @return status code
+     */
+    inline int receive_pending_data(int fd, struct sockaddr_in *recvfrom_addr)
+    {
+        *recvfrom_addr = g_vma_comps->src;
+        m_vma_buff = g_vma_buff;
+        if (likely(m_vma_buff)) {
+            return m_vma_buff->len;
+        } else {
+            return 0;
+        }
+    }
+
+    template <class Callback>
+    inline bool iterate_over_buffers(Callback &callback)
+    {
+        for (vma_buff_t *cur = m_vma_buff; cur; cur = cur->next) {
+            bool res = process_buffer(callback, m_recv_data, (uint8_t *)cur->payload, cur->len);
+            if (unlikely(!res)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    inline void cleanup()
+    {
+    }
+};
+
+class VmaZCopyReadInputHandler : public MessageParser<BufferAccumulation> {
+private:
+    SocketRecvData &m_recv_data;
+    int m_fd;
+    ZeroCopyData *m_ptr;
+    int m_non_zcopy_len;
+
+public:
+    inline VmaZCopyReadInputHandler(Message *msg, SocketRecvData &recv_data):
+        MessageParser<BufferAccumulation>(msg),
+        m_recv_data(recv_data),
+        m_fd(0),
+        m_ptr(NULL),
+        m_non_zcopy_len(0)
+    {}
+
+    /** Receive pending data from a socket
+     * @param [in] socket descriptor
+     * @param [out] recvfrom_addr address to save peer address into
+     * @return status code
+     */
+    inline int receive_pending_data(int fd, struct sockaddr_in *recvfrom_addr)
+    {
+        int ret = 0;
+        socklen_t size = sizeof(struct sockaddr_in);
+        int flags = 0;
+
+        m_fd = fd;
+        m_non_zcopy_len = 0;
+        m_ptr = g_zeroCopyData[fd];
+        if (unlikely(!m_ptr)) {
+            return 0;
+        }
+        // Receive the next packet with zero copy API
+        ret = g_vma_api->recvfrom_zcopy(fd, m_ptr->m_pkt_buf, Message::getMaxSize(), &flags,
+                                        (struct sockaddr *)recvfrom_addr, &size);
+
+        if (likely(ret > 0)) {
+            if (flags & MSG_VMA_ZCOPY) {
+                // Zcopy receive is performed
+                m_ptr->m_pkts = (struct vma_packets_t *)m_ptr->m_pkt_buf;
+                m_non_zcopy_len = 0;
+                // Note: function return value is not equal to number of bytes
+                // received. This is not a problem because caller only checks
+                // that retval > 0 to continue processing.
+            } else {
+                // zero-copy not performed so using buffer as a plain old data buffer
+                m_ptr->m_pkts = NULL;
+                m_non_zcopy_len = ret;
+            }
+        }
+
+        if (ret == 0 || errno == EPIPE || os_err_conn_reset()) {
+            /* If no messages are available to be received and the peer has
+             * performed an orderly shutdown, recv()/recvfrom() shall return 0
+             * */
+            ret = RET_SOCKET_SHUTDOWN;
+            errno = 0;
+        }
+        /* ret < MsgHeader::EFFECTIVE_SIZE
+         * ret value less than MsgHeader::EFFECTIVE_SIZE
+         * is bad case for UDP so error could be actual but it is possible value for TCP
+         */
+        else if (ret < 0 && !os_err_eagain() && errno != EINTR) {
+            recvfromError(fd);
+        }
+
+        return ret;
+    }
+
+    template <class Callback>
+    inline bool iterate_over_buffers(Callback &callback)
+    {
+        assert(m_ptr && "zero-copy data pointer must be initialized");
+        if (likely(m_ptr->m_pkts)) {
+            // iterate over zerocopy buffers
+            for (size_t p = 0; p < m_ptr->m_pkts->n_packet_num; ++p) {
+                vma_packet_t &pkt = m_ptr->m_pkts->pkts[p];
+                for (size_t i = 0; i < pkt.sz_iov; ++i) {
+                    bool ok = process_buffer(callback, m_recv_data, (uint8_t *)pkt.iov[i].iov_base,
+                        (int)pkt.iov[i].iov_len);
+                    if (unlikely(!ok)) {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        } else {
+            // iterate over non-zerocopy buffer
+            assert(m_ptr->m_pkt_buf && "data buffer pointer must be initialized");
+            return process_buffer(callback, m_recv_data, m_ptr->m_pkt_buf, m_non_zcopy_len);
+        }
+    }
+
+    inline void cleanup()
+    {
+        if (likely(m_ptr && m_ptr->m_pkts)) {
+            g_vma_api->free_packets(m_fd, m_ptr->m_pkts->pkts, m_ptr->m_pkts->n_packet_num);
+            m_ptr->m_pkts = NULL;
+        }
+    }
+};
+#endif // USING_VMA_EXTRA_API
+
+#endif // INPUT_HANDLERS_H_

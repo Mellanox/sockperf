@@ -103,6 +103,10 @@ private:
 #pragma pack(pop)
 
 class Message {
+private:
+    // noncopyable
+    Message(const Message &);
+    Message &operator=(const Message &);
 public:
     Message();
     ~Message();
@@ -166,6 +170,11 @@ public:
         return m_header->m_flags_and_length.length;
     }
     void setLength(uint32_t _length) { m_header->m_flags_and_length.length = _length; }
+
+    bool isValidHeader() const
+    {
+        return (unsigned)getLength() <= (unsigned)ms_maxSize;
+    }
 
 private:
     void *m_buf;
