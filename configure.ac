@@ -70,7 +70,7 @@ AC_LANG(C++)
 
 SP_CHECK_CXXFLAGS_APPEND([OUR_CXXFLAGS], [\
                          -Wall \
-                         "--param inline-unit-growth=200"])
+                         "--param inline-unit-growth=300"])
 
 ##########################################################################
 # check VMA extra API

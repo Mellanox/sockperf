@@ -81,6 +81,7 @@
 #include <stdlib.h>
 #include "common.h"
 #include "message.h"
+#include "message_parser.h"
 #include "packet.h"
 #include "switches.h"
 #include "aopt.h"
@@ -2461,6 +2462,21 @@ void set_defaults() {
 
 //------------------------------------------------------------------------------
 #ifdef USING_VMA_EXTRA_API
+class CallbackMessageHandler {
+    int m_fd;
+    fds_data *m_fds_ifd;
+    struct vma_info_t *m_vma_info;
+
+public:
+    inline CallbackMessageHandler(int fd, fds_data *l_fds_ifd, struct vma_info_t *vma_info) :
+        m_fd(fd),
+        m_fds_ifd(l_fds_ifd),
+        m_vma_info(vma_info)
+    {}
+
+    inline bool handle_message();
+};
+
 vma_recv_callback_retval_t myapp_vma_recv_pkt_filter_callback(int fd, size_t iov_sz,
                                                               struct iovec iov[],
                                                               struct vma_info_t *vma_info,
@@ -2473,11 +2489,6 @@ vma_recv_callback_retval_t myapp_vma_recv_pkt_filter_callback(int fd, size_t iov
         st1 = st2 = 0;
     }
 #endif
-
-    if (iov_sz) {
-    };
-    if (context) {
-    };
 
     // Check info structure version
     if (vma_info->struct_sz < sizeof(struct vma_info_t)) {
@@ -2494,175 +2505,90 @@ vma_recv_callback_retval_t myapp_vma_recv_pkt_filter_callback(int fd, size_t iov
         return VMA_PACKET_RECV;
     }
 
-    size_t index;
-    int nbytes;
     struct fds_data *l_fds_ifd;
-    Message *msgReply;
-    uint8_t *start_addrs;
-    struct sockaddr_in sendto_addr;
 
     l_fds_ifd = g_fds_array[fd];
-
-    if (!l_fds_ifd) {
+    if (unlikely(!l_fds_ifd)) {
         return VMA_PACKET_RECV;
     }
+    Message *msgReply = l_fds_ifd->p_msg;
+    SocketRecvData &recv_data = l_fds_ifd->recv;
 
-    msgReply = l_fds_ifd->p_msg;
-
-    // Copy and concatenate received data in local reserved buffer
-    nbytes = 0;
-    for (index = 0; index < iov_sz; index++) {
-        nbytes += iov[index].iov_len;
-    }
-    if (nbytes > l_fds_ifd->recv.cur_size) {
-        memmove(l_fds_ifd->recv.buf, l_fds_ifd->recv.cur_addr, l_fds_ifd->recv.cur_offset);
-        l_fds_ifd->recv.cur_addr = l_fds_ifd->recv.buf;
-        l_fds_ifd->recv.cur_size = l_fds_ifd->recv.max_size - l_fds_ifd->recv.cur_offset;
-        if (nbytes > l_fds_ifd->recv.cur_size) {
-            log_msg("Can't handle data in callback : Received data bigger than available buffer");
-            /*
-             * TODO going to recvfrom will not work if this callback call is coming from recvfrom
-             * context.
-             * this is because the callback is working on the same buffer that was given to
-             * recvfrom, so
-             * recvfrom will return and override the data that the callback wrote.
-             * if working with recvfrom, and not with iomux, need to give recvfrom and callback
-             * different buffers.
-             * This should be fixed in sockperf, so we also won't need to call the above memmove.
-             */
+    CallbackMessageHandler handler(fd, l_fds_ifd, vma_info);
+    MessageParser<BufferAccumulation> parser(msgReply);
+    for (size_t i = 0; i < iov_sz; ++i) {
+        bool ok = parser.process_buffer(handler, recv_data, (uint8_t *)iov[i].iov_base,
+                (int)iov[i].iov_len);
+        if (unlikely(!ok)) {
             return VMA_PACKET_RECV;
         }
     }
-    nbytes = 0;
-    for (index = 0; index < iov_sz; index++) {
-        start_addrs = l_fds_ifd->recv.cur_addr + l_fds_ifd->recv.cur_offset + nbytes;
-        memcpy(start_addrs, iov[index].iov_base, iov[index].iov_len);
-        nbytes += iov[index].iov_len;
-    }
-
-    while (nbytes) {
-        /* 1: message header is not received yet */
-        if ((l_fds_ifd->recv.cur_offset + nbytes) < MsgHeader::EFFECTIVE_SIZE) {
-            l_fds_ifd->recv.cur_size -= nbytes;
-            l_fds_ifd->recv.cur_offset += nbytes;
-
-            /* 4: set current buffer size to size of remained part of message header to
-             *    guarantee getting full message header on next iteration
-             */
-            if (l_fds_ifd->recv.cur_size < MsgHeader::EFFECTIVE_SIZE) {
-                l_fds_ifd->recv.cur_size = MsgHeader::EFFECTIVE_SIZE - l_fds_ifd->recv.cur_offset;
-            }
-            return VMA_PACKET_DROP;
-        } else if (l_fds_ifd->recv.cur_offset < MsgHeader::EFFECTIVE_SIZE) {
-            /* 2: message header is got, match message to cycle buffer */
-            msgReply->setBuf(l_fds_ifd->recv.cur_addr);
-            msgReply->setHeaderToHost();
-        } else {
-            /* 2: message header is got, match message to cycle buffer */
-            msgReply->setBuf(l_fds_ifd->recv.cur_addr);
-        }
-
-        if ((unsigned)msgReply->getLength() > (unsigned)MAX_PAYLOAD_SIZE) {
-            log_msg("Message received was larger than expected, handle from recv_from");
-            return VMA_PACKET_RECV;
-        }
-        /* 3: message is not complete */
-        if ((l_fds_ifd->recv.cur_offset + nbytes) < msgReply->getLength()) {
-            l_fds_ifd->recv.cur_size -= nbytes;
-            l_fds_ifd->recv.cur_offset += nbytes;
-            /* 4: set current buffer size to size of remained part of message to
-             *    guarantee getting full message on next iteration (using extended reserved memory)
-             *    and shift to start of cycle buffer
-             */
-            if (l_fds_ifd->recv.cur_size < (int)msgReply->getMaxSize()) {
-                l_fds_ifd->recv.cur_size = msgReply->getLength() - l_fds_ifd->recv.cur_offset;
-            }
-            return VMA_PACKET_DROP;
-        }
-        /* 5: message is complete shift to process next one */
-        nbytes -= msgReply->getLength() - l_fds_ifd->recv.cur_offset;
-        l_fds_ifd->recv.cur_addr += msgReply->getLength();
-        l_fds_ifd->recv.cur_size -= msgReply->getLength() - l_fds_ifd->recv.cur_offset;
-        l_fds_ifd->recv.cur_offset = 0;
-
-        if (g_b_exit) return VMA_PACKET_DROP;
-        if (!msgReply->isClient()) {
-            /* 6: shift to start of cycle buffer in case receiving buffer is empty and
-             * there is no uncompleted message
-             */
-            if (!nbytes) {
-                l_fds_ifd->recv.cur_addr = l_fds_ifd->recv.buf;
-                l_fds_ifd->recv.cur_size = l_fds_ifd->recv.max_size;
-                l_fds_ifd->recv.cur_offset = 0;
-            }
-            return VMA_PACKET_DROP;
-        }
-
-        if (msgReply->isWarmupMessage()) {
-            // m_switchCalcGaps.execute(vma_info->src, 0, true);
-            /* 6: shift to start of cycle buffer in case receiving buffer is empty and
-             * there is no uncompleted message
-             */
-            if (!nbytes) {
-                l_fds_ifd->recv.cur_addr = l_fds_ifd->recv.buf;
-                l_fds_ifd->recv.cur_size = l_fds_ifd->recv.max_size;
-                l_fds_ifd->recv.cur_offset = 0;
-            }
-            return VMA_PACKET_DROP;
-        }
-
-        g_receiveCount++;
-
-        if (msgReply->getHeader()->isPongRequest()) {
-            /* if server in a no reply mode - shift to start of cycle buffer*/
-            if (g_pApp->m_const_params.b_server_dont_reply) {
-                l_fds_ifd->recv.cur_addr = l_fds_ifd->recv.buf;
-                l_fds_ifd->recv.cur_size = l_fds_ifd->recv.max_size;
-                l_fds_ifd->recv.cur_offset = 0;
-                return VMA_PACKET_DROP;
-            }
-            /* prepare message header */
-            if (g_pApp->m_const_params.mode != MODE_BRIDGE) {
-                msgReply->setServer();
-            }
-            /* get source addr to reply. memcpy is not used to improve performance */
-            sendto_addr = l_fds_ifd->server_addr;
-
-            if (l_fds_ifd->memberships_size || !l_fds_ifd->is_multicast ||
-                g_pApp->m_const_params.b_server_reply_via_uc) { // In unicast case reply to sender
-                /* get source addr to reply. memcpy is not used to improve performance */
-                sendto_addr = *vma_info->src;
-            } else if (l_fds_ifd->is_multicast) {
-                /* always send to the same port recved from */
-                sendto_addr.sin_port = vma_info->src->sin_port;
-            }
-            int length = msgReply->getLength();
-            msgReply->setHeaderToNetwork();
-            msg_sendto(fd, msgReply->getBuf(), length, &sendto_addr);
-            /*if (ret == RET_SOCKET_SHUTDOWN) {
-                if (l_fds_ifd->sock_type == SOCK_STREAM) {
-                    close_ifd( l_fds_ifd->next_fd,ifd,l_fds_ifd);
-                }
-                return VMA_PACKET_DROP;
-            }*/
-            msgReply->setHeaderToHost();
-        }
-        /*
-        * TODO
-        * To support other server functionality when using zero callback,
-        * pass the server as user_context or as we pass the replyMsg, and call the server functions
-        */
-        // m_switchCalcGaps.execute(vma_info->src, msgReply->getSequenceCounter(), false);
-        // m_switchActivityInfo.execute(g_receiveCount);
-    }
-    /* 6: shift to start of cycle buffer in case receiving buffer is empty and
-     * there is no uncompleted message
-     */
-    l_fds_ifd->recv.cur_addr = l_fds_ifd->recv.buf;
-    l_fds_ifd->recv.cur_size = l_fds_ifd->recv.max_size;
-    l_fds_ifd->recv.cur_offset = 0;
 
     return VMA_PACKET_DROP;
+}
+
+inline bool CallbackMessageHandler::handle_message()
+{
+    struct sockaddr_in sendto_addr;
+
+    Message *msgReply = m_fds_ifd->p_msg;
+
+    if (unlikely(g_b_exit)) {
+        return false;
+    }
+    if (unlikely(!msgReply->isValidHeader())) {
+        log_msg("Message received was larger than expected, handle from recv_from");
+        return false;
+    }
+    if (unlikely(!msgReply->isClient())) {
+        return true;
+    }
+    if (unlikely(msgReply->isWarmupMessage())) {
+        return true;
+    }
+
+    g_receiveCount++;
+
+    if (msgReply->getHeader()->isPongRequest()) {
+        /* if server in a no reply mode - shift to start of cycle buffer*/
+        if (g_pApp->m_const_params.b_server_dont_reply) {
+            return true;
+        }
+        /* prepare message header */
+        if (g_pApp->m_const_params.mode != MODE_BRIDGE) {
+            msgReply->setServer();
+        }
+        /* get source addr to reply. memcpy is not used to improve performance */
+        sendto_addr = m_fds_ifd->server_addr;
+
+        if (m_fds_ifd->memberships_size || !m_fds_ifd->is_multicast ||
+            g_pApp->m_const_params.b_server_reply_via_uc) { // In unicast case reply to sender
+            /* get source addr to reply. memcpy is not used to improve performance */
+            sendto_addr = *m_vma_info->src;
+        } else if (m_fds_ifd->is_multicast) {
+            /* always send to the same port recved from */
+            sendto_addr.sin_port = m_vma_info->src->sin_port;
+        }
+        int length = msgReply->getLength();
+        msgReply->setHeaderToNetwork();
+        msg_sendto(m_fd, msgReply->getBuf(), length, &sendto_addr);
+        /*if (ret == RET_SOCKET_SHUTDOWN) {
+            if (m_fds_ifd->sock_type == SOCK_STREAM) {
+                close_ifd( m_fds_ifd->next_fd,ifd,m_fds_ifd);
+            }
+            return VMA_PACKET_DROP;
+        }*/
+        msgReply->setHeaderToHost();
+    }
+    /*
+     * TODO
+     * To support other server functionality when using zero callback,
+     * pass the server as user_context or as we pass the replyMsg, and call the server functions
+     */
+    // m_switchCalcGaps.execute(vma_info->src, msgReply->getSequenceCounter(), false);
+    // m_switchActivityInfo.execute(g_receiveCount);
+
+    return true;
 }
 #endif
 

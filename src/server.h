@@ -30,6 +30,7 @@
 #define SERVER_H_
 
 #include "common.h"
+#include "input_handlers.h"
 
 #ifdef ST_TEST
 extern int prepare_socket(int fd, struct fds_data *p_data, bool stTest = false);
@@ -81,6 +82,28 @@ class Server : public ServerBase {
 private:
     IoType m_ioHandler;
 
+    class ServerMessageHandlerCallback {
+        Server<IoType, SwitchActivityInfo, SwitchCalcGaps> &m_server;
+        int m_ifd;
+        struct sockaddr_in &m_recvfrom_addr;
+        fds_data *m_fds_ifd;
+
+    public:
+        inline ServerMessageHandlerCallback(Server<IoType, SwitchActivityInfo, SwitchCalcGaps> &server,
+                int ifd, struct sockaddr_in &recvfrom_addr, fds_data *l_fds_ifd) :
+            m_server(server),
+            m_ifd(ifd),
+            m_recvfrom_addr(recvfrom_addr),
+            m_fds_ifd(l_fds_ifd)
+        {
+        }
+
+        inline bool handle_message()
+        {
+            return m_server.handle_message(m_ifd, m_recvfrom_addr, m_fds_ifd);
+        }
+    };
+
     // protected:
 public:
     //------------------------------------------------------------------------------
@@ -92,7 +115,24 @@ public:
     /*
     ** receive from and send to selected socket
     */
+    template <class InputHandler>
     /*inline*/ bool server_receive_then_send(int ifd);
+
+    inline bool server_receive_then_send(int ifd)
+    {
+#ifdef USING_VMA_EXTRA_API
+        if (SOCKETXTREME == g_pApp->m_const_params.fd_handler_type) {
+            return server_receive_then_send<SocketXtremeInputHandler>(ifd);
+        } else if (g_pApp->m_const_params.is_vmazcopyread) {
+            return server_receive_then_send<VmaZCopyReadInputHandler>(ifd);
+        } else
+#endif
+        {
+            return server_receive_then_send<RecvFromInputHandler>(ifd);
+        }
+    }
+
+    /*inline*/ bool handle_message(int ifd, struct sockaddr_in &recvfrom_addr, fds_data *l_fds_ifd);
 
     //------------------------------------------------------------------------------
     int server_accept(int ifd);
@@ -101,6 +141,7 @@ private:
     SwitchActivityInfo m_switchActivityInfo;
     SwitchCalcGaps m_switchCalcGaps;
 };
+
 void print_log(const char *error, fds_data *fds) {
     printf("IP = %-15s PORT = %5d # %s ", inet_ntoa(fds->server_addr.sin_addr),
            ntohs(fds->server_addr.sin_port), PRINT_PROTOCOL(fds->sock_type));
@@ -124,8 +165,6 @@ void close_ifd(int fd, int ifd, fds_data *l_fds_ifd) {
         if (z_ptr && z_ptr->m_pkts) {
             g_vma_api->free_packets(fd, z_ptr->m_pkts->pkts, z_ptr->m_pkts->n_packet_num);
             z_ptr->m_pkts = NULL;
-            z_ptr->m_pkt_index = 0;
-            z_ptr->m_pkt_offset = 0;
         }
 
         g_vma_api->register_recv_callback(fd, NULL, NULL);
@@ -156,201 +195,110 @@ void close_ifd(int fd, int ifd, fds_data *l_fds_ifd) {
 ** receive from and send to selected socket
 */
 template <class IoType, class SwitchActivityInfo, class SwitchCalcGaps>
+template <class InputHandler>
 inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_then_send(int ifd) {
     struct sockaddr_in recvfrom_addr;
-    struct sockaddr_in sendto_addr;
-    bool do_update = true;
+    static const bool do_update = true;
     int ret = 0;
-    int remain_buffer = 0;
     fds_data *l_fds_ifd = g_fds_array[ifd];
 
     if (unlikely(!l_fds_ifd)) {
         return (do_update);
     }
-#ifdef USING_VMA_EXTRA_API
-    vma_buff_t *tmp_vma_buff = g_vma_buff;
-    if (SOCKETXTREME == g_pApp->m_const_params.fd_handler_type && tmp_vma_buff) {
-        ret = msg_recv_socketxtreme(l_fds_ifd, tmp_vma_buff, &recvfrom_addr);
-    } else if (g_pApp->m_const_params.is_vmazcopyread &&
-               !(remain_buffer = free_vma_packets(ifd, l_fds_ifd->recv.cur_size))) {
-        // Handled buffer is filled, free_vma_packets returns 0
-        ret = l_fds_ifd->recv.cur_size;
-    } else
-#endif
-    {
-        ret = msg_recvfrom(ifd, l_fds_ifd->recv.cur_addr + l_fds_ifd->recv.cur_offset,
-                           l_fds_ifd->recv.cur_size, &recvfrom_addr, &l_fds_ifd->recv.cur_addr,
-                           remain_buffer);
-    }
+
+    InputHandler input_handler(m_pMsgReply, l_fds_ifd->recv);
+    ret = input_handler.receive_pending_data(ifd, &recvfrom_addr);
     if (unlikely(ret <= 0)) {
+        input_handler.cleanup();
         if (ret == RET_SOCKET_SHUTDOWN) {
             if (l_fds_ifd->sock_type == SOCK_STREAM) {
                 close_ifd(l_fds_ifd->next_fd, ifd, l_fds_ifd);
             }
             return (do_update);
+        } else /* (ret < 0) */ {
+            return (!do_update);
         }
-        if (ret < 0) return (!do_update);
     }
 
-    int nbytes = ret;
-    while (nbytes) {
-        /* 1: message header is not received yet */
-        if ((l_fds_ifd->recv.cur_offset + nbytes) < MsgHeader::EFFECTIVE_SIZE) {
-            l_fds_ifd->recv.cur_size -= nbytes;
-            l_fds_ifd->recv.cur_offset += nbytes;
+    ServerMessageHandlerCallback callback(*this, ifd, recvfrom_addr, l_fds_ifd);
+    bool ok = input_handler.iterate_over_buffers(callback);
+    input_handler.cleanup();
 
-            /* 4: set current buffer size to size of remained part of message header to
-             *    guarantee getting full message header on next iteration
-             */
-            if (l_fds_ifd->recv.cur_size < MsgHeader::EFFECTIVE_SIZE) {
-                l_fds_ifd->recv.cur_size = MsgHeader::EFFECTIVE_SIZE - l_fds_ifd->recv.cur_offset;
-            }
-#ifdef USING_VMA_EXTRA_API
-            if (tmp_vma_buff) goto next;
-#endif
-            return (!do_update);
-        } else if (l_fds_ifd->recv.cur_offset < MsgHeader::EFFECTIVE_SIZE) {
-            /* 2: message header is got, match message to cycle buffer */
-            m_pMsgReply->setBuf(l_fds_ifd->recv.cur_addr);
-            m_pMsgReply->setHeaderToHost();
-        } else {
-            /* 2: message header is got, match message to cycle buffer */
-            m_pMsgReply->setBuf(l_fds_ifd->recv.cur_addr);
-        }
-
-        if ((unsigned)m_pMsgReply->getLength() > (unsigned)MAX_PAYLOAD_SIZE) {
-            // Message received was larger than expected, message ignored. - only on stream mode.
-            print_log("Message received was larger than expected, message ignored.", l_fds_ifd);
-
+    if (likely(ok)) {
+        return (!do_update);
+    } else {
+        if (l_fds_ifd->sock_type == SOCK_STREAM) {
             close_ifd(l_fds_ifd->next_fd, ifd, l_fds_ifd);
-            return (do_update);
         }
+        return (do_update);
+    }
+}
 
-        /* 3: message is not complete */
-        if ((l_fds_ifd->recv.cur_offset + nbytes) < m_pMsgReply->getLength()) {
-            l_fds_ifd->recv.cur_size -= nbytes;
-            l_fds_ifd->recv.cur_offset += nbytes;
-
-            /* 4: set current buffer size to size of remained part of message to
-             *    guarantee getting full message on next iteration (using extended reserved memory)
-             *    and shift to start of cycle buffer
-             */
-            if (l_fds_ifd->recv.cur_size < (int)m_pMsgReply->getMaxSize()) {
-                l_fds_ifd->recv.cur_size = m_pMsgReply->getLength() - l_fds_ifd->recv.cur_offset;
-            }
-#ifdef USING_VMA_EXTRA_API
-            if (tmp_vma_buff) goto next;
-#endif
-            return (!do_update);
-        }
-
-        /* 5: message is complete shift to process next one */
-        nbytes -= m_pMsgReply->getLength() - l_fds_ifd->recv.cur_offset;
-        l_fds_ifd->recv.cur_addr += m_pMsgReply->getLength();
-        l_fds_ifd->recv.cur_size -= m_pMsgReply->getLength() - l_fds_ifd->recv.cur_offset;
-        l_fds_ifd->recv.cur_offset = 0;
+template <class IoType, class SwitchActivityInfo, class SwitchCalcGaps>
+inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::handle_message(int ifd,
+        struct sockaddr_in &recvfrom_addr, fds_data *l_fds_ifd)
+{
+    struct sockaddr_in sendto_addr;
 
 #if defined(LOG_TRACE_MSG_IN) && (LOG_TRACE_MSG_IN == TRUE)
-        printf(">>> ");
-        hexdump(m_pMsgReply->getBuf(), MsgHeader::EFFECTIVE_SIZE);
+    printf(">>> ");
+    hexdump(m_pMsgReply->getBuf(), MsgHeader::EFFECTIVE_SIZE);
 #endif /* LOG_TRACE_MSG_IN */
 
-        if (g_b_exit) return (!do_update);
-        if (!m_pMsgReply->isClient()) {
-            /* 6: shift to start of cycle buffer in case receiving buffer is empty and
-             * there is no uncompleted message
-             */
-            if (!nbytes) {
-                l_fds_ifd->recv.cur_addr = l_fds_ifd->recv.buf;
-                l_fds_ifd->recv.cur_size = l_fds_ifd->recv.max_size;
-                l_fds_ifd->recv.cur_offset = 0;
-            }
-#ifdef USING_VMA_EXTRA_API
-            if (tmp_vma_buff) goto next;
-#endif
-            return (!do_update);
-        }
-
-        if (unlikely(m_pMsgReply->isWarmupMessage())) {
-            m_switchCalcGaps.execute(&recvfrom_addr, 0, true);
-            /* 6: shift to start of cycle buffer in case receiving buffer is empty and
-             * there is no uncompleted message
-             */
-            if (!nbytes) {
-                l_fds_ifd->recv.cur_addr = l_fds_ifd->recv.buf;
-                l_fds_ifd->recv.cur_size = l_fds_ifd->recv.max_size;
-                l_fds_ifd->recv.cur_offset = 0;
-            }
-#ifdef USING_VMA_EXTRA_API
-            if (tmp_vma_buff) goto next;
-#endif
-            return (!do_update);
-        }
-
-        g_receiveCount++; //// should move to setRxTime (once we use it in server side)
-
-        if (m_pMsgReply->getHeader()->isPongRequest()) {
-            /* if server in a no reply mode - shift to start of cycle buffer*/
-            if (g_pApp->m_const_params.b_server_dont_reply) {
-#ifdef USING_VMA_EXTRA_API
-                if (tmp_vma_buff) goto next;
-#endif
-                l_fds_ifd->recv.cur_addr = l_fds_ifd->recv.buf;
-                l_fds_ifd->recv.cur_size = l_fds_ifd->recv.max_size;
-                l_fds_ifd->recv.cur_offset = 0;
-                return (do_update);
-            }
-            /* prepare message header */
-            if (g_pApp->m_const_params.mode != MODE_BRIDGE) {
-                m_pMsgReply->setServer();
-            }
-            /* get source addr to reply. memcpy is not used to improve performance */
-            sendto_addr = l_fds_ifd->server_addr;
-
-            if (l_fds_ifd->memberships_size || !l_fds_ifd->is_multicast ||
-                g_pApp->m_const_params.b_server_reply_via_uc) { // In unicast case reply to sender
-                /* get source addr to reply. memcpy is not used to improve performance */
-                sendto_addr = recvfrom_addr;
-            } else if (l_fds_ifd->is_multicast) {
-                /* always send to the same port recved from */
-                sendto_addr.sin_port = recvfrom_addr.sin_port;
-            }
-            int length = m_pMsgReply->getLength();
-            m_pMsgReply->setHeaderToNetwork();
-
-            ret = msg_sendto(ifd, m_pMsgReply->getBuf(), length, &sendto_addr);
-            if (unlikely(ret == RET_SOCKET_SHUTDOWN)) {
-                if (l_fds_ifd->sock_type == SOCK_STREAM) {
-                    close_ifd(l_fds_ifd->next_fd, ifd, l_fds_ifd);
-                }
-                return (do_update);
-            }
-            m_pMsgReply->setHeaderToHost();
-        }
-
-        m_switchCalcGaps.execute(&recvfrom_addr, m_pMsgReply->getSequenceCounter(), false);
-        m_switchActivityInfo.execute(g_receiveCount);
-
-#ifdef USING_VMA_EXTRA_API
-    next:
-        if (tmp_vma_buff) {
-            ret = msg_process_next(l_fds_ifd, &tmp_vma_buff, &nbytes);
-            if (ret) {
-                return (!do_update);
-            }
-        }
-#endif
+    if (unlikely(!m_pMsgReply->isValidHeader())) {
+        print_log("Message received was larger than expected, message ignored.", l_fds_ifd);
+        return false;
+    }
+    if (g_b_exit) {
+        return false;
+    }
+    if (unlikely(!m_pMsgReply->isClient())) {
+        return true;
+    }
+    if (unlikely(m_pMsgReply->isWarmupMessage())) {
+        m_switchCalcGaps.execute(&recvfrom_addr, 0, true);
+        return true;
     }
 
-    /* 6: shift to start of cycle buffer in case receiving buffer is empty and
-     * there is no uncompleted message
-     */
-    // nbytes == 0
-    l_fds_ifd->recv.cur_addr = l_fds_ifd->recv.buf;
-    l_fds_ifd->recv.cur_size = l_fds_ifd->recv.max_size;
-    l_fds_ifd->recv.cur_offset = 0;
+    g_receiveCount++; //// should move to setRxTime (once we use it in server side)
 
-    return (!do_update);
+    if (m_pMsgReply->getHeader()->isPongRequest()) {
+        /* if server in a no reply mode - shift to start of cycle buffer*/
+        if (g_pApp->m_const_params.b_server_dont_reply) {
+            return true;
+        }
+        /* prepare message header */
+        if (g_pApp->m_const_params.mode != MODE_BRIDGE) {
+            m_pMsgReply->setServer();
+        }
+        /* get source addr to reply. memcpy is not used to improve performance */
+        sendto_addr = l_fds_ifd->server_addr;
+
+        if (l_fds_ifd->memberships_size || !l_fds_ifd->is_multicast ||
+            g_pApp->m_const_params.b_server_reply_via_uc) { // In unicast case reply to sender
+            /* get source addr to reply. memcpy is not used to improve performance */
+            sendto_addr = recvfrom_addr;
+        } else if (l_fds_ifd->is_multicast) {
+            /* always send to the same port recved from */
+            sendto_addr.sin_port = recvfrom_addr.sin_port;
+        }
+        int length = m_pMsgReply->getLength();
+        m_pMsgReply->setHeaderToNetwork();
+
+        int ret = msg_sendto(ifd, m_pMsgReply->getBuf(), length, &sendto_addr);
+        if (unlikely(ret == RET_SOCKET_SHUTDOWN)) {
+            if (l_fds_ifd->sock_type == SOCK_STREAM) {
+                close_ifd(l_fds_ifd->next_fd, ifd, l_fds_ifd);
+            }
+            return false;
+        }
+        m_pMsgReply->setHeaderToHost();
+    }
+
+    m_switchCalcGaps.execute(&recvfrom_addr, m_pMsgReply->getSequenceCounter(), false);
+    m_switchActivityInfo.execute(g_receiveCount);
+
+    return true;
 }
 
 #endif /* SERVER_H_ */
