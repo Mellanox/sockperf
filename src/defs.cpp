@@ -45,7 +45,7 @@ debug_level_t g_debug_level = LOG_LVL_INFO;
 struct vma_buff_t *g_vma_buff = NULL;
 struct vma_completion_t *g_vma_comps;
 
-ZeroCopyData::ZeroCopyData() : m_pkt_buf(NULL), m_pkts(NULL), m_pkt_index(0), m_pkt_offset(0) {};
+ZeroCopyData::ZeroCopyData() : m_pkt_buf(NULL), m_pkts(NULL) {}
 
 void ZeroCopyData::allocate() { m_pkt_buf = (unsigned char *)MALLOC(Message::getMaxSize()); }
 

@@ -453,8 +453,6 @@ public:
     ~ZeroCopyData();
     unsigned char *m_pkt_buf;
     struct vma_packets_t *m_pkts;
-    unsigned int m_pkt_index;
-    unsigned int m_pkt_offset;
 };
 // map from fd to zeroCopyData
 typedef std::map<int, ZeroCopyData *> zeroCopyMap;

@@ -41,6 +41,7 @@ nproc=$(grep processor /proc/cpuinfo|wc -l)
 make_opt="-j$(($nproc / 2 + 1))"
 if [ $(command -v timeout >/dev/null 2>&1 && echo $?) ]; then
     timeout_exe="timeout -s SIGKILL 20m"
+    long_timeout_exe="timeout -s SIGKILL 40m"
 fi
 
 trap "on_exit" INT TERM ILL KILL FPE SEGV ALRM
@@ -206,10 +207,10 @@ function do_check_result()
 {
     set +e
     if [ -z "$5" ]; then
-        eval $timeout_exe $1
+        eval $long_timeout_exe $1
         ret=$?
     else
-        eval $timeout_exe $1 2>> "${5}.err" 1>> "${5}.log"
+        eval $long_timeout_exe $1 2>> "${5}.err" 1>> "${5}.log"
         ret=$?
         do_archive "${5}.err" "${5}.log"
     fi
