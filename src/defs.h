@@ -480,6 +480,14 @@ typedef struct port_and_type {
     in_port_t port;
 } port_type;
 
+struct SocketRecvData {
+    uint8_t *buf;       // buffer for input messages (double size is reserved)
+    int max_size;       // maximum message size
+    uint8_t *cur_addr;  // start of current message (may point outside buf)
+    int cur_offset;     // number of available message bytes
+    int cur_size;       // maximum number of bytes for the next chunk
+};
+
 /**
  * @struct fds_data
  * @brief Socket related info
@@ -496,13 +504,7 @@ typedef struct fds_data {
     struct sockaddr_in *memberships_addr; /**< more servers on the same socket information */
     struct in_addr mc_source_ip_addr;     /**< message source ip for multicast packet filtering */
     int memberships_size;
-    struct {
-        uint8_t *buf;
-        int max_size;
-        uint8_t *cur_addr;
-        int cur_offset;
-        int cur_size;
-    } recv;
+    struct SocketRecvData recv;
 #ifdef USING_VMA_EXTRA_API
     Message *p_msg;
 #endif
