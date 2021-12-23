@@ -30,6 +30,7 @@ build_dir=${WORKSPACE}/${prefix}/build/
 install_dir=${WORKSPACE}/${prefix}/install
 compiler_dir=${WORKSPACE}/${prefix}/compiler
 test_dir=${WORKSPACE}/${prefix}/test
+gtest_dir=${WORKSPACE}/${prefix}/gtest
 rpm_dir=${WORKSPACE}/${prefix}/rpm
 cov_dir=${WORKSPACE}/${prefix}/cov
 cppcheck_dir=${WORKSPACE}/${prefix}/cppcheck

@@ -66,7 +66,8 @@ AM_MAINTAINER_MODE
 : ${CXXFLAGS="-O3 -g"}
 AC_PROG_CXX
 AC_LANG(C++)
-#AC_PROG_LIBTOOL
+AM_PROG_AR
+AC_PROG_LIBTOOL
 
 SP_CHECK_CXXFLAGS_APPEND([OUR_CXXFLAGS], [\
                          -Wall \
@@ -173,7 +174,14 @@ AC_SEARCH_LIBS([pthread_create], [pthread], [], AC_MSG_ERROR([libpthread not fou
 AC_SEARCH_LIBS([backtrace], [execinfo], [], AC_MSG_ERROR([libexecinfo not found]))
 AC_SEARCH_LIBS([dlsym], [dl], [], AC_MSG_ERROR([libdl not found]))
 
-AC_CONFIG_FILES([Makefile tools/Makefile tests/Makefile doc/Doxyfile build/sockperf.spec])
+AC_CONFIG_FILES([
+    Makefile
+    tools/Makefile
+    tests/Makefile
+    tests/gtest/Makefile
+    doc/Doxyfile
+    build/sockperf.spec
+    ])
 
 AC_OUTPUT
 

@@ -40,7 +40,7 @@ make install
    options. Some of the options are generic autoconf options, while the sockperf
    specific options are prefixed with "SOCKPERF:" in the help text.
    
- * To enable test scripts
+ * To enable unit tests
    * `./configure --prefix=<path to install> --enable-test`
 
  * To enable the documentation
