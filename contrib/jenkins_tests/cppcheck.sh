@@ -2,13 +2,33 @@
 
 source $(dirname $0)/globals.sh
 
-do_check_filter "Checking for cppcheck ..." "on"
+echo "Checking for cppcheck ..."
+
+tool_app=cppcheck
 
 # This unit requires cppcheck so check for existence
-if [ $(command -v cppcheck >/dev/null 2>&1 || echo $?) ]; then
-	echo "[SKIP] cppcheck tool does not exist"
-	exit 0
+if [ $(command -v ${tool_app} >/dev/null 2>&1 || echo $?) ]; then
+    set +e
+    eval "timeout -s SIGKILL 20s https://github.com/danmar/cppcheck.git cppcheck " > /dev/null 2>&1
+    if [ $? -eq 0 ]; then
+        eval "cd cppcheck && checkout 2.1 " > /dev/null 2>&1
+        if [ $? -eq 0 ]; then
+            eval "make $make_opt FILESDIR=$PWD HAVE_RULES=yes " > /dev/null 2>&1
+            if [ $? -eq 0 ]; then
+                tool_app=$PWD/cppcheck
+            fi
+        fi
+        cd ..
+    fi
+    set -e
+
+    if [ $(command -v ${tool_app} >/dev/null 2>&1 || echo $?) ]; then
+        echo "[SKIP] cppcheck tool does not exist"
+        exit 1
+    fi
 fi
+
+echo $(${tool_app} --version)
 
 cd $WORKSPACE
 
@@ -16,9 +36,12 @@ rm -rf $cppcheck_dir
 mkdir -p $cppcheck_dir
 cd $cppcheck_dir
 
+${WORKSPACE}/configure $jenkins_test_custom_configure > "${cppcheck_dir}/cppcheck.log" 2>&1
+
 set +eE
 eval "find ${WORKSPACE}/src -name '*.h' -o -name '*.cpp' -o -name '*.c' -o -name '*.hpp' -o -name '*.inl' | \
-	cppcheck --std=c99 --std=c++11 --language=c++ --force --enable=information \
+	${tool_app} --std=c99 --std=c++11 --language=c++ --force --enable=information \
+	-I${WORKSPACE}/src \
 	--inline-suppr --suppress=memleak:config_parser.y \
 	--template='{severity}: {id}: {file}:{line}: {message}' \
 	--file-list=- 2> ${cppcheck_dir}/cppcheck.err 1> ${cppcheck_dir}/cppcheck.log"
@@ -36,7 +59,6 @@ if [ $rc -gt 0 ]; then
     do_err "cppcheck" "${cppcheck_dir}/cppcheck.err"
     info="cppcheck found $nerrors errors"
     status="error"
-    do_err "$1" "${5}.err"
 else
     echo ok 1 cppcheck found no issues >> $cppcheck_tap
     info="cppcheck found no issues"

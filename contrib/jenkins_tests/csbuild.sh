@@ -2,7 +2,7 @@
 
 source $(dirname $0)/globals.sh
 
-do_check_filter "Checking for csbuild ..." "on"
+echo "Checking for csbuild ..."
 
 # This unit requires csbuild so check for existence
 if [ $(command -v csbuild >/dev/null 2>&1 || echo $?) ]; then
@@ -27,17 +27,16 @@ set +eE
 ${WORKSPACE}/configure --prefix=${csbuild_dir}/install $jenkins_test_custom_configure > "${csbuild_dir}/csbuild.log" 2>&1
 make clean
 
-eval "csbuild --cswrap-timeout=180 --no-clean -c \"make $make_opt \" > \"${csbuild_dir}/csbuild.log\" 2>&1"
+eval "csbuild --cswrap-timeout=180 --no-clean -c \"make \" > \"${csbuild_dir}/csbuild.log\" 2>&1"
 rc=$(($rc+$?))
 
 eval "csgrep --quiet --event 'error|warning' \
 	--path '^${WORKSPACE}' --strip-path-prefix '${WORKSPACE}' \
 	--remove-duplicates '${csbuild_dir}/csbuild.log' | \
 	csgrep --invert-match --path '^ksh-.*[0-9]+\.c$' | \
-	csgrep --invert-match --checker CLANG_WARNING --event error | \
 	csgrep --invert-match --checker CLANG_WARNING --msg \"internal warning\" | \
-	csgrep --invert-match --checker COMPILER_WARNING --msg \"-Woverloaded-virtual\" | \
-	csgrep --invert-match --checker COMPILER_WARNING --msg \"-Wformat-nonliteral\" | \
+	csgrep --invert-match --checker COMPILER_WARNING --event \"warning\[-Woverloaded-virtual\]\" | \
+	csgrep --invert-match --checker COMPILER_WARNING --event \"warning\[-Wformat-nonliteral\]\" | \
 	csgrep --invert-match --checker CPPCHECK_WARNING --event 'preprocessorErrorDirective|syntaxError' | \
 	csgrep --mode=grep --invert-match --event 'internal warning' --prune-events=1 | \
 	cssort --key=path > ${csbuild_dir}/csbuild.err 2>&1 \

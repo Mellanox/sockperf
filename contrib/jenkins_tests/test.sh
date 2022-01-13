@@ -2,7 +2,11 @@
 
 source $(dirname $0)/globals.sh
 
-do_check_filter "Checking for test ..." "off"
+echo "Checking for test ..."
+if [ $(test -d ${install_dir} >/dev/null 2>&1 || echo $?) ]; then
+	echo "[SKIP] Not found ${install_dir} : build should be done before this stage"
+	exit 1
+fi
 
 if [ $(command -v ibdev2netdev >/dev/null 2>&1 || echo $?) ]; then
 	echo "[SKIP] ibdev2netdev tool does not exist"
