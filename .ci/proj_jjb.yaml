@@ -1,0 +1,110 @@
+- job-template:
+    name: "{jjb_proj}"
+    project-type: pipeline
+    properties:
+        - github:
+             url: "{jjb_git}"
+        - build-discarder:
+            days-to-keep: 50
+            num-to-keep: 20
+        - inject:
+            keep-system-variables: true
+            properties-content: |
+              jjb_proj={jjb_proj}
+    description: Do NOT edit this job through the Web GUI !
+    concurrent: false
+    parameters:
+        - string:
+            name: "sha1"
+            default: master
+            description: "Commit to be checked, set by PR"
+        - bool:
+            name: "build_dockers"
+            default: false
+            description: "Rebuild docker containers. Check this box if .ci/DockerFile* was changed"
+        - string:
+            name: "conf_file"
+            default: ".ci/matrix_job.yaml"
+            description: "Regex to select job config file. Do not change it"
+        - string:
+            name: "DEBUG"
+            default: 0
+            description: "Enable debug prints and traces, valid values are 0-9."
+        - bool:
+            name: "do_build"
+            default: true
+            description: "This verifies different configuration using gcc compiler."
+        - bool:
+            name: "do_compiler"
+            default: true
+            description: "Check ability to be built under icc, clang."
+        - bool:
+            name: "do_package"
+            default: true
+            description: "Check tar, source and binary packages."
+        - bool:
+            name: "do_cppcheck"
+            default: true
+            description: "Run static analysis using cppcheck tool."
+        - bool:
+            name: "do_csbuild"
+            default: true
+            description: "Run static analysis using csbuild tool."
+        - bool:
+            name: "do_style"
+            default: true
+            description: "Analysis source code for coding style."
+        - bool:
+            name: "do_coverity"
+            default: true
+            description: "Launch coverity verification."
+        - bool:
+            name: "do_test"
+            default: true
+            description: "Use runtime verification."
+        - bool:
+            name: "do_gtest"
+            default: true
+            description: "Use google tests."
+        - bool:
+            name: "do_artifact"
+            default: true
+            description: "Collect artifacts."
+        - bool:
+            name: "do_blackduck"
+            default: true
+            description: "Run BlackDuck."
+    triggers:
+        - github-pull-request:
+            cron: 'H/5 * * * *'
+            trigger-phrase: '.*\bbot:retest\b.*'
+            status-context: "Mellanox Lab"
+            success-status: "[PASS]"
+            failure-status: "[FAIL]"
+            error-status:   "[FAIL]"
+            status-add-test-results: true
+            auth-id: '549927eb-7f38-4a8f-997a-81dd63605782'
+            org-list: ["Mellanox"]
+            white-list: ["swx-jenkins","swx-jenkins2","swx-jenkins3","mellanox-github"]
+            allow-whitelist-orgs-as-admins: true
+            cancel-builds-on-update: true
+    pipeline-scm:
+        scm:
+            - git:
+                url: "{jjb_git}"
+                credentials-id: 'ef94fa95-5480-41ea-863f-6525aace5bc9'
+                branches: ['$sha1']
+                shallow-clone: true
+                depth: 2
+                refspec: "+refs/pull/*:refs/remotes/origin/pr/*"
+                browser: githubweb
+                browser-url: "{jjb_git}"
+        script-path: ".ci/Jenkinsfile"
+- project:
+    name: proj_name
+    jjb_email: 'lennyb@nvidia.com'
+    jjb_proj: 'sockperf'
+    jjb_git: 'https://github.com/Mellanox/sockperf'
+    jjb_owner: 'Lenny Verkhovsky'
+    jobs:
+        - "{jjb_proj}"
