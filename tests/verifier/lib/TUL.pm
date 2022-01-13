@@ -963,7 +963,7 @@ our $test_suite_tcp_ul =
                     failure => ['Segmentation fault', 'Assertion', 'ERROR']
                 },
                 client => {
-                    success => ['Test ended', 'No valid observations found'],
+                    success => ['Test ended', 'Test end before test start'],
                     failure => ['Segmentation fault', 'Assertion', 'ERROR', 'server down']
                 }
             },

@@ -1,0 +1,352 @@
+---
+job: sockperf
+
+step_allow_single_selector: false
+
+registry_host: harbor.mellanox.com
+registry_auth: swx-storage
+
+kubernetes:
+  privileged: false
+  cloud: swx-k8s-spray
+  nodeSelector: 'beta.kubernetes.io/os=linux'
+
+volumes:
+  - {mountPath: /hpc/local/bin, hostPath: /hpc/local/bin}
+  - {mountPath: /hpc/local/oss, hostPath: /hpc/local/oss}
+  - {mountPath: /hpc/local/oss/vma, hostPath: /hpc/local/oss/vma}
+  - {mountPath: /auto/sw_tools/Commercial, hostPath: /auto/sw_tools/Commercial}
+  - {mountPath: /hpc/local/commercial, hostPath: /hpc/local/commercial}
+  - {mountPath: /hpc/local/etc/modulefiles, hostPath: /hpc/local/etc/modulefiles}
+
+env:
+  build_dockers: false
+
+runs_on_dockers:
+  - {name: 'ub21.10-inbox-x86_64',  url: 'harbor.mellanox.com/hpcx/x86_64/ubuntu21.10/builder:inbox', category: 'base', arch: 'x86_64'}
+  - {name: 'rhel8.3-inbox-x86_64',  url: 'harbor.mellanox.com/hpcx/x86_64/rhel8.3/builder:inbox', category: 'base', arch: 'x86_64'}
+  - {name: 'rhel8.3-inbox-aarch64', url: 'harbor.mellanox.com/hpcx/aarch64/rhel8.3/builder:inbox', category: 'base', arch: 'aarch64'}
+  - {name: 'sl15sp2-mofed-x86_64',  url: 'harbor.mellanox.com/swx-infra/x86_64/sles15sp2/builder:mofed-5.2-2.2.0.0', category: 'base', arch: 'x86_64'}
+  - {name: 'fc31-mofed-x86_64',     url: 'harbor.mellanox.com/swx-infra/x86_64/fedora31/builder:mofed-5.1-1.0.7.0', category: 'base', arch: 'x86_64'}
+  - {name: 'toolbox', url: 'harbor.mellanox.com/hpcx/x86_64/rhel8.3/builder:inbox', category: 'tool', arch: 'x86_64'}
+  - {name: 'blackduck', url: 'harbor.mellanox.com/toolbox/ngci-centos:7.9.2009.2', category: 'tool', arch: 'x86_64'}
+
+runs_on_agents:
+  - {nodeLabel: 'r-aa-fatty02', category: 'base'}
+
+matrix:
+  axes:
+    flags:
+      - default
+    arch:
+      - x86_64
+      - aarch64
+      - ppc64le
+
+env:
+  jenkins_opt_artifacts: 'none'
+
+steps:
+  - name: Setup
+    run: |
+      set +x
+      echo
+      echo "======================================================"
+      echo "name: ${name}"
+      echo "arch: ${arch}"
+      echo "url: ${uri}"
+      echo "tag: ${tag}"
+      echo "flags: ${flags}"
+      echo "variant: ${variant}"
+      echo "======================================================"
+      echo
+    parallel: false
+
+  - name: Autogen
+    run: |
+      ./autogen.sh -s
+    parallel: false
+
+  - name: Build
+    enable: ${do_build}
+    containerSelector:
+      - "{category: 'base'}"
+    agentSelector:
+      - "{category: 'base'}"
+    run: |
+      [ "x${do_build}" == "xtrue" ] && action=yes || action=no
+      env WORKSPACE=$PWD TARGET=${flags} jenkins_test_build=${action} ./contrib/test_jenkins.sh 
+    parallel: false
+    onfail: |
+      if [ -d jenkins ]; then
+        gzip -f ./jenkins/*.tar 2>/dev/null || true
+        cd ./jenkins/ ;
+          for f in *.tar.gz ; do [ -e "$f" ] && mv "$f" "${flags}/arch-${name}-$f" ; done ;
+        cd ..
+        cd ./jenkins/${flags};
+          for f in *.tap ; do [ -e "$f" ] && mv "$f" "${flags}-${name}-$f" ; done ;
+        cd ../..
+      fi
+    archiveArtifacts-onfail: |
+      jenkins/**/arch-*.tar.gz
+    archiveTap-onfail: |
+      jenkins/**/*.tap
+
+  - name: Package
+    enable: ${do_package}
+    containerSelector:
+      - "{category: 'base'}"
+    agentSelector:
+      - "{nodeLabel: 'skip-agent'}"
+    run: |
+      [ "x${do_package}" == "xtrue" ] && action=yes || action=no
+      env WORKSPACE=$PWD TARGET=${flags} jenkins_test_rpm=${action} ./contrib/test_jenkins.sh
+    parallel: false
+    onfail: |
+      if [ -d jenkins ]; then
+        gzip -f ./jenkins/*.tar 2>/dev/null || true
+        cd ./jenkins/ ;
+          for f in *.tar.gz ; do [ -e "$f" ] && mv "$f" "${flags}/arch-${name}-$f" ; done ;
+        cd ..
+        cd ./jenkins/${flags};
+          for f in *.tap ; do [ -e "$f" ] && mv "$f" "${flags}-${name}-$f" ; done ;
+        cd ../..
+      fi
+    archiveArtifacts-onfail: |
+      jenkins/**/arch-*.tar.gz
+    archiveTap-onfail: |
+      jenkins/**/*.tap
+
+  - name: Style
+    enable: ${do_style}
+    containerSelector:
+      - "{name: 'toolbox', category: 'tool'}"
+    agentSelector:
+      - "{nodeLabel: 'skip-agent'}"
+    run: |
+      [ "x${do_style}" == "xtrue" ] && action=yes || action=no
+      env WORKSPACE=$PWD TARGET=${flags} jenkins_test_style=${action} ./contrib/test_jenkins.sh
+    parallel: false
+    onfail: |
+      if [ -d jenkins ]; then
+        gzip -f ./jenkins/*.tar 2>/dev/null || true
+        cd ./jenkins/ ;
+          for f in *.tar.gz ; do [ -e "$f" ] && mv "$f" "${flags}/arch-${name}-$f" ; done ;
+        cd ..
+        cd ./jenkins/${flags};
+          for f in *.tap ; do [ -e "$f" ] && mv "$f" "${flags}-${name}-$f" ; done ;
+        cd ../..
+      fi
+    archiveArtifacts-onfail: |
+      jenkins/**/arch-*.tar.gz
+    archiveTap-onfail: |
+      jenkins/**/*.tap
+
+  - name: Compiler
+    enable: ${do_compiler}
+    containerSelector:
+      - "{name: 'toolbox', category: 'tool'}"
+    agentSelector:
+      - "{nodeLabel: 'skip-agent'}"
+    run: |
+      [ "x${do_compiler}" == "xtrue" ] && action=yes || action=no
+      env WORKSPACE=$PWD TARGET=${flags} jenkins_test_compiler=${action} ./contrib/test_jenkins.sh
+    parallel: false
+    onfail: |
+      if [ -d jenkins ]; then
+        gzip -f ./jenkins/*.tar 2>/dev/null || true
+        cd ./jenkins/ ;
+          for f in *.tar.gz ; do [ -e "$f" ] && mv "$f" "${flags}/arch-${name}-$f" ; done ;
+        cd ..
+        cd ./jenkins/${flags};
+          for f in *.tap ; do [ -e "$f" ] && mv "$f" "${flags}-${name}-$f" ; done ;
+        cd ../..
+      fi
+    archiveArtifacts-onfail: |
+      jenkins/**/arch-*.tar.gz
+    archiveTap-onfail: |
+      jenkins/**/*.tap
+
+  - name: Coverity
+    enable: ${do_coverity}
+    containerSelector:
+      - "{name: 'toolbox', category: 'tool'}"
+    agentSelector:
+      - "{nodeLabel: 'skip-agent'}"
+    run: |
+      [ "x${do_coverity}" == "xtrue" ] && action=yes || action=no
+      env WORKSPACE=$PWD TARGET=${flags} jenkins_test_cov=${action} ./contrib/test_jenkins.sh
+    parallel: false
+    onfail: |
+      if [ -d jenkins ]; then
+        gzip -f ./jenkins/*.tar 2>/dev/null || true
+        cd ./jenkins/ ;
+          for f in *.tar.gz ; do [ -e "$f" ] && mv "$f" "${flags}/arch-${name}-$f" ; done ;
+        cd ..
+        cd ./jenkins/${flags};
+          for f in *.tap ; do [ -e "$f" ] && mv "$f" "${flags}-${name}-$f" ; done ;
+        cd ../..
+      fi
+    archiveArtifacts-onfail: |
+      jenkins/**/arch-*.tar.gz,
+      jenkins/**/output/errors/**/*.html
+    archiveTap-onfail: |
+      jenkins/**/*.tap
+
+  - name: Cppcheck
+    enable: ${do_cppcheck}
+    containerSelector:
+      - "{name: 'skip-container'}"
+    agentSelector:
+      - "{nodeLabel: 'r-aa-fatty02', variant:1}"
+    run: |
+      [ "x${do_cppcheck}" == "xtrue" ] && action=yes || action=no
+      env WORKSPACE=$PWD TARGET=${flags} jenkins_test_cppcheck=${action} ./contrib/test_jenkins.sh
+    parallel: false
+    onfail: |
+      if [ -d jenkins ]; then
+        gzip -f ./jenkins/*.tar 2>/dev/null || true
+        cd ./jenkins/ ;
+          for f in *.tar.gz ; do [ -e "$f" ] && mv "$f" "${flags}/arch-${name}-$f" ; done ;
+        cd ..
+        cd ./jenkins/${flags};
+          for f in *.tap ; do [ -e "$f" ] && mv "$f" "${flags}-${name}-$f" ; done ;
+        cd ../..
+      fi
+    archiveArtifacts-onfail: |
+      jenkins/**/arch-*.tar.gz
+    archiveTap-onfail: |
+      jenkins/**/*.tap
+
+  - name: Csbuild
+    enable: ${do_csbuild}
+    containerSelector:
+      - "{name: 'skip-container'}"
+    agentSelector:
+      - "{nodeLabel: 'r-aa-fatty02', variant:1}"
+    run: |
+      [ "x${do_csbuild}" == "xtrue" ] && action=yes || action=no
+      env WORKSPACE=$PWD TARGET=${flags} jenkins_test_csbuild=${action} ./contrib/test_jenkins.sh
+    parallel: false
+    onfail: |
+      if [ -d jenkins ]; then
+        gzip -f ./jenkins/*.tar 2>/dev/null || true
+        cd ./jenkins/ ;
+          for f in *.tar.gz ; do [ -e "$f" ] && mv "$f" "${flags}/arch-${name}-$f" ; done ;
+        cd ..
+        cd ./jenkins/${flags};
+          for f in *.tap ; do [ -e "$f" ] && mv "$f" "${flags}-${name}-$f" ; done ;
+        cd ../..
+      fi
+    archiveArtifacts-onfail: |
+      jenkins/**/arch-*.tar.gz
+    archiveTap-onfail: |
+      jenkins/**/*.tap
+
+  - name: Gtest
+    enable: ${do_gtest}
+    containerSelector:
+      - "{name: 'skip-container'}"
+    agentSelector:
+      - "{nodeLabel: 'r-aa-fatty02'}"
+    run: |
+      [ "x${do_gtest}" == "xtrue" ] && action=yes || action=no
+      env WORKSPACE=$PWD TARGET=${flags} jenkins_test_gtest=${action} ./contrib/test_jenkins.sh
+    parallel: false
+    onfail: |
+      if [ -d jenkins ]; then
+        gzip -f ./jenkins/*.tar 2>/dev/null || true
+        cd ./jenkins/ ;
+          for f in *.tar.gz ; do [ -e "$f" ] && mv "$f" "${flags}/arch-${name}-$f" ; done ;
+        cd ..
+        cd ./jenkins/${flags};
+          for f in *.tap ; do [ -e "$f" ] && mv "$f" "${flags}-${name}-$f" ; done ;
+          for f in *.xml ; do [ -e "$f" ] && mv "$f" "${flags}-${name}-$f" ; done ;
+        cd ../..
+      fi
+    archiveArtifacts-onfail: |
+      jenkins/**/arch-*.tar.gz
+    archiveTap-onfail: |
+      jenkins/**/*.tap
+    archiveJunit-onfail: |
+      jenkins/**/*.xml
+
+  - name: Test
+    enable: ${do_test}
+    containerSelector:
+      - "{name: 'skip-container'}"
+    agentSelector:
+      - "{nodeLabel: 'r-aa-fatty02', variant:1}"
+    run: |
+      [ "x${do_test}" == "xtrue" ] && action=yes || action=no
+      env WORKSPACE=$PWD TARGET=${flags} jenkins_test_run=${action} ./contrib/test_jenkins.sh
+    parallel: false
+    onfail: |
+      if [ -d jenkins ]; then
+        gzip -f ./jenkins/*.tar 2>/dev/null || true
+        cd ./jenkins/ ;
+          for f in *.tar.gz ; do [ -e "$f" ] && mv "$f" "${flags}/arch-${name}-$f" ; done ;
+        cd ..
+        cd ./jenkins/${flags};
+          for f in *.tap ; do [ -e "$f" ] && mv "$f" "${flags}-${name}-$f" ; done ;
+        cd ../..
+      fi
+    archiveArtifacts-onfail: |
+      jenkins/**/arch-*.tar.gz
+    archiveTap-onfail: |
+      jenkins/**/*.tap
+
+  - name: Artifacts
+    enable: ${do_artifact}
+    run: |
+      if [ -d jenkins ]; then
+        gzip -f ./jenkins/*.tar 2>/dev/null || true
+        cd ./jenkins/ ;
+          for f in *.tar.gz ; do [ -e "$f" ] && mv "$f" "${flags}/arch-${name}-$f" ; done ;
+        cd ..
+        if [ -d jenkins ]; then
+          cd ./jenkins/${flags};
+            for f in *.tap ; do [ -e "$f" ] && mv "$f" "${flags}-${name}-$f" ; done ;
+            for f in *.xml ; do [ -e "$f" ] && mv "$f" "${flags}-${name}-$f" ; done ;
+          cd ../..
+        fi
+      fi
+    parallel: false
+    archiveArtifacts: |
+      jenkins/**/arch-*.tar.gz
+    archiveTap: |
+      jenkins/**/*.tap
+    archiveJunit: |
+      jenkins/**/*.xml
+
+  - name: Blackduck
+    enable: ${do_blackduck}
+    containerSelector:
+      - "{name: 'blackduck', category:'tool', variant:1}"
+    agentSelector:
+      - "{nodeLabel: 'skip-agent'}"
+    shell: action
+    module: ngci
+    run: NGCIBlackDuckScan
+    args:
+      projectName: "sockperf"
+      projectVersion: "0.1.0"
+      projectSrcPath: "src"
+      attachArtifact: true
+      reportName: "BlackDuck report"
+      scanMode: "source"
+    env:
+      SPRING_APPLICATION_JSON: '{"blackduck.url":"https://blackduck.mellanox.com/","blackduck.api.token":"ODMwOWYwMzEtODA2ZC00MzBjLWI1ZDEtNmFiMjBkYzQzMzkwOjNmNjExN2M1LWE2ZmEtNDZlYS1hZjRiLTZlNDgwNjAwOTVjNw=="}'
+
+pipeline_start:
+  run: |
+    printenv
+    echo "Start"
+
+pipeline_stop:
+  run: |
+    echo "Finish"
+
+failFast: false
+
+taskName: '${flags}/${name}/${axis_index}'

@@ -1,0 +1,8 @@
+#!/usr/bin/groovy
+
+// load pipeline functions
+// Requires pipeline-github-lib plugin to load library from github
+@Library('github.com/Mellanox/ci-demo@stable')
+def matrix = new com.mellanox.cicd.Matrix()
+
+matrix.main()
