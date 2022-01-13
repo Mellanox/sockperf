@@ -1,23 +1,10 @@
 #!/bin/bash
 
-WORKSPACE=${WORKSPACE:=$PWD}
-if [ -z "$BUILD_NUMBER" ]; then
-    echo Running interactive
-    BUILD_NUMBER=1
-    WS_URL=file://$WORKSPACE
-    JENKINS_RUN_TESTS=yes
-else
-    echo Running under jenkins
-    WS_URL=$JOB_URL/ws
-fi
-
-TARGET=${TARGET:=all}
-i=0
-if [ "$TARGET" == "all" -o "$TARGET" == "default" ]; then
-	target_list[$i]="default: "
-	i=$((i+1))
-fi
-
+main()
+{
+WORKSPACE=${WORKSPACE:=$(pwd)}
+BUILD_NUMBER=${BUILD_NUMBER:=0}
+HOSTNAME=${HOSTNAME:=$(uname -n 2>/dev/null)}
 
 # exit code
 rc=0
@@ -37,15 +24,21 @@ cppcheck_dir=${WORKSPACE}/${prefix}/cppcheck
 csbuild_dir=${WORKSPACE}/${prefix}/csbuild
 style_dir=${WORKSPACE}/${prefix}/style
 
+NPROC=$(grep processor /proc/cpuinfo|wc -l)
+if [ $NPROC -lt 64 ]; then
+    NPROC=$(($NPROC / 2 + 1))
+else
+    NPROC=32
+fi
+make_opt="-j${NPROC}"
 
-nproc=$(grep processor /proc/cpuinfo|wc -l)
-make_opt="-j$(($nproc / 2 + 1))"
 if [ $(command -v timeout >/dev/null 2>&1 && echo $?) ]; then
     timeout_exe="timeout -s SIGKILL 20m"
     long_timeout_exe="timeout -s SIGKILL 40m"
 fi
 
 trap "on_exit" INT TERM ILL KILL FPE SEGV ALRM
+}
 
 function on_exit()
 {
@@ -81,38 +74,16 @@ function do_archive()
     set -e
 }
 
-function do_github_status()
-{
-    echo "Calling: github $1"
-    eval "local $1"
-
-    local token=""
-    if [ -z "$tokenfile" ]; then
-        tokenfile="$HOME/.mellanox-github"
-    fi
-
-    if [ -r "$tokenfile" ]; then
-        token="$(cat $tokenfile)"
-    else
-        echo Error: Unable to read tokenfile: $tokenfile
-        return
-    fi
-
-    curl \
-    -X POST \
-    -H "Content-Type: application/json" \
-    -d "{\"state\": \"$state\", \"context\": \"$context\",\"description\": \"$info\", \"target_url\": \"$target_url\"}" \
-    "https://api.github.com/repos/$repo/statuses/${sha1}?access_token=$token"
-}
-
 # Test if an environment module exists and load it if yes.
 # Otherwise, return error code.
 # $1 - module name
 #
 function do_module()
 {
+    [ -z "$1" ] && return
+
     echo "Checking module $1"
-    if [ $(command -v module >/dev/null 2>&1 || echo $?) ]; then
+    if [[ $(module avail 2>&1 | grep "$1" -q > /dev/null || echo $?) ]]; then
 	    echo "[SKIP] module tool does not exist"
 	    exit 0
 	else
@@ -169,32 +140,28 @@ function do_check_env()
         echo "environment [NOT OK]"
         exit 1
     fi
-    if [ $(sudo pwd >/dev/null 2>&1 || echo $?) ]; then
-        echo "sudo does not work"
+
+    if [ "$(whoami)" == "root" ]; then
+        export sudo_cmd=""
+    else
+        export sudo_cmd="sudo"
+    fi
+
+    if [ $(${sudo_cmd} pwd >/dev/null 2>&1 || echo $?) ]; then
+        echo "${sudo_cmd} does not work"
         echo "environment [NOT OK]"
         exit 1
     fi
 
-    echo "environment [OK]"
-}
-
-# Check if the unit should be proccesed
-# $1 - output message
-# $2 - [on|off] if on - skip this case if JENKINS_RUN_TESTS variable is OFF
-#
-function do_check_filter()
-{
-    local msg=$1
-    local filter=$2
-
-    if [ -n "$filter" -a "$filter" == "on" ]; then
-        if [ -z "$JENKINS_RUN_TESTS" -o "$JENKINS_RUN_TESTS" == "no" ]; then
-            echo "$msg [SKIP]"
-            exit 0
-        fi
+    if [ $(command -v ofed_info >/dev/null 2>&1 || echo $?) ]; then
+        echo "Configuration: INBOX : ${ghprbTargetBranch}"
+        export jenkins_ofed=inbox
+    else
+        echo "Configuration: MOFED[$(ofed_info -s)] : ${ghprbTargetBranch}"
+        export jenkins_ofed=$(ofed_info -s | sed 's/.*[l|X]-\([0-9\.]\+\).*/\1/')
     fi
 
-    echo "$msg [OK]"
+    echo "environment [OK]"
 }
 
 # Launch command and detect result of execution
@@ -208,10 +175,10 @@ function do_check_result()
 {
     set +e
     if [ -z "$5" ]; then
-        eval $long_timeout_exe $1
+        eval $timeout_exe $1
         ret=$?
     else
-        eval $long_timeout_exe $1 2>> "${5}.err" 1>> "${5}.log"
+        eval $timeout_exe $1 2>> "${5}.err" 1>> "${5}.log"
         ret=$?
         do_archive "${5}.err" "${5}.log"
     fi
@@ -236,7 +203,43 @@ function do_check_result()
 #
 function do_get_ip()
 {
-    for ip in $(ibdev2netdev | grep Up | grep "$2" | cut -f 5 -d ' '); do
+    sv_ifs=${IFS}
+    netdevs=$(ibdev2netdev | grep Up | grep "$2" | cut -f 5 -d ' ')
+    IFS=$'\n' read -rd '' -a netdev_ifs <<< "${netdevs}"
+    lnkifs=$(ip -o link | awk '{print $2,$(NF-2)}')
+    IFS=$'\n' read -rd '' -a lnk_ifs <<< "${lnkifs}"
+    IFS=${sv_ifs}
+    ifs_array=()
+
+    for nd_if in "${netdev_ifs[@]}" ; do
+        found_if=''
+        for v_if in "${lnk_ifs[@]}" ; do
+            if [ ! -z "$(echo ${v_if} | grep ${nd_if})" ] ; then
+                mac=$(echo "${v_if}"| awk '{ print $NF }') #; echo "mac=$mac"
+                for p_if in "${lnk_ifs[@]}" ; do
+                    if [ ! -z "$(echo ${p_if} | grep -E ${mac} | grep -Ei eth)" ] ; then
+                        if_name=$(echo "${p_if}"| awk '{ print $1}')
+                        ifs_array+=(${if_name::-1})
+                        #-#echo "${nd_if} --> ${if_name::-1} "
+                        found_if=1
+                        break 2
+                    fi
+                done
+            fi
+        done
+        # use the netdevice if needed
+        [ -z "${found_if}" ] && {
+            ifs_array+=(${nd_if})
+        }
+    done
+
+    if [ "${#ifs_array[@]}" -le 1 ] ; then
+        if (dmesg | grep -i hypervisor > /dev/null 2>&1) ; then
+           ifs_array=(eth1 eth2)
+        fi
+    fi
+
+    for ip in ${ifs_array[@]}; do
         if [ -n "$1" -a "$1" == "ib" -a -n "$(ip link show $ip | grep 'link/inf')" ]; then
             found_ip=$(ip -4 address show $ip | grep 'inet' | sed 's/.*inet \([0-9\.]\+\).*/\1/')
             if [ -n "$(ibdev2netdev | grep $ip | grep mlx5)" ]; then
@@ -257,3 +260,21 @@ function do_get_ip()
         fi
     done
 }
+
+do_version_check()
+{
+    local version="$1" operator="$2" value="$3"
+    awk -vv1="$version" -vv2="$value" 'BEGIN {
+        split(v1, a, /\./); split(v2, b, /\./);
+        if (a[1] == b[1]) {
+            exit (a[2] '$operator' b[2]) ? 0 : 1
+        }
+        else {
+            exit (a[1] '$operator' b[1]) ? 0 : 1
+        }
+    }'
+}
+
+#######################################################
+#
+main "$@"

@@ -10,14 +10,12 @@
 # Environment variables set by Jenkins CI:
 #  - WORKSPACE         : path to working directory
 #  - BUILD_NUMBER      : jenkins build number
-#  - JOB_URL           : jenkins job url
-#  - JENKINS_RUN_TESTS : whether to run unit tests
 #  - TARGET            : target configuration
 #
 
 echo "======================================================"
 echo
-echo "# starting on host --------->  $(hostname) "
+echo "# starting on host --------->  ${HOSTNAME} "
 echo "# arguments called with ---->  ${@}        "
 echo "# path to me --------------->  ${0}        "
 echo "# parent path -------------->  ${0%/*}     "
@@ -26,19 +24,35 @@ echo
 
 PATH=${PATH}:/hpc/local/bin:/hpc/local/oss/vma/
 MODULEPATH=${MODULEPATH}:/hpc/local/etc/modulefiles
-env
+
+echo
 for f in autoconf automake libtool ; do $f --version | head -1 ; done
-echo "======================================================"
-
-source $(dirname $0)/jenkins_tests/globals.sh
-
-set -xe
-# check go/not go
-#
-do_check_env
+echo
 
 rel_path=$(dirname $0)
 abs_path=$(readlink -f $rel_path)
+
+echo
+echo "# rel_path ----------------->  ${rel_path}     "
+echo "# abs_path ----------------->  ${abs_path}     "
+echo
+
+source ${abs_path}/jenkins_tests/globals.sh
+
+# Cleanup target folder
+#
+cd $WORKSPACE > /dev/null 2>&1
+
+if [ $BUILD_NUMBER -le 0 ]; then
+    rm -rf ${WORKSPACE}/${prefix} > /dev/null 2>&1
+    rm -rf autom4te.cache > /dev/null 2>&1
+fi
+
+echo
+echo "# WORKSPACE ---------------->  ${WORKSPACE}    "
+echo "# BUILD_NUMBER ------------->  ${BUILD_NUMBER} "
+echo "# TARGET ------------------->  ${TARGET}       "
+echo
 
 # Values: none, fail, always
 #
@@ -50,38 +64,58 @@ jenkins_opt_exit=${jenkins_opt_exit:="6"}
 
 # Test scenario list
 #
-jenkins_test_build=${jenkins_test_build:="yes"}
+jenkins_test_build=${jenkins_test_build:="no"}
 
-jenkins_test_compiler=${jenkins_test_compiler:="yes"}
-jenkins_test_rpm=${jenkins_test_rpm:="yes"}
+jenkins_test_compiler=${jenkins_test_compiler:="no"}
+jenkins_test_rpm=${jenkins_test_rpm:="no"}
 jenkins_test_cov=${jenkins_test_cov:="no"}
-jenkins_test_cppcheck=${jenkins_test_cppcheck:="yes"}
+jenkins_test_cppcheck=${jenkins_test_cppcheck:="no"}
 jenkins_test_csbuild=${jenkins_test_csbuild:="no"}
 jenkins_test_run=${jenkins_test_run:="no"}
-jenkins_test_gtest=${jenkins_test_gtest:="yes"}
+jenkins_test_gtest=${jenkins_test_gtest:="no"}
 jenkins_test_style=${jenkins_test_style:="no"}
 
 
-echo Starting on host: $(hostname)
 
-cd $WORKSPACE
+echo
+for var in ${!jenkins_test_@}; do
+   printf "%s%q\n" "$var=" "${!var}"
+done
+echo
 
-rm -rf ${WORKSPACE}/${prefix}
-rm -rf autom4te.cache
+# check go/not go
+#
+do_check_env
 
-./autogen.sh -s
+# set predefined configuration settings and extra options
+# that depend on environment
+#
+TARGET=${TARGET:=all}
+i=0
+if [ "$TARGET" == "all" -o "$TARGET" == "default" ]; then
+    target_list[$i]="default: "
+    i=$((i+1))
+fi
 
+echo
+echo "======================================================"
+set -xe
+
+if [ ! -e configure ] && [ -e autogen.sh ]; then
+    ./autogen.sh -s
+fi
 
 for target_v in "${target_list[@]}"; do
     ret=0
     IFS=':' read target_name target_option <<< "$target_v"
 
-    export jenkins_test_artifacts="${WORKSPACE}/${prefix}/sockperf-${BUILD_NUMBER}-$(hostname -s)-${target_name}"
-    export jenkins_test_custom_configure="${target_option}"
+    export jenkins_test_artifacts="${WORKSPACE}/${prefix}/sockperf-${BUILD_NUMBER}-${HOSTNAME}-${target_name}"
+    export jenkins_test_custom_configure="${jenkins_test_custom_configure} ${target_option}"
     export jenkins_target="${target_name}"
     set +x
     echo "======================================================"
-    echo "Jenkins is checking for [${target_name}] target ..."
+    echo " Checking for [${jenkins_target}] target"
+    echo " Checking for [${jenkins_test_custom_configure}] options"
     echo "======================================================"
     set -x
 
@@ -181,17 +215,18 @@ for target_v in "${target_list[@]}"; do
     fi
     set -e
 
-    # Archive all logs in single file
-    do_archive "${WORKSPACE}/${prefix}/${target_name}/*.tap"
-
     if [ "$jenkins_opt_artifacts" == "always" ] || [ "$jenkins_opt_artifacts" == "fail" -a "$rc" -gt 0 ]; then
-	    set +x
-	    gzip "${jenkins_test_artifacts}.tar"
-	    echo "======================================================"
-	    echo "Jenkins result for [${target_name}] target: return $rc"
-	    echo "Artifacts: ${jenkins_test_artifacts}.tar.gz"
-	    echo "======================================================"
-	    set -x
+
+        # Archive all logs in single file
+        do_archive "${WORKSPACE}/${prefix}/${target_name}/*.tap"
+
+        set +x
+        gzip -f "${jenkins_test_artifacts}.tar"
+        echo "======================================================"
+        echo "Jenkins result for [${target_name}] target: return $rc"
+        echo "Artifacts: ${jenkins_test_artifacts}.tar.gz"
+        echo "======================================================"
+        set -x
     fi
 
 done

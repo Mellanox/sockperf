@@ -2,7 +2,7 @@
 
 source $(dirname $0)/globals.sh
 
-do_check_filter "Checking for rpm ..." "off"
+echo "Checking for rpm ..."
 
 cd $WORKSPACE
 
@@ -14,7 +14,7 @@ rpm_tap=${WORKSPACE}/${prefix}/rpm.tap
 
 cd ${build_dir}/0
 
-if [ -f "/etc/debian_version" -o "$(grep -Ei 'debian|buntu|mint' /etc/*release)" ]; then
+if [ -x /usr/bin/dpkg-buildpackage ]; then
     echo "Build on debian"
     set +e
     ${WORKSPACE}/build/build-rpm.sh "$rpm_dir" 2> "${rpm_dir}/rpm.err" 1> "${rpm_dir}/rpm.log"

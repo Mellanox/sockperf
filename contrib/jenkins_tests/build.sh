@@ -2,7 +2,7 @@
 
 source $(dirname $0)/globals.sh
 
-do_check_filter "Checking for building with gcc ..." "off"
+echo "Checking for building with gcc ..."
 
 cd $WORKSPACE
 
