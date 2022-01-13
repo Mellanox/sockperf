@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2011-2021 Mellanox Technologies Ltd.
+# Copyright (c) 2011-2022 Mellanox Technologies Ltd.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without modification,
