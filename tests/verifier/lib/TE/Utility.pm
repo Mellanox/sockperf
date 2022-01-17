@@ -26,6 +26,7 @@ te_create_feed_file
 
 # External modules
 use Sys::Hostname;
+use Socket;
 
 # Own modules
 use TE::Common;
@@ -50,11 +51,18 @@ sub get_ip
 {
     my $host = ( @_ > 0 ? "@_" : '');
 
-    my @raw_ip = gethostbyname($host);
-    my @ip = unpack("C4", $raw_ip[4]);
-    my $dotted_ip = join(".",@ip);
+    my($err, @addrs) = Socket::getaddrinfo($host, 0, {});
+    if ($err) {
+        return $host;
+    }
 
-    return $dotted_ip;
+    for my $addr (@addrs) {
+        my ($err, $ip) = Socket::getnameinfo($addr->{addr}, Socket::NI_NUMERICHOST);
+        if (!$err) {
+            return $ip;
+        }
+    }
+    return $host;
 }
 
 sub clear_array
@@ -360,7 +368,11 @@ sub te_create_feed_file
     open($ffeed, "> $feed_file") || 
         TE::Utility::fatal("Can't open $feed_file: $!\n") if defined($feed_file);
 
-	my ($group1,$group2,$group3,$group4) = ( $opt_addr =~ /^(\d+).(\d+).(\d+).(\d+)$/i);
+    my ($group1,$group2,$group3,$group4);
+    if ($opt_addr !~ m/:/) {
+        # parse only IPv4 addresses
+        ($group1,$group2,$group3,$group4) = ( $opt_addr =~ /^(\d+).(\d+).(\d+).(\d+)$/i);
+    }
     $opt_step = 0 if (!$opt_port);
     $opt_port = 17000 if (!$opt_port);
 	my $port = $opt_port;
@@ -370,20 +382,29 @@ sub te_create_feed_file
 	for (my $i = $opt_port; $i < ($opt_port + $opt_size); $i++)
 	{
 		$line = "";
-        $line .= 'T:' if ($opt_protocol eq 'TCP');
-        $line .= "$group1";
-        $line .= ".$group2";
-        if ($group1 == 224 && $group4 > 254)
-        {
-        	$group3++;
-        	$group4 = 3;
+        if ($opt_protocol eq 'TCP') {
+            $line .= 'T:'
+        } else {
+            $line .= 'U:'
         }
-        $line .= ".$group3";
-        if ($group1 == 224)
-        {
-            $group4++;
+        if ($opt_addr !~ m/:/) {
+            $line .= "$group1";
+            $line .= ".$group2";
+            if ($group1 == 224 && $group4 > 254)
+            {
+                $group3++;
+                $group4 = 3;
+            }
+            $line .= ".$group3";
+            if ($group1 == 224)
+            {
+                $group4++;
+            }
+            $line .= ".$group4";
+        } else {
+            # IPv6 multicast is not yet supported
+            $line .= "[$opt_addr]"
         }
-        $line .= ".$group4";
 
         $line .= ":$port\n";
         $port+=$opt_step;

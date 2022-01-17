@@ -349,4 +349,6 @@ pipeline_stop:
 
 failFast: false
 
+timeout_minutes: 150
+
 taskName: '${flags}/${name}/${axis_index}'
