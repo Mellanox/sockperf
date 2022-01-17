@@ -26,8 +26,18 @@ if [ $(command -v $test_app >/dev/null 2>&1 || echo $?) ]; then
     exit 1
 fi
 
-if [ ! -z $(do_get_ip 'eth') ]; then
-    test_ip_list="${test_ip_list} eth:$(do_get_ip 'eth')"
+ip=$(do_get_ip 'eth')
+if [ -n "$ip" ]; then
+    test_ip_list="${test_ip_list} eth:$ip"
+fi
+ip=$(do_get_ip 'eth6')
+if [ -n "$ip" ]; then
+    test_ip_list="${test_ip_list} eth6:$ip"
+fi
+
+if [ -z "$test_ip_list" ]; then
+    echo "no IP addresses detected"
+    rc=1
 fi
 
 test_list="tcp-pp tcp-tp tcp-ul udp-pp udp-tp udp-ul"
@@ -40,9 +50,9 @@ for test_link in $test_ip_list; do
 		test_name=${test_in}-${test}
 		test_tap=${WORKSPACE}/${prefix}/test-${test_name}.tap
 
-		$timeout_exe ${WORKSPACE}/tests/verifier/verifier.pl -a ${test_app} \
-			-t ${test} -s ${test_ip} -l ${test_dir}/${test_name}.log \
-			--progress=0
+        $timeout_exe ${WORKSPACE}/tests/verifier/verifier.pl -a ${test_app} \
+            -t ${test} -s ${test_ip} -l ${test_dir}/${test_name}.log \
+            --progress=0
 
 		# exclude multicast tests from final result
 		# because they are not valid when server/client on the same node

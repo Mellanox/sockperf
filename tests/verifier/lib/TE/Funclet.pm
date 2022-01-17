@@ -262,7 +262,12 @@ sub execute
         # Execute script
         # which means $cmd will 'pipe' its output to SHELL. That means SHELL can be used 
         # to read the output of the command (specifically the stuff the command sends to STDOUT).
-        $cmd = "ssh $$TARGET " . $cmd; 
+        if ($$TARGET =~ m/:/) {
+            # tell ssh to use IPv6 address
+            $cmd = "ssh -6 $$TARGET " . $cmd;
+        } else {
+            $cmd = "ssh $$TARGET " . $cmd;
+        }
         eval { open SHELL, "$cmd 2>&1 |"  or die $! };
         my $eval_err = $@;
         if ( !get_error() && $eval_err )
