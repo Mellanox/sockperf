@@ -106,7 +106,7 @@ static int s_fd_num = 0;
 static struct mutable_params_t s_mutable_params;
 
 static void set_select_timeout(int time_out_msec);
-static int set_sockets_from_feedfile(const char *feedfile_name);
+static SOCKPERF_ERROR set_sockets_from_feedfile(const char *feedfile_name);
 #ifdef ST_TEST
 int prepare_socket(int fd, struct fds_data *p_data, bool stTest = false);
 #else
@@ -119,16 +119,16 @@ void cleanup();
 #define VERSION "unknown"
 #endif
 
-static int proc_mode_help(int, int, const char **);
-static int proc_mode_version(int, int, const char **);
-static int proc_mode_under_load(int, int, const char **);
-static int proc_mode_ping_pong(int, int, const char **);
-static int proc_mode_throughput(int, int, const char **);
-static int proc_mode_playback(int, int, const char **);
-static int proc_mode_server(int, int, const char **);
+static SOCKPERF_ERROR proc_mode_help(int, int, const char **);
+static SOCKPERF_ERROR proc_mode_version(int, int, const char **);
+static SOCKPERF_ERROR proc_mode_under_load(int, int, const char **);
+static SOCKPERF_ERROR proc_mode_ping_pong(int, int, const char **);
+static SOCKPERF_ERROR proc_mode_throughput(int, int, const char **);
+static SOCKPERF_ERROR proc_mode_playback(int, int, const char **);
+static SOCKPERF_ERROR proc_mode_server(int, int, const char **);
 
 static const struct app_modes {
-    int (*func)(int, int, const char **); /* proc function */
+    SOCKPERF_ERROR (*func)(int, int, const char **); /* proc function */
     const char *name;                     /* mode name to use from command line as an argument */
     const char *const shorts[4];          /* short name */
     const char *note;                     /* mode description */
@@ -149,8 +149,8 @@ static const struct app_modes {
   };
 
 os_mutex_t _mutex;
-static int parse_common_opt(const AOPT_OBJECT *);
-static int parse_client_opt(const AOPT_OBJECT *);
+static SOCKPERF_ERROR parse_common_opt(const AOPT_OBJECT *);
+static SOCKPERF_ERROR parse_client_opt(const AOPT_OBJECT *);
 static char *display_opt(int, char *, size_t);
 
 /*
@@ -318,9 +318,7 @@ static const AOPT_DESC client_opt_desc[] = {
 };
 
 //------------------------------------------------------------------------------
-static int proc_mode_help(int id, int argc, const char **argv) {
-    int i = 0;
-
+static SOCKPERF_ERROR proc_mode_help(int id, int argc, const char **argv) {
     printf(MODULE_NAME " is a tool for testing network latency and throughput.\n");
     printf("version %s\n", VERSION);
     printf("\n");
@@ -330,7 +328,7 @@ static int proc_mode_help(int id, int argc, const char **argv) {
     printf("\n");
     printf("Available subcommands:\n");
 
-    for (i = 0; sockperf_modes[i].name != NULL; i++) {
+    for (int i = 0; sockperf_modes[i].name != NULL; i++) {
         char tmp_buf[21];
 
         /* skip commands with prefix '--', they are special */
@@ -344,21 +342,21 @@ static int proc_mode_help(int id, int argc, const char **argv) {
     printf("For additional information visit our website http://github.com/mellanox/sockperf , see "
            "README file, or Type \'sockperf <subcommand> --help\'.\n\n");
 
-    return -1; /* this return code signals to do exit */
+    return SOCKPERF_ERR_NONE_EXIT;
 }
 
 //------------------------------------------------------------------------------
-static int proc_mode_version(int id, int argc, const char **argv) {
+static SOCKPERF_ERROR proc_mode_version(int id, int argc, const char **argv) {
     printf(MODULE_NAME ", version %s\n", VERSION);
     printf("   compiled %s, %s\n", __DATE__, __TIME__);
     printf("\n%s\n", MODULE_COPYRIGHT);
 
-    return -1; /* this return code signals to do exit */
+    return SOCKPERF_ERR_NONE_EXIT;
 }
 
 //------------------------------------------------------------------------------
-static int proc_mode_under_load(int id, int argc, const char **argv) {
-    int rc = SOCKPERF_ERR_NONE;
+static SOCKPERF_ERROR proc_mode_under_load(int id, int argc, const char **argv) {
+    SOCKPERF_ERROR rc = SOCKPERF_ERR_NONE;
     const AOPT_OBJECT *common_obj = NULL;
     const AOPT_OBJECT *client_obj = NULL;
     const AOPT_OBJECT *self_obj = NULL;
@@ -435,7 +433,7 @@ static int proc_mode_under_load(int id, int argc, const char **argv) {
     }
 
     if (rc || aopt_check(common_obj, 'h')) {
-        rc = -1;
+        rc = SOCKPERF_ERR_NONE_EXIT;
     }
 
     /* Set default values */
@@ -444,18 +442,18 @@ static int proc_mode_under_load(int id, int argc, const char **argv) {
     s_user_params.reply_every = REPLY_EVERY_DEFAULT;
 
     /* Set command line common options */
-    if (!rc && common_obj) {
+    if (rc == SOCKPERF_ERR_NONE && common_obj) {
         rc = parse_common_opt(common_obj);
     }
 
     /* Set command line client values */
-    if (!rc && client_obj) {
+    if (rc == SOCKPERF_ERR_NONE && client_obj) {
         rc = parse_client_opt(client_obj);
     }
 
     /* Set command line specific values */
-    if (!rc && self_obj) {
-        if (!rc && aopt_check(self_obj, 't')) {
+    if (rc == SOCKPERF_ERR_NONE && self_obj) {
+        if (aopt_check(self_obj, 't')) {
             const char *optarg = aopt_value(self_obj, 't');
             if (optarg) {
                 errno = 0;
@@ -472,7 +470,7 @@ static int proc_mode_under_load(int id, int argc, const char **argv) {
             }
         }
 
-        if (!rc && aopt_check(self_obj, 'b')) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(self_obj, 'b')) {
             const char *optarg = aopt_value(self_obj, 'b');
             if (optarg) {
                 errno = 0;
@@ -489,7 +487,7 @@ static int proc_mode_under_load(int id, int argc, const char **argv) {
             }
         }
 
-        if (!rc && aopt_check(self_obj, OPT_REPLY_EVERY)) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(self_obj, OPT_REPLY_EVERY)) {
             const char *optarg = aopt_value(self_obj, OPT_REPLY_EVERY);
             if (optarg) {
                 errno = 0;
@@ -506,7 +504,7 @@ static int proc_mode_under_load(int id, int argc, const char **argv) {
             }
         }
 
-        if (!rc && aopt_check(self_obj, OPT_MPS)) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(self_obj, OPT_MPS)) {
             const char *optarg = aopt_value(self_obj, OPT_MPS);
             if (optarg) {
                 if (0 == strcmp("MAX", optarg) || 0 == strcmp("max", optarg)) {
@@ -527,7 +525,7 @@ static int proc_mode_under_load(int id, int argc, const char **argv) {
             }
         }
 
-        if (!rc && aopt_check(self_obj, OPT_CLIENTPORT)) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(self_obj, OPT_CLIENTPORT)) {
             if (aopt_check(common_obj, 'f')) {
                 log_msg("--client_port conflicts with -f option");
                 rc = SOCKPERF_ERR_BAD_ARGUMENT;
@@ -550,7 +548,7 @@ static int proc_mode_under_load(int id, int argc, const char **argv) {
             }
         }
 
-        if (!rc && aopt_check(self_obj, OPT_CLIENTIP)) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(self_obj, OPT_CLIENTIP)) {
             int len;
             const char *optarg = aopt_value(self_obj, OPT_CLIENTIP);
             if (!optarg) { /* already in network byte order*/
@@ -565,7 +563,7 @@ static int proc_mode_under_load(int id, int argc, const char **argv) {
             }
         }
 
-        if (!rc && aopt_check(self_obj, 'm')) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(self_obj, 'm')) {
             const char *optarg = aopt_value(self_obj, 'm');
             if (optarg) {
                 errno = 0;
@@ -591,7 +589,7 @@ static int proc_mode_under_load(int id, int argc, const char **argv) {
             }
         }
 
-        if (!rc && aopt_check(self_obj, 'r')) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(self_obj, 'r')) {
             const char *optarg = aopt_value(self_obj, 'r');
             if (optarg && (isNumeric(optarg))) {
                 errno = 0;
@@ -608,7 +606,7 @@ static int proc_mode_under_load(int id, int argc, const char **argv) {
             }
         }
 
-        if (!rc && aopt_check(self_obj, OPT_CI_SIG_LVL)) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(self_obj, OPT_CI_SIG_LVL)) {
             const char *optarg = aopt_value(self_obj, OPT_CI_SIG_LVL);
             if (optarg) {
                 errno = 0;
@@ -627,7 +625,7 @@ static int proc_mode_under_load(int id, int argc, const char **argv) {
             }
         }
 
-        if (!rc && aopt_check(self_obj, OPT_HISTOGRAM)) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(self_obj, OPT_HISTOGRAM)) {
             s_user_params.b_histogram = true;
             const char *optarg = aopt_value(self_obj, OPT_HISTOGRAM);
 
@@ -656,7 +654,7 @@ static int proc_mode_under_load(int id, int argc, const char **argv) {
         }
     }
 
-    if (rc) {
+    if (rc != SOCKPERF_ERR_NONE) {
         const char *help_str = NULL;
         char temp_buf[30];
 
@@ -699,8 +697,8 @@ static int proc_mode_under_load(int id, int argc, const char **argv) {
 }
 
 //------------------------------------------------------------------------------
-static int proc_mode_ping_pong(int id, int argc, const char **argv) {
-    int rc = SOCKPERF_ERR_NONE;
+static SOCKPERF_ERROR proc_mode_ping_pong(int id, int argc, const char **argv) {
+    SOCKPERF_ERROR rc = SOCKPERF_ERR_NONE;
     const AOPT_OBJECT *common_obj = NULL;
     const AOPT_OBJECT *client_obj = NULL;
     const AOPT_OBJECT *self_obj = NULL;
@@ -776,8 +774,8 @@ static int proc_mode_ping_pong(int id, int argc, const char **argv) {
         }
     }
 
-    if (rc || aopt_check(common_obj, 'h')) {
-        rc = -1;
+    if (rc != SOCKPERF_ERR_NONE || aopt_check(common_obj, 'h')) {
+        rc = SOCKPERF_ERR_NONE_EXIT;
     }
 
     /* Set default values */
@@ -788,18 +786,18 @@ static int proc_mode_ping_pong(int id, int argc, const char **argv) {
     s_user_params.reply_every = 1;
 
     /* Set command line common options */
-    if (!rc && common_obj) {
+    if (rc == SOCKPERF_ERR_NONE && common_obj) {
         rc = parse_common_opt(common_obj);
     }
 
     /* Set command line client values */
-    if (!rc && client_obj) {
+    if (rc == SOCKPERF_ERR_NONE && client_obj) {
         rc = parse_client_opt(client_obj);
     }
 
     /* Set command line specific values */
-    if (!rc && self_obj) {
-        if (!rc && aopt_check(self_obj, 'n')) {
+    if (rc == SOCKPERF_ERR_NONE && self_obj) {
+        if (aopt_check(self_obj, 'n')) {
             if (!aopt_check(self_obj, 't') && !aopt_check(self_obj, OPT_MPS)) {
                 const char *optarg = aopt_value(self_obj, 'n');
                 if (optarg) {
@@ -822,7 +820,7 @@ static int proc_mode_ping_pong(int id, int argc, const char **argv) {
             }
         }
 
-        if (!rc && aopt_check(self_obj, 't')) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(self_obj, 't')) {
             if (!aopt_check(self_obj, 'n')) {
                 const char *optarg = aopt_value(self_obj, 't');
                 if (optarg) {
@@ -845,7 +843,7 @@ static int proc_mode_ping_pong(int id, int argc, const char **argv) {
             }
         }
 
-        if (!rc && aopt_check(self_obj, 'b')) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(self_obj, 'b')) {
             const char *optarg = aopt_value(self_obj, 'b');
             if (optarg) {
                 errno = 0;
@@ -862,7 +860,7 @@ static int proc_mode_ping_pong(int id, int argc, const char **argv) {
             }
         }
 
-        if (!rc && aopt_check(self_obj, OPT_MPS)) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(self_obj, OPT_MPS)) {
             const char *optarg = aopt_value(self_obj, OPT_MPS);
             if (optarg) {
                 if (0 == strcmp("MAX", optarg) || 0 == strcmp("max", optarg)) {
@@ -883,7 +881,7 @@ static int proc_mode_ping_pong(int id, int argc, const char **argv) {
             }
         }
 
-        if (!rc && aopt_check(self_obj, OPT_CLIENTPORT)) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(self_obj, OPT_CLIENTPORT)) {
             if (aopt_check(common_obj, 'f')) {
                 log_msg("--client_port conflicts with -f option");
                 rc = SOCKPERF_ERR_BAD_ARGUMENT;
@@ -906,7 +904,7 @@ static int proc_mode_ping_pong(int id, int argc, const char **argv) {
             }
         }
 
-        if (!rc && aopt_check(self_obj, OPT_CLIENTIP)) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(self_obj, OPT_CLIENTIP)) {
             int len;
             const char *optarg = aopt_value(self_obj, OPT_CLIENTIP);
             if (!optarg) { /* already in network byte order*/
@@ -921,7 +919,7 @@ static int proc_mode_ping_pong(int id, int argc, const char **argv) {
             }
         }
 
-        if (!rc && aopt_check(self_obj, 'm')) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(self_obj, 'm')) {
             const char *optarg = aopt_value(self_obj, 'm');
             if (optarg) {
                 errno = 0;
@@ -947,7 +945,7 @@ static int proc_mode_ping_pong(int id, int argc, const char **argv) {
             }
         }
 
-        if (!rc && aopt_check(self_obj, 'r')) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(self_obj, 'r')) {
             const char *optarg = aopt_value(self_obj, 'r');
             if (optarg && (isNumeric(optarg))) {
                 errno = 0;
@@ -964,7 +962,7 @@ static int proc_mode_ping_pong(int id, int argc, const char **argv) {
             }
         }
 
-        if (!rc && aopt_check(self_obj, OPT_DATA_INTEGRITY)) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(self_obj, OPT_DATA_INTEGRITY)) {
             if (!aopt_check(self_obj, 'b')) {
                 s_user_params.data_integrity = true;
             } else {
@@ -973,7 +971,7 @@ static int proc_mode_ping_pong(int id, int argc, const char **argv) {
             }
         }
 
-        if (!rc && aopt_check(self_obj, OPT_CI_SIG_LVL)) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(self_obj, OPT_CI_SIG_LVL)) {
             const char *optarg = aopt_value(self_obj, OPT_CI_SIG_LVL);
             if (optarg) {
                 errno = 0;
@@ -992,7 +990,7 @@ static int proc_mode_ping_pong(int id, int argc, const char **argv) {
             }
         }
 
-        if (!rc && aopt_check(self_obj, OPT_HISTOGRAM)) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(self_obj, OPT_HISTOGRAM)) {
             s_user_params.b_histogram = true;
             const char *optarg = aopt_value(self_obj, OPT_HISTOGRAM);
 
@@ -1021,7 +1019,7 @@ static int proc_mode_ping_pong(int id, int argc, const char **argv) {
         }
     }
 
-    if (rc) {
+    if (rc != SOCKPERF_ERR_NONE ) {
         const char *help_str = NULL;
         char temp_buf[30];
 
@@ -1069,8 +1067,8 @@ static int proc_mode_ping_pong(int id, int argc, const char **argv) {
 }
 
 //------------------------------------------------------------------------------
-static int proc_mode_throughput(int id, int argc, const char **argv) {
-    int rc = SOCKPERF_ERR_NONE;
+static SOCKPERF_ERROR proc_mode_throughput(int id, int argc, const char **argv) {
+    SOCKPERF_ERROR rc = SOCKPERF_ERR_NONE;
     const AOPT_OBJECT *common_obj = NULL;
     const AOPT_OBJECT *client_obj = NULL;
     const AOPT_OBJECT *self_obj = NULL;
@@ -1130,8 +1128,8 @@ static int proc_mode_throughput(int id, int argc, const char **argv) {
         }
     }
 
-    if (rc || aopt_check(common_obj, 'h')) {
-        rc = -1;
+    if (rc != SOCKPERF_ERR_NONE || aopt_check(common_obj, 'h')) {
+        rc = SOCKPERF_ERR_NONE_EXIT;
     }
 
     /* Set default values */
@@ -1141,18 +1139,18 @@ static int proc_mode_throughput(int id, int argc, const char **argv) {
     s_user_params.reply_every = 1 << (8 * sizeof(s_user_params.reply_every) - 2);
 
     /* Set command line common options */
-    if (!rc && common_obj) {
+    if (rc == SOCKPERF_ERR_NONE && common_obj) {
         rc = parse_common_opt(common_obj);
     }
 
     /* Set command line client values */
-    if (!rc && client_obj) {
+    if (rc == SOCKPERF_ERR_NONE && client_obj) {
         rc = parse_client_opt(client_obj);
     }
 
     /* Set command line specific values */
-    if (!rc && self_obj) {
-        if (!rc && aopt_check(self_obj, 't')) {
+    if (rc == SOCKPERF_ERR_NONE && self_obj) {
+        if (aopt_check(self_obj, 't')) {
             const char *optarg = aopt_value(self_obj, 't');
             if (optarg) {
                 errno = 0;
@@ -1169,7 +1167,7 @@ static int proc_mode_throughput(int id, int argc, const char **argv) {
             }
         }
 
-        if (!rc && aopt_check(self_obj, 'b')) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(self_obj, 'b')) {
             const char *optarg = aopt_value(self_obj, 'b');
             if (optarg) {
                 errno = 0;
@@ -1186,7 +1184,7 @@ static int proc_mode_throughput(int id, int argc, const char **argv) {
             }
         }
 
-        if (!rc && aopt_check(self_obj, OPT_MPS)) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(self_obj, OPT_MPS)) {
             const char *optarg = aopt_value(self_obj, OPT_MPS);
             if (optarg) {
                 if (0 == strcmp("MAX", optarg) || 0 == strcmp("max", optarg)) {
@@ -1207,7 +1205,7 @@ static int proc_mode_throughput(int id, int argc, const char **argv) {
             }
         }
 
-        if (!rc && aopt_check(self_obj, OPT_CLIENTPORT)) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(self_obj, OPT_CLIENTPORT)) {
             if (aopt_check(common_obj, 'f')) {
                 log_msg("--client_port conflicts with -f option");
                 rc = SOCKPERF_ERR_BAD_ARGUMENT;
@@ -1230,7 +1228,7 @@ static int proc_mode_throughput(int id, int argc, const char **argv) {
             }
         }
 
-        if (!rc && aopt_check(self_obj, OPT_CLIENTIP)) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(self_obj, OPT_CLIENTIP)) {
             int len;
             const char *optarg = aopt_value(self_obj, OPT_CLIENTIP);
             if (!optarg) { /* already in network byte order*/
@@ -1245,7 +1243,7 @@ static int proc_mode_throughput(int id, int argc, const char **argv) {
             }
         }
 
-        if (!rc && aopt_check(self_obj, 'm')) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(self_obj, 'm')) {
             const char *optarg = aopt_value(self_obj, 'm');
             if (optarg) {
                 errno = 0;
@@ -1271,7 +1269,7 @@ static int proc_mode_throughput(int id, int argc, const char **argv) {
             }
         }
 
-        if (!rc && aopt_check(self_obj, 'r')) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(self_obj, 'r')) {
             const char *optarg = aopt_value(self_obj, 'r');
             if (optarg && (isNumeric(optarg))) {
                 errno = 0;
@@ -1289,7 +1287,7 @@ static int proc_mode_throughput(int id, int argc, const char **argv) {
         }
     }
 
-    if (rc) {
+    if (rc != SOCKPERF_ERR_NONE ) {
         const char *help_str = NULL;
         char temp_buf[30];
 
@@ -1334,8 +1332,8 @@ static int proc_mode_throughput(int id, int argc, const char **argv) {
 }
 
 //------------------------------------------------------------------------------
-static int proc_mode_playback(int id, int argc, const char **argv) {
-    int rc = SOCKPERF_ERR_NONE;
+static SOCKPERF_ERROR proc_mode_playback(int id, int argc, const char **argv) {
+    SOCKPERF_ERROR rc = SOCKPERF_ERR_NONE;
     const AOPT_OBJECT *common_obj = NULL;
     const AOPT_OBJECT *client_obj = NULL;
     const AOPT_OBJECT *self_obj = NULL;
@@ -1385,8 +1383,8 @@ static int proc_mode_playback(int id, int argc, const char **argv) {
         }
     }
 
-    if (rc || aopt_check(common_obj, 'h')) {
-        rc = -1;
+    if (rc != SOCKPERF_ERR_NONE || aopt_check(common_obj, 'h')) {
+        rc = SOCKPERF_ERR_NONE_EXIT;
     }
 
     /* Set default values */
@@ -1395,18 +1393,18 @@ static int proc_mode_playback(int id, int argc, const char **argv) {
     s_user_params.reply_every = REPLY_EVERY_DEFAULT;
 
     /* Set command line common options */
-    if (!rc && common_obj) {
+    if (rc == SOCKPERF_ERR_NONE && common_obj) {
         rc = parse_common_opt(common_obj);
     }
 
     /* Set command line client values */
-    if (!rc && client_obj) {
+    if (rc == SOCKPERF_ERR_NONE && client_obj) {
         rc = parse_client_opt(client_obj);
     }
 
     /* Set command line specific values */
-    if (!rc && self_obj) {
-        if (!rc && aopt_check(self_obj, OPT_PLAYBACK_DATA)) {
+    if (rc == SOCKPERF_ERR_NONE && self_obj) {
+        if (aopt_check(self_obj, OPT_PLAYBACK_DATA)) {
             const char *optarg = aopt_value(self_obj, OPT_PLAYBACK_DATA);
             if (optarg) {
                 static PlaybackVector pv;
@@ -1418,7 +1416,7 @@ static int proc_mode_playback(int id, int argc, const char **argv) {
             }
         }
 
-        if (!rc && aopt_check(self_obj, OPT_REPLY_EVERY)) {
+        if (rc == SOCKPERF_ERR_NONE  && aopt_check(self_obj, OPT_REPLY_EVERY)) {
             const char *optarg = aopt_value(self_obj, OPT_REPLY_EVERY);
             if (optarg) {
                 errno = 0;
@@ -1435,7 +1433,7 @@ static int proc_mode_playback(int id, int argc, const char **argv) {
             }
         }
 
-        if (!rc && aopt_check(self_obj, OPT_CI_SIG_LVL)) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(self_obj, OPT_CI_SIG_LVL)) {
             const char *optarg = aopt_value(self_obj, OPT_CI_SIG_LVL);
             if (optarg) {
                 errno = 0;
@@ -1454,7 +1452,7 @@ static int proc_mode_playback(int id, int argc, const char **argv) {
             }
         }
 
-        if (!rc && aopt_check(self_obj, OPT_HISTOGRAM)) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(self_obj, OPT_HISTOGRAM)) {
             s_user_params.b_histogram = true;
             const char *optarg = aopt_value(self_obj, OPT_HISTOGRAM);
 
@@ -1484,12 +1482,12 @@ static int proc_mode_playback(int id, int argc, const char **argv) {
     }
 
     /* force --data-file */
-    if (!rc && (!self_obj || (self_obj && !aopt_check(self_obj, OPT_PLAYBACK_DATA)))) {
+    if (rc == SOCKPERF_ERR_NONE && (!self_obj || (self_obj && !aopt_check(self_obj, OPT_PLAYBACK_DATA)))) {
         log_msg("--data-file must be used with playback mode");
         rc = SOCKPERF_ERR_BAD_ARGUMENT;
     }
 
-    if (rc) {
+    if (rc != SOCKPERF_ERR_NONE ) {
         const char *help_str = NULL;
         char temp_buf[30];
 
@@ -1528,8 +1526,8 @@ static int proc_mode_playback(int id, int argc, const char **argv) {
 }
 
 //------------------------------------------------------------------------------
-static int proc_mode_server(int id, int argc, const char **argv) {
-    int rc = SOCKPERF_ERR_NONE;
+static SOCKPERF_ERROR proc_mode_server(int id, int argc, const char **argv) {
+    SOCKPERF_ERROR rc = SOCKPERF_ERR_NONE;
     const AOPT_OBJECT *common_obj = NULL;
     const AOPT_OBJECT *server_obj = NULL;
 
@@ -1590,8 +1588,8 @@ static int proc_mode_server(int id, int argc, const char **argv) {
         }
     }
 
-    if (rc || aopt_check(common_obj, 'h')) {
-        rc = -1;
+    if (rc != SOCKPERF_ERR_NONE || aopt_check(common_obj, 'h')) {
+        rc = SOCKPERF_ERR_NONE_EXIT;
     }
 
     /* Set default values */
@@ -1600,21 +1598,21 @@ static int proc_mode_server(int id, int argc, const char **argv) {
     s_user_params.msg_size = MAX_PAYLOAD_SIZE;
 
     /* Set command line common options */
-    if (!rc && common_obj) {
+    if (rc == SOCKPERF_ERR_NONE && common_obj) {
         rc = parse_common_opt(common_obj);
     }
 
     /* Set command line specific values */
-    if (!rc && server_obj) {
+    if (rc == SOCKPERF_ERR_NONE && server_obj) {
         struct sockaddr_in *p_addr = &s_user_params.addr;
 
-        if (!rc && aopt_check(server_obj, 'B')) {
+        if (aopt_check(server_obj, 'B')) {
             log_msg("update to bridge mode");
             s_user_params.mode = MODE_BRIDGE;
             p_addr->sin_port = htons(5001); /*iperf's default port*/
         }
 
-        if (!rc && aopt_check(server_obj, OPT_THREADS_NUM)) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(server_obj, OPT_THREADS_NUM)) {
             if (aopt_check(common_obj, 'f')) {
                 const char *optarg = aopt_value(server_obj, OPT_THREADS_NUM);
                 if (optarg) {
@@ -1637,7 +1635,7 @@ static int proc_mode_server(int id, int argc, const char **argv) {
             }
         }
 
-        if (!rc && aopt_check(server_obj, OPT_THREADS_AFFINITY)) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(server_obj, OPT_THREADS_AFFINITY)) {
             const char *optarg = aopt_value(server_obj, OPT_THREADS_AFFINITY);
             if (optarg) {
                 strcpy(s_user_params.threads_affinity, optarg);
@@ -1647,15 +1645,15 @@ static int proc_mode_server(int id, int argc, const char **argv) {
             }
         }
 #ifndef WIN32
-        if (!rc && aopt_check(server_obj, OPT_VMARXFILTERCB)) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(server_obj, OPT_VMARXFILTERCB)) {
             s_user_params.is_vmarxfiltercb = true;
         }
 #endif
 
-        if (!rc && aopt_check(server_obj, OPT_FORCE_UC_REPLY)) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(server_obj, OPT_FORCE_UC_REPLY)) {
             s_user_params.b_server_reply_via_uc = true;
         }
-        if (!rc && aopt_check(server_obj, OPT_DONT_REPLY)) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(server_obj, OPT_DONT_REPLY)) {
             if (aopt_check(common_obj, OPT_TCP)) {
                 log_msg("--tcp conflicts with --dont-reply option");
                 rc = SOCKPERF_ERR_BAD_ARGUMENT;
@@ -1663,7 +1661,7 @@ static int proc_mode_server(int id, int argc, const char **argv) {
                 s_user_params.b_server_dont_reply = true;
             }
         }
-        if (!rc && aopt_check(server_obj, 'm')) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(server_obj, 'm')) {
             const char *optarg = aopt_value(server_obj, 'm');
             if (optarg) {
                 int value = strtol(optarg, NULL, 0);
@@ -1676,12 +1674,12 @@ static int proc_mode_server(int id, int argc, const char **argv) {
             }
         }
 
-        if (!rc && aopt_check(server_obj, 'g')) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(server_obj, 'g')) {
             s_user_params.b_server_detect_gaps = true;
         }
     }
 
-    if (rc) {
+    if (rc != SOCKPERF_ERR_NONE) {
         const char *help_str = NULL;
         char temp_buf[30];
 
@@ -1724,19 +1722,19 @@ static int proc_mode_server(int id, int argc, const char **argv) {
 }
 
 //------------------------------------------------------------------------------
-static int parse_common_opt(const AOPT_OBJECT *common_obj) {
-    int rc = SOCKPERF_ERR_NONE;
+static SOCKPERF_ERROR parse_common_opt(const AOPT_OBJECT *common_obj) {
+    SOCKPERF_ERROR rc = SOCKPERF_ERR_NONE;
 
     if (common_obj) {
         struct sockaddr_in *p_addr = &s_user_params.addr;
         int *p_daemonize = &s_user_params.daemonize;
         char *feedfile_name = s_user_params.feedfile_name;
 
-        if (!rc && aopt_check(common_obj, 'd')) {
+        if (aopt_check(common_obj, 'd')) {
             g_debug_level = LOG_LVL_DEBUG;
         }
 
-        if (!rc && aopt_check(common_obj, 'i')) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(common_obj, 'i')) {
             const char *optarg = aopt_value(common_obj, 'i');
             int len;
             if (!optarg) { /* already in network byte order*/
@@ -1759,7 +1757,7 @@ static int parse_common_opt(const AOPT_OBJECT *common_obj) {
             }
         }
 
-        if (!rc && aopt_check(common_obj, 'p')) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(common_obj, 'p')) {
             const char *optarg = aopt_value(common_obj, 'p');
             if (optarg && (isNumeric(optarg))) {
                 errno = 0;
@@ -1778,7 +1776,7 @@ static int parse_common_opt(const AOPT_OBJECT *common_obj) {
             }
         }
 
-        if (!rc && aopt_check(common_obj, 'f')) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(common_obj, 'f')) {
             if (!aopt_check(common_obj, 'i') && !aopt_check(common_obj, 'p')) {
                 const char *optarg = aopt_value(common_obj, 'f');
                 if (optarg) {
@@ -1799,7 +1797,7 @@ static int parse_common_opt(const AOPT_OBJECT *common_obj) {
             }
         }
 
-        if (!rc && aopt_check(common_obj, 'F')) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(common_obj, 'F')) {
             if (aopt_check(common_obj, 'f')) {
                 const char *optarg = aopt_value(common_obj, 'F');
                 if (optarg) {
@@ -1840,7 +1838,7 @@ static int parse_common_opt(const AOPT_OBJECT *common_obj) {
             }
         }
 
-        if (!rc && aopt_check(common_obj, 'a')) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(common_obj, 'a')) {
             const char *optarg = aopt_value(common_obj, 'a');
             if (optarg) {
                 errno = 0;
@@ -1857,7 +1855,7 @@ static int parse_common_opt(const AOPT_OBJECT *common_obj) {
             }
         }
 
-        if (!rc && aopt_check(common_obj, 'A')) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(common_obj, 'A')) {
             const char *optarg = aopt_value(common_obj, 'A');
             if (optarg) {
                 errno = 0;
@@ -1874,7 +1872,7 @@ static int parse_common_opt(const AOPT_OBJECT *common_obj) {
             }
         }
 
-        if (!rc && aopt_check(common_obj, OPT_RX_MC_IF)) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(common_obj, OPT_RX_MC_IF)) {
             const char *optarg = aopt_value(common_obj, OPT_RX_MC_IF);
             if (!optarg || ((s_user_params.rx_mc_if_addr.s_addr = inet_addr(optarg)) ==
                             INADDR_NONE)) { /* already in network byte order*/
@@ -1883,7 +1881,7 @@ static int parse_common_opt(const AOPT_OBJECT *common_obj) {
             }
         }
 
-        if (!rc && aopt_check(common_obj, OPT_TX_MC_IF)) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(common_obj, OPT_TX_MC_IF)) {
             const char *optarg = aopt_value(common_obj, OPT_TX_MC_IF);
             if (!optarg || ((s_user_params.tx_mc_if_addr.s_addr = inet_addr(optarg)) ==
                             INADDR_NONE)) { /* already in network byte order*/
@@ -1892,7 +1890,7 @@ static int parse_common_opt(const AOPT_OBJECT *common_obj) {
             }
         }
 
-        if (!rc && aopt_check(common_obj, OPT_MC_SOURCE_IP)) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(common_obj, OPT_MC_SOURCE_IP)) {
             const char *optarg = aopt_value(common_obj, OPT_MC_SOURCE_IP);
             if (optarg) {
                 if (!inet_aton(optarg, &(s_user_params.mc_source_ip_addr))) {
@@ -1911,7 +1909,7 @@ static int parse_common_opt(const AOPT_OBJECT *common_obj) {
             }
         }
 
-        if (!rc && aopt_check(common_obj, OPT_SELECT_TIMEOUT)) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(common_obj, OPT_SELECT_TIMEOUT)) {
             const char *optarg = aopt_value(common_obj, OPT_SELECT_TIMEOUT);
             if (optarg) {
                 errno = 0;
@@ -1936,15 +1934,15 @@ static int parse_common_opt(const AOPT_OBJECT *common_obj) {
             }
         }
 
-        if (!rc && aopt_check(common_obj, OPT_MC_LOOPBACK_ENABLE)) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(common_obj, OPT_MC_LOOPBACK_ENABLE)) {
             s_user_params.mc_loop_disable = false;
         }
 
-        if (!rc && aopt_check(common_obj, OPT_UC_REUSEADDR)) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(common_obj, OPT_UC_REUSEADDR)) {
             s_user_params.uc_reuseaddr = true;
         }
 
-        if (!rc && aopt_check(common_obj, OPT_BUFFER_SIZE)) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(common_obj, OPT_BUFFER_SIZE)) {
             const char *optarg = aopt_value(common_obj, OPT_BUFFER_SIZE);
             if (optarg) {
                 errno = 0;
@@ -1961,11 +1959,11 @@ static int parse_common_opt(const AOPT_OBJECT *common_obj) {
             }
         }
 
-        if (!rc && aopt_check(common_obj, OPT_NONBLOCKED)) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(common_obj, OPT_NONBLOCKED)) {
             s_user_params.is_blocked = false;
         }
 
-        if (!rc && aopt_check(common_obj, OPT_TOS)) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(common_obj, OPT_TOS)) {
             const char *optarg = aopt_value(common_obj, OPT_TOS);
             if (optarg) {
 #if defined(WIN32) || defined(_WIN32)
@@ -1978,7 +1976,7 @@ static int parse_common_opt(const AOPT_OBJECT *common_obj) {
             }
         }
 
-        if (!rc && aopt_check(common_obj, OPT_LLS)) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(common_obj, OPT_LLS)) {
             const char *optarg = aopt_value(common_obj, OPT_LLS);
             if (optarg) {
 #if defined(WIN32) || defined(_WIN32)
@@ -2001,11 +1999,11 @@ static int parse_common_opt(const AOPT_OBJECT *common_obj) {
             }
         }
 
-        if (!rc && aopt_check(common_obj, OPT_NONBLOCKED_SEND)) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(common_obj, OPT_NONBLOCKED_SEND)) {
             s_user_params.is_nonblocked_send = true;
         }
 
-        if (!rc && aopt_check(common_obj, OPT_RECV_LOOPING)) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(common_obj, OPT_RECV_LOOPING)) {
 
             const char *optarg = aopt_value(common_obj, OPT_RECV_LOOPING);
             if (optarg) {
@@ -2033,11 +2031,11 @@ static int parse_common_opt(const AOPT_OBJECT *common_obj) {
                 rc = SOCKPERF_ERR_BAD_ARGUMENT;
             }
         }
-        if (!rc && aopt_check(common_obj, OPT_DONTWARMUP)) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(common_obj, OPT_DONTWARMUP)) {
             s_user_params.do_warmup = false;
         }
 
-        if (!rc && aopt_check(common_obj, OPT_PREWARMUPWAIT)) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(common_obj, OPT_PREWARMUPWAIT)) {
             const char *optarg = aopt_value(common_obj, OPT_PREWARMUPWAIT);
             if (optarg) {
                 errno = 0;
@@ -2054,24 +2052,24 @@ static int parse_common_opt(const AOPT_OBJECT *common_obj) {
             }
         }
 
-        if (!rc && aopt_check(common_obj, OPT_SOCK_ACCL)) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(common_obj, OPT_SOCK_ACCL)) {
             s_user_params.withsock_accl = true;
         }
 #ifndef WIN32
 
-        if (!rc && aopt_check(common_obj, OPT_VMAZCOPYREAD)) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(common_obj, OPT_VMAZCOPYREAD)) {
             s_user_params.is_vmazcopyread = true;
         }
 
-        if (!rc && aopt_check(common_obj, OPT_DAEMONIZE)) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(common_obj, OPT_DAEMONIZE)) {
             *p_daemonize = true;
         }
 
-        if (!rc && aopt_check(common_obj, OPT_NO_RDTSC)) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(common_obj, OPT_NO_RDTSC)) {
             s_user_params.b_no_rdtsc = true;
         }
 
-        if (!rc && aopt_check(common_obj, OPT_RATE_LIMIT)) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(common_obj, OPT_RATE_LIMIT)) {
             const char *optarg = aopt_value(common_obj, OPT_RATE_LIMIT);
             if (optarg) {
                 errno = 0;
@@ -2095,7 +2093,7 @@ static int parse_common_opt(const AOPT_OBJECT *common_obj) {
         }
 #endif
 #ifndef __FreeBSD__
-        if (!rc && aopt_check(common_obj, OPT_LOAD_VMA)) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(common_obj, OPT_LOAD_VMA)) {
             const char *optarg = aopt_value(common_obj, OPT_LOAD_VMA);
             // s_user_params.b_load_vma = true;
             if (!optarg || !*optarg) optarg = (char *)"libvma.so"; // default value
@@ -2111,7 +2109,7 @@ static int parse_common_opt(const AOPT_OBJECT *common_obj) {
 #endif
 #endif
 
-        if (!rc && aopt_check(common_obj, OPT_TCP)) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(common_obj, OPT_TCP)) {
             if (!aopt_check(common_obj, 'f')) {
                 s_user_params.sock_type = SOCK_STREAM;
             } else {
@@ -2120,11 +2118,11 @@ static int parse_common_opt(const AOPT_OBJECT *common_obj) {
             }
         }
 
-        if (!rc && aopt_check(common_obj, OPT_TCP_NODELAY_OFF)) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(common_obj, OPT_TCP_NODELAY_OFF)) {
             s_user_params.tcp_nodelay = false;
         }
 
-        if (!rc && aopt_check(common_obj, OPT_IP_MULTICAST_TTL)) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(common_obj, OPT_IP_MULTICAST_TTL)) {
             const char *optarg = aopt_value(common_obj, OPT_IP_MULTICAST_TTL);
             if (optarg) {
                 errno = 0;
@@ -2156,13 +2154,13 @@ static int parse_common_opt(const AOPT_OBJECT *common_obj) {
 }
 
 //------------------------------------------------------------------------------
-static int parse_client_opt(const AOPT_OBJECT *client_obj) {
-    int rc = SOCKPERF_ERR_NONE;
+static SOCKPERF_ERROR parse_client_opt(const AOPT_OBJECT *client_obj) {
+    SOCKPERF_ERROR rc = SOCKPERF_ERR_NONE;
 
     s_user_params.mode = MODE_CLIENT;
 
     if (client_obj) {
-        if (!rc && aopt_check(client_obj, OPT_CLIENT_WORK_WITH_SRV_NUM)) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(client_obj, OPT_CLIENT_WORK_WITH_SRV_NUM)) {
             const char *optarg = aopt_value(client_obj, OPT_CLIENT_WORK_WITH_SRV_NUM);
             if (optarg) {
                 errno = 0;
@@ -2180,7 +2178,7 @@ static int parse_client_opt(const AOPT_OBJECT *client_obj) {
             }
         }
 
-        if (!rc && aopt_check(client_obj, OPT_SENDER_AFFINITY)) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(client_obj, OPT_SENDER_AFFINITY)) {
             const char *optarg = aopt_value(client_obj, OPT_SENDER_AFFINITY);
             if (optarg) {
                 strcpy(s_user_params.sender_affinity, optarg);
@@ -2190,7 +2188,7 @@ static int parse_client_opt(const AOPT_OBJECT *client_obj) {
             }
         }
 
-        if (!rc && aopt_check(client_obj, OPT_RECEIVER_AFFINITY)) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(client_obj, OPT_RECEIVER_AFFINITY)) {
             const char *optarg = aopt_value(client_obj, OPT_RECEIVER_AFFINITY);
             if (optarg) {
                 strcpy(s_user_params.receiver_affinity, optarg);
@@ -2200,7 +2198,7 @@ static int parse_client_opt(const AOPT_OBJECT *client_obj) {
             }
         }
 
-        if (!rc && aopt_check(client_obj, OPT_FULL_LOG)) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(client_obj, OPT_FULL_LOG)) {
             const char *optarg = aopt_value(client_obj, OPT_FULL_LOG);
             if (optarg) {
                 errno = 0;
@@ -2215,16 +2213,16 @@ static int parse_client_opt(const AOPT_OBJECT *client_obj) {
                 rc = SOCKPERF_ERR_BAD_ARGUMENT;
             }
         }
-        if (!rc && aopt_check(client_obj, OPT_FULL_RTT)) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(client_obj, OPT_FULL_RTT)) {
             s_user_params.full_rtt = true;
         }
-        if (!rc && aopt_check(client_obj, OPT_GIGA_SIZE)) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(client_obj, OPT_GIGA_SIZE)) {
             s_user_params.giga_size = true;
         }
-        if (!rc && aopt_check(client_obj, OPT_OUTPUT_PRECISION)) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(client_obj, OPT_OUTPUT_PRECISION)) {
             s_user_params.increase_output_precision = true;
         }
-        if (!rc && aopt_check(client_obj, OPT_DUMMY_SEND)) {
+        if (rc == SOCKPERF_ERR_NONE && aopt_check(client_obj, OPT_DUMMY_SEND)) {
             s_user_params.dummy_mps = DUMMY_SEND_MPS_DEFAULT;
             const char *optarg = aopt_value(client_obj, OPT_DUMMY_SEND);
             if (optarg) {
@@ -2870,8 +2868,8 @@ int prepare_socket(int fd, struct fds_data *p_data)
 
 //------------------------------------------------------------------------------
 /* get IP:port pairs from the file and initialize the list */
-static int set_sockets_from_feedfile(const char *feedfile_name) {
-    int rc = SOCKPERF_ERR_NONE;
+static SOCKPERF_ERROR set_sockets_from_feedfile(const char *feedfile_name) {
+    SOCKPERF_ERROR rc = SOCKPERF_ERR_NONE;
     FILE *file_fd = NULL;
     char line[MAX_MCFILE_LINE_LENGTH];
     char *res;
@@ -2910,7 +2908,7 @@ static int set_sockets_from_feedfile(const char *feedfile_name) {
     std::unordered_map<port_and_type, int> fd_socket_map; //<port,fd>
 #endif
 
-    while (!rc && (res = fgets(line, MAX_MCFILE_LINE_LENGTH, file_fd))) {
+    while (rc == SOCKPERF_ERR_NONE && (res = fgets(line, MAX_MCFILE_LINE_LENGTH, file_fd))) {
         /* skip empty lines and comments */
         if (line[0] == ' ' || line[0] == '\r' || line[0] == '\n' || line[0] == '#') {
             continue;
@@ -3108,7 +3106,7 @@ static int set_sockets_from_feedfile(const char *feedfile_name) {
             }
 
             /* Failure check */
-            if (rc) {
+            if (rc != SOCKPERF_ERR_NONE) {
                 if (tmp->active_fd_list) {
                     FREE(tmp->active_fd_list);
                 }
@@ -3120,7 +3118,7 @@ static int set_sockets_from_feedfile(const char *feedfile_name) {
         }
     }
 
-    if (!rc && (NULL == res) && ferror(file_fd)) {
+    if (rc == SOCKPERF_ERR_NONE && (NULL == res) && ferror(file_fd)) {
         /* An I/O error occured */
         log_err("fread() failed to read feedfile '%s'!", feedfile_name);
         rc = SOCKPERF_ERR_FATAL;
@@ -3129,12 +3127,12 @@ static int set_sockets_from_feedfile(const char *feedfile_name) {
     fclose(file_fd);
 
     /* Check for special case when feedfile is empty */
-    if (!rc && (0 == s_fd_num)) {
+    if (rc == SOCKPERF_ERR_NONE && (0 == s_fd_num)) {
         log_msg("Feedfile '%s' is empty!", feedfile_name);
         rc = SOCKPERF_ERR_BAD_ARGUMENT;
     }
 
-    if (!rc) {
+    if (rc == SOCKPERF_ERR_NONE) {
         g_fds_array[s_fd_max]->next_fd = s_fd_min; /* close loop for fast wrap around in client */
 
 #ifdef ST_TEST
@@ -3196,8 +3194,8 @@ static bool fds_array_is_valid() {
 }
 
 //------------------------------------------------------------------------------
-int bringup(const int *p_daemonize) {
-    int rc = SOCKPERF_ERR_NONE;
+static SOCKPERF_ERROR bringup(const int *p_daemonize) {
+    SOCKPERF_ERROR rc = SOCKPERF_ERR_NONE;
 
     os_mutex_init(&_mutex);
 
@@ -3221,7 +3219,7 @@ int bringup(const int *p_daemonize) {
     int _vma_pkts_desc_size = 0;
 
 #ifdef USING_VMA_EXTRA_API
-    if (!rc && (s_user_params.is_vmarxfiltercb || s_user_params.is_vmazcopyread ||
+    if (rc == SOCKPERF_ERR_NONE && (s_user_params.is_vmarxfiltercb || s_user_params.is_vmazcopyread ||
                 s_user_params.fd_handler_type == SOCKETXTREME)) {
         // Get VMA extended API
         g_vma_api = vma_get_api();
@@ -3236,7 +3234,7 @@ int bringup(const int *p_daemonize) {
             sizeof(struct vma_packets_t) + sizeof(struct vma_packet_t) + sizeof(struct iovec) * 16;
     }
 #else
-    if (!rc && (s_user_params.is_vmarxfiltercb || s_user_params.is_vmazcopyread ||
+    if (rc == SOCKPERF_ERR_NONE && (s_user_params.is_vmarxfiltercb || s_user_params.is_vmazcopyread ||
                 s_user_params.fd_handler_type == SOCKETXTREME)) {
         errno = EPERM;
         exit_with_err("Please compile with VMA Extra API to use these options", SOCKPERF_ERR_FATAL);
@@ -3248,7 +3246,7 @@ int bringup(const int *p_daemonize) {
 #endif /* DEFINED_TLS */
 
     /* Create and initialize sockets */
-    if (!rc) {
+    if (rc == SOCKPERF_ERR_NONE) {
         setbuf(stdout, NULL);
 
         int _max_buff_size = _max(s_user_params.msg_size + 1, _vma_pkts_desc_size);
@@ -3447,7 +3445,7 @@ void do_test() {
 //------------------------------------------------------------------------------
 int main(int argc, char *argv[]) {
     try {
-        int rc = SOCKPERF_ERR_NONE;
+        SOCKPERF_ERROR rc = SOCKPERF_ERR_NONE;
 
         // step #1:  set default values for command line args
         set_defaults();
