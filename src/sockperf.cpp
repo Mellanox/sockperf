@@ -85,6 +85,7 @@
 #include "packet.h"
 #include "switches.h"
 #include "aopt.h"
+#include "resources.h"
 #include <stdio.h>
 #include <sys/stat.h>
 
@@ -3199,6 +3200,7 @@ static bool fds_array_is_valid() {
 int bringup(const int *p_daemonize) {
     int rc = SOCKPERF_ERR_NONE;
 
+    resources_init();
     os_mutex_init(&_mutex);
 
     if (os_sock_startup() == false) { // Only relevant for Windows
