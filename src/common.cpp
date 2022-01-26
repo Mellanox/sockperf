@@ -213,10 +213,26 @@ int read_int_from_sys_file(const char *path) {
 
     return retVal;
 }
-
-int sock_set_rate_limit(int fd, uint32_t rate_limit) {
+int sock_set_rate_limit(int fd, user_params_t &params) {
     int rc = SOCKPERF_ERR_NONE;
-    if (setsockopt(fd, SOL_SOCKET, SO_MAX_PACING_RATE, &rate_limit, sizeof(rate_limit)) < 0) {
+#ifdef USING_VMA_EXTRA_API
+    vma_rate_limit_t limit;
+    uint16_t packet_size_incl_hdr = s_user_params.msg_size + ETH_HEADER_LEN +
+        IP_HEADER_LEN;
+    if (s_user_params.sock_type == SOCK_STREAM) {
+        packet_size_incl_hdr += TCP_HEADER_LEN;
+    } else {
+        packet_size_incl_hdr += UDP_HEADER_LEN;
+    }
+    limit.rate = params.rate_limit;
+    limit.max_burst_sz = packet_size_incl_hdr * DEFAULT_RATE_BURST;
+    limit.typical_pkt_sz = packet_size_incl_hdr;
+    int ret = setsockopt(fd, SOL_SOCKET, SO_MAX_PACING_RATE, &limit, sizeof(limit));
+#else
+    int ret = setsockopt(fd, SOL_SOCKET, SO_MAX_PACING_RATE,
+                         &params.rate_limit, sizeof(params.rate_limit));
+#endif
+    if (ret < 0) {
         log_err("setsockopt(SO_MAX_PACING_RATE), set rate-limit failed. "
                 "It could be that this option is not supported in your system");
         rc = SOCKPERF_ERR_SOCKET;

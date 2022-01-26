@@ -100,7 +100,7 @@ int ServerBase::initBeforeLoop() {
              * with the rest of the setsockopt
              */
             if (s_user_params.rate_limit > 0 &&
-                sock_set_rate_limit(ifd, s_user_params.rate_limit)) {
+                sock_set_rate_limit(ifd, s_user_params)) {
                 log_err("[fd=%d] failed setting rate limit, %s\n", ifd,
                         inet_ntoa(p_bind_addr->sin_addr));
                 rc = SOCKPERF_ERR_SOCKET;

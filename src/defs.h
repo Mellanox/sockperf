@@ -173,6 +173,11 @@ extern const int MAX_FDS_NUM;
 #ifndef SO_MAX_PACING_RATE
 #define SO_MAX_PACING_RATE 47
 #endif
+#define DEFAULT_RATE_BURST (30)
+#define ETH_HEADER_LEN (14)
+#define IP_HEADER_LEN (20)
+#define UDP_HEADER_LEN (8)
+#define TCP_HEADER_LEN (20)
 /*
 Used by offload libraries to do egress path warm-up of caches.
 It is not in use by kernel. WARNING: it will actually end this packet on the wire.

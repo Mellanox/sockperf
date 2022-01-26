@@ -143,7 +143,5 @@ static inline int msg_sendto(int fd, uint8_t *buf, int nbytes,
 
     return ret;
 }
-
-int sock_set_rate_limit(int fd, uint32_t rate_limit);
-
+int sock_set_rate_limit(int fd, user_params_t &params);
 #endif /* COMMON_H_ */
