@@ -7,13 +7,13 @@ BEGIN {
 	dataStarted = 0
 }
 
-$1 == "txTime," {dataStarted = 1; print "txTime, usecLat"}
+$2 == "txTime(sec)," {dataStarted = 1; print "txTime, usecLat"}
 {
 	if (!dataStarted) print
 	else {
-        	usecLat = 1000*1000*($2 - $1)/2
+        	usecLat = 1000*1000*($3 - $2)/2
 	        if (RANGE_START_USEC <= usecLat && usecLat <= RANGE_END_USEC )
-        	        printf "%.*f, %.3f\n", DECIMAL_DIGITS, $1, usecLat
+        	        printf "%.*f, %.3f\n", DECIMAL_DIGITS, $2, usecLat
 
 	}
 }
