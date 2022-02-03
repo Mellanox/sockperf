@@ -2422,10 +2422,10 @@ xlio_recv_callback_retval_t myapp_vma_recv_pkt_filter_callback(int fd, size_t io
             if (l_fds_ifd->memberships_size || !l_fds_ifd->is_multicast ||
                 g_pApp->m_const_params.b_server_reply_via_uc) { // In unicast case reply to sender
                 /* get source addr to reply. memcpy is not used to improve performance */
-                sendto_addr = *vma_info->src;
+                sendto_addr = *reinterpret_cast<const sockaddr_in*>(vma_info->src);
             } else if (l_fds_ifd->is_multicast) {
                 /* always send to the same port recved from */
-                sendto_addr.sin_port = vma_info->src->sin_port;
+                sendto_addr.sin_port = reinterpret_cast<const sockaddr_in*>(vma_info->src)->sin_port;
             }
             int length = msgReply->getLength();
             msgReply->setHeaderToNetwork();
