@@ -239,15 +239,18 @@ public:
         assert(m_ptr && "zero-copy data pointer must be initialized");
         if (likely(m_ptr->m_pkts)) {
             // iterate over zerocopy buffers
+            uint8_t *cur_ptr = (uint8_t *)&m_ptr->m_pkts->pkts[0];
             for (size_t p = 0; p < m_ptr->m_pkts->n_packet_num; ++p) {
-                vma_packet_t &pkt = m_ptr->m_pkts->pkts[p];
-                for (size_t i = 0; i < pkt.sz_iov; ++i) {
-                    bool ok = process_buffer(callback, m_recv_data, (uint8_t *)pkt.iov[i].iov_base,
-                        (int)pkt.iov[i].iov_len);
+                vma_packet_t *pkt = (vma_packet_t *)cur_ptr;
+                cur_ptr += offsetof(vma_packet_t, iov);
+                for (size_t i = 0; i < pkt->sz_iov; ++i) {
+                    bool ok = process_buffer(callback, m_recv_data, (uint8_t *)pkt->iov[i].iov_base,
+                        (int)pkt->iov[i].iov_len);
                     if (unlikely(!ok)) {
                         return false;
                     }
                 }
+                cur_ptr += sizeof(pkt->iov[0]) * pkt->sz_iov;
             }
             return true;
         } else {
