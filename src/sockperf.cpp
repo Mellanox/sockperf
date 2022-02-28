@@ -2942,7 +2942,7 @@ static int set_sockets_from_feedfile(const char *feedfile_name) {
     int rc = SOCKPERF_ERR_NONE;
     FILE *file_fd = NULL;
     char line[MAX_MCFILE_LINE_LENGTH];
-    char *res;
+    char *res = NULL;
     int sock_type = SOCK_DGRAM;
     fds_data *tmp;
     int curr_fd = 0, last_fd = 0;
