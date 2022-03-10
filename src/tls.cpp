@@ -27,14 +27,14 @@
  * OF SUCH DAMAGE.
  */
 
-
 #include <string>
 #include <set>
 #include "common.h"
 #include "tls.h"
 
 #if defined(DEFINED_TLS)
-const char *tls_chipher(const char *chipher) {
+const char *tls_chipher(const char *chipher)
+{
     static char tls_chiper_current[256] = TLS_CHIPER_DEFAULT;
     if (chipher) {
         memset(tls_chiper_current, 0, sizeof(tls_chiper_current));
@@ -47,11 +47,11 @@ const char *tls_chipher(const char *chipher) {
 #if (DEFINED_TLS == 1)
 
 #define IS_TLS_ERR_WANT_RW(e) (SSL_ERROR_WANT_READ == (e) || SSL_ERROR_WANT_WRITE == (e))
-#define TLS_WAIT_READ 1
-#define TLS_WAIT_WRITE 2
+#define TLS_WAIT_READ         1
+#define TLS_WAIT_WRITE        2
 #define TLS_WAIT_WHICH(e)                                                                          \
     (((e) == SSL_ERROR_WANT_READ || (e) == SSL_ERROR_WANT_CONNECT) ? TLS_WAIT_READ : 0) |          \
-    (((e) == SSL_ERROR_WANT_WRITE || (e) == SSL_ERROR_WANT_CONNECT) ? TLS_WAIT_WRITE : 0)
+        (((e) == SSL_ERROR_WANT_WRITE || (e) == SSL_ERROR_WANT_CONNECT) ? TLS_WAIT_WRITE : 0)
 
 #include <openssl/ssl.h>
 #include <openssl/err.h>
@@ -66,32 +66,36 @@ static bool set_tls_version_and_ciphers(SSL_CTX *ctx);
 #define SSL_OP_IGNORE_UNEXPECTED_EOF 0
 #endif
 
-static SSL_CTX *ssl_ctx = NULL;
+static SSL_CTX *ssl_ctx = nullptr;
 
-static int wait_for_single_socket(int fd, int which) {
+static int wait_for_single_socket(int fd, int which)
+{
     fd_set read_fds;
     fd_set write_fds;
     FD_ZERO(&read_fds);
     FD_ZERO(&write_fds);
 
-    if (which & TLS_WAIT_READ) FD_SET(fd, &read_fds);
+    if (which & TLS_WAIT_READ)
+        FD_SET(fd, &read_fds);
 
-    if (which & TLS_WAIT_WRITE) FD_SET(fd, &write_fds);
+    if (which & TLS_WAIT_WRITE)
+        FD_SET(fd, &write_fds);
 
     struct timeval timeout_timeval;
     memcpy(&timeout_timeval, g_pApp->m_const_params.select_timeout, sizeof(struct timeval));
 
     // No exceptfds handling for now.
-    int ret = select(fd + 1, &read_fds, &write_fds, NULL, &timeout_timeval);
-    if (ret > 0 && !FD_ISSET(fd, &read_fds) && !FD_ISSET(fd, &write_fds)) return 0;
+    int ret = select(fd + 1, &read_fds, &write_fds, nullptr, &timeout_timeval);
+    if (ret > 0 && !FD_ISSET(fd, &read_fds) && !FD_ISSET(fd, &write_fds))
+        return 0;
 
     return ret;
 }
 
-int tls_init(void) {
-    SSL_CTX *ctx = NULL;
-
-    ssl_ctx = NULL;
+int tls_init(void)
+{
+    SSL_CTX *ctx = nullptr;
+    ssl_ctx = nullptr;
 
     SSL_library_init();
     SSL_load_error_strings();
@@ -113,10 +117,9 @@ int tls_init(void) {
             log_err("Unable to create SSL context");
             goto error_ctx_not_allocated;
         }
-
     }
 
-    if  (!set_tls_version_and_ciphers(ctx)) {
+    if (!set_tls_version_and_ciphers(ctx)) {
         log_err("Unable protocol and cipher");
         goto error_free_ctx;
     }
@@ -131,7 +134,8 @@ error_ctx_not_allocated:
     return SOCKPERF_ERR_FATAL;
 }
 
-void tls_exit(void) {
+void tls_exit(void)
+{
     int ifd;
     if (g_fds_array) {
         for (ifd = 0; ifd <= MAX_FDS_NUM; ifd++) {
@@ -144,11 +148,12 @@ void tls_exit(void) {
     if (ssl_ctx) {
         SSL_CTX_free(ssl_ctx);
         EVP_cleanup();
-        ssl_ctx = NULL;
+        ssl_ctx = nullptr;
     }
 }
 
-int tls_connect_or_accept(SSL *ssl) {
+int tls_connect_or_accept(SSL *ssl)
+{
     int ret;
     bool try_again;
     auto ssl_func = (SSL_is_server(ssl) ? SSL_accept : SSL_connect);
@@ -178,8 +183,9 @@ int tls_connect_or_accept(SSL *ssl) {
     return ret;
 }
 
-void *tls_establish(int fd) {
-    SSL *ssl = NULL;
+void *tls_establish(int fd)
+{
+    SSL *ssl = nullptr;
 
     if (!ssl_ctx) {
         log_err("Failed tls_establish(), no ssl_ctx");
@@ -196,7 +202,8 @@ void *tls_establish(int fd) {
         goto err;
     }
 
-    if (tls_connect_or_accept(ssl) <= 0) goto err;
+    if (tls_connect_or_accept(ssl) <= 0)
+        goto err;
 
     return (void *)ssl;
 
@@ -204,22 +211,24 @@ err:
     if (ssl) {
         SSL_free(ssl);
     }
-    return NULL;
+    return nullptr;
 }
 
-int tls_write(void *handle, const void *buf, int num) {
+int tls_write(void *handle, const void *buf, int num)
+{
     assert(handle);
 
     return SSL_write((SSL *)handle, buf, num);
 }
 
-int tls_read(void *handle, void *buf, int num) {
+int tls_read(void *handle, void *buf, int num)
+{
     assert(handle);
 
     return SSL_read((SSL *)handle, buf, num);
 }
 
-static inline EVP_PKEY* generate_EC_pkey_with_NID(int nid=NID_secp384r1)
+static inline EVP_PKEY *generate_EC_pkey_with_NID(int nid = NID_secp384r1)
 {
     bool result;
     EVP_PKEY *pkey = nullptr;
@@ -234,22 +243,19 @@ static inline EVP_PKEY* generate_EC_pkey_with_NID(int nid=NID_secp384r1)
     return result ? pkey : nullptr;
 }
 
-static inline EVP_PKEY* generate_RSA_pkey(unsigned int bits = 2048)
+static inline EVP_PKEY *generate_RSA_pkey(unsigned int bits = 2048)
 {
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
     return EVP_RSA_gen(bits);
 #else
-    RSA *rsa{nullptr};
-    EVP_PKEY *pkey{nullptr};
-    BIGNUM *bignum{nullptr};
+    RSA *rsa {nullptr};
+    EVP_PKEY *pkey {nullptr};
+    BIGNUM *bignum {nullptr};
 
-    bool result =
-        ((pkey = EVP_PKEY_new()) != nullptr) &&
-        ((bignum = BN_new()) != nullptr) &&
-        ((rsa = RSA_new()) != nullptr) &&
-        BN_set_word(bignum, RSA_F4) == 1 &&
+    bool result = ((pkey = EVP_PKEY_new()) != nullptr) && ((bignum = BN_new()) != nullptr) &&
+        ((rsa = RSA_new()) != nullptr) && BN_set_word(bignum, RSA_F4) == 1 &&
         RSA_generate_key_ex(rsa, bits, bignum, nullptr) == 1 &&
-        EVP_PKEY_assign(pkey,EVP_PKEY_RSA, rsa) == 1;
+        EVP_PKEY_assign(pkey, EVP_PKEY_RSA, rsa) == 1;
 
     BN_free(bignum);
 
@@ -263,27 +269,25 @@ static inline EVP_PKEY* generate_RSA_pkey(unsigned int bits = 2048)
 #endif /* OpenSSL 3 or higher */
 }
 
-#define X509_ADD_FIELD(field, value) \
+#define X509_ADD_FIELD(field, value)                                                               \
     X509_NAME_add_entry_by_txt(name, field, MBSTRING_ASC, value, -1, -1, 0)
 
-X509 * generate_self_signed_x509_with_key(EVP_PKEY * pkey)
+X509 *generate_self_signed_x509_with_key(EVP_PKEY *pkey)
 {
-    X509 * x509;
-    X509_NAME * name;
+    X509 *x509;
+    X509_NAME *name;
     bool result = ((x509 = X509_new()) != nullptr) &&
         (ASN1_INTEGER_set(X509_get_serialNumber(x509), 1) == 1) &&
         (X509_gmtime_adj(X509_get_notBefore(x509), 0) != nullptr) &&
         (X509_gmtime_adj(X509_get_notAfter(x509), 31536000L) != nullptr) &&
-        (X509_set_pubkey(x509, pkey) == 1) &&
-        ((name = X509_get_subject_name(x509)) != nullptr) &&
+        (X509_set_pubkey(x509, pkey) == 1) && ((name = X509_get_subject_name(x509)) != nullptr) &&
         (X509_ADD_FIELD("C", (unsigned char *)"IL") == 1) &&
         (X509_ADD_FIELD("O", (unsigned char *)"Nvidia") == 1) &&
         (X509_ADD_FIELD("CN", (unsigned char *)"localhost") == 1) &&
-        (X509_set_issuer_name(x509, name) == 1) &&
-        (X509_sign(x509, pkey, EVP_sha256()) != 0);
+        (X509_set_issuer_name(x509, name) == 1) && (X509_sign(x509, pkey, EVP_sha256()) != 0);
 
     if (result) {
-      return x509;
+        return x509;
     }
     X509_free(x509);
     return nullptr;
@@ -291,12 +295,9 @@ X509 * generate_self_signed_x509_with_key(EVP_PKEY * pkey)
 
 #undef X509_ADD_FIELD
 
-static inline bool add_key_and_certificate(SSL_CTX *ctx,
-                                           EVP_PKEY *pkey,
-                                           X509 *x509)
+static inline bool add_key_and_certificate(SSL_CTX *ctx, EVP_PKEY *pkey, X509 *x509)
 {
-    if ((SSL_CTX_use_certificate(ctx, x509) == 1)
-        && (SSL_CTX_use_PrivateKey(ctx, pkey) == 1)) {
+    if ((SSL_CTX_use_certificate(ctx, x509) == 1) && (SSL_CTX_use_PrivateKey(ctx, pkey) == 1)) {
         return true;
     } else {
         X509_free(x509);
@@ -327,36 +328,30 @@ static inline bool add_ec_sec384r1_key_and_certificate(SSL_CTX *ctx)
 #define DH_PARAMS_AUTO_ON (1)
 static inline bool add_keys_and_certificates(SSL_CTX *ctx)
 {
-    return add_ec_sec384r1_key_and_certificate(ctx) &&
-        add_rsa2048_key_and_certificate(ctx) &&
+    return add_ec_sec384r1_key_and_certificate(ctx) && add_rsa2048_key_and_certificate(ctx) &&
         SSL_CTX_set_dh_auto(ctx, DH_PARAMS_AUTO_ON) == 1;
 }
 
 using cipher_set = std::set<std::string>;
-static inline bool set_tls_1_2_version_and_ciphers(SSL_CTX *ctx,
-                                                   const char *cipher)
+static inline bool set_tls_1_2_version_and_ciphers(SSL_CTX *ctx, const char *cipher)
 {
-    cipher_set tls1_2_ciphers{"AES128-GCM-SHA256",
-        "AES256-GCM-SHA384",
-        "DHE-RSA-AES128-GCM-SHA256",
-        "DHE-RSA-AES256-GCM-SHA384",
-        "ECDHE-ECDSA-AES128-GCM-SHA256",
-        "ECDHE-ECDSA-AES256-GCM-SHA384",
-        "ECDHE-RSA-AES128-GCM-SHA256",
-        "ECDHE-RSA-AES256-GCM-SHA384"
-    };
+    cipher_set tls1_2_ciphers {"AES128-GCM-SHA256",
+                               "AES256-GCM-SHA384",
+                               "DHE-RSA-AES128-GCM-SHA256",
+                               "DHE-RSA-AES256-GCM-SHA384",
+                               "ECDHE-ECDSA-AES128-GCM-SHA256",
+                               "ECDHE-ECDSA-AES256-GCM-SHA384",
+                               "ECDHE-RSA-AES128-GCM-SHA256",
+                               "ECDHE-RSA-AES256-GCM-SHA384"};
     return tls1_2_ciphers.find(cipher) != tls1_2_ciphers.end() &&
         SSL_CTX_set_min_proto_version(ctx, TLS1_2_VERSION) == 1 &&
         SSL_CTX_set_max_proto_version(ctx, TLS1_2_VERSION) == 1 &&
         SSL_CTX_set_cipher_list(ctx, cipher) == 1;
 }
 
-static inline bool set_tls_1_3_version_and_ciphers(SSL_CTX *ctx,
-                                                   const char *cipher)
+static inline bool set_tls_1_3_version_and_ciphers(SSL_CTX *ctx, const char *cipher)
 {
-    cipher_set tls1_3_ciphers{"TLS_AES_128_GCM_SHA256",
-        "TLS_AES_256_GCM_SHA384"
-    };
+    cipher_set tls1_3_ciphers {"TLS_AES_128_GCM_SHA256", "TLS_AES_256_GCM_SHA384"};
     return tls1_3_ciphers.find(cipher) != tls1_3_ciphers.end() &&
         SSL_CTX_set_min_proto_version(ctx, TLS1_3_VERSION) == 1 &&
         SSL_CTX_set_max_proto_version(ctx, TLS1_3_VERSION) == 1 &&
@@ -365,8 +360,8 @@ static inline bool set_tls_1_3_version_and_ciphers(SSL_CTX *ctx,
 
 static inline bool set_tls_version_and_ciphers(SSL_CTX *ctx)
 {
-    std::string cipher{tls_chipher()};
-    const char* p_cipher = cipher.c_str();
+    std::string cipher {tls_chipher()};
+    const char *p_cipher = cipher.c_str();
 
     if (!set_tls_1_2_version_and_ciphers(ctx, p_cipher) &&
         !set_tls_1_3_version_and_ciphers(ctx, p_cipher)) {
