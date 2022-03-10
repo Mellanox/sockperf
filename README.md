@@ -40,6 +40,10 @@ make install
    options. Some of the options are generic autoconf options, while the sockperf
    specific options are prefixed with "SOCKPERF:" in the help text.
    
+ * To enable TLS support
+   * `./configure --prefix=<path to install> --with-tls=<path to OpenSSL install>`
+   * Use OpenSSL 3.0.0 or higher
+
  * To enable unit tests
    * `./configure --prefix=<path to install> --enable-test`
 
