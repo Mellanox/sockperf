@@ -121,6 +121,9 @@ int tls_init(void) {
         goto error_free_ctx;
     }
 
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+    SSL_CTX_set_options(ctx, SSL_OP_ENABLE_KTLS);
+#endif
     ssl_ctx = ctx;
 
     return SOCKPERF_ERR_NONE;
@@ -233,20 +236,21 @@ static inline EVP_PKEY* generate_EC_pkey_with_NID(int nid=NID_secp384r1)
     return result ? pkey : nullptr;
 }
 
-static inline EVP_PKEY* generate_RSA_pkey(void)
+static inline EVP_PKEY* generate_RSA_pkey(unsigned int bits = 2048)
 {
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+    return EVP_RSA_gen(bits);
+#else
     RSA *rsa{nullptr};
     EVP_PKEY *pkey{nullptr};
     BIGNUM *bignum{nullptr};
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
     bool result =
         ((pkey = EVP_PKEY_new()) != nullptr) &&
         ((bignum = BN_new()) != nullptr) &&
         ((rsa = RSA_new()) != nullptr) &&
         BN_set_word(bignum, RSA_F4) == 1 &&
-        RSA_generate_key_ex(rsa, 2048, bignum, nullptr) == 1 &&
+        RSA_generate_key_ex(rsa, bits, bignum, nullptr) == 1 &&
         EVP_PKEY_assign(pkey,EVP_PKEY_RSA, rsa) == 1;
 
     BN_free(bignum);
@@ -257,8 +261,8 @@ static inline EVP_PKEY* generate_RSA_pkey(void)
 
     RSA_free(rsa);
     EVP_PKEY_free(pkey);
-#pragma GCC diagnostic pop
     return nullptr;
+#endif /* OpenSSL 3 or higher */
 }
 
 #define X509_ADD_FIELD(field, value) \
