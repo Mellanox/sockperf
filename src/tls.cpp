@@ -121,7 +121,7 @@ int tls_init(void) {
         goto error_free_ctx;
     }
 
-#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+#if OPENSSL_VERSION_NUMBER > 0x30000000L
     SSL_CTX_set_options(ctx, SSL_OP_ENABLE_KTLS);
 #endif
     ssl_ctx = ctx;
@@ -238,9 +238,11 @@ static inline EVP_PKEY* generate_EC_pkey_with_NID(int nid=NID_secp384r1)
 
 static inline EVP_PKEY* generate_RSA_pkey(unsigned int bits = 2048)
 {
-#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+#if OPENSSL_VERSION_NUMBER > 0x30000000L
     return EVP_RSA_gen(bits);
 #else
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
     RSA *rsa{nullptr};
     EVP_PKEY *pkey{nullptr};
     BIGNUM *bignum{nullptr};
@@ -262,6 +264,7 @@ static inline EVP_PKEY* generate_RSA_pkey(unsigned int bits = 2048)
     RSA_free(rsa);
     EVP_PKEY_free(pkey);
     return nullptr;
+#pragma GCC diagnostic pop
 #endif /* OpenSSL 3 or higher */
 }
 
