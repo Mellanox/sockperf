@@ -33,7 +33,8 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <signal.h>
-#include <sys/poll.h>
+#include <stdio.h>
+#include <poll.h>
 #include <sched.h>
 #include <sys/ioctl.h>
 

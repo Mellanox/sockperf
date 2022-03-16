@@ -38,6 +38,10 @@
 
 TicksTime s_startTime, s_endTime;
 
+#ifdef NO_SETITIMERS_SYSCALL
+    pthread_t parent;
+#endif
+
 //==============================================================================
 //==============================================================================
 
@@ -848,6 +852,20 @@ static int _connect_check(int ifd) {
     return rc;
 }
 
+#ifdef NO_SETITIMERS_SYSCALL
+void* thread_sleep(void* args)
+{
+    int sec = (g_pApp->m_const_params.cooldown_msec + g_pApp->m_const_params.warmup_msec) / 1000 + 
+        g_pApp->m_const_params.sec_test_duration;
+    int usec = (g_pApp->m_const_params.cooldown_msec + g_pApp->m_const_params.warmup_msec) % 1000;
+    log_msg("Start sleep for %d seconds %d useconds", sec, usec);
+    sleep(sec);
+    usleep(usec);
+    pthread_kill(parent, SIGUSR1);
+    return NULL;
+}
+#endif
+
 //------------------------------------------------------------------------------
 template <class IoType, class SwitchDataIntegrity, class SwitchActivityInfo,
           class SwitchCycleDuration, class SwitchMsgSize, class PongModeCare>
@@ -964,6 +982,7 @@ int Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration,
                     log_msg("Starting test...");
 
                     if (!g_pApp->m_const_params.pPlaybackVector) {
+                        #ifndef NO_SETITIMERS_SYSCALL
                         struct itimerval timer;
                         if (g_pApp->m_const_params.measurement == TIME_BASED) {
                             set_client_timer(&timer);
@@ -972,6 +991,15 @@ int Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration,
                                 rc = SOCKPERF_ERR_FATAL;
                             }
                         }
+                        #else
+                        parent = pthread_self();
+                        os_set_signal_action(SIGUSR1, client_sig_handler);
+
+                        os_thread_t thread;
+                        os_thread_init(&thread);
+                        os_thread_exec(&thread, thread_sleep, NULL);
+                        os_thread_detach(&thread);
+                        #endif
                     }
 
                     if (rc == SOCKPERF_ERR_NONE) {

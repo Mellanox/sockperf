@@ -103,6 +103,7 @@ with simple integral values. The following describes these calculations:
 #endif
 
 #include "ticks_os.h"
+#include "os_abstract.h"
 
 // usefull constants
 static const int64_t USEC_IN_SEC = 1000 * 1000;
