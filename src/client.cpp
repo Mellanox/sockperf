@@ -819,22 +819,32 @@ static int _connect_check_vma(int ifd) {
 //------------------------------------------------------------------------------
 static int _connect_check(int ifd) {
     int rc = SOCKPERF_ERR_NONE;
+    int pollrc;
+    bool avail;
+
+#define POLL_TIMEOUT_MS 1
+
+#ifdef WIN32
     fd_set rfds, wfds;
-    struct timeval tv;
-    tv.tv_sec = 0;
-    tv.tv_usec = 500;
+    struct timeval tv = { .tv_sec = 0, .tv_usec = POLL_TIMEOUT_MS * 1000, };
 
     FD_ZERO(&rfds);
     FD_ZERO(&wfds);
-
-    int max_fd = -1;
-
     FD_SET(ifd, &wfds);
     FD_SET(ifd, &rfds);
-    if (ifd > max_fd) max_fd = ifd;
 
-    select(max_fd + 1, &rfds, &wfds, NULL, &tv);
-    if (FD_ISSET(ifd, &wfds) || FD_ISSET(ifd, &rfds)) {
+    pollrc = select(ifd + 1, &rfds, &wfds, NULL, &tv);
+    avail = pollrc > 0 && (FD_ISSET(ifd, &wfds) || FD_ISSET(ifd, &rfds));
+#else
+    struct pollfd fds = { .fd = ifd, .events = POLLIN | POLLOUT, };
+    pollrc = poll(&fds, 1, POLL_TIMEOUT_MS);
+    avail = pollrc > 0 && (fds.revents & (POLLIN | POLLOUT));
+#endif /* WIN32 */
+
+    if (pollrc < 0) {
+        log_err("Failed to poll for events during connection establishment");
+    }
+    if (avail) {
         socklen_t err_len;
         int error;
 
@@ -844,9 +854,10 @@ static int _connect_check(int ifd) {
             rc = SOCKPERF_ERR_SOCKET;
         }
     }
-
     return rc;
 }
+
+#undef POLL_TIMEOUT_MS
 
 //------------------------------------------------------------------------------
 template <class IoType, class SwitchDataIntegrity, class SwitchActivityInfo,
