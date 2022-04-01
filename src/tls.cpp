@@ -250,17 +250,17 @@ static inline EVP_PKEY* generate_RSA_pkey(unsigned int bits = 2048)
         ((rsa = RSA_new()) != nullptr) &&
         BN_set_word(bignum, RSA_F4) == 1 &&
         RSA_generate_key_ex(rsa, bits, bignum, nullptr) == 1 &&
-        EVP_PKEY_assign(pkey,EVP_PKEY_RSA, rsa) == 1;
+        EVP_PKEY_assign(pkey, EVP_PKEY_RSA, rsa) == 1;
 
     BN_free(bignum);
 
-    if (result) {
-        return pkey;
+    if (!result) {
+        // 'rsa' is freed in EVP_PKEY_free() according to EVP_PKEY_assign_RSA manual.
+        // However, it will be lost if EVP_PKEY_assign() doesn't run successfully.
+        EVP_PKEY_free(pkey);
+        pkey = nullptr;
     }
-
-    RSA_free(rsa);
-    EVP_PKEY_free(pkey);
-    return nullptr;
+    return pkey;
 #endif /* OpenSSL 3 or higher */
 }
 
@@ -269,8 +269,8 @@ static inline EVP_PKEY* generate_RSA_pkey(unsigned int bits = 2048)
 
 X509 * generate_self_signed_x509_with_key(EVP_PKEY * pkey)
 {
-    X509 * x509;
-    X509_NAME * name;
+    X509 *x509;
+    X509_NAME *name;
     bool result = ((x509 = X509_new()) != nullptr) &&
         (ASN1_INTEGER_set(X509_get_serialNumber(x509), 1) == 1) &&
         (X509_gmtime_adj(X509_get_notBefore(x509), 0) != nullptr) &&
@@ -283,11 +283,11 @@ X509 * generate_self_signed_x509_with_key(EVP_PKEY * pkey)
         (X509_set_issuer_name(x509, name) == 1) &&
         (X509_sign(x509, pkey, EVP_sha256()) != 0);
 
-    if (result) {
-      return x509;
+    if (!result) {
+        X509_free(x509);
+        x509 = nullptr;
     }
-    X509_free(x509);
-    return nullptr;
+    return x509;
 }
 
 #undef X509_ADD_FIELD
@@ -296,15 +296,16 @@ static inline bool add_key_and_certificate(SSL_CTX *ctx,
                                            EVP_PKEY *pkey,
                                            X509 *x509)
 {
-    if ((SSL_CTX_use_certificate(ctx, x509) == 1)
-        && (SSL_CTX_use_PrivateKey(ctx, pkey) == 1)) {
-        return true;
-    } else {
-        X509_free(x509);
-        EVP_PKEY_free(pkey);
-        return false;
-    }
+    bool result = (SSL_CTX_use_certificate(ctx, x509) == 1) &&
+        (SSL_CTX_use_PrivateKey(ctx, pkey) == 1);
+
+    // The above functions increase reference counting, so we can release our reference.
+    X509_free(x509);
+    EVP_PKEY_free(pkey);
+
+    return result;
 }
+
 static inline bool add_rsa2048_key_and_certificate(SSL_CTX *ctx)
 {
     EVP_PKEY *pkey;
