@@ -116,17 +116,17 @@ const AOPT_OBJECT *aopt_init(int *argc, const char **argv, const AOPT_DESC *desc
                          * Accept --option 123, --option=123, --option
                          */
                         if (token_type == 2) {
-                            const char *desc_long = *opt_spec_p->longs;
-                            int i = 0;
+                            const char *const *cur_ptr_long = opt_spec_p->longs;
 
-                            for (i = 0; ((i < AOPT_MAX_NUMBER) && (desc_long)); i++) {
-                                if (!strncmp(token_opt, desc_long, strlen(desc_long))) {
-                                    if (!token_opt[strlen(desc_long)] ||
-                                        (token_opt[strlen(desc_long)] == '=')) {
-                                        token_arg = token_opt + strlen(desc_long);
+                            while (cur_ptr_long && (*cur_ptr_long)) {
+                                if (!strncmp(token_opt, *cur_ptr_long, strlen(*cur_ptr_long))) {
+                                    if (!token_opt[strlen(*cur_ptr_long)] ||
+                                        (token_opt[strlen(*cur_ptr_long)] == '=')) {
+                                        token_arg = token_opt + strlen(*cur_ptr_long);
                                         break;
                                     }
                                 }
+                                cur_ptr_long++;
                             }
                         }
 
