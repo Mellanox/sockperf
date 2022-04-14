@@ -106,6 +106,17 @@ public:
         TicksTime nextCycleStartTime = g_cycleStartTime + g_pApp->m_const_params.cycleDuration;
         TicksTime nextDummySendTime =
             g_cycleStartTime + g_pApp->m_const_params.dummySendCycleDuration;
+        const struct sockaddr *sendto_addr = &reinterpret_cast<sockaddr &>(g_fds_array[ifd]->server_addr);
+        socklen_t addrlen = g_fds_array[ifd]->server_addr_len;
+
+        if (g_fds_array[ifd]->sock_type == SOCK_STREAM) {
+            /* If sendto() is used on a connection-mode (SOCK_STREAM, SOCK_SEQPACKET) socket,
+             * the arguments dest_addr and addrlen are ignored
+             * (and the error EISCONN may be returned when they are not NULL and 0)
+             */
+            sendto_addr = NULL;
+            addrlen = 0;
+        }
         while (!g_b_exit) {
             now = TicksTime::now();
             if (now >= nextCycleStartTime) {
@@ -116,7 +127,7 @@ public:
                 // We don't use Sockperf's msg_sendto() for dummy messages because we want to ignore
                 // the error handling.
                 sendto(ifd, pMsgRequest->getBuf(), pMsgRequest->getLength(), DUMMY_SEND_FLAG,
-                       &reinterpret_cast<sockaddr &>(g_fds_array[ifd]->server_addr), g_fds_array[ifd]->server_addr_len);
+                       sendto_addr, addrlen);
                 nextDummySendTime += g_pApp->m_const_params.dummySendCycleDuration;
             }
 

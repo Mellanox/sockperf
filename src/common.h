@@ -97,6 +97,14 @@ static inline int msg_sendto(int fd, uint8_t *buf, int nbytes,
 #endif
 
     int size = nbytes;
+    if (g_fds_array[fd]->sock_type == SOCK_STREAM) {
+        /* If sendto() is used on a connection-mode (SOCK_STREAM, SOCK_SEQPACKET) socket,
+         * the arguments dest_addr and addrlen are ignored
+         * (and the error EISCONN may be returned when they are not NULL and 0)
+         */
+        sendto_addr = NULL;
+        addrlen = 0;
+    }
 
     while (nbytes) {
 #if defined(DEFINED_TLS)
