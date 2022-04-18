@@ -282,13 +282,13 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::handle_message(i
             m_pMsgReply->setServer();
         }
         /* get source addr to reply. memcpy is not used to improve performance */
-        sendto_addr = l_fds_ifd->server_addr;
+        copy_relevant_sockaddr_params(sendto_addr, l_fds_ifd->server_addr);
         sendto_addr_len = l_fds_ifd->server_addr_len;
 
         if (l_fds_ifd->memberships_size || !l_fds_ifd->is_multicast ||
             g_pApp->m_const_params.b_server_reply_via_uc) { // In unicast case reply to sender
             /* get source addr to reply. memcpy is not used to improve performance */
-            sendto_addr = recvfrom_addr;
+            copy_relevant_sockaddr_params(sendto_addr, recvfrom_addr);
             sendto_addr_len = recvfrom_len;
         } else if (l_fds_ifd->is_multicast) {
             /* always send to the same port recved from */

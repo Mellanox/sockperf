@@ -190,4 +190,25 @@ static inline void sockaddr_set_portn(sockaddr_store_t &addr, uint16_t port)
     }
 }
 
+static inline void copy_relevant_sockaddr_params(sockaddr_store_t &dst_addr, const sockaddr_store_t &src_addr)
+{
+    switch (src_addr.ss_family) {
+    case AF_INET:
+        dst_addr.addr4 = src_addr.addr4;
+    case AF_INET6:
+        dst_addr.addr6 = src_addr.addr6;
+    case AF_UNIX:
+        dst_addr.addr_un = src_addr.addr_un;
+    }
+}
+
+static inline std::string unix_sockaddr_to_string(const sockaddr_un *sa)
+{
+    std::string str(sa->sun_path, sizeof(sa->sun_path));
+    size_t len = str.find('\0');
+    if (len != std::string::npos)
+        str.resize(len);
+    return str;
+}
+
 #endif /* COMMON_H_ */

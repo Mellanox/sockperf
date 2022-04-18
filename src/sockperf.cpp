@@ -176,8 +176,8 @@ static const AOPT_DESC common_opt_desc[] = {
       aopt_set_literal('h', '?'),       aopt_set_string("help", "usage"),
       "Show the help message and exit." },
     { OPT_TCP,                AOPT_NOARG,                       aopt_set_literal(0),
-      aopt_set_string("tcp"), "Use TCP protocol (default UDP)." },
-    { 'i', AOPT_ARG, aopt_set_literal('i'), aopt_set_string("ip"), "Listen on/send to ip <ip>." },
+      aopt_set_string("tcp", "stream"), "Use stream socket/TCP protocol (default dgram socket/UDP protocol)." },
+    { 'i', AOPT_ARG, aopt_set_literal('i'), aopt_set_string("addr", "ip"), "Listen on/send to address in IPv4, IPv6, UNIX domain socket format"},
     { 'p',                                                AOPT_ARG,
       aopt_set_literal('p'),                              aopt_set_string("port"),
       "Listen on/connect to port <port> (default 11111)." },
@@ -397,12 +397,12 @@ static int parse_client_bind_info(const AOPT_OBJECT *common_obj, const AOPT_OBJE
             }
         }
 
-        if (!rc && aopt_check(self_obj, OPT_CLIENTIP)) {
-            const char *optarg = aopt_value(self_obj, OPT_CLIENTIP);
+        if (!rc && aopt_check(self_obj, OPT_CLIENTADDR)) {
+            const char *optarg = aopt_value(self_obj, OPT_CLIENTADDR);
             if (optarg) {
                 host_str = optarg;
             } else {
-                log_msg("'--client_ip' Invalid address");
+                log_msg("'--client_addr' Invalid address");
                 rc = SOCKPERF_ERR_BAD_ARGUMENT;
             }
         }
@@ -413,7 +413,7 @@ static int parse_client_bind_info(const AOPT_OBJECT *common_obj, const AOPT_OBJE
                 true, reinterpret_cast<sockaddr*>(&s_user_params.client_bind_info),
                 s_user_params.client_bind_info_len);
         if (res != 0) {
-            log_msg("'--client_ip/--client_port': invalid host:port values: %s\n",
+            log_msg("'--client_addr/--client_port': invalid host:port values: %s\n",
                 gai_strerror(res));
             rc = SOCKPERF_ERR_BAD_ARGUMENT;
         }
@@ -441,11 +441,11 @@ static int proc_mode_under_load(int id, int argc, const char **argv) {
           aopt_set_literal(0),
           aopt_set_string("client_port"),
           "Force the client side to bind to a specific port (default = 0). " },
-        { OPT_CLIENTIP,
+        { OPT_CLIENTADDR,
           AOPT_ARG,
           aopt_set_literal(0),
-          aopt_set_string("client_ip"),
-          "Force the client side to bind to a specific ip address (default = 0). " },
+          aopt_set_string("client_ip", "client_addr"),
+          "Force the client side to bind to a specific address in IPv4, IPv6, UNIX domain socket format (default = 0). " },
         { 'b',                                                             AOPT_ARG,
           aopt_set_literal('b'),                                           aopt_set_string("burst"),
           "Control the client's number of a messages sent in every burst." },
@@ -697,7 +697,7 @@ static int proc_mode_under_load(int id, int argc, const char **argv) {
         printf("\n");
         printf("Usage: " MODULE_NAME " %s [options] [args]...\n", sockperf_modes[id].name);
         printf(" " MODULE_NAME
-               " %s -i ip  [-p port] [-m message_size] [-t time] [--data_integrity]\n",
+               " %s -i ip / --addr address [-p port] [-m message_size] [-t time] [--data_integrity]\n",
                sockperf_modes[id].name);
         printf(" " MODULE_NAME
                " %s -f file [-F s/p/e] [-m message_size] [-r msg_size_range] [-t time]\n",
@@ -753,11 +753,11 @@ static int proc_mode_ping_pong(int id, int argc, const char **argv) {
           aopt_set_literal(0),
           aopt_set_string("client_port"),
           "Force the client side to bind to a specific port (default = 0). " },
-        { OPT_CLIENTIP,
+        { OPT_CLIENTADDR,
           AOPT_ARG,
           aopt_set_literal(0),
-          aopt_set_string("client_ip"),
-          "Force the client side to bind to a specific ip address (default = 0). " },
+          aopt_set_string("client_ip", "client_addr"),
+          "Force the client side to bind to a specific address in IPv4, IPv6, UNIX domain socket format (default = 0). " },
         { 'b',                                                             AOPT_ARG,
           aopt_set_literal('b'),                                           aopt_set_string("burst"),
           "Control the client's number of a messages sent in every burst." },
@@ -1028,7 +1028,7 @@ static int proc_mode_ping_pong(int id, int argc, const char **argv) {
         printf("%s: %s\n", display_opt(id, temp_buf, sizeof(temp_buf)), sockperf_modes[id].note);
         printf("\n");
         printf("Usage: " MODULE_NAME " %s [options] [args]...\n", sockperf_modes[id].name);
-        printf(" " MODULE_NAME " %s -i ip  [-p port] [-m message_size] [-t time | -n number-of-packets]\n",
+        printf(" " MODULE_NAME " %s -i ip / --addr address [-p port] [-m message_size] [-t time | -n number-of-packets]\n",
                sockperf_modes[id].name);
         printf(" " MODULE_NAME
                " %s -f file [-F s/p/e] [-m message_size] [-r msg_size_range] [-t time | -n number-of-packets]\n",
@@ -1087,11 +1087,11 @@ static int proc_mode_throughput(int id, int argc, const char **argv) {
           aopt_set_literal(0),
           aopt_set_string("client_port"),
           "Force the client side to bind to a specific port (default = 0). " },
-        { OPT_CLIENTIP,
+        { OPT_CLIENTADDR,
           AOPT_ARG,
           aopt_set_literal(0),
-          aopt_set_string("client_ip"),
-          "Force the client side to bind to a specific ip address (default = 0). " },
+          aopt_set_string("client_ip", "client_addr"),
+          "Force the client side to bind to a specific address in IPv4, IPv6, UNIX domain socket format (default = 0). " },
         { 'b',                                                             AOPT_ARG,
           aopt_set_literal('b'),                                           aopt_set_string("burst"),
           "Control the client's number of a messages sent in every burst." },
@@ -1263,7 +1263,7 @@ static int proc_mode_throughput(int id, int argc, const char **argv) {
         printf("%s: %s\n", display_opt(id, temp_buf, sizeof(temp_buf)), sockperf_modes[id].note);
         printf("\n");
         printf("Usage: " MODULE_NAME " %s [options] [args]...\n", sockperf_modes[id].name);
-        printf(" " MODULE_NAME " %s -i ip  [-p port] [-m message_size] [-t time]\n",
+        printf(" " MODULE_NAME " %s -i ip / --addr address [-p port] [-m message_size] [-t time]\n",
                sockperf_modes[id].name);
         printf(" " MODULE_NAME
                " %s -f file [-F s/p/e] [-m message_size] [-r msg_size_range] [-t time]\n",
@@ -1463,7 +1463,7 @@ static int proc_mode_playback(int id, int argc, const char **argv) {
         printf("%s: %s\n", display_opt(id, temp_buf, sizeof(temp_buf)), sockperf_modes[id].note);
         printf("\n");
         printf("Usage: " MODULE_NAME " %s [options] [args]...\n", sockperf_modes[id].name);
-        printf(" " MODULE_NAME " %s -i ip  [-p port] --data-file playback.csv\n",
+        printf(" " MODULE_NAME " %s -i ip / --addr address [-p port] --data-file playback.csv\n",
                sockperf_modes[id].name);
         printf("\n");
         printf("Options:\n");
@@ -1657,7 +1657,7 @@ static int proc_mode_server(int id, int argc, const char **argv) {
         printf("Usage: " MODULE_NAME " %s [options] [args]...\n", sockperf_modes[id].name);
         printf(" " MODULE_NAME " %s\n", sockperf_modes[id].name);
         printf(" " MODULE_NAME
-               " %s [-i ip] [-p port] [--mc-rx-if ip] [--mc-tx-if ip] [--mc-source-filter ip]\n",
+               " %s [-i ip / --addr address] [-p port] [--mc-rx-if ip] [--mc-tx-if ip] [--mc-source-filter ip]\n",
                sockperf_modes[id].name);
 #ifndef WIN32
         printf(" " MODULE_NAME
@@ -1728,9 +1728,27 @@ static int resolve_sockaddr(const char *host, const char *port, int sock_type,
     // any protocol
     hints.ai_protocol = 0;
     hints.ai_socktype = sock_type;
-
+    int res;
     struct addrinfo *result;
-    int res = getaddrinfo(host, port, &hints, &result);
+
+    if (host != NULL) {
+        std::string path = host;
+        struct sockaddr_store_t *tmp = ((sockaddr_store_t *)addr);
+        if (path.size() > 0 && path[0] == '/') {
+            log_dbg("provided path for Unix Domain Socket is %s\n", host);
+            if (path.length() > MAX_UDS_NAME) {
+                log_err("length of name is larger than %d bytes", MAX_UDS_NAME);
+                res = SOCKPERF_ERR_SOCKET;
+                return res;
+            }
+            addr_len = sizeof(struct sockaddr_un);
+            strncpy(tmp->addr_un.sun_path, path.c_str(), MAX_UDS_NAME);
+            tmp->ss_family = AF_UNIX;
+
+            return 0;
+        }
+    }
+    res = getaddrinfo(host, port, &hints, &result);
     if (res == 0) {
         get_socket_address(result, addr, addr_len);
         freeaddrinfo(result);
@@ -2329,6 +2347,11 @@ void cleanup() {
                 if (g_fds_array[ifd]->is_multicast) {
                     FREE(g_fds_array[ifd]->memberships_addr);
                 }
+                if (s_user_params.addr.ss_family == AF_UNIX) {
+                    if (s_user_params.mode == MODE_SERVER)
+                        unlink(s_user_params.addr.addr_un.sun_path);
+                    unlink(s_user_params.client_bind_info.addr_un.sun_path);
+                }
                 delete g_fds_array[ifd];
             }
         }
@@ -2517,7 +2540,7 @@ inline bool CallbackMessageHandler::handle_message()
             msgReply->setServer();
         }
         /* get source addr to reply. memcpy is not used to improve performance */
-        sendto_addr = m_fds_ifd->server_addr;
+        copy_relevant_sockaddr_params(sendto_addr, m_fds_ifd->server_addr);
         sendto_len = m_fds_ifd->server_addr_len;
 
         if (m_fds_ifd->memberships_size || !m_fds_ifd->is_multicast ||
@@ -3020,7 +3043,7 @@ static int set_sockets_from_feedfile(const char *feedfile_name) {
             if (s_user_params.fd_handler_type == SOCKETXTREME &&
                 is_unspec_addr(s_user_params.client_bind_info)) {
                 log_msg("socketxtreme requires forcing the client side to bind to a specific ip "
-                        "address (use --client_ip) option");
+                        "address (use --client_ip/--client_addr) option");
                 rc = SOCKPERF_ERR_INCORRECT;
                 break;
             }
@@ -3323,6 +3346,24 @@ int bringup(const int *p_daemonize) {
 
             std::unique_ptr<fds_data> tmp{ new fds_data };
 
+            if (s_user_params.addr.ss_family == AF_UNIX) {
+                log_dbg("UNIX domain socket was provided %s\n", s_user_params.addr.addr_un.sun_path);
+                s_user_params.tcp_nodelay = false;
+                if (s_user_params.sock_type == SOCK_DGRAM) { // Need to bind localy
+                    s_user_params.client_bind_info.ss_family = AF_UNIX;
+                    if (s_user_params.client_bind_info.addr_un.sun_path[0] == 0 && s_user_params.mode == MODE_CLIENT) { // no specific addr client_info was provoided
+                        log_dbg("No client name was provided, setting addr_un.sun_path to %s_client\n",s_user_params.addr.addr_un.sun_path);
+                        std::string sun_path = s_user_params.addr.addr_un.sun_path;
+                        sun_path += "_client";
+                        if (sun_path.length() > MAX_UDS_NAME) {
+                            log_err("length of name is larger than %d bytes", MAX_UDS_NAME);
+                            rc = SOCKPERF_ERR_SOCKET;
+                        } else
+                            strncpy(s_user_params.client_bind_info.addr_un.sun_path, sun_path.c_str(), MAX_UDS_NAME);
+                    }
+                    s_user_params.client_bind_info_len = sizeof(struct sockaddr_store_t);
+                }
+            }
             memcpy(&tmp->server_addr, &(s_user_params.addr), sizeof(s_user_params.addr));
             tmp->server_addr_len = s_user_params.addr_len;
             tmp->mc_source_ip_addr = s_user_params.mc_source_ip_addr;
@@ -3338,13 +3379,13 @@ int bringup(const int *p_daemonize) {
                 /* create a socket */
                 if ((curr_fd = (int)socket(tmp->server_addr.ss_family, tmp->sock_type, 0)) <
                     0) { // TODO: use SOCKET all over the way and avoid this cast
-                    log_err("socket(AF_INET4/6, SOCK_x)");
+                    log_err("socket(AF_INET4/6/AF_UNIX, SOCK_x)");
                     rc = SOCKPERF_ERR_SOCKET;
                 } else {
                     if ((curr_fd >= MAX_FDS_NUM) ||
                         (prepare_socket(curr_fd, tmp.get()) ==
-                         (int)INVALID_SOCKET)) { // TODO: use SOCKET all over the way and avoid
-                                                 // this cast
+                        (int)INVALID_SOCKET)) { // TODO: use SOCKET all over the way and avoid
+                                                // this cast
                         log_err("Invalid socket");
                         close(curr_fd);
                         rc = SOCKPERF_ERR_SOCKET;

@@ -151,6 +151,8 @@ const uint32_t TEST_FIRST_CONNECTION_FIRST_PACKET_TTL_THRESHOLD_MSEC = 50;
     "(:([a-zA-Z0-9\\.\\-]+|\\[([a-fA-F0-9.:]+)\\]))?[\r\n]"
 #define PRINT_PROTOCOL(type)                                                                       \
     ((type) == SOCK_DGRAM ? "UDP" : ((type) == SOCK_STREAM ? "TCP" : "<?>"))
+#define PRINT_SOCKET_TYPE(type)                                                                     \
+    ((type) == SOCK_DGRAM ? "SOCK_DGRAM" : ((type) == SOCK_STREAM ? "SOCK_STREAM" : "<?>"))
 
 #define MAX_ARGV_SIZE 256
 #define MAX_DURATION 36000000
@@ -209,7 +211,7 @@ enum {
     OPT_RECV_LOOPING,             // 34
     OPT_OUTPUT_PRECISION,         // 35
     OPT_CLIENTPORT,               // 36
-    OPT_CLIENTIP,                 // 37
+    OPT_CLIENTADDR,               // 37
     OPT_TOS,                      // 38
     OPT_LLS,                      // 39
     OPT_MC_SOURCE_IP,             // 40
@@ -478,6 +480,7 @@ struct sockaddr_store_t {
         sa_family_t ss_family;
         sockaddr_in addr4;
         sockaddr_in6 addr6;
+        sockaddr_un addr_un;
     };
 };
 

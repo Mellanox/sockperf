@@ -36,9 +36,13 @@ static void print_addresses(const fds_data *data, int &list_count)
         getnameinfo(reinterpret_cast<const sockaddr *>(&data->server_addr), data->server_addr_len,
                 hbuf, sizeof(hbuf), pbuf, sizeof(pbuf),
                 NI_NUMERICHOST | NI_NUMERICSERV);
-        printf("[%2d] IP = %-15s PORT = %5s # %s\n", list_count++,
-                hbuf, pbuf,
-                PRINT_PROTOCOL(data->sock_type));
+        switch (data->server_addr.ss_family) {
+            case AF_UNIX:
+                printf("[%2d] Address is %s # UDS type is %s\n", list_count++, pbuf, PRINT_SOCKET_TYPE(data->sock_type));
+                break;
+            default:
+                printf("[%2d] IP = %-15s PORT = %5s # %s\n", list_count++, hbuf, pbuf, PRINT_PROTOCOL(data->sock_type));
+        }
     }
     for (int i = 0; i < data->memberships_size; i++) {
         char hbuf[NI_MAXHOST] = "(unknown)";
