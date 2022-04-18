@@ -31,11 +31,14 @@
 
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <sys/un.h>      /* definitions for UNIX domain sockets */
 
 #include <functional>
 #include <string>
 
 #include <unordered_map>
+
+#define MAX_UDS_NAME 108
 
 class IPAddress {
 private:
@@ -44,42 +47,16 @@ private:
         in_addr m_addr4;
         in6_addr m_addr6;
     };
+    std::string m_addr_un;
 
 public:
     static bool resolve(const char *str, IPAddress &out, std::string &err);
     static IPAddress zero();
 
+    IPAddress(const IPAddress &rhs);
+    IPAddress(const sockaddr *sa, socklen_t len);
     IPAddress() : m_family(AF_UNSPEC)
     {
-    }
-
-    IPAddress(const IPAddress &rhs) : m_family(rhs.m_family), m_addr6(rhs.m_addr6)
-    {
-    }
-
-    IPAddress(const sockaddr *sa, socklen_t len)
-    {
-        if (len < sizeof(m_family)) {
-            m_family = AF_UNSPEC;
-            return;
-        }
-        m_family = sa->sa_family;
-        switch (m_family) {
-        case AF_INET:
-            if (len >= sizeof(sockaddr_in)) {
-                m_addr4 = reinterpret_cast<const sockaddr_in *>(sa)->sin_addr;
-            } else {
-                m_family = AF_UNSPEC;
-            }
-            break;
-        case AF_INET6:
-            if (len >= sizeof(sockaddr_in6)) {
-                m_addr6 = reinterpret_cast<const sockaddr_in6 *>(sa)->sin6_addr;
-            } else {
-                m_family = AF_UNSPEC;
-            }
-            break;
-        }
     }
 
     inline sa_family_t family() const
@@ -97,6 +74,11 @@ public:
         return m_addr6;
     }
 
+    inline std::string addr_un() const
+    {
+        return m_addr_un;
+    }
+
     bool is_specified() const;
 
     std::string toString() const;
@@ -111,6 +93,8 @@ public:
                 return key1.m_addr4.s_addr == key2.m_addr4.s_addr;
             case AF_INET6:
                 return IN6_ARE_ADDR_EQUAL(&key1.m_addr6, &key2.m_addr6);
+            case AF_UNIX:
+                return key1.m_addr_un.compare(key2.m_addr_un) == 0;
             }
         }
         return false;

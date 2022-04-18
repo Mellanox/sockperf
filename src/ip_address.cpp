@@ -27,10 +27,47 @@
  */
 
 #include "ip_address.h"
+#include "common.h"
 
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <string.h>
+
+IPAddress::IPAddress(const IPAddress &rhs) : m_family(rhs.m_family), m_addr6(rhs.m_addr6), m_addr_un(rhs.m_addr_un)
+{
+}
+
+IPAddress::IPAddress(const sockaddr *sa, socklen_t len)
+{
+    if (len < sizeof(m_family)) {
+        m_family = AF_UNSPEC;
+        return;
+    }
+    m_family = sa->sa_family;
+    switch (m_family) {
+    case AF_INET:
+        if (len >= sizeof(sockaddr_in)) {
+            m_addr4 = reinterpret_cast<const sockaddr_in *>(sa)->sin_addr;
+        } else {
+            m_family = AF_UNSPEC;
+        }
+        break;
+    case AF_INET6:
+        if (len >= sizeof(sockaddr_in6)) {
+            m_addr6 = reinterpret_cast<const sockaddr_in6 *>(sa)->sin6_addr;
+        } else {
+            m_family = AF_UNSPEC;
+        }
+        break;
+    case AF_UNIX:
+        if (len >= sizeof(sockaddr_un)) {
+            m_addr_un = unix_sockaddr_to_string(reinterpret_cast<const sockaddr_un *>(sa));
+        } else {
+            m_family = AF_UNSPEC;
+        }
+        break;
+    }
+}
 
 bool IPAddress::resolve(const char *str, IPAddress &out, std::string &err)
 {

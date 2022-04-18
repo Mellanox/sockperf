@@ -55,11 +55,16 @@ std::string sockaddr_to_hostport(const struct sockaddr *addr)
     case AF_INET6:
         addrlen = sizeof(sockaddr_in6);
         break;
+    case AF_UNIX:
+        addrlen = sizeof(sockaddr_un);
+        break;
     }
     getnameinfo(addr, addrlen, hbuf, sizeof(hbuf), pbuf, sizeof(pbuf),
             NI_NUMERICHOST | NI_NUMERICSERV);
     if (addr->sa_family == AF_INET6) {
         return "[" + std::string(hbuf) + "]:" + std::string(pbuf);
+    } else if (addr->sa_family == AF_UNIX) {
+        return std::string(pbuf) + " [UNIX]";
     } else {
         return std::string(hbuf) + ":" + std::string(pbuf);
     }

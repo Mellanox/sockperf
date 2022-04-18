@@ -115,8 +115,8 @@ sockperf: [tid 4805] using epoll() to block on socket(s)
    The following table describes Sockperf options, and their possible values:
 @code
  -h,-?   --help,--usage         -Show the help message and exit.
-         --tcp                  -Use TCP protocol (default UDP).
- -i      --ip                   -Listen on/send to ip <ip>.
+         --tcp --stream         -Use stream socket/TCP protocol (default dgram socket/UDP protocol).
+ -i      --ip --addr            -Listen on/send to ip <ip> or address <name>.
  -p      --port                 -Listen on/connect to port <port> (default 11111).
  -f      --file                 -Read list of connections from file (used in pair with -F option).
  -F      --iomux-type           -Type of multiple file descriptors handle [s|select|p|poll|e|epoll|r|recvfrom|x|socketxtreme](default epoll).
@@ -189,7 +189,7 @@ sockperf: [tid 4805] using epoll() to block on socket(s)
  -t      --time                 -Run for <sec> seconds (default 1, max = 36000000).
  -n      --number-of-packets    -Run for n packets sent and received (default 0, max = 100000000).
          --client_port          -Force the client side to bind to a specific port (default = 0).
-         --client_ip            -Force the client side to bind to a specific ip address (default = 0).
+         --client_addr          -Force the client side to bind to a specific address in IPv4, IPv6, UNIX domain socket format (default = 0).
  -b      --burst                -Control the client's number of a messages sent in every burst.
          --mps                  -Set number of messages-per-second (default = 10000 - for under-load mode, or max - for ping-pong and throughput modes; for maximum use --mps=max;
                                  support --pps for old compatibility).
