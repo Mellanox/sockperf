@@ -1730,8 +1730,8 @@ static int resolve_sockaddr(const char *host, const char *port, int sock_type,
     int res = getaddrinfo(host, port, &hints, &result);
     if (res == 0) {
         get_socket_address(result, addr, addr_len);
+        freeaddrinfo(result);
     }
-    freeaddrinfo(result);
 
     return res;
 }
@@ -2972,7 +2972,7 @@ static int set_sockets_from_feedfile(const char *feedfile_name) {
     }
 /* a map to keep records on the address we received */
     std::unordered_map<port_descriptor, int> fd_socket_map; //<port,fd>
-    
+
 #ifdef NEED_REGEX_WORKAROUND
     int regexp_error = regcomp(&regexpr, IP_PORT_FORMAT_REG_EXP, REG_EXTENDED);
     if (regexp_error != 0) {
