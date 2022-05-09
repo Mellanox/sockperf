@@ -103,11 +103,14 @@ sockperf: [tid 4805] using epoll() to block on socket(s)
    [U|T]:address:port
    or
    [U|T]:address:port:mc_src_addr
+   or
+   [U|T]:PATH
    where
    - [U|T] - UDP or TCP protocol;
    - address - Internet Protocol (IP) address or host name (IPv6 addresses must be enclosed in square brackets);
    - port - Port number;
    - mc_src_addr - Optional multicast source IP address or host name.
+   - PATH - absolute path for UNIX Domain Socket, the line must start with '/'
 
 
 @subsection _option 3.1 Available options
