@@ -303,7 +303,7 @@ const char *aopt_value(const AOPT_OBJECT *aopt_obj, int key) {
  * @brief
  *    Return AOPT Description struct of option selected via key.
  *
- * @param[in]    desc           Option description.
+ * @param[in]    aopt_desc      Option description.
  * @param[in]    key            Option key.
  *
  * @retval pointer to description struct - on success
@@ -333,7 +333,7 @@ const AOPT_DESC *aopt_get_desc(const AOPT_DESC *aopt_desc, int key) {
  * @brief
  *    Return long name of option description selected via key.
  *
- * @param[in]    desc           Option description.
+ * @param[in]    aopt_desc      Option description.
  * @param[in]    key            Option key.
  *
  * @retval pointer to string - on success
@@ -354,7 +354,7 @@ const char *aopt_get_long_name(const AOPT_DESC *aopt_desc, int key) {
  * aopt_help
  *
  * @brief
- *    This function form help informaion  basing options description and
+ *    This function form help information  basing options description and
  *    return string with one. The string should be freed using the free()
  *    function when you are done with it. NULL is returned if the it would
  *    produce an empty string or if the string cannot be allocated.

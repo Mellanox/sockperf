@@ -45,7 +45,7 @@ public:
     }
 
     /** Process next buffer
-     * @param [in/out] recv_data receive stream context
+     * @param [inout] recv_data receive stream context
      * @param [in] buf buffer start
      * @param [in] len buffer length
      * @return false on message parsing or processing error, otherwise true
