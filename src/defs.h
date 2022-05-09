@@ -149,6 +149,10 @@ const uint32_t TEST_FIRST_CONNECTION_FIRST_PACKET_TTL_THRESHOLD_MSEC = 50;
     "([a-zA-Z0-9\\.\\-]+|\\[([a-fA-F0-9.:]+(%[0-9a-zA-z])?)\\])"                                   \
     ":(6553[0-5]|655[0-2][0-9]|65[0-4][0-9]{2}|6[0-4][0-9]{3}|[0-5]?[0-9]{1,4})"                   \
     "(:([a-zA-Z0-9\\.\\-]+|\\[([a-fA-F0-9.:]+)\\]))?[\r\n]"
+
+#define UNIX_DOMAIN_SOCKET_FORMAT_REG_EXP                                                          \
+         "^[UuTt]:(/.+)[\r\n]"
+
 #define PRINT_PROTOCOL(type)                                                                       \
     ((type) == SOCK_DGRAM ? "UDP" : ((type) == SOCK_STREAM ? "TCP" : "<?>"))
 #define PRINT_SOCKET_TYPE(type)                                                                     \

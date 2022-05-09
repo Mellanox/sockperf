@@ -1736,7 +1736,7 @@ static int resolve_sockaddr(const char *host, const char *port, int sock_type,
         struct sockaddr_store_t *tmp = ((sockaddr_store_t *)addr);
         if (path.size() > 0 && path[0] == '/') {
             log_dbg("provided path for Unix Domain Socket is %s\n", host);
-            if (path.length() > MAX_UDS_NAME) {
+            if (path.length() >= MAX_UDS_NAME) {
                 log_err("length of name is larger than %d bytes", MAX_UDS_NAME);
                 res = SOCKPERF_ERR_SOCKET;
                 return res;
@@ -2348,9 +2348,14 @@ void cleanup() {
                     FREE(g_fds_array[ifd]->memberships_addr);
                 }
                 if (s_user_params.addr.ss_family == AF_UNIX) {
-                    if (s_user_params.mode == MODE_SERVER)
-                        unlink(s_user_params.addr.addr_un.sun_path);
                     unlink(s_user_params.client_bind_info.addr_un.sun_path);
+                    if (s_user_params.mode == MODE_CLIENT && s_user_params.sock_type == SOCK_DGRAM) { // unlink binded client
+                        std::string sun_path = build_client_socket_name(&s_user_params.addr.addr_un, getpid(), ifd);
+                        log_dbg("unlinking %s", sun_path.c_str());
+                        unlink(sun_path.c_str());
+                    }
+                    if (s_user_params.mode == MODE_SERVER)
+                        unlink(g_fds_array[ifd]->server_addr.addr_un.sun_path);
                 }
                 delete g_fds_array[ifd];
             }
@@ -2924,6 +2929,9 @@ U:[2001:0db8:0000:0000:0000:ff00:0042:8329]:1128
 U:[2001:0db8:0000:0000:0000:ff00:0042:8329]:1129:[ff02::1]
 T:[::ffff:192.0.2.128]:1130
 U:[fe80::9a03:9bff:fea3:b01c%enp3s0f0]:1131
+# Unix domain socket Format
+U:/tmp/test
+T:/tmp/test2
 */
 static int set_sockets_from_feedfile(const char *feedfile_name) {
     int rc = SOCKPERF_ERR_NONE;
@@ -2933,9 +2941,11 @@ static int set_sockets_from_feedfile(const char *feedfile_name) {
     int sock_type = SOCK_DGRAM;
     int curr_fd = 0, last_fd = 0;
 #ifdef NEED_REGEX_WORKAROUND
-    regex_t regexpr;
+    regex_t regexpr_ip;
+    regex_t regexpr_unix;
 #else // NEED_REGEX_WORKAROUND
-    const std::regex regexpr(IP_PORT_FORMAT_REG_EXP);
+    const std::regex regexpr_ip(IP_PORT_FORMAT_REG_EXP);
+    const std::regex regexpr_unix(UNIX_DOMAIN_SOCKET_FORMAT_REG_EXP);
 #endif // NEED_REGEX_WORKAROUND
 
     struct stat st_buf;
@@ -2959,9 +2969,15 @@ static int set_sockets_from_feedfile(const char *feedfile_name) {
     std::unordered_map<port_descriptor, int> fd_socket_map; //<port,fd>
 
 #ifdef NEED_REGEX_WORKAROUND
-    int regexp_error = regcomp(&regexpr, IP_PORT_FORMAT_REG_EXP, REG_EXTENDED);
-    if (regexp_error != 0) {
-        log_msg("Failed to compile regexp");
+    int regexp_ip_error = regcomp(&regexpr_ip, IP_PORT_FORMAT_REG_EXP, REG_EXTENDED);
+    if (regexp_ip_error != 0) {
+        log_msg("Failed to compile regexp for ip format");
+        rc = SOCKPERF_ERR_FATAL;
+    }
+
+    int regexp_unix_error = regcomp(&regexpr_unix, UNIX_DOMAIN_SOCKET_FORMAT_REG_EXP, REG_EXTENDED);
+    if (regexp_unix_error != 0) {
+        log_msg("Failed to compile regexp for unix format");
         rc = SOCKPERF_ERR_FATAL;
     }
 #endif // NEED_REGEX_WORKAROUND
@@ -2971,21 +2987,21 @@ static int set_sockets_from_feedfile(const char *feedfile_name) {
         if (line[0] == ' ' || line[0] == '\r' || line[0] == '\n' || line[0] == '#') {
             continue;
         }
-        std::string type, ip, port, mc_src_ip;
+        std::string type, addr, port, mc_src_ip;
 
         const size_t NUM_RE_GROUPS = 9;
 #ifdef NEED_REGEX_WORKAROUND
         regmatch_t m[NUM_RE_GROUPS];
-        int regexpres = regexec(&regexpr, line, NUM_RE_GROUPS, m, 0);
+        int regexpres = regexec(&regexpr_ip, line, NUM_RE_GROUPS, m, 0);
         if (regexpres == 0) {
             type = std::string(line + m[1].rm_so, line + m[1].rm_eo);
             // server address
             if (m[3].rm_so < 0) {
                 // IPv4 or hostname
-                ip = std::string(line + m[2].rm_so, line + m[2].rm_eo);
+                addr = std::string(line + m[2].rm_so, line + m[2].rm_eo);
             } else {
                 // IPv6 in brackets
-                ip = std::string(line + m[3].rm_so, line + m[3].rm_eo);
+                addr = std::string(line + m[3].rm_so, line + m[3].rm_eo);
             }
             port = std::string(line + m[5].rm_so, line + m[5].rm_eo);
             // multicast source address
@@ -2996,20 +3012,23 @@ static int set_sockets_from_feedfile(const char *feedfile_name) {
                 // IPv6 in brackets
                 mc_src_ip = std::string(line + m[8].rm_so, line + m[8].rm_eo);
             }
+        } else if (regexec(&regexpr_unix, line, NUM_RE_GROUPS, m, 0) == 0) {
+            type = line[0];
+            addr = std::string(line + m[1].rm_so, line + m[1].rm_eo);
         }
 #else // NEED_REGEX_WORKAROUND
         std::smatch m;
         std::string line_str(line);
-        bool matched = std::regex_match(line_str, m, regexpr);
+        bool matched = std::regex_match(line_str, m, regexpr_ip);
         if (matched && m.size() == NUM_RE_GROUPS) {
             type = m[1];
             // server address
             if (m[3].length() == 0) {
                 // IPv4 or hostname
-                ip = m[2];
+                addr = m[2];
             } else {
                 // IPv6 in brackets
-                ip = m[3];
+                addr = m[3];
             }
             port = m[5];
             // multicast source address
@@ -3020,13 +3039,17 @@ static int set_sockets_from_feedfile(const char *feedfile_name) {
                 // IPv6 in brackets
                 mc_src_ip = m[8];
             }
+        } else if (std::regex_match(line_str, m, regexpr_unix)) {
+            type = line_str[0];
+            addr = std::string(m[1]);
         }
 #endif // NEED_REGEX_WORKAROUND
         else {
             log_msg("Invalid input in line %s: "
                     "each line must have the following format: ip:port or type:ip:port or "
-                    "type:ip:port:mc_src_ip. "
-                    "IPv6 addresses must be enclosed in square brackets.",
+                    "type:ip:port:mc_src_ip or type:/PATH. "
+                    "IPv6 addresses must be enclosed in square brackets."
+                    "UNIX domain socket addresses must be an absolute paths (starting with '/').",
                     line);
             rc = SOCKPERF_ERR_INCORRECT;
             break;
@@ -3051,7 +3074,7 @@ static int set_sockets_from_feedfile(const char *feedfile_name) {
 
         std::unique_ptr<fds_data> tmp{ new fds_data };
 
-        int res = resolve_sockaddr(ip.c_str(), port.c_str(), sock_type,
+        int res = resolve_sockaddr(addr.c_str(), port.c_str(), sock_type,
                 false, reinterpret_cast<sockaddr *>(&tmp->server_addr), tmp->server_addr_len);
         if (res != 0) {
             log_msg("Invalid address in line %s: %s\n", line, gai_strerror(res));
@@ -3099,6 +3122,12 @@ static int set_sockets_from_feedfile(const char *feedfile_name) {
             continue;
         }
 
+        if (tmp->server_addr.ss_family == AF_UNIX) {
+            s_user_params.tcp_nodelay = false;
+            s_user_params.addr = tmp->server_addr;
+            if (tmp->sock_type == SOCK_DGRAM) // for later binding client
+                s_user_params.client_bind_info.ss_family = AF_UNIX;
+        }
         tmp->active_fd_count = 0;
         tmp->active_fd_list = (int *)MALLOC(MAX_ACTIVE_FD_NUM * sizeof(int));
         bool new_socket_flag = true;
@@ -3192,8 +3221,12 @@ static int set_sockets_from_feedfile(const char *feedfile_name) {
         }
     }
 #ifdef NEED_REGEX_WORKAROUND
-    if (regexp_error == 0) {
-        regfree(&regexpr);
+    if (regexp_ip_error == 0) {
+        regfree(&regexpr_ip);
+    }
+
+    if (regexp_unix_error == 0) {
+        regfree(&regexpr_unix);
     }
 #endif // NEED_REGEX_WORKAROUND
 
@@ -3221,7 +3254,6 @@ static int set_sockets_from_feedfile(const char *feedfile_name) {
             static fds_data data1, data2;
 
             tmp = &data1;
-            memset(tmp, 0, sizeof(struct fds_data));
             tmp->server_addr_len = sizeof(sockaddr_in);
             sockaddr_in &sa1 = reinterpret_cast<sockaddr_in &>(tmp->server_addr);
             sa1.sin_family = AF_INET;
@@ -3235,7 +3267,6 @@ static int set_sockets_from_feedfile(const char *feedfile_name) {
             st1 = prepare_socket(tmp, true);
 
             tmp = &data2;
-            memset(tmp, 0, sizeof(struct fds_data));
             tmp->server_addr_len = sizeof(sockaddr_in);
             sockaddr_in &sa2 = reinterpret_cast<sockaddr_in &>(tmp->server_addr);
             sa2.sin_family = AF_INET;
@@ -3351,17 +3382,6 @@ int bringup(const int *p_daemonize) {
                 s_user_params.tcp_nodelay = false;
                 if (s_user_params.sock_type == SOCK_DGRAM) { // Need to bind localy
                     s_user_params.client_bind_info.ss_family = AF_UNIX;
-                    if (s_user_params.client_bind_info.addr_un.sun_path[0] == 0 && s_user_params.mode == MODE_CLIENT) { // no specific addr client_info was provoided
-                        log_dbg("No client name was provided, setting addr_un.sun_path to %s_client\n",s_user_params.addr.addr_un.sun_path);
-                        std::string sun_path = s_user_params.addr.addr_un.sun_path;
-                        sun_path += "_client";
-                        if (sun_path.length() > MAX_UDS_NAME) {
-                            log_err("length of name is larger than %d bytes", MAX_UDS_NAME);
-                            rc = SOCKPERF_ERR_SOCKET;
-                        } else
-                            strncpy(s_user_params.client_bind_info.addr_un.sun_path, sun_path.c_str(), MAX_UDS_NAME);
-                    }
-                    s_user_params.client_bind_info_len = sizeof(struct sockaddr_store_t);
                 }
             }
             memcpy(&tmp->server_addr, &(s_user_params.addr), sizeof(s_user_params.addr));

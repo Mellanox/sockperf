@@ -113,7 +113,7 @@ uint32_t getStartOfRightOutlierBin(){
         startBinEdge += binSize - overflowRemainder;
     }
     return startBinEdge;
-} 
+}
 
 //------------------------------------------------------------------------------
 uint32_t getLeftOutlierBinIndexReserved() {
@@ -879,6 +879,27 @@ int Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration,
             if (p_client_bind_addr->ss_family != AF_UNSPEC) {
                 socklen_t client_bind_addr_len = g_pApp->m_const_params.client_bind_info_len;
                 std::string hostport = sockaddr_to_hostport(p_client_bind_addr);
+                struct sockaddr_store_t unix_addr;
+                socklen_t unix_addr_len;
+                if (p_client_bind_addr->ss_family == AF_UNIX && g_pApp->m_const_params.sock_type == SOCK_DGRAM) { // Need to bind localy
+                    if (p_client_bind_addr->addr_un.sun_path[0] == 0) { // no specific addr client_info was provoided
+                        std::string sun_path = build_client_socket_name(&s_user_params.addr.addr_un, getpid(), ifd);
+                        log_dbg("No client name was provided, setting addr_un.sun_path to %s\n",
+                               sun_path.c_str());
+                        if (sun_path.length() > MAX_UDS_NAME) {
+                            log_err("length of client socket name (%s) is more than %d bytes", sun_path.c_str(), MAX_UDS_NAME);
+                            rc = SOCKPERF_ERR_SOCKET;
+                        } else {
+                            memset(unix_addr.addr_un.sun_path, 0, sizeof(unix_addr.addr_un.sun_path));
+                            strncpy(unix_addr.addr_un.sun_path, sun_path.c_str(), MAX_UDS_NAME);
+                            unix_addr_len = sizeof(struct sockaddr_un);
+                            unix_addr.ss_family = AF_UNIX;
+                            hostport = sun_path;
+                        }
+                        p_client_bind_addr = &unix_addr;
+                        client_bind_addr_len = unix_addr_len;
+                    }
+                }
                 log_dbg("[fd=%d] Binding to: %s...", ifd, hostport.c_str());
                 if (bind(ifd, reinterpret_cast<const sockaddr *>(p_client_bind_addr), client_bind_addr_len) < 0) {
                     log_err("[fd=%d] Can`t bind socket %s", ifd, hostport.c_str());

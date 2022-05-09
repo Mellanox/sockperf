@@ -211,4 +211,13 @@ static inline std::string unix_sockaddr_to_string(const sockaddr_un *sa)
     return str;
 }
 
+/**
+ * @brief
+ * @return build client socket address for UNIX sockets.
+ */
+static inline std::string build_client_socket_name(const sockaddr_un *sa, int pid, int ifd)
+{
+    return unix_sockaddr_to_string(sa) + "_" + std::to_string(pid) + "_" + std::to_string(ifd);
+}
+
 #endif /* COMMON_H_ */
