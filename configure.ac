@@ -69,6 +69,8 @@ AC_LANG(C++)
 AM_PROG_AR
 AC_PROG_LIBTOOL
 
+AX_CXX_COMPILE_STDCXX([11], [], [mandatory])
+
 SP_CHECK_CXXFLAGS_APPEND([OUR_CXXFLAGS], [\
                          -Wall \
                          "--param inline-unit-growth=300"])
