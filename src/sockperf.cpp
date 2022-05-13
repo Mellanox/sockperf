@@ -2970,11 +2970,7 @@ static int set_sockets_from_feedfile(const char *feedfile_name) {
         return SOCKPERF_ERR_NOT_EXIST;
     }
 /* a map to keep records on the address we received */
-#ifndef __FreeBSD__
-    std::tr1::unordered_map<port_descriptor, int> fd_socket_map; //<port,fd>
-#else
     std::unordered_map<port_descriptor, int> fd_socket_map; //<port,fd>
-#endif
     
     int regexp_error = regcomp(&regexpr, IP_PORT_FORMAT_REG_EXP, REG_EXTENDED);
     if (regexp_error != 0) {
