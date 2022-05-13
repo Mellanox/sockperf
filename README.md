@@ -18,9 +18,11 @@ Specifically, in addition to the standard throughput tests, **sockperf** does th
 
    * GNU make tools: automake 1.7+, autoconf 2.57+, m4 1.4+ and libtool 1.4+
 
-   * A Compiler, among those tested are:
+   * A C++11 Compiler, among those tested are:
     
-     * . gcc4 (Ubuntu 9)
+     * GCC
+     * Clang
+     * icc
 
    `sudo apt install perl make automake autoconf m4 libtool-bin g++`
 
