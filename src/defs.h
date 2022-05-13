@@ -58,11 +58,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
-#ifndef __FreeBSD__
-#include <tr1/unordered_map>
-#else
 #include <unordered_map>
-#endif
 #include <unistd.h>   /* getopt() and sleep()*/
 #include <inttypes.h> /* printf PRItn */
 #include <regex.h>
@@ -533,9 +529,6 @@ typedef struct clt_session_info {
 // std:: string, and std::wstring. For any other type, we need to write a
 // hash/equal_to functions, by ourself.
 namespace std {
-#if !defined(WIN32) && !defined(__FreeBSD__)
-namespace tr1 {
-#endif
 template <> struct hash<struct sockaddr_store_t> : public std::unary_function<struct sockaddr_store_t, int> {
     int operator()(struct sockaddr_store_t const &key) const {
         // XOR "a.b" part of "a.b.c.d" address with 16bit port; leave "c.d" part untouched for
@@ -555,9 +548,7 @@ template <> struct hash<struct sockaddr_store_t> : public std::unary_function<st
         }
     }
 };
-#if !defined(WIN32) && !defined(__FreeBSD__)
-} // closes namespace tr1
-#endif
+
 template <>
 struct equal_to<struct sockaddr_store_t> :
         public std::binary_function<struct sockaddr_store_t,
@@ -593,19 +584,11 @@ struct vma_ring_comps {
 };
 #endif
 
-#ifndef __FreeBSD__
-typedef std::tr1::unordered_map<struct sockaddr_store_t, clt_session_info_t> seq_num_map;
-typedef std::tr1::unordered_map<IPAddress, size_t> addr_to_id;
-#ifdef USING_VMA_EXTRA_API
-typedef std::tr1::unordered_map<int, struct vma_ring_comps *> rings_vma_comps_map;
-#endif
-#else
 typedef std::unordered_map<struct sockaddr_store_t, clt_session_info_t> seq_num_map;
 typedef std::unordered_map<IPAddress, size_t> addr_to_id;
 #ifdef USING_VMA_EXTRA_API
 typedef std::unordered_map<int, struct vma_ring_comps *> rings_vma_comps_map;
-#endif
-#endif
+#endif // USING_VMA_EXTRA_API
 
 extern fds_data **g_fds_array;
 extern int IGMP_MAX_MEMBERSHIPS;

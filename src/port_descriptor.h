@@ -51,9 +51,6 @@ typedef struct port_descriptor {
 // std:: string, and std::wstring. For any other type, we need to write a
 // hash/equal_to functions, by ourself.
 namespace std {
-#if !defined(WIN32) && !defined(__FreeBSD__)
-namespace tr1 {
-#endif
 
 template <>
 struct hash<struct port_descriptor> : public std::unary_function<struct port_descriptor, int> {
@@ -61,9 +58,6 @@ struct hash<struct port_descriptor> : public std::unary_function<struct port_des
         return key.sock_type ^ key.port ^ key.family;
     }
 };
-#if !defined(WIN32) && !defined(__FreeBSD__)
-} // closes namespace tr1
-#endif
 
 template <>
 struct equal_to<struct port_descriptor> : public std::binary_function<struct port_descriptor,

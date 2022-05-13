@@ -35,11 +35,7 @@
 #include <functional>
 #include <string>
 
-#ifndef __FreeBSD__
-#include <tr1/unordered_map>
-#else
 #include <unordered_map>
-#endif
 
 class IPAddress {
 private:
@@ -125,9 +121,6 @@ public:
 // std:: string, and std::wstring. For any other type, we need to write a
 // hash/equal_to functions, by ourself.
 namespace std {
-#if !defined(WIN32) && !defined(__FreeBSD__)
-namespace tr1 {
-#endif
 template <> struct hash<IPAddress> : public std::unary_function<IPAddress, int> {
     int operator()(IPAddress const &key) const
     {
@@ -143,9 +136,6 @@ template <> struct hash<IPAddress> : public std::unary_function<IPAddress, int> 
         }
     }
 };
-#if !defined(WIN32) && !defined(__FreeBSD__)
-} // closes namespace tr1
-#endif
 
 template <>
 struct equal_to<IPAddress> : public std::binary_function<IPAddress, IPAddress,
