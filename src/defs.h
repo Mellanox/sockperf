@@ -61,7 +61,6 @@
 #include <unordered_map>
 #include <unistd.h>   /* getopt() and sleep()*/
 #include <inttypes.h> /* printf PRItn */
-#include <regex.h>
 #include <poll.h>
 #include <pthread.h>
 #include <sys/time.h>   /* timers*/
