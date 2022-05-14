@@ -76,9 +76,20 @@
  *
  */
 
+#if defined(__GNUC__) && (__GNUC__ < 4 || (__GNUC__ == 4 && __GNUC_MINOR__ < 9))
+#   define NEED_REGEX_WORKAROUND
+#endif
+
 #define __STDC_LIMIT_MACROS // for UINT32_MAX in C++
 #include <stdint.h>
 #include <stdlib.h>
+
+#ifdef NEED_REGEX_WORKAROUND
+#   include <regex.h>
+#else // NEED_REGEX_WORKAROUND
+#   include <regex>
+#endif // NEED_REGEX_WORKAROUND
+
 #include "common.h"
 #include "message.h"
 #include "message_parser.h"
@@ -2946,11 +2957,11 @@ static int set_sockets_from_feedfile(const char *feedfile_name) {
     int sock_type = SOCK_DGRAM;
     fds_data *tmp;
     int curr_fd = 0, last_fd = 0;
-#ifndef WIN32
+#ifdef NEED_REGEX_WORKAROUND
     regex_t regexpr;
-#else
-    #error "unsupported platform"
-#endif
+#else // NEED_REGEX_WORKAROUND
+    const std::regex regexpr(IP_PORT_FORMAT_REG_EXP);
+#endif // NEED_REGEX_WORKAROUND
 
     struct stat st_buf;
     const int status = stat(feedfile_name, &st_buf);
@@ -2972,11 +2983,13 @@ static int set_sockets_from_feedfile(const char *feedfile_name) {
 /* a map to keep records on the address we received */
     std::unordered_map<port_descriptor, int> fd_socket_map; //<port,fd>
     
+#ifdef NEED_REGEX_WORKAROUND
     int regexp_error = regcomp(&regexpr, IP_PORT_FORMAT_REG_EXP, REG_EXTENDED);
     if (regexp_error != 0) {
         log_msg("Failed to compile regexp");
         rc = SOCKPERF_ERR_FATAL;
     }
+#endif // NEED_REGEX_WORKAROUND
 
     while (!rc && (res = fgets(line, MAX_MCFILE_LINE_LENGTH, file_fd))) {
         /* skip empty lines and comments */
@@ -2986,6 +2999,7 @@ static int set_sockets_from_feedfile(const char *feedfile_name) {
         std::string type, ip, port, mc_src_ip;
 
         const size_t NUM_RE_GROUPS = 9;
+#ifdef NEED_REGEX_WORKAROUND
         regmatch_t m[NUM_RE_GROUPS];
         int regexpres = regexec(&regexpr, line, NUM_RE_GROUPS, m, 0);
         if (regexpres == 0) {
@@ -3007,7 +3021,33 @@ static int set_sockets_from_feedfile(const char *feedfile_name) {
                 // IPv6 in brackets
                 mc_src_ip = std::string(line + m[8].rm_so, line + m[8].rm_eo);
             }
-        } else {
+        }
+#else // NEED_REGEX_WORKAROUND
+        std::smatch m;
+        std::string line_str(line);
+        bool matched = std::regex_match(line_str, m, regexpr);
+        if (matched && m.size() == NUM_RE_GROUPS) {
+            type = m[1];
+            // server address
+            if (m[3].length() == 0) {
+                // IPv4 or hostname
+                ip = m[2];
+            } else {
+                // IPv6 in brackets
+                ip = m[3];
+            }
+            port = m[5];
+            // multicast source address
+            if (m[8].length() == 0) {
+                // IPv4 or hostname
+                mc_src_ip = m[7];
+            } else {
+                // IPv6 in brackets
+                mc_src_ip = m[8];
+            }
+        }
+#endif // NEED_REGEX_WORKAROUND
+        else {
             log_msg("Invalid input in line %s: "
                     "each line must have the following format: ip:port or type:ip:port or "
                     "type:ip:port:mc_src_ip. "
@@ -3186,9 +3226,11 @@ static int set_sockets_from_feedfile(const char *feedfile_name) {
             }
         }
     }
+#ifdef NEED_REGEX_WORKAROUND
     if (regexp_error == 0) {
         regfree(&regexpr);
     }
+#endif // NEED_REGEX_WORKAROUND
 
     if (!rc && (NULL == res) && ferror(file_fd)) {
         /* An I/O error occured */
