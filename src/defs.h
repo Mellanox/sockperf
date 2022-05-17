@@ -464,11 +464,11 @@ typedef struct spike {
 } spike;
 
 struct SocketRecvData {
-    uint8_t *buf;       // buffer for input messages (double size is reserved)
-    int max_size;       // maximum message size
-    uint8_t *cur_addr;  // start of current message (may point outside buf)
-    int cur_offset;     // number of available message bytes
-    int cur_size;       // maximum number of bytes for the next chunk
+    uint8_t *buf = nullptr;         // buffer for input messages (double size is reserved)
+    int max_size = 0;               // maximum message size
+    uint8_t *cur_addr = nullptr;    // start of current message (may point outside buf)
+    int cur_offset = 0;             // number of available message bytes
+    int cur_size = 0;               // maximum number of bytes for the next chunk
 };
 
 // big enough to store sockaddr_in and sockaddr_in6
@@ -485,26 +485,30 @@ struct sockaddr_store_t {
  * @brief Socket related info
  */
 
-typedef struct fds_data {
+struct fds_data {
     struct sockaddr_store_t server_addr; /**< server address information */
-    socklen_t server_addr_len;      /**< server address length */
-    int is_multicast;               /**< if this socket is multicast */
-    int sock_type;                  /**< SOCK_STREAM (tcp), SOCK_DGRAM (udp), SOCK_RAW (ip) */
-    int next_fd;
-    int active_fd_count; /**< number of active connections (by default 1-for UDP; 0-for TCP) */
-    int *
-    active_fd_list; /**< list of fd related active connections (UDP has the same fd by default) */
-    struct sockaddr_store_t *memberships_addr; /**< more servers on the same socket information */
+    socklen_t server_addr_len = 0;  /**< server address length */
+    int is_multicast = 0;           /**< if this socket is multicast */
+    int sock_type = 0;              /**< SOCK_STREAM (tcp), SOCK_DGRAM (udp), SOCK_RAW (ip) */
+    int next_fd = 0;
+    int active_fd_count = 0;        /**< number of active connections (by default 1-for UDP; 0-for TCP) */
+    int *active_fd_list = nullptr;  /**< list of fd related active connections (UDP has the same fd by default) */
+    struct sockaddr_store_t *memberships_addr = nullptr; /**< more servers on the same socket information */
     IPAddress mc_source_ip_addr;    /**< message source ip for multicast packet filtering */
-    int memberships_size;
+    int memberships_size = 0;
     struct SocketRecvData recv;
 #ifdef USING_VMA_EXTRA_API
-    Message *p_msg;
+    Message *p_msg = nullptr;
 #endif
 #if defined(DEFINED_TLS)
-    void *tls_handle;
+    void *tls_handle = nullptr;
 #endif /* DEFINED_TLS */
-} fds_data;
+
+    fds_data()
+    {
+        memset(&server_addr, 0, sizeof(server_addr));
+    }
+};
 
 /**
  * @struct handler_info
