@@ -29,7 +29,6 @@
 #ifndef MESSAGE_PARSER_H_
 #define MESSAGE_PARSER_H_
 
-#include <algorithm>
 #include <cstring>
 
 #include "defs.h"
@@ -65,7 +64,7 @@ public:
             int chunk_len = len;
             if (unlikely(!direct)) {
                 // (1) copy data chunk to accumulation buffer
-                chunk_len = std::min(recv_data.cur_size, len);
+                chunk_len = (recv_data.cur_size < len) ? recv_data.cur_size : len;
                 AccumulationStrategy::accumulate_more(recv_data, buf + offset, chunk_len);
             }
             int nprocessed;
