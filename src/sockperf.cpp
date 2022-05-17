@@ -90,6 +90,7 @@
 #   include <regex>
 #endif // NEED_REGEX_WORKAROUND
 
+#include <memory>
 #include "common.h"
 #include "message.h"
 #include "message_parser.h"
@@ -2315,7 +2316,7 @@ void cleanup() {
                 if (g_fds_array[ifd]->is_multicast) {
                     FREE(g_fds_array[ifd]->memberships_addr);
                 }
-                FREE(g_fds_array[ifd]);
+                delete g_fds_array[ifd];
             }
         }
     }
@@ -2955,7 +2956,6 @@ static int set_sockets_from_feedfile(const char *feedfile_name) {
     char line[MAX_MCFILE_LINE_LENGTH];
     char *res = NULL;
     int sock_type = SOCK_DGRAM;
-    fds_data *tmp;
     int curr_fd = 0, last_fd = 0;
 #ifdef NEED_REGEX_WORKAROUND
     regex_t regexpr;
@@ -3074,155 +3074,145 @@ static int set_sockets_from_feedfile(const char *feedfile_name) {
             }
         }
 
-        tmp = (struct fds_data *)MALLOC(sizeof(struct fds_data));
-        if (!tmp) {
-            log_err("Failed to allocate memory with malloc()");
-            rc = SOCKPERF_ERR_NO_MEMORY;
-        } else {
-            memset(reinterpret_cast<void *>(tmp), 0, sizeof(struct fds_data));
+        std::unique_ptr<fds_data> tmp{ new fds_data };
 
-            int res = resolve_sockaddr(ip.c_str(), port.c_str(), sock_type,
-                    false, reinterpret_cast<sockaddr *>(&tmp->server_addr), tmp->server_addr_len);
-            if (res != 0) {
-                log_msg("Invalid address in line %s: %s\n", line, gai_strerror(res));
-                FREE(tmp);
+        int res = resolve_sockaddr(ip.c_str(), port.c_str(), sock_type,
+                false, reinterpret_cast<sockaddr *>(&tmp->server_addr), tmp->server_addr_len);
+        if (res != 0) {
+            log_msg("Invalid address in line %s: %s\n", line, gai_strerror(res));
+            rc = SOCKPERF_ERR_INCORRECT;
+            break;
+        }
+
+        tmp->mc_source_ip_addr = s_user_params.mc_source_ip_addr;
+        if (!mc_src_ip.empty()) {
+            std::string err;
+            if (!IPAddress::resolve(mc_src_ip.c_str(), tmp->mc_source_ip_addr, err)) {
+                log_msg("Invalid multicast source address '%s' in line %s: %s",
+                    mc_src_ip.c_str(), line, err.c_str());
                 rc = SOCKPERF_ERR_INCORRECT;
                 break;
             }
+        }
+        tmp->is_multicast = is_multicast_addr(tmp->server_addr);
+        tmp->sock_type = sock_type;
 
-            tmp->mc_source_ip_addr = s_user_params.mc_source_ip_addr;
-            if (!mc_src_ip.empty()) {
-                std::string err;
-                if (!IPAddress::resolve(mc_src_ip.c_str(), tmp->mc_source_ip_addr, err)) {
-                    log_msg("Invalid multicast source address '%s' in line %s: %s",
-                        mc_src_ip.c_str(), line, err.c_str());
-                    FREE(tmp);
-                    rc = SOCKPERF_ERR_INCORRECT;
-                    break;
-                }
-            }
-            tmp->is_multicast = is_multicast_addr(tmp->server_addr);
-            tmp->sock_type = sock_type;
-
-            /* Check if the same value exists */
-            bool is_exist = false;
-            in_port_t port_tmp = ntohs(sockaddr_get_portn(tmp->server_addr));
-            port_descriptor port_desc_tmp = { tmp->sock_type, tmp->server_addr.ss_family, port_tmp };
-            for (int i = s_fd_min; i <= s_fd_max; i++) {
-                /* duplicated values are accepted in case client connection using TCP */
-                /* or in case source address is set for multicast socket */
-                if (((s_user_params.mode == MODE_CLIENT) && (tmp->sock_type == SOCK_STREAM)) ||
-                    ((tmp->is_multicast) && tmp->mc_source_ip_addr.is_specified())) {
-                    continue;
-                }
-
-                if (g_fds_array[i] && !memcmp(&(g_fds_array[i]->server_addr), &(tmp->server_addr),
-                                              sizeof(tmp->server_addr)) &&
-                    fd_socket_map[port_desc_tmp]) {
-                    is_exist = true;
-                    break;
-                }
-            }
-
-            if (is_exist) {
-                if (tmp->recv.buf) {
-                    FREE(tmp->recv.buf);
-                }
-                FREE(tmp);
+        /* Check if the same value exists */
+        bool is_exist = false;
+        in_port_t port_tmp = ntohs(sockaddr_get_portn(tmp->server_addr));
+        port_descriptor port_desc_tmp = { tmp->sock_type, tmp->server_addr.ss_family, port_tmp };
+        for (int i = s_fd_min; i <= s_fd_max; i++) {
+            /* duplicated values are accepted in case client connection using TCP */
+            /* or in case source address is set for multicast socket */
+            if (((s_user_params.mode == MODE_CLIENT) && (tmp->sock_type == SOCK_STREAM)) ||
+                ((tmp->is_multicast) && tmp->mc_source_ip_addr.is_specified())) {
                 continue;
             }
 
-            tmp->active_fd_count = 0;
-            tmp->active_fd_list = (int *)MALLOC(MAX_ACTIVE_FD_NUM * sizeof(int));
-            bool new_socket_flag = true;
-            if (!tmp->active_fd_list) {
-                log_err("Failed to allocate memory with malloc()");
-                rc = SOCKPERF_ERR_NO_MEMORY;
-            } else {
-                /* if this port already been received before, join socket - multicast only */
-                if ((0 != fd_socket_map[port_desc_tmp]) && (tmp->is_multicast)) {
-                    /* join socket */
-                    curr_fd = fd_socket_map[port_desc_tmp];
-                    new_socket_flag = false;
-                    if (g_fds_array[curr_fd]->memberships_addr == NULL) {
-                        g_fds_array[curr_fd]->memberships_addr = reinterpret_cast<sockaddr_store_t *>(MALLOC(
-                            IGMP_MAX_MEMBERSHIPS * sizeof(struct sockaddr_store_t)));
-                    }
-                    g_fds_array[curr_fd]->memberships_addr[g_fds_array[curr_fd]->memberships_size] =
-                        tmp->server_addr;
-                    g_fds_array[curr_fd]->memberships_size++;
-                } else {
-                    /* create a socket */
-                    if ((curr_fd = (int)socket(tmp->server_addr.ss_family, tmp->sock_type, 0)) <
-                        0) { // TODO: use SOCKET all over the way and avoid this cast
-                        log_err("socket(AF_INET4/6, SOCK_x)");
-                        rc = SOCKPERF_ERR_SOCKET;
-                    }
-                    fd_socket_map[port_desc_tmp] = curr_fd;
-                    if (tmp->is_multicast) {
-                        tmp->memberships_addr = reinterpret_cast<sockaddr_store_t *>(MALLOC(
-                            IGMP_MAX_MEMBERSHIPS * sizeof(struct sockaddr_store_t)));
-                    } else {
-                        tmp->memberships_addr = NULL;
-                    }
-                    tmp->memberships_size = 0;
+            if (g_fds_array[i] && !memcmp(&(g_fds_array[i]->server_addr), &(tmp->server_addr),
+                                          sizeof(tmp->server_addr)) &&
+                fd_socket_map[port_desc_tmp]) {
+                is_exist = true;
+                break;
+            }
+        }
 
-                    s_fd_num++;
+        if (is_exist) {
+            if (tmp->recv.buf) {
+                FREE(tmp->recv.buf);
+            }
+            continue;
+        }
+
+        tmp->active_fd_count = 0;
+        tmp->active_fd_list = (int *)MALLOC(MAX_ACTIVE_FD_NUM * sizeof(int));
+        bool new_socket_flag = true;
+        if (!tmp->active_fd_list) {
+            log_err("Failed to allocate memory with malloc()");
+            rc = SOCKPERF_ERR_NO_MEMORY;
+        } else {
+            /* if this port already been received before, join socket - multicast only */
+            if ((0 != fd_socket_map[port_desc_tmp]) && (tmp->is_multicast)) {
+                /* join socket */
+                curr_fd = fd_socket_map[port_desc_tmp];
+                new_socket_flag = false;
+                if (g_fds_array[curr_fd]->memberships_addr == NULL) {
+                    g_fds_array[curr_fd]->memberships_addr = reinterpret_cast<sockaddr_store_t *>(MALLOC(
+                        IGMP_MAX_MEMBERSHIPS * sizeof(struct sockaddr_store_t)));
                 }
-                if (curr_fd >= 0) {
-                    if ((curr_fd >= MAX_FDS_NUM) ||
-                        (prepare_socket(curr_fd, tmp) == (int)
-                         INVALID_SOCKET)) { // TODO: use SOCKET all over the way and avoid this cast
-                        log_err("Invalid socket");
-                        close(curr_fd);
-                        rc = SOCKPERF_ERR_SOCKET;
+                g_fds_array[curr_fd]->memberships_addr[g_fds_array[curr_fd]->memberships_size] =
+                    tmp->server_addr;
+                g_fds_array[curr_fd]->memberships_size++;
+            } else {
+                /* create a socket */
+                if ((curr_fd = (int)socket(tmp->server_addr.ss_family, tmp->sock_type, 0)) <
+                    0) { // TODO: use SOCKET all over the way and avoid this cast
+                    log_err("socket(AF_INET4/6, SOCK_x)");
+                    rc = SOCKPERF_ERR_SOCKET;
+                }
+                fd_socket_map[port_desc_tmp] = curr_fd;
+                if (tmp->is_multicast) {
+                    tmp->memberships_addr = reinterpret_cast<sockaddr_store_t *>(MALLOC(
+                        IGMP_MAX_MEMBERSHIPS * sizeof(struct sockaddr_store_t)));
+                } else {
+                    tmp->memberships_addr = NULL;
+                }
+                tmp->memberships_size = 0;
+
+                s_fd_num++;
+            }
+            if (curr_fd >= 0) {
+                if ((curr_fd >= MAX_FDS_NUM) ||
+                    (prepare_socket(curr_fd, tmp.get()) == (int)
+                     INVALID_SOCKET)) { // TODO: use SOCKET all over the way and avoid this cast
+                    log_err("Invalid socket");
+                    close(curr_fd);
+                    rc = SOCKPERF_ERR_SOCKET;
+                } else {
+                    int i = 0;
+
+                    for (i = 0; i < MAX_ACTIVE_FD_NUM; i++) {
+                        tmp->active_fd_list[i] = (int)INVALID_SOCKET; // TODO: use SOCKET all
+                                                                      // over the way and avoid
+                                                                      // this cast
+                    }
+                    // TODO: In the following malloc we have a one time memory allocation of
+                    // 128KB that are not reclaimed
+                    // This O(1) leak was introduced in revision 133
+                    tmp->recv.buf = (uint8_t *)MALLOC(sizeof(uint8_t) * 2 * MAX_PAYLOAD_SIZE);
+                    if (!tmp->recv.buf) {
+                        log_err("Failed to allocate memory with malloc()");
+                        rc = SOCKPERF_ERR_NO_MEMORY;
                     } else {
-                        int i = 0;
+                        tmp->recv.cur_addr = tmp->recv.buf;
+                        tmp->recv.max_size = MAX_PAYLOAD_SIZE;
+                        tmp->recv.cur_offset = 0;
+                        tmp->recv.cur_size = tmp->recv.max_size;
 
-                        for (i = 0; i < MAX_ACTIVE_FD_NUM; i++) {
-                            tmp->active_fd_list[i] = (int)INVALID_SOCKET; // TODO: use SOCKET all
-                                                                          // over the way and avoid
-                                                                          // this cast
-                        }
-                        // TODO: In the following malloc we have a one time memory allocation of
-                        // 128KB that are not reclaimed
-                        // This O(1) leak was introduced in revision 133
-                        tmp->recv.buf = (uint8_t *)MALLOC(sizeof(uint8_t) * 2 * MAX_PAYLOAD_SIZE);
-                        if (!tmp->recv.buf) {
-                            log_err("Failed to allocate memory with malloc()");
-                            rc = SOCKPERF_ERR_NO_MEMORY;
-                        } else {
-                            tmp->recv.cur_addr = tmp->recv.buf;
-                            tmp->recv.max_size = MAX_PAYLOAD_SIZE;
-                            tmp->recv.cur_offset = 0;
-                            tmp->recv.cur_size = tmp->recv.max_size;
-
-                            if (new_socket_flag) {
-                                if (s_fd_num == 1) { /*it is the first fd*/
-                                    s_fd_min = curr_fd;
-                                    s_fd_max = curr_fd;
-                                } else {
-                                    g_fds_array[last_fd]->next_fd = curr_fd;
-                                    s_fd_min = _min(s_fd_min, curr_fd);
-                                    s_fd_max = _max(s_fd_max, curr_fd);
-                                }
-                                last_fd = curr_fd;
-                                g_fds_array[curr_fd] = tmp;
+                        if (new_socket_flag) {
+                            if (s_fd_num == 1) { /*it is the first fd*/
+                                s_fd_min = curr_fd;
+                                s_fd_max = curr_fd;
+                            } else {
+                                g_fds_array[last_fd]->next_fd = curr_fd;
+                                s_fd_min = _min(s_fd_min, curr_fd);
+                                s_fd_max = _max(s_fd_max, curr_fd);
                             }
+                            last_fd = curr_fd;
+                            g_fds_array[curr_fd] = tmp.release();
                         }
                     }
                 }
             }
+        }
 
-            /* Failure check */
-            if (rc) {
-                if (tmp->active_fd_list) {
-                    FREE(tmp->active_fd_list);
-                }
-                if (tmp->recv.buf) {
-                    FREE(tmp->recv.buf);
-                }
-                FREE(tmp);
+        /* Failure check */
+        if (rc) {
+            if (tmp->active_fd_list) {
+                FREE(tmp->active_fd_list);
+            }
+            if (tmp->recv.buf) {
+                FREE(tmp->recv.buf);
             }
         }
     }
@@ -3378,73 +3368,68 @@ int bringup(const int *p_daemonize) {
         } else {
             int curr_fd =
                 (int)INVALID_SOCKET; // TODO: use SOCKET all over the way and avoid this cast
-            fds_data *tmp = (struct fds_data *)MALLOC(sizeof(struct fds_data));
-            if (!tmp) {
+
+            std::unique_ptr<fds_data> tmp{ new fds_data };
+
+            memcpy(&tmp->server_addr, &(s_user_params.addr), sizeof(s_user_params.addr));
+            tmp->server_addr_len = s_user_params.addr_len;
+            tmp->mc_source_ip_addr = s_user_params.mc_source_ip_addr;
+            tmp->is_multicast = is_multicast_addr(tmp->server_addr);
+            tmp->sock_type = s_user_params.sock_type;
+
+            tmp->active_fd_count = 0;
+            tmp->active_fd_list = (int *)MALLOC(MAX_ACTIVE_FD_NUM * sizeof(int));
+            if (!tmp->active_fd_list) {
                 log_err("Failed to allocate memory with malloc()");
                 rc = SOCKPERF_ERR_NO_MEMORY;
             } else {
-                memset(reinterpret_cast<void *>(tmp), 0, sizeof(struct fds_data));
-                memcpy(&tmp->server_addr, &(s_user_params.addr), sizeof(s_user_params.addr));
-                tmp->server_addr_len = s_user_params.addr_len;
-                tmp->mc_source_ip_addr = s_user_params.mc_source_ip_addr;
-                tmp->is_multicast = is_multicast_addr(tmp->server_addr);
-                tmp->sock_type = s_user_params.sock_type;
-
-                tmp->active_fd_count = 0;
-                tmp->active_fd_list = (int *)MALLOC(MAX_ACTIVE_FD_NUM * sizeof(int));
-                if (!tmp->active_fd_list) {
-                    log_err("Failed to allocate memory with malloc()");
-                    rc = SOCKPERF_ERR_NO_MEMORY;
+                /* create a socket */
+                if ((curr_fd = (int)socket(tmp->server_addr.ss_family, tmp->sock_type, 0)) <
+                    0) { // TODO: use SOCKET all over the way and avoid this cast
+                    log_err("socket(AF_INET4/6, SOCK_x)");
+                    rc = SOCKPERF_ERR_SOCKET;
                 } else {
-                    /* create a socket */
-                    if ((curr_fd = (int)socket(tmp->server_addr.ss_family, tmp->sock_type, 0)) <
-                        0) { // TODO: use SOCKET all over the way and avoid this cast
-                        log_err("socket(AF_INET4/6, SOCK_x)");
+                    if ((curr_fd >= MAX_FDS_NUM) ||
+                        (prepare_socket(curr_fd, tmp.get()) ==
+                         (int)INVALID_SOCKET)) { // TODO: use SOCKET all over the way and avoid
+                                                 // this cast
+                        log_err("Invalid socket");
+                        close(curr_fd);
                         rc = SOCKPERF_ERR_SOCKET;
                     } else {
-                        if ((curr_fd >= MAX_FDS_NUM) ||
-                            (prepare_socket(curr_fd, tmp) ==
-                             (int)INVALID_SOCKET)) { // TODO: use SOCKET all over the way and avoid
-                                                     // this cast
-                            log_err("Invalid socket");
-                            close(curr_fd);
-                            rc = SOCKPERF_ERR_SOCKET;
+                        int i = 0;
+
+                        s_fd_num = 1;
+
+                        for (i = 0; i < MAX_ACTIVE_FD_NUM; i++) {
+                            tmp->active_fd_list[i] = (int)INVALID_SOCKET;
+                        }
+                        tmp->recv.buf =
+                            (uint8_t *)MALLOC(sizeof(uint8_t) * 2 * MAX_PAYLOAD_SIZE);
+                        if (!tmp->recv.buf) {
+                            log_err("Failed to allocate memory with malloc()");
+                            rc = SOCKPERF_ERR_NO_MEMORY;
                         } else {
-                            int i = 0;
+                            tmp->recv.cur_addr = tmp->recv.buf;
+                            tmp->recv.max_size = MAX_PAYLOAD_SIZE;
+                            tmp->recv.cur_offset = 0;
+                            tmp->recv.cur_size = tmp->recv.max_size;
 
-                            s_fd_num = 1;
-
-                            for (i = 0; i < MAX_ACTIVE_FD_NUM; i++) {
-                                tmp->active_fd_list[i] = (int)INVALID_SOCKET;
-                            }
-                            tmp->recv.buf =
-                                (uint8_t *)MALLOC(sizeof(uint8_t) * 2 * MAX_PAYLOAD_SIZE);
-                            if (!tmp->recv.buf) {
-                                log_err("Failed to allocate memory with malloc()");
-                                rc = SOCKPERF_ERR_NO_MEMORY;
-                            } else {
-                                tmp->recv.cur_addr = tmp->recv.buf;
-                                tmp->recv.max_size = MAX_PAYLOAD_SIZE;
-                                tmp->recv.cur_offset = 0;
-                                tmp->recv.cur_size = tmp->recv.max_size;
-
-                                s_fd_min = s_fd_max = curr_fd;
-                                g_fds_array[s_fd_min] = tmp;
-                                g_fds_array[s_fd_min]->next_fd = s_fd_min;
-                            }
+                            s_fd_min = s_fd_max = curr_fd;
+                            g_fds_array[s_fd_min] = tmp.release();
+                            g_fds_array[s_fd_min]->next_fd = s_fd_min;
                         }
                     }
                 }
+            }
 
-                /* Failure check */
-                if (rc) {
-                    if (tmp->active_fd_list) {
-                        FREE(tmp->active_fd_list);
-                    }
-                    if (tmp->recv.buf) {
-                        FREE(tmp->recv.buf);
-                    }
-                    FREE(tmp);
+            /* Failure check */
+            if (rc) {
+                if (tmp->active_fd_list) {
+                    FREE(tmp->active_fd_list);
+                }
+                if (tmp->recv.buf) {
+                    FREE(tmp->recv.buf);
                 }
             }
         }
