@@ -3498,7 +3498,7 @@ int bringup(const int *p_daemonize) {
 
         Message::initMaxSeqNo(_maxSequenceNo);
 
-        if (!s_user_params.b_stream && (!s_user_params.mode) == MODE_SERVER) {
+        if (!s_user_params.b_stream && s_user_params.mode == MODE_CLIENT) {
             g_pPacketTimes = new PacketTimes(_maxSequenceNo, s_user_params.reply_every,
                                              s_user_params.client_work_with_srv_num);
         }
