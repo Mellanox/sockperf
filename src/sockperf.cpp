@@ -2075,12 +2075,6 @@ static int parse_common_opt(const AOPT_OBJECT *common_obj) {
             }
         }
 
-#if defined(__arm__) || defined(__aarch64__)
-        if (s_user_params.b_no_rdtsc == false) {
-            log_msg("ARM target build does not support rdtsc, use --no-rdtsc");
-            rc = SOCKPERF_ERR_BAD_ARGUMENT;
-        }
-#endif
 #ifndef __FreeBSD__
         if (!rc && aopt_check(common_obj, OPT_LOAD_VMA)) {
             const char *optarg = aopt_value(common_obj, OPT_LOAD_VMA);
@@ -2422,11 +2416,7 @@ void set_defaults() {
     s_user_params.mps = MPS_DEFAULT;
     s_user_params.reply_every = REPLY_EVERY_DEFAULT;
     s_user_params.b_client_ping_pong = false;
-#if defined(__arm__) || defined(__aarch64__)
-    s_user_params.b_no_rdtsc = true;
-#else
     s_user_params.b_no_rdtsc = false;
-#endif
     memset(s_user_params.sender_affinity, 0, sizeof(s_user_params.sender_affinity));
     memset(s_user_params.receiver_affinity, 0, sizeof(s_user_params.receiver_affinity));
     // s_user_params.b_load_vma = false;
@@ -3660,22 +3650,22 @@ packet pace limit = %d",
         const int SIZE = 1000;
         TicksTime start, end;
         start.setNow();
-        for (int i = 0; i < SIZE; i++)
+        for (int i = 0; i < SIZE; i++) {
             end.setNow();
+        }
         log_dbg("+INFO: taking time, using the given settings, consumes %.3lf nsec",
                 (double)(end - start).toNsec() / SIZE);
 
-#if !defined(__arm__) && !defined(__aarch64__)
         ticks_t tstart = 0, tend = 0;
         tstart = os_gettimeoftsc();
 
-        for (int i = 0; i < SIZE; i++)
+        for (int i = 0; i < SIZE; i++) {
             tend = os_gettimeoftsc();
+        }
         double tdelta = (double)tend - (double)tstart;
         double ticks_per_second = (double)get_tsc_rate_per_second();
         log_dbg("+INFO: taking rdtsc directly consumes %.3lf nsec",
                 tdelta / SIZE * 1000 * 1000 * 1000 / ticks_per_second);
-#endif
 
         // step #5: check is user defined a specific SEED value to be used in all rand() calls
         // if no seed value is provided, the rand() function is automatically seeded with a value of
