@@ -3427,6 +3427,8 @@ int bringup(const int *p_daemonize) {
             cycleDurationNsec = 0;
         }
 
+        /* TicksBase initialization should be done before first TicksBase, TicksDuration etc usage */
+        TicksBase::init(s_user_params.b_no_rdtsc ? TicksBase::CLOCK : TicksBase::RDTSC);
         s_user_params.cycleDuration = TicksDuration(cycleDurationNsec);
 
         if (s_user_params.dummy_mps) { // Calculate dummy send rate
