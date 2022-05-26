@@ -707,8 +707,6 @@ class App {
 public:
     App(const struct user_params_t &_user_params, const struct mutable_params_t &_mutable_params)
         : m_const_params(_user_params), m_mutable_params(_mutable_params) {
-
-        TicksBase::init(m_const_params.b_no_rdtsc ? TicksBase::CLOCK : TicksBase::RDTSC);
     }
     ~App() {}
 
