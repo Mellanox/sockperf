@@ -29,6 +29,7 @@
 #include "server.h"
 #include "iohandlers.h"
 #include "switches.h"
+#include <memory>
 
 // static members initialization
 /*static*/ seq_num_map SwitchOnCalcGaps::ms_seq_num_map;
@@ -252,9 +253,8 @@ int Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_accept(int ifd) {
     if (g_fds_array[ifd]->sock_type == SOCK_STREAM && g_fds_array[ifd]->active_fd_list) {
         struct sockaddr_store_t addr;
         socklen_t addr_size = sizeof(addr);
-        fds_data *tmp;
+        std::unique_ptr<fds_data> tmp{ new fds_data };
 
-        tmp = (struct fds_data *)MALLOC(sizeof(struct fds_data));
         if (!tmp) {
             log_err("Failed to allocate memory with malloc()");
             return (int)INVALID_SOCKET; // TODO: use SOCKET all over the way and avoid this cast
@@ -263,7 +263,6 @@ int Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_accept(int ifd) {
         tmp->recv.buf = (uint8_t *)MALLOC(sizeof(uint8_t) * 2 * MAX_PAYLOAD_SIZE);
         if (!tmp->recv.buf) {
             log_err("Failed to allocate memory with malloc()");
-            FREE(tmp);
             return SOCKPERF_ERR_NO_MEMORY;
         }
         tmp->next_fd = ifd;
@@ -293,7 +292,6 @@ int Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_accept(int ifd) {
             if (tmp->active_fd_list) {
                 FREE(tmp->active_fd_list);
             }
-            FREE(tmp);
             log_dbg("Can`t accept connection\n");
         } else {
             /* Check if it is exceeded internal limitations
@@ -301,7 +299,7 @@ int Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_accept(int ifd) {
              */
             if ((active_ifd < MAX_FDS_NUM) &&
                 (g_fds_array[ifd]->active_fd_count < (MAX_ACTIVE_FD_NUM - 1))) {
-                if (prepare_socket(active_ifd, tmp) !=
+                if (prepare_socket(active_ifd, tmp.get()) !=
                     (int)INVALID_SOCKET) { // TODO: use SOCKET all over the way and avoid this cast
                     int *active_fd_list = g_fds_array[ifd]->active_fd_list;
                     int i = 0;
@@ -312,7 +310,7 @@ int Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_accept(int ifd) {
                                                                         // cast
                             active_fd_list[i] = active_ifd;
                             g_fds_array[ifd]->active_fd_count++;
-                            g_fds_array[active_ifd] = tmp;
+                            g_fds_array[active_ifd] = tmp.release();
 #ifdef USING_VMA_EXTRA_API
                             if (g_vma_api &&
                                 g_pApp->m_const_params.fd_handler_type == SOCKETXTREME) {
@@ -354,7 +352,6 @@ int Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_accept(int ifd) {
                 if (tmp->active_fd_list) {
                     FREE(tmp->active_fd_list);
                 }
-                FREE(tmp);
 #ifdef USING_VMA_EXTRA_API
                 if (g_vma_api && g_pApp->m_const_params.fd_handler_type == SOCKETXTREME) {
                     std::string hostport = sockaddr_to_hostport(g_vma_comps->src);

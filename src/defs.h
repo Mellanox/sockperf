@@ -625,80 +625,88 @@ typedef enum { // must be coordinated with s_fds_handle_desc in common.cpp
     FD_HANDLE_MAX } fd_block_handler_t;
 
 struct user_params_t {
-    work_mode_t mode; // either client or server
-    measurement_mode_t measurement; // either time or number
+    work_mode_t mode = MODE_SERVER; // either client or server
+    measurement_mode_t measurement = TIME_BASED; // either time or number
     IPAddress rx_mc_if_addr;
     IPAddress tx_mc_if_addr;
     IPAddress mc_source_ip_addr;
-    int msg_size;
-    int msg_size_range;
-    int sec_test_duration;
-    uint64_t number_test_target;
-    bool data_integrity;
-    fd_block_handler_t fd_handler_type;
-    unsigned int packetrate_stats_print_ratio;
-    unsigned int burst_size;
-    bool packetrate_stats_print_details;
-    //	bool stream_mode; - use b_stream instead
-    int mthread_server;
-    struct timeval *select_timeout;
-    int sock_buff_size;
-    int threads_num;
+    int msg_size = MIN_PAYLOAD_SIZE;
+    int msg_size_range = 0;
+    int sec_test_duration = DEFAULT_TEST_DURATION;
+    uint64_t number_test_target = DEFAULT_TEST_NUMBER;
+    bool data_integrity = false;
+    fd_block_handler_t fd_handler_type = RECVFROM;
+    unsigned int packetrate_stats_print_ratio = 0;
+    unsigned int burst_size = 1;
+    bool packetrate_stats_print_details = false;
+    int mthread_server = 0;
+    struct timeval *select_timeout = nullptr;
+    int sock_buff_size = SOCK_BUFF_DEFAULT_SIZE;
+    int threads_num = 1;
     char threads_affinity[MAX_ARGV_SIZE];
-    bool is_blocked;
-    bool do_warmup;
-    unsigned int pre_warmup_wait;
-    uint32_t cooldown_msec;
-    uint32_t warmup_msec;
-    uint64_t cooldown_num;
-    uint64_t warmup_num;
-    bool is_rxfiltercb;
-    bool is_zcopyread;
+    bool is_rxfiltercb = false;
+    bool is_zcopyread = false;
+    bool is_blocked = true;
+    bool do_warmup = true;
+    unsigned int pre_warmup_wait = 0;
+    uint32_t cooldown_msec = 0;
+    uint32_t warmup_msec = 0;
+    uint64_t cooldown_num = 0;
+    uint64_t warmup_num = 0;
+    bool is_vmarxfiltercb = false;
+    bool is_vmazcopyread = false;
     TicksDuration cycleDuration;
-    bool mc_loop_disable;
-    bool uc_reuseaddr;
-    int client_work_with_srv_num;
-    bool b_server_reply_via_uc;
-    bool b_server_dont_reply;
-    bool b_server_detect_gaps;
-    uint32_t mps; // client side only
+    bool mc_loop_disable = true;
+    bool uc_reuseaddr = false;
+    int client_work_with_srv_num = DEFAULT_CLIENT_WORK_WITH_SRV_NUM;
+    bool b_server_reply_via_uc = false;
+    bool b_server_dont_reply = false;
+    bool b_server_detect_gaps = false;
+    uint32_t mps = MPS_DEFAULT; // client side only
     struct sockaddr_store_t client_bind_info;
-    socklen_t client_bind_info_len;
-    uint32_t reply_every;    // client side only
-    bool b_client_ping_pong; // client side only
-    bool b_no_rdtsc;
+    socklen_t client_bind_info_len = 0;
+    uint32_t reply_every = REPLY_EVERY_DEFAULT;    // client side only
+    bool b_client_ping_pong = false; // client side only
+    bool b_no_rdtsc = false;
     char sender_affinity[MAX_ARGV_SIZE];
     char receiver_affinity[MAX_ARGV_SIZE];
-    FILE *fileFullLog;               // client side only
-    bool full_rtt;                   // client side only
-    bool giga_size;                  // client side only
-    bool increase_output_precision;  // client side only
-    bool b_stream;                   // client side only
-    PlaybackVector *pPlaybackVector; // client side only
-    uint32_t ci_significance_level;  // client side only
-    bool b_histogram;                // client side only
-    uint32_t histogram_lower_range;  // client side only
-    uint32_t histogram_upper_range;  // client side only
-    uint32_t histogram_bin_size;     // client side only
+    FILE *fileFullLog = NULL;                   // client side only
+    bool full_rtt = false;                      // client side only
+    bool giga_size = false;                     // client side only
+    bool increase_output_precision = false;     // client side only
+    bool b_stream = false;                      // client side only
+    PlaybackVector *pPlaybackVector = NULL;     // client side only
+    uint32_t ci_significance_level = DEFAULT_CI_SIG_LEVEL;// client side only
+    bool b_histogram;                           // client side only
+    uint32_t histogram_lower_range = 0;         // client side only
+    uint32_t histogram_upper_range = 2000000;   // client side only
+    uint32_t histogram_bin_size = 10;           // client side only
     struct sockaddr_store_t addr;
-    socklen_t addr_len;
-    int sock_type;
-    bool tcp_nodelay;
-    bool is_nonblocked_send;
-    int mc_ttl;
-    int daemonize;
+    socklen_t addr_len = 0;
+    int sock_type = SOCK_DGRAM;
+    bool tcp_nodelay = true;
+    bool is_nonblocked_send = false;
+    int mc_ttl = 2;
+    int daemonize = false;
     char feedfile_name[MAX_PATH_LENGTH];
-    bool withsock_accl;
-    int max_looping_over_recv;
-    int tos;
-    unsigned int lls_usecs;
-    bool lls_is_set;
-    uint32_t dummy_mps;                   // client side only
+    bool withsock_accl = false;
+    int max_looping_over_recv = 1;
+    int tos = 0x00;
+    unsigned int lls_usecs = 0;
+    bool lls_is_set = false;
+    uint32_t dummy_mps = 0;                   // client side only
     TicksDuration dummySendCycleDuration; // client side only
-    uint32_t rate_limit;
+    uint32_t rate_limit = 0;
 #if defined(DEFINED_TLS)
-    bool tls;
+    bool tls = false;
 #endif /* DEFINED_TLS */
+
+    user_params_t() {
+        memset(&client_bind_info, 0, sizeof(client_bind_info));
+        memset(&addr, 0, sizeof(addr));
+        memset(sender_affinity, 0, sizeof(sender_affinity));
+        memset(receiver_affinity, 0, sizeof(receiver_affinity));
+    }
 };
 
 struct mutable_params_t {};
