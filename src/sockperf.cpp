@@ -2402,76 +2402,19 @@ void set_defaults() {
     int igmp_max_memberships = read_int_from_sys_file("/proc/sys/net/ipv4/igmp_max_memberships");
     if (igmp_max_memberships != -1) IGMP_MAX_MEMBERSHIPS = igmp_max_memberships;
 
-    memset((void *)&s_user_params, 0, sizeof(s_user_params));
     memset(g_fds_array, 0, sizeof(fds_data *) * MAX_FDS_NUM);
     s_user_params.rx_mc_if_addr = IPAddress::zero();
     s_user_params.tx_mc_if_addr = IPAddress::zero();
     s_user_params.mc_source_ip_addr = IPAddress::zero();
-    s_user_params.sec_test_duration = DEFAULT_TEST_DURATION;
-    s_user_params.number_test_target = DEFAULT_TEST_NUMBER;
     s_user_params.client_bind_info.ss_family = AF_UNSPEC;
-    s_user_params.ci_significance_level = DEFAULT_CI_SIG_LEVEL;
-    s_user_params.mode = MODE_SERVER;
-    s_user_params.measurement = TIME_BASED;
-    s_user_params.packetrate_stats_print_ratio = 0;
-    s_user_params.packetrate_stats_print_details = false;
-    s_user_params.burst_size = 1;
-    s_user_params.data_integrity = false;
-    s_user_params.fd_handler_type = RECVFROM;
-    s_user_params.mthread_server = 0;
-    s_user_params.msg_size = MIN_PAYLOAD_SIZE;
-    s_user_params.msg_size_range = 0;
-    s_user_params.sock_buff_size = SOCK_BUFF_DEFAULT_SIZE;
+
     set_select_timeout(DEFAULT_SELECT_TIMEOUT_MSEC);
-    s_user_params.threads_num = 1;
     memset(s_user_params.threads_affinity, 0, sizeof(s_user_params.threads_affinity));
-    s_user_params.is_blocked = true;
-    s_user_params.is_nonblocked_send = false;
-    s_user_params.max_looping_over_recv = 1;
-    s_user_params.do_warmup = true;
-    s_user_params.pre_warmup_wait = 0;
-    s_user_params.is_rxfiltercb = false;
-    s_user_params.is_zcopyread = false;
+
     g_debug_level = LOG_LVL_INFO;
-    s_user_params.mc_loop_disable = true;
-    s_user_params.uc_reuseaddr = false;
-    s_user_params.client_work_with_srv_num = DEFAULT_CLIENT_WORK_WITH_SRV_NUM;
-    s_user_params.b_server_reply_via_uc = false;
-    s_user_params.b_server_dont_reply = false;
-    s_user_params.b_server_detect_gaps = false;
 
-    s_user_params.histogram_lower_range = 0;
-    s_user_params.histogram_upper_range = 2000000;
-    s_user_params.histogram_bin_size = 10;
-
-    s_user_params.mps = MPS_DEFAULT;
-    s_user_params.reply_every = REPLY_EVERY_DEFAULT;
-    s_user_params.b_client_ping_pong = false;
-    s_user_params.b_no_rdtsc = false;
-    memset(s_user_params.sender_affinity, 0, sizeof(s_user_params.sender_affinity));
-    memset(s_user_params.receiver_affinity, 0, sizeof(s_user_params.receiver_affinity));
-    // s_user_params.b_load_vma = false;
-    s_user_params.fileFullLog = NULL;
-    s_user_params.b_stream = false;
-    s_user_params.full_rtt = false;
-    s_user_params.giga_size = false;
-    s_user_params.increase_output_precision = false;
-    s_user_params.pPlaybackVector = NULL;
-
-    s_user_params.sock_type = SOCK_DGRAM;
-    s_user_params.tcp_nodelay = true;
-    s_user_params.mc_ttl = 2;
-
-    s_user_params.daemonize = false;
-
-    s_user_params.withsock_accl = false;
-    s_user_params.dummy_mps = 0;
     memset(s_user_params.feedfile_name, 0, sizeof(s_user_params.feedfile_name));
-    s_user_params.tos = 0x00;
 
-#if defined(DEFINED_TLS)
-    s_user_params.tls = false;
-#endif /* DEFINED_TLS */
 }
 
 //------------------------------------------------------------------------------
