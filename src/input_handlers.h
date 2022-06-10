@@ -44,9 +44,9 @@ public:
     {}
 
     /** Receive pending data from a socket
-     * @param [in] socket descriptor
+     * @param [in] fd socket descriptor
      * @param [out] recvfrom_addr address to save peer address into
-     * @param [inout] in - storage size, out - actual address size
+     * @param [inout] size in - storage size, out - actual address size
      * @return status code
      */
     inline int receive_pending_data(int fd, struct sockaddr *recvfrom_addr, socklen_t &size)

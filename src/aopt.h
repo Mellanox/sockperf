@@ -166,7 +166,7 @@ const char *aopt_value(const AOPT_OBJECT *aopt_obj, int key);
  * @brief
  *    Return AOPT Description struct of option selected via key.
  *
- * @param[in]    desc           Option description.
+ * @param[in]    aopt_desc      Option description.
  * @param[in]    key            Option key.
  *
  * @retval pointer to description struct - on success
@@ -180,7 +180,7 @@ const AOPT_DESC *aopt_get_desc(const AOPT_DESC *aopt_desc, int key);
  * @brief
  *    Return long name of option description selected via key.
  *
- * @param[in]    desc           Option description.
+ * @param[in]    aopt_desc      Option description.
  * @param[in]    key            Option key.
  *
  * @retval pointer to string - on success
