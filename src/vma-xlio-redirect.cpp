@@ -26,7 +26,7 @@
  * OF SUCH DAMAGE.
  */
 
-#include "vma-redirect.h"
+#include "vma-xlio-redirect.h"
 #include <dlfcn.h>
 
 socket_fptr_t fn_socket = NULL;
@@ -79,11 +79,12 @@ daemon_fptr_t fn_daemon = NULL;
 sigaction_fptr_t fn_sigaction = NULL;
 
 ////////////////////////////////////////////////////////////////////////////////
-#define VMA_LOG_CB_ENV_VAR "VMA_LOG_CB_FUNC_PTR"
+#define VMA_LOG_CB_ENV_VAR  "VMA_LOG_CB_FUNC_PTR"
+#define XLIO_LOG_CB_ENV_VAR "XLIO_LOG_CB_FUNC_PTR"
 
 ////////////////////////////////////////////////////////////////////////////////
-static vma_log_cb_t vma_log_get_cb_func() {
-    vma_log_cb_t log_cb = NULL;
+static vma_xlio_log_cb_t vma_xlio_log_get_cb_func() {
+    vma_xlio_log_cb_t log_cb = NULL;
     const char *const CB_STR = getenv(VMA_LOG_CB_ENV_VAR);
     if (!CB_STR || !*CB_STR) return NULL;
 
@@ -92,14 +93,18 @@ static vma_log_cb_t vma_log_get_cb_func() {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-bool vma_log_set_cb_func(vma_log_cb_t log_cb) {
+bool vma_xlio_log_set_cb_func(vma_xlio_log_cb_t log_cb) {
     char str[64];
     sprintf(str, "%p", log_cb);
     setenv(VMA_LOG_CB_ENV_VAR, str, 1);
+    setenv(XLIO_LOG_CB_ENV_VAR, str, 1);
 
-    if (log_cb != vma_log_get_cb_func()) // verify that VMA will be able to read it correctly
+    // verify that VMA will be able to read it correctly. it's enough to check
+    // only for VMA case since the code are identical
+    if (log_cb != vma_xlio_log_get_cb_func())
     {
         unsetenv(VMA_LOG_CB_ENV_VAR);
+        unsetenv(XLIO_LOG_CB_ENV_VAR);
         return false;
     }
 
@@ -107,7 +112,7 @@ bool vma_log_set_cb_func(vma_log_cb_t log_cb) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-static bool vma_set_func_pointers_internal(void *libHandle) {
+static bool vma_xlio_set_func_pointers_internal(void *libHandle) {
 // Set pointers to functions
 #define SET_FUNC_POINTER(libHandle, func) (fn_##func = (func##_fptr_t)dlsym(libHandle, #func))
 
@@ -170,27 +175,20 @@ static bool vma_set_func_pointers_internal(void *libHandle) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-bool vma_set_func_pointers(bool loadVma) {
+bool vma_xlio_try_set_func_pointers() {
     void *libHandle = RTLD_DEFAULT;
-    if (loadVma) {
-        const char *libName = "libvma.so";
-        //		libHandle = dlopen(libName, RTLD_NOW);  // this was broken in vma_tcp_4.5 because of
-        // symbol: vma_log_set_log_stderr
-        libHandle = dlopen(libName, RTLD_LAZY);
-        if (!libHandle) return false;
-    }
-    return vma_set_func_pointers_internal(libHandle);
+    return vma_xlio_set_func_pointers_internal(libHandle);
 }
 
 //------------------------------------------------------------------------------
-bool vma_set_func_pointers(const char *LibVmaPath) {
-    if (!LibVmaPath || !*LibVmaPath) return false;
+bool vma_xlio_set_func_pointers(const char *loadLibPath) {
+    if (!loadLibPath || !*loadLibPath) return false;
 
-    // void * libHandle = dlopen(LibVmaPath, RTLD_NOW);  // this was broken in vma_tcp_4.5 because
+    // void * libHandle = dlopen(loadLibPath, RTLD_NOW);  // this was broken in vma_tcp_4.5 because
     // of symbol: vma_log_set_log_stderr
-    void *libHandle = dlopen(LibVmaPath, RTLD_LAZY);
+    void *libHandle = dlopen(loadLibPath, RTLD_LAZY);
 
     if (!libHandle) return false;
 
-    return vma_set_func_pointers_internal(libHandle);
+    return vma_xlio_set_func_pointers_internal(libHandle);
 }

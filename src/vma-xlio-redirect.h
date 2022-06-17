@@ -26,8 +26,8 @@
  * OF SUCH DAMAGE.
  */
 
-#ifndef VMA_REDIRECT_H
-#define VMA_REDIRECT_H
+#ifndef VMA_XLIO_REDIRECT_H
+#define VMA_XLIO_REDIRECT_H
 
 #include <fcntl.h>
 #include <unistd.h>
@@ -50,44 +50,45 @@
 /**
  * Expected order of operations:
  * ==============================
- * 1. N x vma_setenv()
- * 2. vma_log_set_cb_func();
- * 3. vma_set_func_pointers();
+ * 1. N x vma_xlio_setenv()
+ * 2. vma_xlio_log_set_cb_func();
+ * 3. vma_xlio_try_set_func_pointers() or vma_xlio_set_func_pointers();
  *
  * all functions return 'true' on success; 'false' - otherwise
  *
  * NOTE: including this header will redirect all relevant API calls to pointers
  * to functions. Hence, you you are allowed to call any of the relevant APIs,
- * only after successfully completing vma_set_func_pointers()!
+ * only after successfully completing vma_xlio_try_set_func_pointers() or
+ * vma_xlio_set_func_pointers()!
  *
  */
 
 //------------------------------------------------------------------------------
-// The  vma_setenv()  function adds the variable 'name' to the environment with
+// The  vma_xlio_setenv()  function adds the variable 'name' to the environment with
 // the value 'value', only if 'name' does not already exist.  If 'name' does exist
 // in the environment, then the value of 'name' is not changed.
-static inline bool vma_setenv(const char *name, const char *value) {
+static inline bool vma_xlio_setenv(const char *name, const char *value) {
     return setenv(name, value, 0) == 0;
 }
 
 //
 //------------------------------------------------------------------------------
-// NOTE: int log_level is equivalent to VMA_TRACELEVEL (see VMA README.txt)
-typedef void (*vma_log_cb_t)(int log_level, const char *str);
+// NOTE: int log_level is equivalent to VMA_TRACELEVEL (see VMA README.txt) and
+// XLIO_TRACELEVEL (see XLIO README.txt)
+typedef void (*vma_xlio_log_cb_t)(int log_level, const char *str);
 //
-// NOTE: log_cb will run in context of vma; hence, it must not block the thread
-bool vma_log_set_cb_func(vma_log_cb_t log_cb);
-
-//
-//------------------------------------------------------------------------------
-// loads libvma.so only in case 'loadVma' is set.  In any case sets
-// global pointer variables for ALL vma related function pointers.
-bool vma_set_func_pointers(bool loadVma);
+// NOTE: log_cb will run in context of vma/xlio; hence, it must not block the thread
+bool vma_xlio_log_set_cb_func(vma_xlio_log_cb_t log_cb);
 
 //------------------------------------------------------------------------------
-// loads libvma according to the given 'loadVmaPath',  then set
-// global pointer variables for ALL vma related function pointers.
-bool vma_set_func_pointers(const char *LibVmaPath);
+// try to set global pointer variables for all VMA/XLIO related function
+// pointers.
+bool vma_xlio_try_set_func_pointers();
+
+//------------------------------------------------------------------------------
+// loads libvma/libxlio according to the given 'loadLibPath',  then set
+// global pointer variables for ALL vma/xlio related function pointers.
+bool vma_xlio_set_func_pointers(const char *loadLibPath);
 
 /**
  *-----------------------------------------------------------------------------
@@ -212,11 +213,11 @@ extern vfork_fptr_t fn_vfork;
 extern daemon_fptr_t fn_daemon;
 extern sigaction_fptr_t fn_sigaction;
 
-#ifndef VMA_NO_FUNCTIONS_DEFINES
+#ifndef VMA_XLIO_NO_FUNCTIONS_DEFINES
 // The following definitions will replace ALL relevant API calls with calls to our function
 // pointers.
 // NOTE: before any relevant API call, you MUST set our function pointers thru successful call to
-// 'vma_set_func_pointers'
+// 'vma_xlio_try_set_func_pointers' or 'vma_xlio_set_func_pointers'
 // (note: these definitions will not catch function prototypes neither combinations like 'struct
 // sigaction')
 #define socket(...) fn_socket(__VA_ARGS__)
@@ -272,6 +273,6 @@ extern sigaction_fptr_t fn_sigaction;
 #define daemon(...) fn_daemon(__VA_ARGS__)
 #define sigaction(...) fn_sigaction(__VA_ARGS__)
 
-#endif // VMA_NO_FUNCTIONS_DEFINES
+#endif // VMA_XLIO_NO_FUNCTIONS_DEFINES
 
-#endif // VMA_REDIRECT_H
+#endif // VMA_XLIO_REDIRECT_H
