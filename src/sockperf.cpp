@@ -280,6 +280,9 @@ static const AOPT_DESC common_opt_desc[] = {
     { OPT_LOAD_VMA,                                             AOPT_OPTARG,
       aopt_set_literal(0),                                      aopt_set_string("load-vma"),
       "Load VMA dynamically even when LD_PRELOAD was not used." },
+    { OPT_LOAD_XLIO,                                            AOPT_OPTARG,
+      aopt_set_literal(0),                                      aopt_set_string("load-xlio"),
+      "Load XLIO dynamically even when LD_PRELOAD was not used." },
     { OPT_RATE_LIMIT, AOPT_ARG, aopt_set_literal(0), aopt_set_string("rate-limit"),
       "use rate limit (packet-pacing), with VMA must be run with VMA_RING_ALLOCATION_LOGIC_TX "
       "mode." },
@@ -2090,19 +2093,30 @@ static int parse_common_opt(const AOPT_OBJECT *common_obj) {
 #ifndef __FreeBSD__
         if (!rc && aopt_check(common_obj, OPT_LOAD_VMA)) {
             const char *optarg = aopt_value(common_obj, OPT_LOAD_VMA);
-            // s_user_params.b_load_vma = true;
             if (!optarg || !*optarg) optarg = (char *)"libvma.so"; // default value
-            bool success = vma_set_func_pointers(optarg);
+            bool success = vma_xlio_set_func_pointers(optarg);
             if (!success) {
                 log_msg("Invalid --load-vma value: %s: failed to set function pointers using the "
-                        "given libvma.so path:",
+                        "given libvma.so path",
                         optarg);
-                log_msg("dlerror() says: %s:", dlerror());
+                log_msg("dlerror() says: %s", dlerror());
                 rc = SOCKPERF_ERR_BAD_ARGUMENT;
             }
         }
-#endif
-#endif
+        if (!rc && aopt_check(common_obj, OPT_LOAD_XLIO)) {
+            const char *optarg = aopt_value(common_obj, OPT_LOAD_XLIO);
+            if (!optarg || !*optarg) optarg = (char *)"libxlio.so"; // default value
+            bool success = vma_xlio_set_func_pointers(optarg);
+            if (!success) {
+                log_msg("Invalid --load-xlio value: %s: failed to set function pointers using the "
+                        "given libxlio.so path",
+                        optarg);
+                log_msg("dlerror() says: %s", dlerror());
+                rc = SOCKPERF_ERR_BAD_ARGUMENT;
+            }
+        }
+#endif // !defined(__FreeBSD__)
+#endif // !defined(WIN32)
 
         if (!rc && aopt_check(common_obj, OPT_TCP)) {
             if (!aopt_check(common_obj, 'f')) {
@@ -2136,10 +2150,15 @@ static int parse_common_opt(const AOPT_OBJECT *common_obj) {
 
 #if defined(DEFINED_TLS)
         if (!rc && aopt_check(common_obj, OPT_TLS)) {
-            const char *optarg = aopt_value(common_obj, OPT_TLS);
-            s_user_params.tls = true;
-            if (optarg && *optarg) {
-                tls_chipher(optarg);
+            if (!aopt_check(common_obj, OPT_LOAD_VMA) && !aopt_check(common_obj, OPT_LOAD_XLIO)) {
+                const char *optarg = aopt_value(common_obj, OPT_TLS);
+                s_user_params.tls = true;
+                if (optarg && *optarg) {
+                    tls_chipher(optarg);
+                }
+            } else {
+                log_msg("--tls conflicts with --load-vma and --load-xlio options");
+                rc = SOCKPERF_ERR_BAD_ARGUMENT;
             }
         }
 #endif /* DEFINED_TLS */
@@ -2367,10 +2386,10 @@ static void set_select_timeout(int time_out_msec) {
 //------------------------------------------------------------------------------
 void set_defaults() {
 #if !defined(WIN32) && !defined(__FreeBSD__)
-    bool success = vma_set_func_pointers(false);
+    bool success = vma_xlio_try_set_func_pointers();
     if (!success) {
         log_dbg("Failed to set function pointers for system functions.");
-        log_dbg("Check vma-redirect.cpp for functions which your OS implementation is missing. "
+        log_dbg("Check vma-xlio-redirect.cpp for functions which your OS implementation is missing. "
                 "Re-compile sockperf without them.");
     }
 #endif

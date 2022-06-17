@@ -49,7 +49,7 @@ sockperf_SOURCES = \
 	src/ticks_os.h \
 	src/tls.cpp \
 	src/tls.h \
-	src/vma-redirect.cpp \
+	src/vma-xlio-redirect.cpp \
 	src/vma-redirect.h
 
 dist_doc_DATA = \

@@ -95,7 +95,7 @@
 #include "ip_address.h"
 
 #if !defined(WIN32) && !defined(__FreeBSD__)
-#include "vma-redirect.h"
+#include "vma-xlio-redirect.h"
 #ifdef USING_VMA_EXTRA_API
 #include <mellanox/vma_extra.h>
 #endif
@@ -219,6 +219,7 @@ enum {
     OPT_FULL_RTT,                 // 44
     OPT_CI_SIG_LVL,               // 45
     OPT_HISTOGRAM,                // 46
+    OPT_LOAD_XLIO,                // 47
 #if defined(DEFINED_TLS)
     OPT_TLS
 #endif /* DEFINED_TLS */
