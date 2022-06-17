@@ -203,7 +203,7 @@ private:
 #ifdef USING_VMA_EXTRA_API
         if (SOCKETXTREME == g_pApp->m_const_params.fd_handler_type) {
             return client_receive_from_selected<SocketXtremeInputHandler>(ifd);
-        } else if (g_pApp->m_const_params.is_vmazcopyread) {
+        } else if (g_pApp->m_const_params.is_zcopyread) {
             return client_receive_from_selected<VmaZCopyReadInputHandler>(ifd);
         } else
 #endif

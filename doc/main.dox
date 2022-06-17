@@ -136,13 +136,15 @@ sockperf: [tid 4805] using epoll() to block on socket(s)
          --lls                  -Turn on LLS via socket option (value = usec to poll).
          --buffer-size          -Set total socket receive/send buffer <size> in bytes (system defined by default).
          --nonblocked           -Open non-blocked sockets.
-         --recv_looping_num     -Set Sockperf to loop over recvfrom() until EAGAIN or <N> good received packets, -1 for infinite, must be used with --nonblocked (default 1).
+         --recv_looping_num     -Set sockperf to loop over recvfrom() until EAGAIN or <N> good received packets, -1 for infinite, must be used with --nonblocked (default 1).
          --dontwarmup           -Don't send warm up messages on start.
          --pre-warmup-wait      -Time to wait before sending warm up messages (seconds).
-         --vmazcopyread         -Use VMA's zero copy reads API (See VMA's readme).
+         --zcopyread,--vmazcopyread
+                                -Use VMA's zero copy reads API (See VMA's readme).
          --daemonize            -Run as daemon.
          --no-rdtsc             -Don't use register when taking time; instead use monotonic clock.
          --load-vma             -Load VMA dynamically even when LD_PRELOAD was not used.
+         --load-xlio            -Load XLIO dynamically even when LD_PRELOAD was not used.
          --rate-limit           -use rate limit (packet-pacing), with VMA must be run with VMA_RING_ALLOCATION_LOGIC_TX mode.
          --set-sock-accl        -Set socket acceleration before run (available for some of Mellanox systems)
  -d      --debug                -Print extra debug information.
@@ -154,7 +156,8 @@ sockperf: [tid 4805] using epoll() to block on socket(s)
 @code
          --threads-num          -Run <N> threads on server side (requires '-f' option).
          --cpu-affinity         -Set threads affinity to the given core ids in list format (see: cat /proc/cpuinfo).
-         --vmarxfiltercb        -Use VMA's receive path message filter callback API (See VMA's readme).
+         --rxfiltercb,--vmarxfiltercb
+                                -Use VMA's receive path message filter callback API (See VMA's readme).
          --force-unicast-reply  -Force server to reply via unicast.
          --dont-reply           -Server won't reply to the client messages.
  -m      --msg-size             -Set maximum message size that the server can receive <size> bytes (default 65507).
@@ -177,12 +180,14 @@ sockperf: [tid 4805] using epoll() to block on socket(s)
          --sender-affinity      -Set sender thread affinity to the given core ids in list format (see: cat /proc/cpuinfo).
          --receiver-affinity    -Set receiver thread affinity to the given core ids in list format (see: cat /proc/cpuinfo).
          --full-log             -Dump full log of all messages send/receive time to the given file in CSV format.
+         --full-rtt             -Show results in round-trip-time instead of latency.
          --giga-size            -Print sizes in GigaByte.
          --increase_output_precision
                                 -Increase number of digits after decimal point of the throughput output (from 3 to 9).
          --dummy-send           -Use VMA's dummy send API instead of busy wait, must be higher than regular msg rate.
                                  optional: set dummy-send rate per second (default 10,000), usage: --dummy-send [<rate>|max]
  -t      --time                 -Run for <sec> seconds (default 1, max = 36000000).
+ -n      --number-of-packets    -Run for n packets sent and received (default 0, max = 100000000).
          --client_port          -Force the client side to bind to a specific port (default = 0).
          --client_ip            -Force the client side to bind to a specific ip address (default = 0).
  -b      --burst                -Control the client's number of a messages sent in every burst.
@@ -190,7 +195,9 @@ sockperf: [tid 4805] using epoll() to block on socket(s)
                                  support --pps for old compatibility).
  -m      --msg-size             -Use messages of size <size> bytes (minimum default 14).
  -r      --range                -comes with -m <size>, randomly change the messages size in range: <size> +- <N>.
-         --data-integrity       -Perform data integrity test
+         --data-integrity       -Perform data integrity test.
+         --ci_sig_level         -Normal confidence interval significance level for stat reported. Values are between 0 and 100 exclusive (default 99).
+         --histogram            -Build histogram of latencies. Histogram arguments formated as binsize:lowerrange:upperrange
 @endcode
 
 @subsection _tool 3.4 Tools
