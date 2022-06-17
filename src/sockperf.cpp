@@ -229,10 +229,10 @@ static const AOPT_DESC common_opt_desc[] = {
       "Enables non-blocking send operation (default OFF)." },
     { OPT_TOS, AOPT_ARG, aopt_set_literal(0), aopt_set_string("tos"), "Allows setting tos" },
     { OPT_RX_MC_IF, AOPT_ARG, aopt_set_literal(0), aopt_set_string("mc-rx-if"),
-      "Set address <ip> of interface on which to receive mulitcast messages (can be other then "
+      "Set address <ip> of interface on which to receive multicast messages (can be other then "
       "route table)." },
     { OPT_TX_MC_IF, AOPT_ARG, aopt_set_literal(0), aopt_set_string("mc-tx-if"),
-      "Set address <ip> of interface on which to transmit mulitcast messages (can be other then "
+      "Set address <ip> of interface on which to transmit multicast messages (can be other then "
       "route table)." },
     { OPT_MC_LOOPBACK_ENABLE,                   AOPT_NOARG,
       aopt_set_literal(0),                      aopt_set_string("mc-loopback-enable"),
@@ -244,7 +244,7 @@ static const AOPT_DESC common_opt_desc[] = {
       AOPT_ARG,
       aopt_set_literal(0),
       aopt_set_string("mc-source-filter"),
-      "Set address <ip, hostname> of mulitcast messages source which is allowed to receive from." },
+      "Set address <ip, hostname> of multicast messages source which is allowed to receive from." },
     { OPT_UC_REUSEADDR,                                   AOPT_NOARG,
       aopt_set_literal(0),                                aopt_set_string("uc-reuseaddr"),
       "Enables unicast reuse address (default disabled)." },
@@ -267,8 +267,8 @@ static const AOPT_DESC common_opt_desc[] = {
       aopt_set_literal(0),                                      aopt_set_string("pre-warmup-wait"),
       "Time to wait before sending warm up messages (seconds)." },
 #ifndef WIN32
-    { OPT_VMAZCOPYREAD,                                   AOPT_NOARG,
-      aopt_set_literal(0),                                aopt_set_string("vmazcopyread"),
+    { OPT_ZCOPYREAD,                                      AOPT_NOARG,
+      aopt_set_literal(0),                                aopt_set_string("zcopyread", "vmazcopyread"),
       "Use VMA's zero copy reads API (See VMA's readme)." },
     { OPT_DAEMONIZE, AOPT_NOARG, aopt_set_literal(0), aopt_set_string("daemonize"), "Run as "
                                                                                     "daemon." },
@@ -291,7 +291,7 @@ static const AOPT_DESC common_opt_desc[] = {
       AOPT_NOARG,
       aopt_set_literal(0),
       aopt_set_string("set-sock-accl"),
-      "Set socket accleration before run (available for some of Mellanox systems)" },
+      "Set socket acceleration before run (available for some of Mellanox systems)" },
 #if defined(DEFINED_TLS)
     { OPT_TLS,                AOPT_OPTARG,                                    aopt_set_literal(0),
       aopt_set_string("tls"), "Use TLSv1.2 (default " TLS_CHIPER_DEFAULT ")." },
@@ -1519,10 +1519,10 @@ static int proc_mode_server(int id, int argc, const char **argv) {
           aopt_set_string("cpu-affinity"),
           "Set threads affinity to the given core ids in list format (see: cat /proc/cpuinfo)." },
 #ifndef WIN32
-        { OPT_VMARXFILTERCB,
+        { OPT_RXFILTERCB,
           AOPT_NOARG,
           aopt_set_literal(0),
-          aopt_set_string("vmarxfiltercb"),
+          aopt_set_string("rxfiltercb", "vmarxfiltercb"),
           "Use VMA's receive path message filter callback API (See VMA's readme)." },
 #endif
         { OPT_FORCE_UC_REPLY,                  AOPT_NOARG,
@@ -1614,8 +1614,8 @@ static int proc_mode_server(int id, int argc, const char **argv) {
             }
         }
 #ifndef WIN32
-        if (!rc && aopt_check(server_obj, OPT_VMARXFILTERCB)) {
-            s_user_params.is_vmarxfiltercb = true;
+        if (!rc && aopt_check(server_obj, OPT_RXFILTERCB)) {
+            s_user_params.is_rxfiltercb = true;
         }
 #endif
 
@@ -2061,8 +2061,8 @@ static int parse_common_opt(const AOPT_OBJECT *common_obj) {
         }
 #ifndef WIN32
 
-        if (!rc && aopt_check(common_obj, OPT_VMAZCOPYREAD)) {
-            s_user_params.is_vmazcopyread = true;
+        if (!rc && aopt_check(common_obj, OPT_ZCOPYREAD)) {
+            s_user_params.is_zcopyread = true;
         }
 
         if (!rc && aopt_check(common_obj, OPT_DAEMONIZE)) {
@@ -2304,7 +2304,7 @@ static char *display_opt(int id, char *buf, size_t buf_size) {
 }
 
 //#define ST_TEST
-// use it with command such as: VMA ./sockperf -s -f conf/conf.inp --vmarxfiltercb
+// use it with command such as: VMA ./sockperf -s -f conf/conf.inp --rxfiltercb
 
 #ifdef ST_TEST
 static int st1, st2;
@@ -2338,7 +2338,7 @@ void cleanup() {
         FREE(s_user_params.select_timeout);
     }
 #ifdef USING_VMA_EXTRA_API
-    if (g_vma_api && s_user_params.is_vmazcopyread) {
+    if (g_vma_api && s_user_params.is_zcopyread) {
         zeroCopyMap::iterator it;
         while ((it = g_zeroCopyData.begin()) != g_zeroCopyData.end()) {
             delete it->second;
@@ -2430,8 +2430,8 @@ void set_defaults() {
     s_user_params.max_looping_over_recv = 1;
     s_user_params.do_warmup = true;
     s_user_params.pre_warmup_wait = 0;
-    s_user_params.is_vmarxfiltercb = false;
-    s_user_params.is_vmazcopyread = false;
+    s_user_params.is_rxfiltercb = false;
+    s_user_params.is_zcopyread = false;
     g_debug_level = LOG_LVL_INFO;
     s_user_params.mc_loop_disable = true;
     s_user_params.uc_reuseaddr = false;
@@ -2910,16 +2910,16 @@ int prepare_socket(int fd, struct fds_data *p_data)
 #ifdef ST_TEST
     if (!stTest)
 #endif
-        if (!rc && (s_user_params.is_vmarxfiltercb && g_vma_api)) {
+        if (!rc && (s_user_params.is_rxfiltercb && g_vma_api)) {
             // Try to register application with VMA's special receive notification callback logic
             if (g_vma_api->register_recv_callback(fd, myapp_vma_recv_pkt_filter_callback, NULL) <
                 0) {
                 log_err("vma_api->register_recv_callback failed. Try running without option "
-                        "'vmarxfiltercb'");
+                        "'rxfiltercb'/'vmarxfiltercb'");
             } else {
                 log_dbg("vma_api->register_recv_callback successful registered");
             }
-        } else if (!rc && (s_user_params.is_vmazcopyread && g_vma_api)) {
+        } else if (!rc && (s_user_params.is_zcopyread && g_vma_api)) {
             g_zeroCopyData[fd] = new ZeroCopyData();
             g_zeroCopyData[fd]->allocate();
         }
@@ -3336,7 +3336,7 @@ int bringup(const int *p_daemonize) {
     int _vma_pkts_desc_size = 0;
 
 #ifdef USING_VMA_EXTRA_API
-    if (!rc && (s_user_params.is_vmarxfiltercb || s_user_params.is_vmazcopyread ||
+    if (!rc && (s_user_params.is_rxfiltercb || s_user_params.is_zcopyread ||
                 s_user_params.fd_handler_type == SOCKETXTREME)) {
         // Get VMA extended API
         g_vma_api = vma_get_api();
@@ -3351,7 +3351,7 @@ int bringup(const int *p_daemonize) {
             sizeof(struct vma_packets_t) + sizeof(struct vma_packet_t) + sizeof(struct iovec) * 16;
     }
 #else
-    if (!rc && (s_user_params.is_vmarxfiltercb || s_user_params.is_vmazcopyread ||
+    if (!rc && (s_user_params.is_rxfiltercb || s_user_params.is_zcopyread ||
                 s_user_params.fd_handler_type == SOCKETXTREME)) {
         errno = EPERM;
         exit_with_err("Please compile with VMA Extra API to use these options", SOCKPERF_ERR_FATAL);
@@ -3631,8 +3631,8 @@ is_blocked = %d \n\t\
 is_nonblocked_send = %d \n\t\
 do_warmup = %d \n\t\
 pre_warmup_wait = %d \n\t\
-is_vmarxfiltercb = %d \n\t\
-is_vmazcopyread = %d \n\t\
+is_rxfiltercb = %d \n\t\
+is_zcopyread = %d \n\t\
 mc_loop_disable = %d \n\t\
 mc_ttl = %d \n\t\
 uc_reuseaddr = %d \n\t\
@@ -3660,8 +3660,8 @@ packet pace limit = %d",
             s_user_params.packetrate_stats_print_details, s_user_params.fd_handler_type,
             s_user_params.mthread_server, s_user_params.sock_buff_size, s_user_params.threads_num,
             s_user_params.threads_affinity, s_user_params.is_blocked, s_user_params.is_nonblocked_send,
-            s_user_params.do_warmup, s_user_params.pre_warmup_wait, s_user_params.is_vmarxfiltercb,
-            s_user_params.is_vmazcopyread, s_user_params.mc_loop_disable, s_user_params.mc_ttl,
+            s_user_params.do_warmup, s_user_params.pre_warmup_wait, s_user_params.is_rxfiltercb,
+            s_user_params.is_zcopyread, s_user_params.mc_loop_disable, s_user_params.mc_ttl,
             s_user_params.uc_reuseaddr, s_user_params.tcp_nodelay,
             s_user_params.client_work_with_srv_num, s_user_params.b_server_reply_via_uc,
             s_user_params.b_server_dont_reply, s_user_params.b_server_detect_gaps,

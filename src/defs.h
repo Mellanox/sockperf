@@ -184,8 +184,8 @@ enum {
     OPT_NONBLOCKED,               // 9
     OPT_DONTWARMUP,               // 10
     OPT_PREWARMUPWAIT,            // 11
-    OPT_VMARXFILTERCB,            // 12
-    OPT_VMAZCOPYREAD,             // 13
+    OPT_RXFILTERCB,               // 12
+    OPT_ZCOPYREAD,                // 13
     OPT_SOCKETXTREME,             // 14
     OPT_MC_LOOPBACK_ENABLE,       // 15
     OPT_CLIENT_WORK_WITH_SRV_NUM, // 16
@@ -652,8 +652,8 @@ struct user_params_t {
     uint32_t warmup_msec;
     uint64_t cooldown_num;
     uint64_t warmup_num;
-    bool is_vmarxfiltercb;
-    bool is_vmazcopyread;
+    bool is_rxfiltercb;
+    bool is_zcopyread;
     TicksDuration cycleDuration;
     bool mc_loop_disable;
     bool uc_reuseaddr;

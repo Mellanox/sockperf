@@ -128,7 +128,7 @@ public:
 #ifdef USING_VMA_EXTRA_API
         if (SOCKETXTREME == g_pApp->m_const_params.fd_handler_type) {
             return server_receive_then_send<SocketXtremeInputHandler>(ifd);
-        } else if (g_pApp->m_const_params.is_vmazcopyread) {
+        } else if (g_pApp->m_const_params.is_zcopyread) {
             return server_receive_then_send<VmaZCopyReadInputHandler>(ifd);
         } else
 #endif
