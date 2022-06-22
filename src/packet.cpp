@@ -49,7 +49,7 @@ PacketTimes::PacketTimes(uint64_t _maxSequenceNo, uint64_t _replyEvery, uint64_t
                 , m_pInternalUse
                 , m_pErrors, _numServers
                 );
-    //*/
+    */
 }
 
 PacketTimes::~PacketTimes() {

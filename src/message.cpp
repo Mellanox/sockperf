@@ -98,8 +98,8 @@ Message::Message() {
     /*
         log_msg("ms_maxSize=%d, m_buf=%p, alignment=%d, m_data=%p, m_header=%p", ms_maxSize, m_buf,
     alignment, m_data, m_header);
-        log_msg("header adresses: m_sequence_number=%p", &m_header->m_sequence_number);
-    //*/
+        log_msg("header addresses: m_sequence_number=%p", &m_header->m_sequence_number);
+    */
 }
 
 //------------------------------------------------------------------------------
