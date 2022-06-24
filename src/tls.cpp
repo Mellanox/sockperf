@@ -1,6 +1,6 @@
 /*
  *
- * Copyright (c) 2021-2022 Mellanox Technologies Ltd.
+ * Copyright (c) 2021-2022 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
