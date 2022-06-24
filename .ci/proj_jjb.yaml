@@ -48,15 +48,15 @@
             description: "Run static analysis using cppcheck tool."
         - bool:
             name: "do_csbuild"
-            default: true
+            default: false
             description: "Run static analysis using csbuild tool."
         - bool:
             name: "do_style"
-            default: true
+            default: false
             description: "Analysis source code for coding style."
         - bool:
             name: "do_coverity"
-            default: true
+            default: false
             description: "Launch coverity verification."
         - bool:
             name: "do_test"
@@ -74,11 +74,15 @@
             name: "do_blackduck"
             default: true
             description: "Run BlackDuck."
+        - bool:
+            name: "do_copyrights"
+            default: true
+            description: "Check source file headers for correct copyrights."
     triggers:
         - github-pull-request:
             cron: 'H/5 * * * *'
             trigger-phrase: '.*\bbot:retest\b.*'
-            status-context: "Mellanox Lab"
+            status-context: "sockperf-build"
             success-status: "[PASS]"
             failure-status: "[FAIL]"
             error-status:   "[FAIL]"
@@ -102,9 +106,9 @@
         script-path: ".ci/Jenkinsfile"
 - project:
     name: proj_name
-    jjb_email: 'lennyb@nvidia.com'
+    jjb_email: 'vryabov@nvidia.com'
     jjb_proj: 'sockperf'
     jjb_git: 'https://github.com/Mellanox/sockperf'
-    jjb_owner: 'Lenny Verkhovsky'
+    jjb_owner: 'Vasily Ryabov'
     jobs:
         - "{jjb_proj}"
