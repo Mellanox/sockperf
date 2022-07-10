@@ -112,6 +112,66 @@ static inline int msg_sendto(int fd, uint8_t *buf, int nbytes,
             ret = tls_write(g_fds_array[fd]->tls_handle, buf, nbytes);
         } else
 #endif /* DEFINED_TLS */
+#if defined(USING_DOCA_COMM_CHANNEL_API)
+        if (s_user_params.doca_comm_channel) {
+            doca_error_t doca_error;
+            struct doca_cc_send_task *task;
+            struct doca_task *task_obj;
+            struct timespec ts = {
+                .tv_sec = 0,
+                .tv_nsec = NANOS_10_X_1000,
+            };
+            struct cc_ctx *ctx = g_fds_array[fd]->doca_cc_ctx;
+            do {
+                if (s_user_params.mode == MODE_SERVER) {
+                    struct cc_ctx_server *ctx_server = (struct cc_ctx_server*)ctx;
+                    doca_error = doca_cc_server_send_task_alloc_init(ctx_server->server, ctx_server->ctx.connection, buf,
+                                                                    nbytes, &task);
+                } else { // MODE_CLIENT
+                    struct cc_ctx_client *ctx_client = (struct cc_ctx_client *)ctx;
+                    doca_error = doca_cc_client_send_task_alloc_init(ctx_client->client, ctx_client->ctx.connection, buf,
+                                                                    nbytes, &task);
+                }
+                if (doca_error == DOCA_ERROR_NO_MEMORY) {
+                    // Queue is full of tasks, need to free tasks with completion callback
+                    doca_pe_progress(s_user_params.pe);
+                }
+            } while (s_user_params.is_blocked && doca_error == DOCA_ERROR_NO_MEMORY);
+
+            if (doca_error != DOCA_SUCCESS) {
+                if (doca_error == DOCA_ERROR_NO_MEMORY) { // only for non-blocked
+                    errno = EAGAIN;
+                    ret = -1;
+                } else {
+                    log_err("Doca task_alloc_init failed");
+                    ret = RET_SOCKET_SHUTDOWN;
+                }
+            } else { // task_alloc_init succeeded
+                task_obj = doca_cc_send_task_as_task(task);
+                do {
+                    doca_error = doca_task_submit(task_obj);
+                    if (doca_error == DOCA_ERROR_AGAIN) {
+                        // Queue is full of tasks, need to free tasks with completion callback
+                        doca_pe_progress(s_user_params.pe);
+                    }
+                } while (s_user_params.is_blocked && doca_error == DOCA_ERROR_AGAIN);
+
+                if (doca_error != DOCA_SUCCESS) {
+                    if (doca_error == DOCA_ERROR_AGAIN) { // only for non-blocked
+                        errno = EAGAIN;
+                        ret = -1;
+                    } else {
+                        log_err("Doca doca_task_submit failed");
+                        ret = RET_SOCKET_SHUTDOWN;
+                    }
+                } else {
+                    ret = nbytes;
+                }
+            }
+            // Additional call for better performance- release pressure on send queue
+            doca_pe_progress(s_user_params.pe);
+        } else
+#endif /* USING_DOCA_COMM_CHANNEL_API */
         {
             ret = sendto(fd, buf, nbytes, flags, sendto_addr, addrlen);
         }

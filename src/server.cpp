@@ -95,8 +95,12 @@ int ServerBase::initBeforeLoop() {
             }
 
             std::string hostport = sockaddr_to_hostport(p_bind_addr);
+#if defined(USING_DOCA_COMM_CHANNEL_API)
+        if (!s_user_params.doca_comm_channel && bind(ifd, reinterpret_cast<const sockaddr *>(p_bind_addr), bind_addr_len) < 0) {
+#else
             log_dbg("[fd=%d] Binding to: %s...", ifd, hostport.c_str());
             if (bind(ifd, reinterpret_cast<const sockaddr *>(p_bind_addr), bind_addr_len) < 0) {
+#endif //USING_DOCA_COMM_CHANNEL_API
                 log_err("[fd=%d] Can`t bind socket, IP to bind: %s\n", ifd,
                         hostport.c_str());
                 rc = SOCKPERF_ERR_SOCKET;

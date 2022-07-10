@@ -885,7 +885,20 @@ int Client<IoType, SwitchCycleDuration, PongModeCare>::initBeforeLoop() {
             if (!(data && (data->active_fd_list))) continue;
 
             const sockaddr_store_t *p_client_bind_addr = &g_pApp->m_const_params.client_bind_info;
+#if defined(USING_DOCA_COMM_CHANNEL_API)
+            if (s_user_params.doca_comm_channel) {
+                // Waiting for connection
+                struct cc_ctx_client *ctx_client = (struct cc_ctx_client *)data->doca_cc_ctx;
+                while (ctx_client->state != CC_CONNECTED) {
+                    doca_pe_progress(s_user_params.pe);
+                }
+                log_dbg("[fd=%d] Client connected successfully", ifd);
+            }
+            // Avoid Client binding in Com Channel mode
+            if (p_client_bind_addr->addr.sa_family != AF_UNSPEC && !s_user_params.doca_comm_channel) {
+#else
             if (p_client_bind_addr->addr.sa_family != AF_UNSPEC) {
+#endif //USING_DOCA_COMM_CHANNEL_API
                 socklen_t client_bind_addr_len = g_pApp->m_const_params.client_bind_info_len;
                 std::string hostport = sockaddr_to_hostport(p_client_bind_addr);
 #if defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__)

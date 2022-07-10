@@ -71,12 +71,57 @@ public:
             ret = tls_read(g_fds_array[fd]->tls_handle, buf, m_recv_data.cur_size);
         } else
 #endif /* DEFINED_TLS */
+#if defined(USING_DOCA_COMM_CHANNEL_API)
+        if (s_user_params.doca_comm_channel) {
+            struct timespec ts = {
+                .tv_sec = 0,
+                .tv_nsec = NANOS_10_X_1000,
+            };
+            struct cc_ctx *ctx = g_fds_array[fd]->doca_cc_ctx;
+            if (s_user_params.mode == MODE_CLIENT && !g_pApp->m_const_params.b_client_ping_pong &&
+                !g_pApp->m_const_params.b_stream) { // latency_under_load
+                os_mutex_lock(&ctx->lock);
+                while (!ctx->recv_flag) {
+                    // UL only-> wait for signal, once done copy buffer
+                    os_cond_wait(&ctx->cond, &ctx->lock);
+                }
+            } else {
+            // Waiting for meesage receive callback - blocking mode
+                if (s_user_params.is_blocked) {
+                    while (!ctx->recv_flag) {
+                        if (doca_pe_progress(s_user_params.pe) == 0) {
+                            nanosleep(&ts, &ts);
+                        }
+                    }
+                } else { // non-blocking
+                    doca_pe_progress(s_user_params.pe);
+                    if (!ctx->recv_flag) {// Message recv
+                        errno = EAGAIN;
+                        ctx->buf_size = -1;
+                    }
+                }
+            }
+
+            m_actual_buf_size = ctx->buf_size;
+            m_actual_buf = ctx->recv_buffer;
+
+            // Done reading setting flag to send mode
+            ctx->recv_flag = false;
+
+            if (!g_pApp->m_const_params.b_client_ping_pong &&
+                !g_pApp->m_const_params.b_stream) { // latency_under_load
+                os_mutex_unlock(&ctx->lock);
+            }
+            ret = ctx->buf_size;
+
+        } else
+#endif /* USING_DOCA_COMM_CHANNEL_API */
         {
             ret = recvfrom(fd, buf, m_recv_data.cur_size,
                     flags, (struct sockaddr *)recvfrom_addr, &size);
-        }
         m_actual_buf = buf;
         m_actual_buf_size = ret;
+        }
 
 #if defined(LOG_TRACE_MSG_IN) && (LOG_TRACE_MSG_IN == TRUE)
         printf(">   ");
