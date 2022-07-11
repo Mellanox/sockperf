@@ -24,12 +24,7 @@ cppcheck_dir=${WORKSPACE}/${prefix}/cppcheck
 csbuild_dir=${WORKSPACE}/${prefix}/csbuild
 style_dir=${WORKSPACE}/${prefix}/style
 
-NPROC=$(grep processor /proc/cpuinfo|wc -l)
-if [ $NPROC -lt 64 ]; then
-    NPROC=$(($NPROC / 2 + 1))
-else
-    NPROC=32
-fi
+NPROC=8
 make_opt="-j${NPROC}"
 
 if [ $(command -v timeout >/dev/null 2>&1 && echo $?) ]; then
