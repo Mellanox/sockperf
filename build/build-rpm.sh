@@ -46,7 +46,7 @@ sed -i -e s/__VERSION__/$VERSION/g -e s/__RELEASE__/$RELEASE/g -e s/__APP_NAME__
 ./autogen.sh
 
 tar -zcf $RPM_DIR/SOURCES/$DIRNAME.tar.gz --exclude .git  -C .. $DIRNAME
-rpmbuild -bs --define 'dist %{nil}' --define '_source_filedigest_algorithm md5' --define '_binary_filedigest_algorithm md5' --rmsource --rmspec --define "_topdir $RPM_DIR" $APP_SPEC
+env RPM_BUILD_NCPUS=${NPROC} rpmbuild -bs --define 'dist %{nil}' --define '_source_filedigest_algorithm md5' --define '_binary_filedigest_algorithm md5' --rmsource --rmspec --define "_topdir $RPM_DIR" $APP_SPEC
 cd $BASE_DIR
 rm -rf $TEMP_DIR
 
