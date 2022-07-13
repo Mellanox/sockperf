@@ -23,6 +23,7 @@ env:
   build_dockers: false
 
 runs_on_dockers:
+  - {name: 'ub22.04-mofed-x86_64',  url: 'harbor.mellanox.com/hpcx/x86_64/ubuntu22.04/builder:mofed-5.7-0.1.1.0', category: 'base', arch: 'x86_64'}
   - {name: 'ub21.10-inbox-x86_64',  url: 'harbor.mellanox.com/hpcx/x86_64/ubuntu21.10/builder:inbox', category: 'base', arch: 'x86_64'}
   - {name: 'rhel8.3-inbox-x86_64',  url: 'harbor.mellanox.com/hpcx/x86_64/rhel8.3/builder:inbox', category: 'base', arch: 'x86_64'}
   - {name: 'rhel8.3-inbox-aarch64', url: 'harbor.mellanox.com/hpcx/aarch64/rhel8.3/builder:inbox', category: 'base', arch: 'aarch64'}
