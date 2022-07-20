@@ -1714,7 +1714,6 @@ static int resolve_sockaddr(const char *host, const char *port, int sock_type,
         bool is_server_mode, sockaddr *addr, socklen_t &addr_len)
 {
     struct addrinfo hints;
-
     memset(&hints, 0, sizeof(hints));
     // allow IPv4 or IPv6
     hints.ai_family = AF_UNSPEC;
@@ -1730,11 +1729,25 @@ static int resolve_sockaddr(const char *host, const char *port, int sock_type,
     hints.ai_socktype = sock_type;
     int res;
     struct addrinfo *result;
-
+#ifdef NEED_REGEX_WORKAROUND
+    regex_t regexpr_unix;
+    int regexp_unix_error = regcomp(&regexpr_unix, RESOLVE_ADDR_FORMAT_SOCKET, REG_EXTENDED);
+    if (regexp_unix_error != 0) {
+        log_msg("Failed to compile regexp for unix format");
+        res = SOCKPERF_ERR_FATAL;
+        return res;
+    }
+#else
+    const std::regex regexpr_unix(RESOLVE_ADDR_FORMAT_SOCKET);
+#endif //NEED_REGEX_WORKAROUND
     if (host != NULL) {
         std::string path = host;
         struct sockaddr_store_t *tmp = ((sockaddr_store_t *)addr);
-        if (path.size() > 0 && path[0] == '/') {
+#ifdef NEED_REGEX_WORKAROUND
+        if (path.size() > 0 && regexec(&regexpr_unix, path.c_str(), 0, NULL, 0) == 0) {
+#else
+        if (path.size() > 0 && std::regex_match(path, regexpr_unix)) {
+#endif //NEED_REGEX_WORKAROUND
             log_dbg("provided path for Unix Domain Socket is %s\n", host);
             if (path.length() >= MAX_UDS_NAME) {
                 log_err("length of name is larger than %d bytes", MAX_UDS_NAME);
@@ -1745,6 +1758,9 @@ static int resolve_sockaddr(const char *host, const char *port, int sock_type,
             strncpy(tmp->addr_un.sun_path, path.c_str(), MAX_UDS_NAME);
             tmp->ss_family = AF_UNIX;
 
+#ifdef NEED_REGEX_WORKAROUND
+            regfree(&regexpr_unix);
+#endif // NEED_REGEX_WORKAROUND
             return 0;
         }
     }
@@ -1830,6 +1846,10 @@ static int parse_common_opt(const AOPT_OBJECT *common_obj) {
 #endif
                         if (!strcmp(fd_handle_type, "poll") || !strcmp(fd_handle_type, "p")) {
                         s_user_params.fd_handler_type = POLL;
+                    } else if (!strcmp(fd_handle_type, "socketxtreme") ||
+                        !strcmp(fd_handle_type, "x")) {
+                        s_user_params.fd_handler_type = SOCKETXTREME;
+                        s_user_params.is_blocked = false;
                     } else
 #endif
                         if (!strcmp(fd_handle_type, "select") || !strcmp(fd_handle_type, "s")) {
@@ -1837,10 +1857,6 @@ static int parse_common_opt(const AOPT_OBJECT *common_obj) {
                     } else if (!strcmp(fd_handle_type, "recvfrom") ||
                                !strcmp(fd_handle_type, "r")) {
                         s_user_params.fd_handler_type = RECVFROMMUX;
-                    } else if (!strcmp(fd_handle_type, "socketxtreme") ||
-                               !strcmp(fd_handle_type, "x")) {
-                        s_user_params.fd_handler_type = SOCKETXTREME;
-                        s_user_params.is_blocked = false;
                     } else {
                         log_msg("'-%c' Invalid muliply io hanlde type: %s", 'F', optarg);
                         rc = SOCKPERF_ERR_BAD_ARGUMENT;
@@ -2348,14 +2364,16 @@ void cleanup() {
                     FREE(g_fds_array[ifd]->memberships_addr);
                 }
                 if (s_user_params.addr.ss_family == AF_UNIX) {
-                    unlink(s_user_params.client_bind_info.addr_un.sun_path);
+                    os_unlink_unix_path(s_user_params.client_bind_info.addr_un.sun_path);
+#ifndef WIN32 // AF_UNIX with DGRAM isn't supported in Win32
                     if (s_user_params.mode == MODE_CLIENT && s_user_params.sock_type == SOCK_DGRAM) { // unlink binded client
                         std::string sun_path = build_client_socket_name(&s_user_params.addr.addr_un, getpid(), ifd);
                         log_dbg("unlinking %s", sun_path.c_str());
                         unlink(sun_path.c_str());
                     }
+#endif
                     if (s_user_params.mode == MODE_SERVER)
-                        unlink(g_fds_array[ifd]->server_addr.addr_un.sun_path);
+                        os_unlink_unix_path(g_fds_array[ifd]->server_addr.addr_un.sun_path);
                 }
                 delete g_fds_array[ifd];
             }
@@ -2420,8 +2438,16 @@ void set_defaults() {
         log_dbg("Check vma-xlio-redirect.cpp for functions which your OS implementation is missing. "
                 "Re-compile sockperf without them.");
     }
+#elif defined WIN32
+    int rc = 0;
+    if (os_sock_startup() == false) { // Only relevant for Windows
+        log_err("Failed to initialize WSA");
+        rc = SOCKPERF_ERR_FATAL;
+    }
+    else {
+        sock_lib_started = 1;
+    }
 #endif
-
     g_fds_array = (fds_data **)MALLOC(MAX_FDS_NUM * sizeof(fds_data *));
     if (!g_fds_array) {
         log_err("Failed to allocate memory for global pointer fds_array");
@@ -2932,6 +2958,10 @@ U:[fe80::9a03:9bff:fea3:b01c%enp3s0f0]:1131
 # Unix domain socket Format
 U:/tmp/test
 T:/tmp/test2
+# Windows AF_UNIX format
+u:c:\tmp\test
+t:C:\tmp\test2
+U:d:\tmp\test3
 */
 static int set_sockets_from_feedfile(const char *feedfile_name) {
     int rc = SOCKPERF_ERR_NONE;
@@ -3047,9 +3077,9 @@ static int set_sockets_from_feedfile(const char *feedfile_name) {
         else {
             log_msg("Invalid input in line %s: "
                     "each line must have the following format: ip:port or type:ip:port or "
-                    "type:ip:port:mc_src_ip or type:/PATH. "
+                    "type:ip:port:mc_src_ip or type:/PATH (linux), type:PATH (windows). "
                     "IPv6 addresses must be enclosed in square brackets."
-                    "UNIX domain socket addresses must be an absolute paths (starting with '/').",
+                    "UNIX domain socket addresses must be an absolute paths (starting with '/') for linux environment only.",
                     line);
             rc = SOCKPERF_ERR_INCORRECT;
             break;
@@ -3061,7 +3091,7 @@ static int set_sockets_from_feedfile(const char *feedfile_name) {
         } else {
             sock_type = SOCK_DGRAM;
         }
-
+#ifdef USING_VMA_EXTRA_API
         if (sock_type == SOCK_DGRAM && s_user_params.mode == MODE_CLIENT) {
             if (s_user_params.fd_handler_type == SOCKETXTREME &&
                 is_unspec_addr(s_user_params.client_bind_info)) {
@@ -3071,6 +3101,7 @@ static int set_sockets_from_feedfile(const char *feedfile_name) {
                 break;
             }
         }
+#endif
 
         std::unique_ptr<fds_data> tmp{ new fds_data };
 
@@ -3313,13 +3344,6 @@ int bringup(const int *p_daemonize) {
 
     os_mutex_init(&_mutex);
 
-    if (os_sock_startup() == false) { // Only relevant for Windows
-        log_err("Failed to initialize WSA");
-        rc = SOCKPERF_ERR_FATAL;
-    } else {
-        sock_lib_started = 1;
-    }
-
     if (*p_daemonize) {
         if (os_daemonize()) {
             log_err("Failed to daemonize");
@@ -3349,11 +3373,12 @@ int bringup(const int *p_daemonize) {
     }
 #else
     if (!rc && (s_user_params.is_rxfiltercb || s_user_params.is_zcopyread ||
-                s_user_params.fd_handler_type == SOCKETXTREME)) {
+        s_user_params.fd_handler_type == SOCKETXTREME)) {
         errno = EPERM;
         exit_with_err("Please compile with VMA Extra API to use these options", SOCKPERF_ERR_FATAL);
     }
 #endif
+
 
 #if defined(DEFINED_TLS)
     rc = tls_init();

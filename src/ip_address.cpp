@@ -29,9 +29,13 @@
 #include "ip_address.h"
 #include "common.h"
 
+#ifdef WIN32
+#include <ws2tcpip.h>
+#else
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <string.h>
+#endif
 
 IPAddress::IPAddress(const IPAddress &rhs) : m_family(rhs.m_family), m_addr6(rhs.m_addr6), m_addr_un(rhs.m_addr_un)
 {
@@ -100,7 +104,7 @@ bool IPAddress::resolve(const char *str, IPAddress &out, std::string &err)
             }
         }
     } else {
-        err = gai_strerror(res);
+        err = os_get_error(res);
     }
     freeaddrinfo(result);
 

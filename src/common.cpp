@@ -64,7 +64,7 @@ std::string sockaddr_to_hostport(const struct sockaddr *addr)
     if (addr->sa_family == AF_INET6) {
         return "[" + std::string(hbuf) + "]:" + std::string(pbuf);
     } else if (addr->sa_family == AF_UNIX) {
-        return std::string(pbuf) + " [UNIX]";
+        return std::string(addr->sa_data);
     } else {
         return std::string(hbuf) + ":" + std::string(pbuf);
     }

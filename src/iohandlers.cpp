@@ -38,7 +38,7 @@ static void print_addresses(const fds_data *data, int &list_count)
                 NI_NUMERICHOST | NI_NUMERICSERV);
         switch (data->server_addr.ss_family) {
             case AF_UNIX:
-                printf("[%2d] Address is %s # UDS type is %s\n", list_count++, pbuf, PRINT_SOCKET_TYPE(data->sock_type));
+                printf("[%2d] ADDR = %s # %s\n", list_count++, data->server_addr.addr_un.sun_path, PRINT_PROTOCOL(data->sock_type));
                 break;
             default:
                 printf("[%2d] IP = %-15s PORT = %5s # %s\n", list_count++, hbuf, pbuf, PRINT_PROTOCOL(data->sock_type));

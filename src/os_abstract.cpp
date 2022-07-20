@@ -26,10 +26,9 @@
  * OF SUCH DAMAGE.
  */
 
-#include "os_abstract.h"
-
-#include <string.h>
 #include <stdio.h>
+#include "os_abstract.h"
+#include <string.h>
 
 void os_printf_backtrace(void) {
 #ifdef WIN32
@@ -51,7 +50,7 @@ void os_printf_backtrace(void) {
     for (i = 0; i < frames; i++) {
         SymFromAddr(process, (DWORD64)(stack[i]), 0, symbol);
 
-        printf("%i: %s - 0x%0X\n", frames - i - 1, symbol->Name, symbol->Address);
+        printf("%i: %s - 0x%llu\n", frames - i - 1, symbol->Name, symbol->Address);
     }
 
     free(symbol);
@@ -265,6 +264,35 @@ int os_set_duration_timer(const itimerval &timer, sig_handler handler) {
     }
 #endif
     return 0;
+}
+
+void os_set_disarm_timer(const itimerval& timer) {
+#ifdef WIN32
+    if (SetTimer(NULL, 0, 0, NULL) == 0) {
+        printf("ERROR: SetTimer() failed when disarming");
+    }
+#else
+    if (setitimer(ITIMER_REAL, &timer, NULL)) {
+        printf("ERROR: setitimer() failed when disarming");
+    }
+#endif
+
+}
+
+const char* os_get_error(int res) {
+#ifdef WIN32
+    return gai_strerrorA(res);
+#else
+    return gai_strerror(res);
+#endif
+}
+
+void os_unlink_unix_path(char* path) {
+#ifdef WIN32
+    remove(path);
+#else
+    unlink(path);
+#endif
 }
 
 #ifdef WIN32
