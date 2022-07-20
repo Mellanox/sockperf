@@ -61,11 +61,6 @@ typedef int64_t ticks_t;
 #define usleep(x) Sleep(x / 1000)
 #define snprintf _snprintf
 
-struct timespec {
-    time_t tv_sec;    // Seconds.
-    long int tv_nsec; // Nanoseconds.
-};
-
 #endif
 
 /**

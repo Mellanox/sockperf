@@ -33,10 +33,12 @@
 
 #ifdef WIN32
 #include <WS2tcpip.h>
-#include <sys/types.h>
+#include <Winsock2.h>
 #include <unordered_map>
 #include <Winbase.h>
 #include <stdint.h>
+#include <afunix.h>
+typedef unsigned short int sa_family_t;
 
 #else
 
@@ -60,7 +62,6 @@
 #include <stdint.h>
 #include <unordered_map>
 #include <unistd.h>   /* getopt() and sleep()*/
-#include <inttypes.h> /* printf PRItn */
 #include <poll.h>
 #include <pthread.h>
 #include <sys/time.h>   /* timers*/
@@ -75,6 +76,7 @@
 
 #endif
 
+#include <inttypes.h> /* printf PRItn */
 #include <stdlib.h> /* random()*/
 #include <string.h>
 #include <stdio.h>
@@ -150,8 +152,17 @@ const uint32_t TEST_FIRST_CONNECTION_FIRST_PACKET_TTL_THRESHOLD_MSEC = 50;
     ":(6553[0-5]|655[0-2][0-9]|65[0-4][0-9]{2}|6[0-4][0-9]{3}|[0-5]?[0-9]{1,4})"                   \
     "(:([a-zA-Z0-9\\.\\-]+|\\[([a-fA-F0-9.:]+)\\]))?[\r\n]"
 
+#ifdef WIN32
 #define UNIX_DOMAIN_SOCKET_FORMAT_REG_EXP                                                          \
-         "^[UuTt]:(/.+)[\r\n]"
+        "^[UuTt]:([A-Za-z]:[\\\\/].*)[\r\n]*"
+#define RESOLVE_ADDR_FORMAT_SOCKET                                                                 \
+        "[A-Za-z]:[\\\\/].*"
+#elif __linux__
+#define UNIX_DOMAIN_SOCKET_FORMAT_REG_EXP                                                          \
+        "^[UuTt]:(/.+)[\r\n]"
+#define RESOLVE_ADDR_FORMAT_SOCKET                                                                 \
+        "/.+"
+#endif
 
 #define PRINT_PROTOCOL(type)                                                                       \
     ((type) == SOCK_DGRAM ? "UDP" : ((type) == SOCK_STREAM ? "TCP" : "<?>"))
@@ -627,8 +638,8 @@ typedef enum { // must be coordinated with s_fds_handle_desc in common.cpp
 #ifndef WIN32
     POLL,
     EPOLL,
-    SOCKETXTREME,
 #endif
+    SOCKETXTREME,
     FD_HANDLE_MAX } fd_block_handler_t;
 
 struct user_params_t {

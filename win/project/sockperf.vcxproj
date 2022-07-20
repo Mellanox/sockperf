@@ -28,26 +28,26 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v110</PlatformToolset>
+    <PlatformToolset>$(DefaultPlatformToolset)</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v110</PlatformToolset>
+    <PlatformToolset>$(DefaultPlatformToolset)</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v110</PlatformToolset>
+    <PlatformToolset>$(DefaultPlatformToolset)</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v110</PlatformToolset>
+    <PlatformToolset>$(DefaultPlatformToolset)</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
@@ -146,32 +146,34 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\aopt.cpp" />
-    <ClCompile Include="..\..\src\Client.cpp" />
+    <ClCompile Include="..\..\src\client.cpp" />
     <ClCompile Include="..\..\src\common.cpp" />
-    <ClCompile Include="..\..\src\Defs.cpp" />
+    <ClCompile Include="..\..\src\defs.cpp" />
     <ClCompile Include="..\..\src\IoHandlers.cpp" />
-    <ClCompile Include="..\..\src\Message.cpp" />
+    <ClCompile Include="..\..\src\ip_address.cpp" />
+    <ClCompile Include="..\..\src\message.cpp" />
     <ClCompile Include="..\..\src\os_abstract.cpp" />
-    <ClCompile Include="..\..\src\PacketTimes.cpp" />
-    <ClCompile Include="..\..\src\Playback.cpp" />
-    <ClCompile Include="..\..\src\Server.cpp" />
-    <ClCompile Include="..\..\src\SockPerf.cpp" />
-    <ClCompile Include="..\..\src\Ticks.cpp" />
+    <ClCompile Include="..\..\src\packet.cpp" />
+    <ClCompile Include="..\..\src\playback.cpp" />
+    <ClCompile Include="..\..\src\server.cpp" />
+    <ClCompile Include="..\..\src\sockperf.cpp" />
+    <ClCompile Include="..\..\src\ticks.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\src\aopt.h" />
-    <ClInclude Include="..\..\src\Client.h" />
+    <ClInclude Include="..\..\src\client.h" />
     <ClInclude Include="..\..\src\clock.h" />
     <ClInclude Include="..\..\src\common.h" />
-    <ClInclude Include="..\..\src\Defs.h" />
+    <ClInclude Include="..\..\src\defs.h" />
+    <ClInclude Include="..\..\src\input_handlers.h" />
     <ClInclude Include="..\..\src\IoHandlers.h" />
-    <ClInclude Include="..\..\src\Message.h" />
+    <ClInclude Include="..\..\src\ip_address.h" />
+    <ClInclude Include="..\..\src\message.h" />
     <ClInclude Include="..\..\src\os_abstract.h" />
-    <ClInclude Include="..\..\src\PacketTimes.h" />
-    <ClInclude Include="..\..\src\Playback.h" />
-    <ClInclude Include="..\..\src\Server.h" />
-    <ClInclude Include="..\..\src\Switches.h" />
-    <ClInclude Include="..\..\src\Ticks.h" />
+    <ClInclude Include="..\..\src\playback.h" />
+    <ClInclude Include="..\..\src\server.h" />
+    <ClInclude Include="..\..\src\switches.h" />
+    <ClInclude Include="..\..\src\ticks.h" />
     <ClInclude Include="..\..\src\ticks_os.h" />
   </ItemGroup>
   <ItemGroup>

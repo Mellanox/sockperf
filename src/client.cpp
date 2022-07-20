@@ -211,7 +211,7 @@ void printHistogram(uint32_t binSize, std::map<uint32_t, uint32_t> &activeBins, 
 #else
     CONSOLE_SCREEN_BUFFER_INFO csbi;
     GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE),&csbi);
-    terminal_width = csbi.dwSize.X;
+    terminalWidth = csbi.dwSize.X;
 #endif
     for(itr = activeBins.begin(); itr != activeBins.end(); ++itr) {
         currFrequency = itr->second;
@@ -826,7 +826,9 @@ static int _connect_check(int ifd) {
 
 #ifdef WIN32
     fd_set rfds, wfds;
-    struct timeval tv = { .tv_sec = 0, .tv_usec = POLL_TIMEOUT_MS * 1000, };
+    struct timeval tv;
+    tv.tv_sec = 0;
+    tv.tv_usec = POLL_TIMEOUT_MS * 1000;
 
     FD_ZERO(&rfds);
     FD_ZERO(&wfds);
@@ -882,6 +884,11 @@ int Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration,
                 struct sockaddr_store_t unix_addr;
                 socklen_t unix_addr_len;
                 if (p_client_bind_addr->ss_family == AF_UNIX && g_pApp->m_const_params.sock_type == SOCK_DGRAM) { // Need to bind localy
+#ifdef WIN32
+                    log_err("AF_UNIX with DGRAM isn't supported in windows");
+                    rc = SOCKPERF_ERR_SOCKET;
+                    break;
+#else
                     if (p_client_bind_addr->addr_un.sun_path[0] == 0) { // no specific addr client_info was provoided
                         std::string sun_path = build_client_socket_name(&s_user_params.addr.addr_un, getpid(), ifd);
                         log_dbg("No client name was provided, setting addr_un.sun_path to %s\n",
@@ -899,7 +906,9 @@ int Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration,
                         p_client_bind_addr = &unix_addr;
                         client_bind_addr_len = unix_addr_len;
                     }
+#endif
                 }
+
                 log_dbg("[fd=%d] Binding to: %s...", ifd, hostport.c_str());
                 if (bind(ifd, reinterpret_cast<const sockaddr *>(p_client_bind_addr), client_bind_addr_len) < 0) {
                     log_err("[fd=%d] Can`t bind socket %s", ifd, hostport.c_str());
@@ -1078,9 +1087,7 @@ void Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration
                 // Disarm timer
                 timer.it_value.tv_sec = 0;
                 timer.it_value.tv_usec = 0;
-                if (setitimer(ITIMER_REAL, &timer, NULL)) {
-                    log_err("ERROR: setitimer() failed when disarming");
-                }
+                os_set_disarm_timer(timer);
                 log_msg("Test end (reached packet number)");
                 g_b_exit = true;
             }

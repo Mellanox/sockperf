@@ -28,10 +28,9 @@
 
 #define __STDC_LIMIT_MACROS // for INT64_MAX in __cplusplus
 
-#include "ticks.h"
-
-#include <string>
 #include <stdio.h>
+#include "ticks.h"
+#include <string>
 #include <errno.h>
 #include <string.h> // strerror()
 #include <stdint.h> // INT64_MAX

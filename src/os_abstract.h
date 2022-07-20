@@ -48,6 +48,7 @@
 
 #ifdef WIN32
 
+#include <WS2tcpip.h>
 #include <Dbghelp.h> // backtrace
 #include <signal.h>
 #include <Winsock2.h>
@@ -105,6 +106,7 @@ void *win_set_timer(void *p_timer);
 #include <sys/resource.h>
 #include <fcntl.h>
 #include <netinet/in.h>
+#include <netdb.h>
 
 #define INVALID_SOCKET (-1)
 
@@ -194,9 +196,12 @@ void os_printf_backtrace(void);
 int os_set_nonblocking_socket(int fd);
 int os_daemonize();
 int os_set_duration_timer(const itimerval &timer, sig_handler handler);
+void os_set_disarm_timer(const itimerval& timer);
 int os_get_max_active_fds_num();
 bool os_sock_startup();
 bool os_sock_cleanup();
+const char* os_get_error(int res);
+void os_unlink_unix_path(char* path);
 
 // Colors
 #ifdef WIN32

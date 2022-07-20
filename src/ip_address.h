@@ -29,10 +29,23 @@
 #ifndef IP_ADDRESS_H_
 #define IP_ADDRESS_H_
 
+#ifdef WIN32
+#include <WS2tcpip.h>
+#include <Winsock2.h>
+#include <unordered_map>
+#include <Winbase.h>
+#include <stdint.h>
+#include <afunix.h>
+typedef unsigned short int sa_family_t;
+
+#elif __linux__
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <sys/un.h>      /* definitions for UNIX domain sockets */
 
+#endif
+
+#include "os_abstract.h"
 #include <functional>
 #include <string>
 
