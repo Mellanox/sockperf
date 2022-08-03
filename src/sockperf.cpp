@@ -101,7 +101,7 @@
 #include <stdio.h>
 #include <sys/stat.h>
 
-#ifndef WIN32
+#ifndef __windows__
 #include <dlfcn.h>
 #endif
 
@@ -188,7 +188,7 @@ static const AOPT_DESC common_opt_desc[] = {
       AOPT_ARG,
       aopt_set_literal('F'),
       aopt_set_string("iomux-type"),
-#ifdef WIN32
+#ifdef __windows__
       "Type of multiple file descriptors handle [s|select|r|recvfrom](default select)."
 #elif __FreeBSD__
       "Type of multiple file descriptors handle [s|select|p|poll|r|recvfrom](default select)."
@@ -201,7 +201,7 @@ static const AOPT_DESC common_opt_desc[] = {
       AOPT_ARG,
       aopt_set_literal(0),
       aopt_set_string("timeout"),
-#ifdef WIN32
+#ifdef __windows__
       "Set select timeout to <msec>, -1 for infinite (default is 10 msec)."
 #elif __FreeBSD__
       "Set select/poll timeout to <msec>, -1 for infinite (default is 10 msec)."
@@ -266,7 +266,7 @@ static const AOPT_DESC common_opt_desc[] = {
     { OPT_PREWARMUPWAIT,                                        AOPT_ARG,
       aopt_set_literal(0),                                      aopt_set_string("pre-warmup-wait"),
       "Time to wait before sending warm up messages (seconds)." },
-#ifndef WIN32
+#ifndef __windows__
     { OPT_ZCOPYREAD,                                      AOPT_NOARG,
       aopt_set_literal(0),                                aopt_set_string("zcopyread", "vmazcopyread"),
       "Use VMA's zero copy reads API (See VMA's readme)." },
@@ -1518,7 +1518,7 @@ static int proc_mode_server(int id, int argc, const char **argv) {
           aopt_set_literal(0),
           aopt_set_string("cpu-affinity"),
           "Set threads affinity to the given core ids in list format (see: cat /proc/cpuinfo)." },
-#ifndef WIN32
+#ifndef __windows__
         { OPT_RXFILTERCB,
           AOPT_NOARG,
           aopt_set_literal(0),
@@ -1613,7 +1613,7 @@ static int proc_mode_server(int id, int argc, const char **argv) {
                 rc = SOCKPERF_ERR_BAD_ARGUMENT;
             }
         }
-#ifndef WIN32
+#ifndef __windows__
         if (!rc && aopt_check(server_obj, OPT_RXFILTERCB)) {
             s_user_params.is_rxfiltercb = true;
         }
@@ -1659,7 +1659,7 @@ static int proc_mode_server(int id, int argc, const char **argv) {
         printf(" " MODULE_NAME
                " %s [-i ip / --addr address] [-p port] [--mc-rx-if ip] [--mc-tx-if ip] [--mc-source-filter ip]\n",
                sockperf_modes[id].name);
-#ifndef WIN32
+#ifndef __windows__
         printf(" " MODULE_NAME
                " %s -f file [-F s/p/e] [--mc-rx-if ip] [--mc-tx-if ip] [--mc-source-filter ip]\n",
                sockperf_modes[id].name);
@@ -1815,7 +1815,7 @@ static int parse_common_opt(const AOPT_OBJECT *common_obj) {
                 if (optarg) {
                     strncpy(feedfile_name, optarg, MAX_ARGV_SIZE);
                     feedfile_name[MAX_PATH_LENGTH - 1] = '\0';
-#if defined(WIN32) || defined(__FreeBSD__)
+#if defined(__windows__) || defined(__FreeBSD__)
                     s_user_params.fd_handler_type = SELECT;
 #else
                     s_user_params.fd_handler_type = EPOLL;
@@ -1838,7 +1838,7 @@ static int parse_common_opt(const AOPT_OBJECT *common_obj) {
 
                     strncpy(fd_handle_type, optarg, MAX_ARGV_SIZE);
                     fd_handle_type[MAX_ARGV_SIZE - 1] = '\0';
-#ifndef WIN32
+#ifndef __windows__
 #ifndef __FreeBSD__
                     if (!strcmp(fd_handle_type, "epoll") || !strcmp(fd_handle_type, "e")) {
                         s_user_params.fd_handler_type = EPOLL;
@@ -1953,7 +1953,7 @@ static int parse_common_opt(const AOPT_OBJECT *common_obj) {
                 errno = 0;
                 int value = strtol(optarg, NULL, 0);
                 if (errno != 0 || value < -1) {
-#ifdef WIN32
+#ifdef __windows__
                     log_msg("'-%d' Invalid select timeout val: %s", OPT_SELECT_TIMEOUT, optarg);
 #elif __FreeBSD__
                     log_msg("'-%d' Invalid select/poll timeout val: %s", OPT_SELECT_TIMEOUT,
@@ -2004,7 +2004,7 @@ static int parse_common_opt(const AOPT_OBJECT *common_obj) {
         if (!rc && aopt_check(common_obj, OPT_TOS)) {
             const char *optarg = aopt_value(common_obj, OPT_TOS);
             if (optarg) {
-#if defined(WIN32) || defined(_WIN32)
+#if defined(__windows__) || defined(___windows__)
                 log_msg("TOS option not supported for Windows");
                 rc = SOCKPERF_ERR_UNSUPPORTED;
 #else
@@ -2017,7 +2017,7 @@ static int parse_common_opt(const AOPT_OBJECT *common_obj) {
         if (!rc && aopt_check(common_obj, OPT_LLS)) {
             const char *optarg = aopt_value(common_obj, OPT_LLS);
             if (optarg) {
-#if defined(WIN32) || defined(_WIN32)
+#if defined(__windows__) || defined(___windows__)
                 log_msg("LLS option not supported for Windows");
                 rc = SOCKPERF_ERR_UNSUPPORTED;
 #else
@@ -2093,7 +2093,7 @@ static int parse_common_opt(const AOPT_OBJECT *common_obj) {
         if (!rc && aopt_check(common_obj, OPT_SOCK_ACCL)) {
             s_user_params.withsock_accl = true;
         }
-#ifndef WIN32
+#ifndef __windows__
 
         if (!rc && aopt_check(common_obj, OPT_ZCOPYREAD)) {
             s_user_params.is_zcopyread = true;
@@ -2150,7 +2150,7 @@ static int parse_common_opt(const AOPT_OBJECT *common_obj) {
             }
         }
 #endif // !defined(__FreeBSD__)
-#endif // !defined(WIN32)
+#endif // !defined(__windows__)
 
         if (!rc && aopt_check(common_obj, OPT_TCP)) {
             if (!aopt_check(common_obj, 'f')) {
@@ -2365,13 +2365,13 @@ void cleanup() {
                 }
                 if (s_user_params.addr.ss_family == AF_UNIX) {
                     os_unlink_unix_path(s_user_params.client_bind_info.addr_un.sun_path);
-#ifndef WIN32 // AF_UNIX with DGRAM isn't supported in Win32
+#ifndef __windows__ // AF_UNIX with DGRAM isn't supported in __windows__
                     if (s_user_params.mode == MODE_CLIENT && s_user_params.sock_type == SOCK_DGRAM) { // unlink binded client
                         std::string sun_path = build_client_socket_name(&s_user_params.addr.addr_un, getpid(), ifd);
                         log_dbg("unlinking %s", sun_path.c_str());
                         unlink(sun_path.c_str());
                     }
-#endif
+#endif // __windows__
                     if (s_user_params.mode == MODE_SERVER)
                         os_unlink_unix_path(g_fds_array[ifd]->server_addr.addr_un.sun_path);
                 }
@@ -2431,14 +2431,14 @@ static void set_select_timeout(int time_out_msec) {
 
 //------------------------------------------------------------------------------
 void set_defaults() {
-#if !defined(WIN32) && !defined(__FreeBSD__)
+#if !defined(__windows__) && !defined(__FreeBSD__)
     bool success = vma_xlio_try_set_func_pointers();
     if (!success) {
         log_dbg("Failed to set function pointers for system functions.");
         log_dbg("Check vma-xlio-redirect.cpp for functions which your OS implementation is missing. "
                 "Re-compile sockperf without them.");
     }
-#elif defined WIN32
+#elif defined __windows__
     int rc = 0;
     if (os_sock_startup() == false) { // Only relevant for Windows
         log_err("Failed to initialize WSA");
@@ -2985,7 +2985,7 @@ static int set_sockets_from_feedfile(const char *feedfile_name) {
         log_msg("Can't open file: %s\n", feedfile_name);
         return SOCKPERF_ERR_NOT_EXIST;
     }
-#ifndef WIN32
+#ifndef __windows__
     if (!S_ISREG(st_buf.st_mode)) {
         log_msg("Can't open file: %s -not a regular file.\n", feedfile_name);
         return SOCKPERF_ERR_NOT_EXIST;

@@ -48,7 +48,7 @@
 
 typedef int64_t ticks_t;
 
-#ifdef WIN32
+#ifdef __windows__
 
 #include <WinSock2.h>
 #include <Winbase.h>
@@ -75,7 +75,7 @@ inline ticks_t timespec2nsec(const struct timespec &_val) {
 }
 
 inline ticks_t os_gettimeoftsc() {
-#ifdef WIN32
+#ifdef __windows__
     LARGE_INTEGER lp;
     double PCFreq = 0.0;
     QueryPerformanceFrequency(&lp);
@@ -109,7 +109,7 @@ inline ticks_t os_gettimeoftsc() {
 }
 
 inline void os_ts_gettimeofclock(struct timespec *pts) {
-#ifdef WIN32
+#ifdef __windows__
     ticks_t val = os_gettimeoftsc(); // probably just NSEC_IN_SEC
     pts->tv_sec = val / NSEC_IN_SEC;
     pts->tv_nsec = val % NSEC_IN_SEC;

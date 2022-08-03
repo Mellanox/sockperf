@@ -37,7 +37,7 @@
 #include <math.h>
 
 #include "clock.h"
-#ifndef WIN32
+#ifndef __windows__
 #include <unistd.h> // for usleep
 #endif
 /**

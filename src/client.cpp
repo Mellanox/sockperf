@@ -204,7 +204,7 @@ void printHistogram(uint32_t binSize, std::map<uint32_t, uint32_t> &activeBins, 
     std::map<uint32_t, uint32_t>::iterator itr;
 
     // Scale to terminal
-#ifndef WIN32
+#ifndef __windows__
     struct winsize size;
     ioctl(STDOUT_FILENO, TIOCGWINSZ, &size);
     terminalWidth = size.ws_col;
@@ -824,7 +824,7 @@ static int _connect_check(int ifd) {
 
 #define POLL_TIMEOUT_MS 1
 
-#ifdef WIN32
+#ifdef __windows__
     fd_set rfds, wfds;
     struct timeval tv;
     tv.tv_sec = 0;
@@ -841,7 +841,7 @@ static int _connect_check(int ifd) {
     struct pollfd fds = { .fd = ifd, .events = POLLIN | POLLOUT, };
     pollrc = poll(&fds, 1, POLL_TIMEOUT_MS);
     avail = pollrc > 0 && (fds.revents & (POLLIN | POLLOUT));
-#endif /* WIN32 */
+#endif /* __windows__ */
 
     if (pollrc < 0) {
         log_err("Failed to poll for events during connection establishment");
@@ -884,11 +884,11 @@ int Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration,
                 struct sockaddr_store_t unix_addr;
                 socklen_t unix_addr_len;
                 if (p_client_bind_addr->ss_family == AF_UNIX && g_pApp->m_const_params.sock_type == SOCK_DGRAM) { // Need to bind localy
-#ifdef WIN32
+#ifdef __windows__
                     log_err("AF_UNIX with DGRAM isn't supported in windows");
                     rc = SOCKPERF_ERR_SOCKET;
                     break;
-#else
+#else // __windows__
                     if (p_client_bind_addr->addr_un.sun_path[0] == 0) { // no specific addr client_info was provoided
                         std::string sun_path = build_client_socket_name(&s_user_params.addr.addr_un, getpid(), ifd);
                         log_dbg("No client name was provided, setting addr_un.sun_path to %s\n",
@@ -906,7 +906,7 @@ int Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration,
                         p_client_bind_addr = &unix_addr;
                         client_bind_addr_len = unix_addr_len;
                     }
-#endif
+#endif //__windows__
                 }
 
                 log_dbg("[fd=%d] Binding to: %s...", ifd, hostport.c_str());
@@ -1258,7 +1258,7 @@ void client_handler(handler_info *p_info) {
             client_handler<IoRecvfromMUX>(p_info->fd_min, p_info->fd_max, p_info->fd_num);
             break;
         }
-#ifndef WIN32
+#ifndef __windows__
         case POLL: {
             client_handler<IoPoll>(p_info->fd_min, p_info->fd_max, p_info->fd_num);
             break;

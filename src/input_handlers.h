@@ -62,7 +62,7 @@ public:
     the MSG_NOSIGNAL flag.
     Note: another way is call signal (SIGPIPE,SIG_IGN);
  */
-#ifndef WIN32
+#ifndef __windows__
         flags = MSG_NOSIGNAL;
 #endif
 

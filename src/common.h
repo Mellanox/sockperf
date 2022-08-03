@@ -82,7 +82,7 @@ static inline int msg_sendto(int fd, uint8_t *buf, int nbytes,
  * the MSG_NOSIGNAL flag.
  * Note: another way is call signal (SIGPIPE,SIG_IGN);
  */
-#ifndef WIN32
+#ifndef __windows__
     flags = MSG_NOSIGNAL;
 
     /*
@@ -94,7 +94,7 @@ static inline int msg_sendto(int fd, uint8_t *buf, int nbytes,
     if (g_pApp->m_const_params.is_nonblocked_send) {
         flags |= MSG_DONTWAIT;
     }
-#endif
+#endif // __windows__
 
     int size = nbytes;
     if (g_fds_array[fd]->sock_type == SOCK_STREAM) {

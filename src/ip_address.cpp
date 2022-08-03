@@ -29,7 +29,7 @@
 #include "ip_address.h"
 #include "common.h"
 
-#ifdef WIN32
+#ifdef __windows__
 #include <ws2tcpip.h>
 #else
 #include <arpa/inet.h>
