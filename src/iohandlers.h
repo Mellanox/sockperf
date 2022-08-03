@@ -230,7 +230,7 @@ private:
     fd_set m_readfds, m_save_fds;
 };
 
-#ifndef WIN32
+#ifndef __windows__
 //==============================================================================
 class IoPoll : public IoHandler {
 public:

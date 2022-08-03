@@ -31,7 +31,7 @@
 #include <string.h>
 
 void os_printf_backtrace(void) {
-#ifdef WIN32
+#ifdef __windows__
     unsigned int i;
     void *stack[100];
     unsigned short frames;
@@ -69,7 +69,7 @@ void os_printf_backtrace(void) {
 // Thread functions
 
 void os_thread_init(os_thread_t *thr) {
-#ifdef WIN32
+#ifdef __windows__
     thr->hThread = NULL;
     thr->tid = 0;
 #else
@@ -78,19 +78,19 @@ void os_thread_init(os_thread_t *thr) {
 }
 
 void os_thread_close(os_thread_t *thr) {
-#ifdef WIN32
+#ifdef __windows__
     if (thr->hThread) CloseHandle(thr->hThread);
 #endif
 }
 
 void os_thread_detach(os_thread_t *thr) {
-#ifndef WIN32
+#ifndef __windows__
     pthread_detach(thr->tid);
 #endif
 }
 
 int os_thread_exec(os_thread_t *thr, void *(*start)(void *), void *arg) {
-#ifdef WIN32
+#ifdef __windows__
     if (thr->hThread) CloseHandle(thr->hThread);
     thr->hThread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)start, arg, 0, &thr->tid);
     if (thr->hThread == INVALID_HANDLE_VALUE) {
@@ -111,7 +111,7 @@ int os_thread_exec(os_thread_t *thr, void *(*start)(void *), void *arg) {
 }
 
 void os_thread_kill(os_thread_t *thr) {
-#ifdef WIN32
+#ifdef __windows__
     DWORD exit_code;
     if (GetExitCodeThread(thr, &exit_code)) TerminateThread(thr, exit_code); // kill thread
 #else
@@ -120,7 +120,7 @@ void os_thread_kill(os_thread_t *thr) {
 }
 
 void os_thread_join(os_thread_t *thr) {
-#ifdef WIN32
+#ifdef __windows__
     WaitForSingleObject(thr, INFINITE);
 #else
     pthread_join(thr->tid, 0);
@@ -129,7 +129,7 @@ void os_thread_join(os_thread_t *thr) {
 
 os_thread_t os_getthread(void) {
     os_thread_t mythread;
-#ifdef WIN32
+#ifdef __windows__
     mythread.tid = GetCurrentThreadId();
     mythread.hThread = GetCurrentThread();
 #elif __FreeBSD__
@@ -143,7 +143,7 @@ os_thread_t os_getthread(void) {
 // Mutex functions
 
 void os_mutex_init(os_mutex_t *lock) {
-#ifdef WIN32
+#ifdef __windows__
     lock->mutex = CreateMutex(NULL, FALSE, NULL);
 #else
     pthread_mutex_init(&lock->mutex, NULL);
@@ -151,7 +151,7 @@ void os_mutex_init(os_mutex_t *lock) {
 }
 
 void os_mutex_close(os_mutex_t *lock) {
-#ifdef WIN32
+#ifdef __windows__
     CloseHandle(lock->mutex);
 #else
     pthread_mutex_destroy(&lock->mutex);
@@ -159,7 +159,7 @@ void os_mutex_close(os_mutex_t *lock) {
 }
 
 void os_mutex_lock(os_mutex_t *lock) {
-#ifdef WIN32
+#ifdef __windows__
     WaitForSingleObject(lock->mutex, INFINITE);
 #else
     pthread_mutex_lock(&lock->mutex);
@@ -167,7 +167,7 @@ void os_mutex_lock(os_mutex_t *lock) {
 }
 
 void os_mutex_unlock(os_mutex_t *lock) {
-#ifdef WIN32
+#ifdef __windows__
     ReleaseMutex(lock->mutex);
 #else
     pthread_mutex_unlock(&lock->mutex);
@@ -175,7 +175,7 @@ void os_mutex_unlock(os_mutex_t *lock) {
 }
 
 int os_set_nonblocking_socket(int fd) {
-#ifdef WIN32
+#ifdef __windows__
     int iResult;
     u_long iMode = 1; // = Non-blocking
     iResult = ioctlsocket(fd, FIONBIO, &iMode);
@@ -202,7 +202,7 @@ int os_set_nonblocking_socket(int fd) {
 }
 
 void os_set_signal_action(int signum, sig_handler handler) {
-#ifdef WIN32
+#ifdef __windows__
     // Meny: No SIGALRM on Windows, A different thread handles test duration timer.
     signal(signum, handler);
 #else
@@ -217,7 +217,7 @@ void os_set_signal_action(int signum, sig_handler handler) {
 }
 
 int os_daemonize() {
-#ifdef WIN32
+#ifdef __windows__
     printf("ERROR: daemonize is not supported!\n");
     return -1;
 #else
@@ -229,7 +229,7 @@ int os_daemonize() {
 #endif
 }
 
-#ifdef WIN32
+#ifdef __windows__
 struct TimeHandler {
     itimerval myTimer;
     sig_handler *handler;
@@ -243,7 +243,7 @@ struct TimeHandler {
 
 int os_set_duration_timer(const itimerval &timer, sig_handler handler) {
     int ret;
-#ifdef WIN32
+#ifdef __windows__
     // Creating a new thread to handle timer logic
     os_thread_t timer_thread;
     os_thread_init(&timer_thread);
@@ -267,7 +267,7 @@ int os_set_duration_timer(const itimerval &timer, sig_handler handler) {
 }
 
 void os_set_disarm_timer(const itimerval& timer) {
-#ifdef WIN32
+#ifdef __windows__
     if (SetTimer(NULL, 0, 0, NULL) == 0) {
         printf("ERROR: SetTimer() failed when disarming");
     }
@@ -279,8 +279,9 @@ void os_set_disarm_timer(const itimerval& timer) {
 
 }
 
+
 const char* os_get_error(int res) {
-#ifdef WIN32
+#ifdef __windows__
     return gai_strerrorA(res);
 #else
     return gai_strerror(res);
@@ -288,14 +289,14 @@ const char* os_get_error(int res) {
 }
 
 void os_unlink_unix_path(char* path) {
-#ifdef WIN32
+#ifdef __windows__
     remove(path);
 #else
     unlink(path);
 #endif
 }
 
-#ifdef WIN32
+#ifdef __windows__
 // Meny: This function contains test duration timer logic
 void *win_set_timer(void *_pTimeHandler) {
     TimeHandler *pTimeHandler = (TimeHandler *)_pTimeHandler;
@@ -332,7 +333,7 @@ void *win_set_timer(void *_pTimeHandler) {
 #endif
 
 bool os_sock_startup() {
-#ifdef WIN32
+#ifdef __windows__
     WSADATA wsaData;
     if (WSAStartup(0x202, &wsaData) != 0) {
         return false;
@@ -344,7 +345,7 @@ bool os_sock_startup() {
 }
 
 bool os_sock_cleanup() {
-#ifdef WIN32
+#ifdef __windows__
     if (WSACleanup() != 0) {
         return false;
     }
@@ -355,7 +356,7 @@ bool os_sock_cleanup() {
 }
 
 void os_init_cpuset(os_cpuset_t *_mycpuset) {
-#ifdef WIN32
+#ifdef __windows__
     _mycpuset->cpuset = 0;
 #else
     CPU_ZERO(&_mycpuset->cpuset);
@@ -365,7 +366,7 @@ void os_init_cpuset(os_cpuset_t *_mycpuset) {
 void os_cpu_set(os_cpuset_t *_mycpuset, long _cpu_from, long _cpu_cur) {
 
     while ((_cpu_from <= _cpu_cur)) {
-#ifdef WIN32
+#ifdef __windows__
         _mycpuset->cpuset = (int)(1 << _cpu_from);
 #else
         CPU_SET(_cpu_from, &(_mycpuset->cpuset));
@@ -375,7 +376,7 @@ void os_cpu_set(os_cpuset_t *_mycpuset, long _cpu_from, long _cpu_cur) {
 }
 
 int os_set_affinity(const os_thread_t &thread, const os_cpuset_t &_mycpuset) {
-#ifdef WIN32
+#ifdef __windows__
     if (0 == SetThreadAffinityMask(thread.hThread, _mycpuset.cpuset)) return -1;
 #else
     // Can't use thread.tid since it's syscall and not pthread_t
@@ -386,7 +387,7 @@ int os_set_affinity(const os_thread_t &thread, const os_cpuset_t &_mycpuset) {
 }
 
 int os_get_max_active_fds_num() {
-#ifdef WIN32
+#ifdef __windows__
     return MAX_OPEN_FILES;
 #else
     static int max_active_fd_num = 0;

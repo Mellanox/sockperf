@@ -411,7 +411,7 @@ void server_handler(handler_info *p_info) {
             server_handler<IoSelect>(p_info->fd_min, p_info->fd_max, p_info->fd_num);
             break;
         }
-#ifndef WIN32
+#ifndef __windows__
         case POLL: {
             server_handler<IoPoll>(p_info->fd_min, p_info->fd_max, p_info->fd_num);
             break;

@@ -159,7 +159,7 @@ int IoSelect::prepareNetwork() {
 
     return rc;
 }
-#ifndef WIN32
+#ifndef __windows__
 //==============================================================================
 //------------------------------------------------------------------------------
 IoPoll::IoPoll(int _fd_min, int _fd_max, int _fd_num)

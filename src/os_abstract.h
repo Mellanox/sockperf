@@ -43,10 +43,10 @@
 #include "ticks_os.h"
 
 /***********************************************************************************
-*				 WIN32
+*				 __windows__
 ***********************************************************************************/
 
-#ifdef WIN32
+#ifdef __windows__
 
 #include <WS2tcpip.h>
 #include <Dbghelp.h> // backtrace
@@ -164,7 +164,7 @@ void *win_set_timer(void *p_timer);
 ***********************************************************************************/
 
 typedef struct os_thread_t {
-#ifdef WIN32
+#ifdef __windows__
     HANDLE hThread;
     DWORD tid;
 #else
@@ -173,7 +173,7 @@ typedef struct os_thread_t {
 } os_thread_t;
 
 typedef struct os_mutex_t {
-#ifndef WIN32
+#ifndef __windows__
     pthread_mutex_t mutex;
 #else
     HANDLE mutex;
@@ -181,7 +181,7 @@ typedef struct os_mutex_t {
 } os_mutex_t;
 
 typedef struct os_cpuset_t {
-#ifdef WIN32
+#ifdef __windows__
     DWORD_PTR cpuset;
 #elif __FreeBSD__
     cpuset_t cpuset;
@@ -204,7 +204,7 @@ const char* os_get_error(int res);
 void os_unlink_unix_path(char* path);
 
 // Colors
-#ifdef WIN32
+#ifdef __windows__
 #define MAGNETA ""
 #define RED ""
 #define ENDCOLOR ""
@@ -240,7 +240,7 @@ int os_set_affinity(const os_thread_t &thread, const os_cpuset_t &_mycpuset);
 // ERRORS
 
 inline bool os_err_in_progress() {
-#ifdef WIN32
+#ifdef __windows__
     // In Windows it's WSAEINPROGRESS for blocking sockets and WSAEWOULDBLOCK for non-vlocking
     // sockets
     return (WSAGetLastError() == WSAEWOULDBLOCK || WSAGetLastError() == WSAEINPROGRESS);
@@ -250,7 +250,7 @@ inline bool os_err_in_progress() {
 }
 
 inline bool os_err_eagain() {
-#ifdef WIN32
+#ifdef __windows__
     return (WSAGetLastError() == WSAEWOULDBLOCK);
 #else
     return (errno == EAGAIN);
@@ -258,14 +258,14 @@ inline bool os_err_eagain() {
 }
 
 inline bool os_err_conn_reset() {
-#ifdef WIN32
+#ifdef __windows__
     return (WSAGetLastError() == WSAECONNRESET);
 #else
     return (errno == ECONNRESET);
 #endif
 }
 
-#ifdef WIN32
+#ifdef __windows__
 #define _max(x, y) max(x, y)
 #define _min(x, y) min(x, y)
 #else

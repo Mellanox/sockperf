@@ -31,7 +31,7 @@
 
 #include <stdint.h>
 
-#ifdef WIN32
+#ifdef __windows__
 
 typedef uint16_t in_port_t;
 
@@ -39,7 +39,7 @@ typedef uint16_t in_port_t;
 
 #include <netinet/in.h>  /* internet address manipulation */
 
-#endif // WIN32
+#endif // __windows__
 
 typedef struct port_descriptor {
     int sock_type; /**< SOCK_STREAM (tcp), SOCK_DGRAM (udp), SOCK_RAW (ip) */

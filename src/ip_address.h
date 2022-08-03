@@ -29,7 +29,7 @@
 #ifndef IP_ADDRESS_H_
 #define IP_ADDRESS_H_
 
-#ifdef WIN32
+#ifdef __windows__
 #include <WS2tcpip.h>
 #include <Winsock2.h>
 #include <unordered_map>

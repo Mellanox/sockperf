@@ -31,7 +31,7 @@
 
 #define __STDC_FORMAT_MACROS
 
-#ifdef WIN32
+#ifdef __windows__
 #include <WS2tcpip.h>
 #include <Winsock2.h>
 #include <unordered_map>
@@ -96,7 +96,7 @@ typedef unsigned short int sa_family_t;
 #include "playback.h"
 #include "ip_address.h"
 
-#if !defined(WIN32) && !defined(__FreeBSD__)
+#if !defined(__windows__) && !defined(__FreeBSD__)
 #include "vma-xlio-redirect.h"
 #ifdef USING_VMA_EXTRA_API
 #include <mellanox/vma_extra.h>
@@ -152,7 +152,7 @@ const uint32_t TEST_FIRST_CONNECTION_FIRST_PACKET_TTL_THRESHOLD_MSEC = 50;
     ":(6553[0-5]|655[0-2][0-9]|65[0-4][0-9]{2}|6[0-4][0-9]{3}|[0-5]?[0-9]{1,4})"                   \
     "(:([a-zA-Z0-9\\.\\-]+|\\[([a-fA-F0-9.:]+)\\]))?[\r\n]"
 
-#ifdef WIN32
+#ifdef __windows__
 #define UNIX_DOMAIN_SOCKET_FORMAT_REG_EXP                                                          \
         "^[UuTt]:([A-Za-z]:[\\\\/].*)[\r\n]*"
 #define RESOLVE_ADDR_FORMAT_SOCKET                                                                 \
@@ -635,7 +635,7 @@ typedef enum { // must be coordinated with s_fds_handle_desc in common.cpp
     RECVFROM = 0,
     RECVFROMMUX,
     SELECT,
-#ifndef WIN32
+#ifndef __windows__
     POLL,
     EPOLL,
 #endif
