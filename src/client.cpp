@@ -793,7 +793,7 @@ void Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration
 }
 
 //------------------------------------------------------------------------------
-#ifdef USING_VMA_EXTRA_API
+#ifdef USING_VMA_EXTRA_API // For VMA socketxtreme Only
 static int _connect_check_vma(int ifd) {
     int rc = SOCKPERF_ERR_SOCKET;
     int ring_fd = 0;
@@ -814,7 +814,7 @@ static int _connect_check_vma(int ifd) {
     }
     return rc;
 }
-#endif
+#endif // USING_VMA_EXTRA_API
 
 //------------------------------------------------------------------------------
 static int _connect_check(int ifd) {
@@ -895,12 +895,12 @@ int Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration,
                         std::string sun_path = build_client_socket_name(&s_user_params.addr.addr_un, getpid(), ifd);
                         log_dbg("No client name was provided, setting addr_un.sun_path to %s\n",
                                sun_path.c_str());
-                        if (sun_path.length() > MAX_UDS_NAME) {
-                            log_err("length of client socket name (%s) is more than %d bytes", sun_path.c_str(), MAX_UDS_NAME);
+                        if (sun_path.length() >= sizeof(unix_addr.addr_un.sun_path)) {
+                            log_err("length of client socket name (%s) is greater-equal %zu bytes", sun_path.c_str(), sizeof(unix_addr.addr_un.sun_path));
                             rc = SOCKPERF_ERR_SOCKET;
                         } else {
                             memset(unix_addr.addr_un.sun_path, 0, sizeof(unix_addr.addr_un.sun_path));
-                            strncpy(unix_addr.addr_un.sun_path, sun_path.c_str(), MAX_UDS_NAME);
+                            memcpy(unix_addr.addr_un.sun_path, sun_path.c_str(), sun_path.length());
                             unix_addr_len = sizeof(struct sockaddr_un);
                             unix_addr.ss_family = AF_UNIX;
                             hostport = sun_path;
@@ -925,11 +925,11 @@ int Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration,
                 if (connect(ifd, reinterpret_cast<const sockaddr *>(&(data->server_addr)),
                             data->server_addr_len) < 0) {
                     if (os_err_in_progress()) {
-#ifdef USING_VMA_EXTRA_API
+#ifdef USING_VMA_EXTRA_API // For VMA socketxtreme Only
                         if (g_pApp->m_const_params.fd_handler_type == SOCKETXTREME && g_vma_api) {
                             rc = _connect_check_vma(ifd);
                         } else
-#endif
+#endif // USING_VMA_EXTRA_API
                         {
                             rc = _connect_check(ifd);
                         }
@@ -1270,14 +1270,14 @@ void client_handler(handler_info *p_info) {
             client_handler<IoEpoll>(p_info->fd_min, p_info->fd_max, p_info->fd_num);
             break;
         }
-#endif
-#ifdef USING_VMA_EXTRA_API
+#endif // !__FreeBSD__
+#ifdef USING_VMA_EXTRA_API // For VMA socketxtreme Only
         case SOCKETXTREME: {
             client_handler<IoSocketxtreme>(p_info->fd_min, p_info->fd_max, p_info->fd_num);
             break;
         }
-#endif
-#endif
+#endif // USING_VMA_EXTRA_API
+#endif // !WIN32
         default: {
             ERROR_MSG("unknown file handler");
             break;

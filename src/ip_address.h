@@ -51,8 +51,6 @@ typedef unsigned short int sa_family_t;
 
 #include <unordered_map>
 
-#define MAX_UDS_NAME 108
-
 class IPAddress {
 private:
     sa_family_t m_family;

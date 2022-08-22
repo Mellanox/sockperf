@@ -251,7 +251,7 @@ int IoEpoll::prepareNetwork() {
     return rc;
 }
 #endif
-#ifdef USING_VMA_EXTRA_API
+#ifdef USING_VMA_EXTRA_API // VMA socketxtreme-extra-api Only
 //==============================================================================
 //------------------------------------------------------------------------------
 IoSocketxtreme::IoSocketxtreme(int _fd_min, int _fd_max, int _fd_num)
@@ -307,5 +307,5 @@ int IoSocketxtreme::prepareNetwork() {
     }
     return rc;
 }
-#endif
-#endif
+#endif // USING_VMA_EXTRA_API
+#endif // !WIN32

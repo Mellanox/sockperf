@@ -200,16 +200,21 @@ private:
     }
 
     inline unsigned int client_receive_from_selected(int ifd) {
-#ifdef USING_VMA_EXTRA_API
-        if (SOCKETXTREME == g_pApp->m_const_params.fd_handler_type) {
+#ifdef USING_VMA_EXTRA_API // VMA
+        if (SOCKETXTREME == g_pApp->m_const_params.fd_handler_type && g_vma_api) {
             return client_receive_from_selected<SocketXtremeInputHandler>(ifd);
-        } else if (g_pApp->m_const_params.is_zcopyread) {
-            return client_receive_from_selected<VmaZCopyReadInputHandler>(ifd);
-        } else
-#endif
-        {
-            return client_receive_from_selected<RecvFromInputHandler>(ifd);
         }
+
+        if (g_pApp->m_const_params.is_zcopyread && g_vma_api) {
+            return client_receive_from_selected<VmaZCopyReadInputHandler>(ifd);
+        }
+#endif // USING_VMA_EXTRA_API
+#ifdef USING_XLIO_EXTRA_API // XLIO
+        if (g_pApp->m_const_params.is_zcopyread && g_xlio_api) {
+            return client_receive_from_selected<XlioZCopyReadInputHandler>(ifd);
+        }
+#endif // USING_XLIO_EXTRA_API
+        return client_receive_from_selected<RecvFromInputHandler>(ifd);
     }
 
     inline bool handle_message(int ifd, struct sockaddr_store_t &recvfrom_addr, socklen_t recvfrom_addrlen, int &receiveCount)
@@ -323,12 +328,12 @@ private:
         // send
         for (unsigned i = 0; i < g_pApp->m_const_params.burst_size && !g_b_exit; i++) {
             client_send_packet(ifd);
-#ifdef USING_VMA_EXTRA_API
+#ifdef USING_VMA_EXTRA_API // For VMA socketxtreme Only
             if (g_pApp->m_const_params.fd_handler_type == SOCKETXTREME &&
                 !g_pApp->m_const_params.b_client_ping_pong) {
                 m_ioHandler.waitArrival();
             }
-#endif
+#endif // USING_VMA_EXTRA_API
         }
 
         m_switchActivityInfo.execute(m_pMsgRequest->getSequenceCounter());

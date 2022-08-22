@@ -41,9 +41,11 @@ TicksTime g_cycleStartTime;
 
 debug_level_t g_debug_level = LOG_LVL_INFO;
 
-#ifdef USING_VMA_EXTRA_API
+#if defined(USING_VMA_EXTRA_API) || defined (USING_XLIO_EXTRA_API)
+#ifdef USING_VMA_EXTRA_API // VMA
 struct vma_buff_t *g_vma_buff = NULL;
 struct vma_completion_t *g_vma_comps;
+#endif // USING_VMA_EXTRA_API
 
 ZeroCopyData::ZeroCopyData() : m_pkt_buf(NULL), m_pkts(NULL) {}
 
@@ -54,7 +56,7 @@ ZeroCopyData::~ZeroCopyData() {
 }
 
 zeroCopyMap g_zeroCopyData;
-#endif
+#endif // USING_VMA_EXTRA_API || USING_XLIO_EXTRA_API
 
 uint32_t MPS_MAX = MPS_MAX_UL; // will be overwrite at runtime in case of ping-pong test
 PacketTimes *g_pPacketTimes = NULL;
@@ -66,8 +68,16 @@ fds_data **g_fds_array = NULL;
 int MAX_PAYLOAD_SIZE = 65507;
 int IGMP_MAX_MEMBERSHIPS = IP_MAX_MEMBERSHIPS;
 
-#ifdef USING_VMA_EXTRA_API
+#ifdef USING_VMA_EXTRA_API // VMA
 struct vma_api_t *g_vma_api;
-#endif
+#else
+void *g_vma_api = nullptr; // Dummy variable
+#endif // USING_VMA_EXTRA_API
+
+#ifdef USING_XLIO_EXTRA_API // XLIO
+struct xlio_api_t *g_xlio_api;
+#else
+void *g_xlio_api = nullptr; // Dummy variable
+#endif // USING_XLIO_EXTRA_API
 
 const App *g_pApp = NULL;

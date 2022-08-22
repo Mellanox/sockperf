@@ -379,7 +379,7 @@ private:
 };
 #endif
 
-#ifdef USING_VMA_EXTRA_API
+#ifdef USING_VMA_EXTRA_API // VMA socketxtreme-extra-api Only
 //==============================================================================
 class IoSocketxtreme : public IoHandler {
 public:
@@ -493,6 +493,6 @@ private:
     rings_vma_comps_map m_rings_vma_comps_map;
     rings_vma_comps_map::iterator m_rings_vma_comps_map_itr;
 };
-#endif
-#endif
-#endif /* IOHANDLERS_H_ */
+#endif // USING_VMA_EXTRA_API
+#endif // !WIN32
+#endif // IOHANDLERS_H_

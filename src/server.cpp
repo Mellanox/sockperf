@@ -72,9 +72,9 @@ int ServerBase::initBeforeLoop() {
         for (int ifd = m_ioHandlerRef.m_fd_min; ifd <= m_ioHandlerRef.m_fd_max; ifd++) {
 
             if (!(g_fds_array[ifd] && (g_fds_array[ifd]->active_fd_list))) continue;
-#ifdef USING_VMA_EXTRA_API
+#ifdef USING_VMA_EXTRA_API // VMA callback-extra-api Only
             g_fds_array[ifd]->p_msg = m_pMsgReply;
-#endif
+#endif // USING_VMA_EXTRA_API
             const sockaddr_store_t *p_bind_addr = &g_fds_array[ifd]->server_addr;
             socklen_t bind_addr_len = g_fds_array[ifd]->server_addr_len;
 
@@ -273,11 +273,11 @@ int Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_accept(int ifd) {
         tmp->recv.cur_offset = 0;
         tmp->recv.cur_size = tmp->recv.max_size;
 
-#ifdef USING_VMA_EXTRA_API
+#ifdef USING_VMA_EXTRA_API // VMA socketxtreme-extra-api Only
         if (g_vma_api && g_pApp->m_const_params.fd_handler_type == SOCKETXTREME) {
             active_ifd = g_vma_comps->user_data;
         } else
-#endif
+#endif // USING_VMA_EXTRA_API
         {
             active_ifd = (int)accept(
                 ifd, (struct sockaddr *)&addr,
@@ -311,14 +311,14 @@ int Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_accept(int ifd) {
                             active_fd_list[i] = active_ifd;
                             g_fds_array[ifd]->active_fd_count++;
                             g_fds_array[active_ifd] = tmp.release();
-#ifdef USING_VMA_EXTRA_API
+#ifdef USING_VMA_EXTRA_API // VMA socketxtreme-extra-api Only
                             if (g_vma_api &&
                                 g_pApp->m_const_params.fd_handler_type == SOCKETXTREME) {
                                 std::string hostport = sockaddr_to_hostport(g_vma_comps->src);
                                 log_dbg("peer address to accept: %s [%d]",
                                         hostport.c_str(), active_ifd);
                             } else
-#endif
+#endif // USING_VMA_EXTRA_API
                             {
                                 std::string hostport = sockaddr_to_hostport(addr);
                                 log_dbg("peer address to accept: %s [%d]",
@@ -352,13 +352,13 @@ int Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_accept(int ifd) {
                 if (tmp->active_fd_list) {
                     FREE(tmp->active_fd_list);
                 }
-#ifdef USING_VMA_EXTRA_API
+#ifdef USING_VMA_EXTRA_API // VMA socketxtreme-extra-api Only
                 if (g_vma_api && g_pApp->m_const_params.fd_handler_type == SOCKETXTREME) {
                     std::string hostport = sockaddr_to_hostport(g_vma_comps->src);
                     log_dbg("peer address to refuse: %s [%d]",
                             hostport.c_str(), active_ifd);
                 } else
-#endif
+#endif // USING_VMA_EXTRA_API
                 {
                     std::string hostport = sockaddr_to_hostport(addr);
                     log_dbg("peer address to refuse: %s [%d]", hostport.c_str(),
@@ -422,12 +422,12 @@ void server_handler(handler_info *p_info) {
             break;
         }
 #endif
-#ifdef USING_VMA_EXTRA_API
+#ifdef USING_VMA_EXTRA_API // VMA socketxtreme-extra-api Only
         case SOCKETXTREME: {
             server_handler<IoSocketxtreme>(p_info->fd_min, p_info->fd_max, p_info->fd_num);
             break;
         }
-#endif
+#endif // USING_VMA_EXTRA_API
 #endif
         default:
             ERROR_MSG("unknown file handler");
