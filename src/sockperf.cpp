@@ -1736,13 +1736,14 @@ static int resolve_sockaddr(const char *host, const char *port, int sock_type,
         struct sockaddr_store_t *tmp = ((sockaddr_store_t *)addr);
         if (path.size() > 0 && path[0] == '/') {
             log_dbg("provided path for Unix Domain Socket is %s\n", host);
-            if (path.length() >= MAX_UDS_NAME) {
-                log_err("length of name is larger than %d bytes", MAX_UDS_NAME);
+            if (path.length() >= sizeof(tmp->addr_un.sun_path)) {
+                log_err("length of name is greater-equal %zu bytes", sizeof(tmp->addr_un.sun_path));
                 res = SOCKPERF_ERR_SOCKET;
                 return res;
             }
             addr_len = sizeof(struct sockaddr_un);
-            strncpy(tmp->addr_un.sun_path, path.c_str(), MAX_UDS_NAME);
+            memset(tmp->addr_un.sun_path, 0, sizeof(tmp->addr_un.sun_path));
+            memcpy(tmp->addr_un.sun_path, path.c_str(), path.length());
             tmp->ss_family = AF_UNIX;
 
             return 0;
@@ -2365,15 +2366,15 @@ void cleanup() {
     if (s_user_params.select_timeout) {
         FREE(s_user_params.select_timeout);
     }
-#ifdef USING_VMA_EXTRA_API
-    if (g_vma_api && s_user_params.is_zcopyread) {
+#if defined(USING_VMA_EXTRA_API) || defined(USING_XLIO_EXTRA_API)
+    if ((g_vma_api || g_xlio_api) && s_user_params.is_zcopyread) {
         zeroCopyMap::iterator it;
         while ((it = g_zeroCopyData.begin()) != g_zeroCopyData.end()) {
             delete it->second;
             g_zeroCopyData.erase(it);
         }
     }
-#endif
+#endif // USING_VMA_EXTRA_API || USING_XLIO_EXTRA_API
 
     if (g_fds_array) {
         FREE(g_fds_array);
@@ -2446,7 +2447,7 @@ void set_defaults() {
 }
 
 //------------------------------------------------------------------------------
-#ifdef USING_VMA_EXTRA_API
+#ifdef USING_VMA_EXTRA_API // Only for VMA callback-extra-api
 class CallbackMessageHandler {
     int m_fd;
     fds_data *m_fds_ifd;
@@ -2486,7 +2487,7 @@ vma_recv_callback_retval_t myapp_vma_recv_pkt_filter_callback(int fd, size_t iov
     // If there is data in local buffer, then push new packet in TCP queue.Otherwise handle received
     // packet inside callback.
     if (g_zeroCopyData[fd] && g_zeroCopyData[fd]->m_pkts &&
-        g_zeroCopyData[fd]->m_pkts->n_packet_num > 0) {
+        reinterpret_cast<vma_packets_t *>(g_zeroCopyData[fd]->m_pkts)->n_packet_num > 0) {
         return VMA_PACKET_RECV;
     }
 
@@ -2579,7 +2580,7 @@ inline bool CallbackMessageHandler::handle_message()
 
     return true;
 }
-#endif
+#endif // USING_VMA_EXTRA_API
 
 int sock_set_accl(int fd) {
     int rc = SOCKPERF_ERR_NONE;
@@ -2877,11 +2878,11 @@ int prepare_socket(int fd, struct fds_data *p_data)
         rc = sock_set_tos(fd);
     }
 
-#ifdef USING_VMA_EXTRA_API
+#if defined(USING_VMA_EXTRA_API) || defined(USING_XLIO_EXTRA_API)
 #ifdef ST_TEST
     if (!stTest)
 #endif
-        if (!rc && (s_user_params.is_rxfiltercb && g_vma_api)) {
+        if (!rc && (s_user_params.is_rxfiltercb && g_vma_api)) { // XLIO does not support callback-extra-api
             // Try to register application with VMA's special receive notification callback logic
             if (g_vma_api->register_recv_callback(fd, myapp_vma_recv_pkt_filter_callback, NULL) <
                 0) {
@@ -2890,11 +2891,11 @@ int prepare_socket(int fd, struct fds_data *p_data)
             } else {
                 log_dbg("vma_api->register_recv_callback successful registered");
             }
-        } else if (!rc && (s_user_params.is_zcopyread && g_vma_api)) {
+        } else if (!rc && (s_user_params.is_zcopyread && (g_vma_api || g_xlio_api))) {
             g_zeroCopyData[fd] = new ZeroCopyData();
             g_zeroCopyData[fd]->allocate();
         }
-#endif
+#endif // USING_VMA_EXTRA_API || USING_XLIO_EXTRA_API
 
     return (!rc ? fd
                 : (int)INVALID_SOCKET); // TODO: use SOCKET all over the way and avoid this cast
@@ -3332,28 +3333,51 @@ int bringup(const int *p_daemonize) {
     /* Setup VMA */
     int _vma_pkts_desc_size = 0;
 
-#ifdef USING_VMA_EXTRA_API
+#if defined(USING_VMA_EXTRA_API) || defined(USING_XLIO_EXTRA_API)
     if (!rc && (s_user_params.is_rxfiltercb || s_user_params.is_zcopyread ||
                 s_user_params.fd_handler_type == SOCKETXTREME)) {
         // Get VMA extended API
+#ifdef USING_VMA_EXTRA_API
         g_vma_api = vma_get_api();
-        if (g_vma_api == NULL) {
-            errno = EPERM;
-            exit_with_err("VMA Extra API is not available", SOCKPERF_ERR_FATAL);
+#endif // USING_VMA_EXTRA_API
+        if (!g_vma_api) { // Try VMA Extra API
+            // Callback and Socketxtreme APIs are supported only by VMA
+            if (s_user_params.is_rxfiltercb || s_user_params.fd_handler_type == SOCKETXTREME) {
+                exit_with_err("VMA Extra API is not available", SOCKPERF_ERR_FATAL);
+            }
         } else {
             log_msg("VMA Extra API is in use");
         }
 
-        _vma_pkts_desc_size =
-            sizeof(struct vma_packets_t) + sizeof(struct vma_packet_t) + sizeof(struct iovec) * 16;
+        if (!g_vma_api) { // Try XLIO
+#ifdef USING_XLIO_EXTRA_API
+            g_xlio_api = xlio_get_api();
+#endif // USING_XLIO_EXTRA_API
+            if (!g_xlio_api) {
+                errno = EPERM;
+                exit_with_err("VMA or XLIO Extra API is not available", SOCKPERF_ERR_FATAL);
+            }
+
+            log_msg("XLIO Extra API is in use");
+        }
+
+        if (g_vma_api) {
+            _vma_pkts_desc_size =
+                sizeof(struct vma_packets_t) + sizeof(struct vma_packet_t) + sizeof(struct iovec) * 16;
+        } else {
+            _vma_pkts_desc_size =
+                sizeof(struct xlio_recvfrom_zcopy_packets_t) +
+                sizeof(struct xlio_recvfrom_zcopy_packet_t) + sizeof(struct iovec) * 16;
+        }
+
     }
 #else
     if (!rc && (s_user_params.is_rxfiltercb || s_user_params.is_zcopyread ||
                 s_user_params.fd_handler_type == SOCKETXTREME)) {
         errno = EPERM;
-        exit_with_err("Please compile with VMA Extra API to use these options", SOCKPERF_ERR_FATAL);
+        exit_with_err("Please compile with VMA or XLIO Extra API to use these options", SOCKPERF_ERR_FATAL);
     }
-#endif
+#endif // USING_VMA_EXTRA_API || USING_XLIO_EXTRA_API
 
 #if defined(DEFINED_TLS)
     rc = tls_init();

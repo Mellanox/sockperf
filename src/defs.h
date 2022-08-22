@@ -96,10 +96,49 @@
 
 #if !defined(WIN32) && !defined(__FreeBSD__)
 #include "vma-xlio-redirect.h"
-#ifdef USING_VMA_EXTRA_API
+#ifdef USING_VMA_EXTRA_API // VMA
+#define RING_LOGIC_PER_INTERFACE VMA_RING_LOGIC_PER_INTERFACE
+#define RING_LOGIC_PER_IP VMA_RING_LOGIC_PER_IP
+#define RING_LOGIC_PER_SOCKET VMA_RING_LOGIC_PER_SOCKET
+#define RING_LOGIC_PER_USER_ID VMA_RING_LOGIC_PER_USER_ID
+#define RING_LOGIC_PER_THREAD VMA_RING_LOGIC_PER_THREAD
+#define RING_LOGIC_PER_CORE VMA_RING_LOGIC_PER_CORE
+#define RING_LOGIC_PER_CORE_ATTACH_THREADS VMA_RING_LOGIC_PER_CORE_ATTACH_THREADS
+#define RING_LOGIC_LAST VMA_RING_LOGIC_LAST
+#define ring_logic_t vma_ring_logic_t
 #include <mellanox/vma_extra.h>
-#endif
-#endif
+#undef RING_LOGIC_PER_INTERFACE
+#undef RING_LOGIC_PER_IP
+#undef RING_LOGIC_PER_SOCKET
+#undef RING_LOGIC_PER_USER_ID
+#undef RING_LOGIC_PER_THREAD
+#undef RING_LOGIC_PER_CORE
+#undef RING_LOGIC_PER_CORE_ATTACH_THREADS
+#undef RING_LOGIC_LAST
+#undef ring_logic_t
+#endif // USING_VMA_EXTRA_API
+#ifdef USING_XLIO_EXTRA_API // XLIO
+#define RING_LOGIC_PER_INTERFACE XLIO_RING_LOGIC_PER_INTERFACE
+#define RING_LOGIC_PER_IP XLIO_RING_LOGIC_PER_IP
+#define RING_LOGIC_PER_SOCKET XLIO_RING_LOGIC_PER_SOCKET
+#define RING_LOGIC_PER_USER_ID XLIO_RING_LOGIC_PER_USER_ID
+#define RING_LOGIC_PER_THREAD XLIO_RING_LOGIC_PER_THREAD
+#define RING_LOGIC_PER_CORE XLIO_RING_LOGIC_PER_CORE
+#define RING_LOGIC_PER_CORE_ATTACH_THREADS XLIO_RING_LOGIC_PER_CORE_ATTACH_THREADS
+#define RING_LOGIC_LAST XLIO_RING_LOGIC_LAST
+#define ring_logic_t xlio_ring_logic_t
+#include <mellanox/xlio_extra.h>
+#undef RING_LOGIC_PER_INTERFACE
+#undef RING_LOGIC_PER_IP
+#undef RING_LOGIC_PER_SOCKET
+#undef RING_LOGIC_PER_USER_ID
+#undef RING_LOGIC_PER_THREAD
+#undef RING_LOGIC_PER_CORE
+#undef RING_LOGIC_PER_CORE_ATTACH_THREADS
+#undef RING_LOGIC_LAST
+#undef ring_logic_t
+#endif // USING_XLIO_EXTRA_API
+#endif // !WIN32 && !__FreeBSD__
 
 #define MIN_PAYLOAD_SIZE (MsgHeader::EFFECTIVE_SIZE)
 extern int MAX_PAYLOAD_SIZE;
@@ -135,9 +174,9 @@ const uint32_t TEST_FIRST_CONNECTION_FIRST_PACKET_TTL_THRESHOLD_MSEC = 50;
 #define MAX_ACTIVE_FD_NUM                                                                          \
     1024 /* maximum number of active connection to the single TCP addr:port                        \
             */
-#ifdef USING_VMA_EXTRA_API
+#ifdef USING_VMA_EXTRA_API // For VMA socketxtreme Only
 #define MAX_VMA_COMPS 1024 /* maximum size for the VMA completions array for VMA Poll */
-#endif
+#endif // USING_VMA_EXTRA_API
 
 #ifndef MAX_PATH_LENGTH
 #define MAX_PATH_LENGTH 1024
@@ -438,23 +477,23 @@ extern TicksTime g_cycleStartTime;
 
 extern debug_level_t g_debug_level;
 
-#ifdef USING_VMA_EXTRA_API
-
+#if defined(USING_VMA_EXTRA_API) || defined(USING_XLIO_EXTRA_API)
+#ifdef USING_VMA_EXTRA_API // VMA
 extern struct vma_buff_t *g_vma_buff;
 extern struct vma_completion_t *g_vma_comps;
-
+#endif // USING_VMA_EXTRA_API
 class ZeroCopyData {
 public:
     ZeroCopyData();
     void allocate();
     ~ZeroCopyData();
     unsigned char *m_pkt_buf;
-    struct vma_packets_t *m_pkts;
+    void *m_pkts;
 };
 // map from fd to zeroCopyData
 typedef std::map<int, ZeroCopyData *> zeroCopyMap;
 extern zeroCopyMap g_zeroCopyData;
-#endif
+#endif // USING_VMA_EXTRA_API || USING_XLIO_EXTRA_API
 
 class Message;
 
@@ -505,9 +544,9 @@ struct fds_data {
     IPAddress mc_source_ip_addr;    /**< message source ip for multicast packet filtering */
     int memberships_size = 0;
     struct SocketRecvData recv;
-#ifdef USING_VMA_EXTRA_API
-    Message *p_msg = nullptr;
-#endif
+#ifdef USING_VMA_EXTRA_API // VMA callback-extra-api Only
+    Message *p_msg = nullptr; // For VMA callback API.
+#endif // USING_VMA_EXTRA_API
 #if defined(DEFINED_TLS)
     void *tls_handle = nullptr;
 #endif /* DEFINED_TLS */
@@ -587,27 +626,35 @@ struct equal_to<struct sockaddr_store_t> :
 };
 } // namespace std
 
-#ifdef USING_VMA_EXTRA_API
+#ifdef USING_VMA_EXTRA_API // VMA socketxtreme-extra-api Only
 struct vma_ring_comps {
     vma_completion_t vma_comp_list[MAX_VMA_COMPS];
     int vma_comp_list_size;
     bool is_freed;
 };
-#endif
+#endif // USING_VMA_EXTRA_API
 
 typedef std::unordered_map<struct sockaddr_store_t, clt_session_info_t> seq_num_map;
 typedef std::unordered_map<IPAddress, size_t> addr_to_id;
-#ifdef USING_VMA_EXTRA_API
+#ifdef USING_VMA_EXTRA_API // VMA socketxtreme-extra-api Only
 typedef std::unordered_map<int, struct vma_ring_comps *> rings_vma_comps_map;
 #endif // USING_VMA_EXTRA_API
 
 extern fds_data **g_fds_array;
 extern int IGMP_MAX_MEMBERSHIPS;
 
-#ifdef USING_VMA_EXTRA_API
+#ifdef USING_VMA_EXTRA_API // VMA
 typedef std::queue<int> vma_comps_queue;
 extern struct vma_api_t *g_vma_api;
-#endif
+#else
+extern void *g_vma_api; // Dummy variable
+#endif // USING_VMA_EXTRA_API
+
+#ifdef USING_XLIO_EXTRA_API // XLIO
+extern struct xlio_api_t *g_xlio_api;
+#else
+extern void *g_xlio_api; // Dummy variable
+#endif // USING_XLIO_EXTRA_API
 
 typedef enum {
     MODE_CLIENT = 0,

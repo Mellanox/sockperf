@@ -234,10 +234,10 @@ const char *handler2str(fd_block_handler_t type) {
 #ifndef WIN32
                                                             ,
                                                             "poll", "epoll",
-#ifdef USING_VMA_EXTRA_API
+#ifdef USING_VMA_EXTRA_API // For VMA socketxtreme Only
                                                             "socketxtreme"
-#endif
-#endif
+#endif // USING_VMA_EXTRA_API
+#endif // !WIN32
     };
 
     return s_fds_handle_desc[type];

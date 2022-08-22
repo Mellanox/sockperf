@@ -38,8 +38,6 @@
 
 #include <unordered_map>
 
-#define MAX_UDS_NAME 108
-
 class IPAddress {
 private:
     sa_family_t m_family;

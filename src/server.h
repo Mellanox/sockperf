@@ -125,16 +125,21 @@ public:
 
     inline bool server_receive_then_send(int ifd)
     {
-#ifdef USING_VMA_EXTRA_API
-        if (SOCKETXTREME == g_pApp->m_const_params.fd_handler_type) {
+#ifdef USING_VMA_EXTRA_API // VMA
+        if (SOCKETXTREME == g_pApp->m_const_params.fd_handler_type && g_vma_api) {
             return server_receive_then_send<SocketXtremeInputHandler>(ifd);
-        } else if (g_pApp->m_const_params.is_zcopyread) {
-            return server_receive_then_send<VmaZCopyReadInputHandler>(ifd);
-        } else
-#endif
-        {
-            return server_receive_then_send<RecvFromInputHandler>(ifd);
         }
+
+        if (g_pApp->m_const_params.is_zcopyread && g_vma_api) {
+            return server_receive_then_send<VmaZCopyReadInputHandler>(ifd);
+        }
+#endif // USING_VMA_EXTRA_API
+#ifdef USING_XLIO_EXTRA_API // XLIO
+        if (g_pApp->m_const_params.is_zcopyread && g_xlio_api) {
+            return server_receive_then_send<XlioZCopyReadInputHandler>(ifd);
+        }
+#endif // USING_XLIO_EXTRA_API
+        return server_receive_then_send<RecvFromInputHandler>(ifd);
     }
 
     /*inline*/ bool handle_message(int ifd, struct sockaddr_store_t &recvfrom_addr,
@@ -166,17 +171,28 @@ void print_log(const char *error, int fds) {
 void close_ifd(int fd, int ifd, fds_data *l_fds_ifd) {
     fds_data *l_next_fd = g_fds_array[fd];
 
-#ifdef USING_VMA_EXTRA_API
+#ifdef USING_VMA_EXTRA_API // VMA
     if (g_vma_api) {
         ZeroCopyData *z_ptr = g_zeroCopyData[fd];
         if (z_ptr && z_ptr->m_pkts) {
-            g_vma_api->free_packets(fd, z_ptr->m_pkts->pkts, z_ptr->m_pkts->n_packet_num);
+            vma_packets_t* vma_pkts = reinterpret_cast<vma_packets_t *>(z_ptr->m_pkts);
+            g_vma_api->free_packets(fd, vma_pkts->pkts, vma_pkts->n_packet_num);
             z_ptr->m_pkts = NULL;
         }
 
         g_vma_api->register_recv_callback(fd, NULL, NULL);
     }
-#endif
+#endif // USING_VMA_EXTRA_API
+#ifdef USING_XLIO_EXTRA_API // XLIO
+    if (g_xlio_api) {
+        ZeroCopyData *z_ptr = g_zeroCopyData[fd];
+        if (z_ptr && z_ptr->m_pkts) {
+            xlio_recvfrom_zcopy_packets_t *xlio_pkts = reinterpret_cast<xlio_recvfrom_zcopy_packets_t *>(z_ptr->m_pkts);
+            g_xlio_api->recvfrom_zcopy_free_packets(fd, xlio_pkts->pkts, xlio_pkts->n_packet_num);
+            z_ptr->m_pkts = NULL;
+        }
+    }
+#endif // USING_XLIO_EXTRA_API
 
     for (int i = 0; i < MAX_ACTIVE_FD_NUM; i++) {
         if (l_next_fd->active_fd_list[i] == ifd) {
