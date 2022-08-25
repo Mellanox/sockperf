@@ -56,7 +56,7 @@ use TE::Common;
 use TE::Utility;
 use TE::Funclet;
 
-our ($VERSION) = "0.1.";
+our ($VERSION) = "0.3";
 
 ###########################################################
 # Set variables
@@ -341,6 +341,7 @@ sub __setup_task
     use TTP;
     use UPB;
     use TPB;
+    use UDS;
 
 	$_common->{tsuite} =
 	[ 
@@ -383,7 +384,12 @@ sub __setup_task
             name => 'tcp-pb',
             tcase => $TPB::test_suite_tcp_pb,
             note => 'playback for TCP'
-        }   
+        },
+        {
+            name => 'uds',
+            tcase => $UDS::test_suite_uds,
+            note => 'tests for Unix Domain Socket'
+        }
 	];
 }
 
