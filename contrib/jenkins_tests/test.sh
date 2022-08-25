@@ -41,7 +41,6 @@ if [ -z "$test_ip_list" ]; then
 fi
 
 test_list="tcp-pp tcp-tp tcp-ul udp-pp udp-tp udp-ul"
-
 nerrors=0
 
 for test_link in $test_ip_list; do
@@ -77,6 +76,43 @@ for test_link in $test_ip_list; do
 		    v1=$(($v1+1))
 		done < ${test_dir}/${test_name}.tmp
 		rm -f ${test_dir}/${test_name}.tmp
+	done
+done
+
+
+test_ip_list="local:/tmp/sockperf-test-$$"
+test_list="uds"
+
+for test_link in $test_ip_list; do
+	for test in $test_list; do
+		IFS=':' read test_in test_address <<< "$test_link"
+		test_name=${test_in}-${test}
+		test_tap=${WORKSPACE}/${prefix}/test-${test_name}.tap
+
+        $timeout_exe ${WORKSPACE}/tests/verifier/verifier.pl -a ${test_app} \
+            -t ${test} -s ${test_address} -l ${test_dir}/${test_name}.log \
+            --progress=0
+
+		do_archive "${test_dir}/${test_name}.dump" "${test_dir}/${test_name}.log"
+
+		echo "1..$(wc -l < ${test_dir}/${test_name}.tmp)" > $test_tap
+
+		v1=1
+		while read line; do
+		    if [[ $(echo $line | cut -f1 -d' ') =~ 'PASS' ]]; then
+		        v0='ok'
+		        v2=$(echo $line | sed 's/PASS //')
+		    else
+		        v0='not ok'
+		        v2=$(echo $line | sed 's/FAIL //')
+	            nerrors=$((nerrors+1))
+		    fi
+
+		    echo -e "$v0 ${test_in}: $v2" >> $test_tap
+		    v1=$(($v1+1))
+		done < ${test_dir}/${test_name}.tmp
+		rm -f ${test_dir}/${test_name}.tmp
+
 	done
 done
 

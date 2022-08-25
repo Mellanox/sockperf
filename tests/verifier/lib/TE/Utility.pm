@@ -387,7 +387,10 @@ sub te_create_feed_file
         } else {
             $line .= 'U:'
         }
-        if ($opt_addr !~ m/:/) {
+        if ($opt_addr =~ m/^\//) {
+            $line .= "$opt_addr";
+            $line .= "_$port\n";
+        } elsif ($opt_addr !~ m/:/) {
             $line .= "$group1";
             $line .= ".$group2";
             if ($group1 == 224 && $group4 > 254)
