@@ -120,7 +120,7 @@ public:
 
         /* set buffer as intrenal in case NULL is passed */
         if (!addr) {
-            int alignment = (8 - (long int)m_buf) % 8;
+            int alignment = (8 - reinterpret_cast<intptr_t>(m_buf)) % 8;
             addr = (uint8_t *)m_buf + alignment; // this will force m_sequence_number to be 8
                                                  // aligned even on 32 bit arch
         }

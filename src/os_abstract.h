@@ -56,9 +56,6 @@
 #ifdef _M_IX86
 #define PRIu64 "llu"
 #define PRId64 "lld"
-#elif defined _M_X64
-#define PRIu64 "lu"
-#define PRId64 "ld"
 #endif
 
 #define sleep(x) Sleep(x * 1000)

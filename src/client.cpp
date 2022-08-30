@@ -90,7 +90,7 @@ void set_client_expiration_timer(struct itimerval *timer, TicksTime testStart) {
     log_msg("RunTime Estimate=%.3lf sec, Time out in %.3lf sec", runTimeEstimate, waitingCap);
 
     // Build timer
-    timer->it_value.tv_sec = waitingCap;
+    timer->it_value.tv_sec = static_cast<long>(waitingCap);
     timer->it_value.tv_usec = 0;
     timer->it_interval.tv_sec = 0;
     timer->it_interval.tv_usec = 0;
@@ -224,15 +224,15 @@ void printHistogram(uint32_t binSize, std::map<uint32_t, uint32_t> &activeBins, 
         uint32_t standardTerminalLength = 80;
         scalingUnit = (maxFrequency + standardTerminalLength - 1)/standardTerminalLength;
     } else {
-        maxDisplayWidth = terminalWidth - prefixToHistogramDisplay.length() - maxBinMessage - whitespaceAfterFrequencies
-            - whitespaceBeforeFrequencies;
+        maxDisplayWidth = static_cast<uint32_t>(terminalWidth - prefixToHistogramDisplay.length() - maxBinMessage - whitespaceAfterFrequencies
+            - whitespaceBeforeFrequencies);
         scalingUnit = (maxFrequency + maxDisplayWidth - 1)/maxDisplayWidth; // round up
     }
 
     const std::string freqString = "frequency";
     const std::string binsString = "bins";
-    uint32_t binsHeaderWidth = (maxStartBinDigits + maxEndBinDigits + 2)/2 + binsString.length()/2;
-    uint32_t frequencyHeaderWidth = (maxDisplayWidth)/2 + freqString.length()/2;
+    uint32_t binsHeaderWidth = static_cast<uint32_t>((maxStartBinDigits + maxEndBinDigits + 2)/2 + binsString.length()/2);
+    uint32_t frequencyHeaderWidth = static_cast<uint32_t>((maxDisplayWidth)/2 + freqString.length()/2);
     uint32_t startBinEdge = 0;
     uint32_t endBinEdge = 0;
     uint32_t frequency = 0;
@@ -271,8 +271,8 @@ void makeHistogram(TicksDuration *sortedpLat, size_t size) {
     const uint32_t upperRange = s_user_params.histogram_upper_range;
     const uint32_t binSize = s_user_params.histogram_bin_size;
     uint32_t binIndex = 0;
-    uint32_t minValue = sortedpLat[0].toDecimalUsec();
-    uint32_t maxValue = sortedpLat[size - 1].toDecimalUsec();
+    uint32_t minValue = static_cast<uint32_t>(sortedpLat[0].toDecimalUsec());
+    uint32_t maxValue = static_cast<uint32_t>(sortedpLat[size - 1].toDecimalUsec());
     double value = 0;
     std::map<uint32_t, uint32_t> activeBins;
     size_t i = 0;
@@ -288,7 +288,7 @@ void makeHistogram(TicksDuration *sortedpLat, size_t size) {
             activeBins[rightOutlierBinIndex]++;
             continue;
         }
-        binIndex = 1 + (value - lowerRange) / binSize;
+        binIndex = static_cast<uint32_t>(1 + (value - lowerRange) / binSize);
         activeBins[binIndex]++;
     }
 
@@ -881,8 +881,10 @@ int Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration,
             if (p_client_bind_addr->ss_family != AF_UNSPEC) {
                 socklen_t client_bind_addr_len = g_pApp->m_const_params.client_bind_info_len;
                 std::string hostport = sockaddr_to_hostport(p_client_bind_addr);
+#ifdef __linux__
                 struct sockaddr_store_t unix_addr;
                 socklen_t unix_addr_len;
+#endif
                 if (p_client_bind_addr->ss_family == AF_UNIX && g_pApp->m_const_params.sock_type == SOCK_DGRAM) { // Need to bind localy
 #ifdef __windows__
                     log_err("AF_UNIX with DGRAM isn't supported in windows");
