@@ -414,7 +414,7 @@ static int parse_client_bind_info(const AOPT_OBJECT *common_obj, const AOPT_OBJE
                 s_user_params.client_bind_info_len);
         if (res != 0) {
             log_msg("'--client_addr/--client_port': invalid host:port values: %s\n",
-                gai_strerror(res));
+                os_get_error(res));
             rc = SOCKPERF_ERR_BAD_ARGUMENT;
         }
     }
@@ -1696,13 +1696,13 @@ static void get_socket_address(struct addrinfo *result, struct sockaddr *addr, s
     for (addrinfo *rp = result; rp != NULL; rp = rp->ai_next) {
         if (rp->ai_family == AF_INET6) {
             std::memcpy(addr, rp->ai_addr, rp->ai_addrlen);
-            addrlen = rp->ai_addrlen;
+            addrlen = static_cast<socklen_t>(rp->ai_addrlen);
             return;
         }
     }
     for (addrinfo *rp = result; rp != NULL; rp = rp->ai_next) {
         std::memcpy(addr, rp->ai_addr, rp->ai_addrlen);
-        addrlen = rp->ai_addrlen;
+        addrlen = static_cast<socklen_t>(rp->ai_addrlen);
         return;
     }
     // This point is unreachable because getaddrinfo() returns EAI_NODATA if
@@ -2204,7 +2204,7 @@ static int parse_common_opt(const AOPT_OBJECT *common_obj) {
                 s_user_params.mode == MODE_SERVER, (sockaddr*)&s_user_params.addr,
                 s_user_params.addr_len);
         if (res != 0) {
-            log_msg("'-i/-p': invalid host:port value: %s\n", gai_strerror(res));
+            log_msg("'-i/-p': invalid host:port value: %s\n", os_get_error(res));
             rc = SOCKPERF_ERR_BAD_ARGUMENT;
         }
     }
@@ -2263,8 +2263,8 @@ static int parse_client_opt(const AOPT_OBJECT *client_obj) {
                 errno = 0;
                 s_user_params.fileFullLog = fopen(optarg, "w");
                 if (errno || !s_user_params.fileFullLog) {
-                    log_msg("Invalid %d val. Can't open file %s for writing: %m", OPT_FULL_LOG,
-                            optarg);
+                    log_msg("Invalid %d val. Can't open file %s for writing: %s", OPT_FULL_LOG,
+                            optarg, strerror(errno));
                     rc = SOCKPERF_ERR_BAD_ARGUMENT;
                 }
             } else {
@@ -3108,7 +3108,7 @@ static int set_sockets_from_feedfile(const char *feedfile_name) {
         int res = resolve_sockaddr(addr.c_str(), port.c_str(), sock_type,
                 false, reinterpret_cast<sockaddr *>(&tmp->server_addr), tmp->server_addr_len);
         if (res != 0) {
-            log_msg("Invalid address in line %s: %s\n", line, gai_strerror(res));
+            log_msg("Invalid address in line %s: %s\n", line, os_get_error(res));
             rc = SOCKPERF_ERR_INCORRECT;
             break;
         }
@@ -3509,8 +3509,8 @@ int bringup(const int *p_daemonize) {
         }
 
         s_user_params.cooldown_msec = TEST_END_COOLDOWN_MSEC;
-        s_user_params.warmup_msec = TEST_FIRST_CONNECTION_FIRST_PACKET_TTL_THRESHOLD_MSEC +
-                                    s_fd_num * TEST_ANY_CONNECTION_FIRST_PACKET_TTL_THRESHOLD_MSEC;
+        s_user_params.warmup_msec = static_cast<uint32_t>(TEST_FIRST_CONNECTION_FIRST_PACKET_TTL_THRESHOLD_MSEC +
+                                    s_fd_num * TEST_ANY_CONNECTION_FIRST_PACKET_TTL_THRESHOLD_MSEC);
         if (s_user_params.warmup_msec < TEST_START_WARMUP_MSEC) {
             s_user_params.warmup_msec = TEST_START_WARMUP_MSEC;
         } else {
@@ -3646,7 +3646,7 @@ with_sock_accl = %d \n\t\
 msg_size = %d \n\t\
 msg_size_range = %d \n\t\
 sec_test_duration = %d \n\t\
-number_test_target = %lu \n\t\
+number_test_target = %llu \n\t\
 data_integrity = %d \n\t\
 packetrate_stats_print_ratio = %d \n\t\
 burst_size = %d \n\t\
