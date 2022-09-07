@@ -132,8 +132,8 @@ sockperf: [tid 4805] using epoll() to block on socket(s)
          --tcp-skip-blocking-send
                                 -Enables non-blocking send operation (default OFF).
          --tos                  -Allows setting tos
-         --mc-rx-if             -Set address <ip> of interface on which to receive multicast messages (can be other then route table).
-         --mc-tx-if             -Set address <ip> of interface on which to transmit multicast messages (can be other then route table).
+         --mc-rx-ip,--mc-rx-if  -Use mc-rx-ip (IPv4) / mc-rx-if (IPv6). Set ipv4 address / interface index of interface on which to receive multicast messages (can be other then route table).
+         --mc-tx-ip,--mc-tx-if  -Use mc-tx-ip (IPv4) / mc-tx-if (IPv6). Set ipv4 address / interface index of interface on which to transmit multicast messages (can be other then route table).
          --mc-loopback-enable   -Enables mc loopback (default disabled).
          --mc-ttl               -Limit the lifetime of the message (default 2).
          --mc-source-filter     -Set address <ip, hostname> of multicast messages source which is allowed to receive from.

@@ -228,12 +228,12 @@ static const AOPT_DESC common_opt_desc[] = {
       aopt_set_string("tcp-skip-blocking-send"),
       "Enables non-blocking send operation (default OFF)." },
     { OPT_TOS, AOPT_ARG, aopt_set_literal(0), aopt_set_string("tos"), "Allows setting tos" },
-    { OPT_RX_MC_IF, AOPT_ARG, aopt_set_literal(0), aopt_set_string("mc-rx-if"),
-      "Set address <ip> of interface on which to receive multicast messages (can be other then "
-      "route table)." },
-    { OPT_TX_MC_IF, AOPT_ARG, aopt_set_literal(0), aopt_set_string("mc-tx-if"),
-      "Set address <ip> of interface on which to transmit multicast messages (can be other then "
-      "route table)." },
+    { OPT_RX_MC_IF, AOPT_ARG, aopt_set_literal(0), aopt_set_string("mc-rx-ip", "mc-rx-if"),
+      "Use mc-rx-ip (IPv4) / mc-rx-if (IPv6). Set ipv4 address / interface index of interface on which to receive multicast messages (can be other then "
+      "route table)."},
+    { OPT_TX_MC_IF, AOPT_ARG, aopt_set_literal(0), aopt_set_string("mc-tx-ip", "mc-tx-if"),
+      "Use mc-tx-ip (IPv4) / mc-tx-if (IPv6). Set ipv4 address / interface index of interface on which to transmit multicast messages (can be other then "
+      "route table)."},
     { OPT_MC_LOOPBACK_ENABLE,                   AOPT_NOARG,
       aopt_set_literal(0),                      aopt_set_string("mc-loopback-enable"),
       "Enables mc loopback (default disabled)." },
@@ -1910,7 +1910,10 @@ static int parse_common_opt(const AOPT_OBJECT *common_obj) {
             const char *optarg = aopt_value(common_obj, OPT_RX_MC_IF);
             if (optarg) {
                 std::string err;
-                if (!IPAddress::resolve(optarg, s_user_params.rx_mc_if_addr, err)) {
+                char dummy;
+                if (sscanf(optarg, "%d%c", &s_user_params.rx_mc_if_ix, &dummy) == 1) {
+                    s_user_params.rx_mc_if_ix_specified = true;
+                } else if (!IPAddress::resolve(optarg, s_user_params.rx_mc_if_addr, err)) {
                     log_msg("'--mc-rx-if' Invalid address '%s': %s", optarg, err.c_str());
                     rc = SOCKPERF_ERR_BAD_ARGUMENT;
                 }
@@ -1924,7 +1927,10 @@ static int parse_common_opt(const AOPT_OBJECT *common_obj) {
             const char *optarg = aopt_value(common_obj, OPT_TX_MC_IF);
             if (optarg) {
                 std::string err;
-                if (!IPAddress::resolve(optarg, s_user_params.tx_mc_if_addr, err)) {
+                char dummy;
+                if (sscanf(optarg, "%d%c", &s_user_params.tx_mc_if_ix, &dummy) == 1) {
+                    s_user_params.tx_mc_if_ix_specified = true;
+                } else if (!IPAddress::resolve(optarg, s_user_params.tx_mc_if_addr, err)) {
                     log_msg("'--mc-tx-if' Invalid address '%s': %s", optarg, err.c_str());
                     rc = SOCKPERF_ERR_BAD_ARGUMENT;
                 }
@@ -2458,6 +2464,10 @@ void set_defaults() {
     if (igmp_max_memberships != -1) IGMP_MAX_MEMBERSHIPS = igmp_max_memberships;
 
     memset(g_fds_array, 0, sizeof(fds_data *) * MAX_FDS_NUM);
+    s_user_params.rx_mc_if_ix = 0;
+    s_user_params.tx_mc_if_ix = 0;
+    s_user_params.rx_mc_if_ix_specified = false;
+    s_user_params.tx_mc_if_ix_specified = false;
     s_user_params.rx_mc_if_addr = IPAddress::zero();
     s_user_params.tx_mc_if_addr = IPAddress::zero();
     s_user_params.mc_source_ip_addr = IPAddress::zero();
@@ -2769,6 +2779,52 @@ static int sock_join_multicast_v4(int fd, struct fds_data *p_data, const sockadd
     return SOCKPERF_ERR_NONE;
 }
 
+static int sock_join_multicast_v6(int fd, struct fds_data *p_data, const sockaddr_in6 *p_addr)
+{
+    if (s_user_params.rx_mc_if_ix_specified && s_user_params.rx_mc_if_ix < 0) {
+        log_err("RX interface index must be >=0 !");
+        return SOCKPERF_ERR_SOCKET;
+    }
+
+    if (p_data->mc_source_ip_addr.is_specified()) {
+        if (p_data->mc_source_ip_addr.family() != AF_INET6) {
+            log_err("multicast source IP address must be IPv6!");
+            return SOCKPERF_ERR_SOCKET;
+        }
+
+        struct group_source_req gsreq;
+        memset(&gsreq, 0, sizeof(struct group_source_req));
+        struct sockaddr_in6 *sa_grp = (struct sockaddr_in6 *)(&gsreq.gsr_group);
+        struct sockaddr_in6 *sa_src = (struct sockaddr_in6 *)(&gsreq.gsr_source);
+        sa_grp->sin6_family = sa_src->sin6_family = AF_INET6;
+        sa_grp->sin6_addr = p_addr->sin6_addr;
+        sa_src->sin6_addr = p_data->mc_source_ip_addr.addr6();
+        gsreq.gsr_interface = s_user_params.rx_mc_if_ix;
+        if (setsockopt(fd, IPPROTO_IPV6, MCAST_JOIN_SOURCE_GROUP, &gsreq, sizeof(gsreq)) < 0) {
+            if (errno == ENOBUFS) {
+                log_err("setsockopt(MCAST_JOIN_SOURCE_GROUP) - Maximum multicast source "
+                        "addresses that can be filtered is limited by "
+                        "/proc/sys/net/ipv6/mld_max_msf");
+            } else {
+                log_err("setsockopt(MCAST_JOIN_SOURCE_GROUP)");
+            }
+            return SOCKPERF_ERR_SOCKET;
+        }
+    } else {
+        struct group_req greq;
+        memset(&greq, 0, sizeof(struct group_req));
+        struct sockaddr_in6 *sa_grp = (struct sockaddr_in6 *)(&greq.gr_group);
+        sa_grp->sin6_family = AF_INET6;
+        sa_grp->sin6_addr = p_addr->sin6_addr;
+        greq.gr_interface = s_user_params.rx_mc_if_ix;
+        if (setsockopt(fd, IPPROTO_IPV6, MCAST_JOIN_GROUP, &greq, sizeof(greq)) < 0) {
+            log_err("setsockopt(MCAST_JOIN_GROUP)");
+            return SOCKPERF_ERR_SOCKET;
+        }
+    }
+    return SOCKPERF_ERR_NONE;
+}
+
 int sock_set_multicast(int fd, struct fds_data *p_data) {
     int rc = SOCKPERF_ERR_NONE;
     struct sockaddr_store_t *p_addr = &(p_data->server_addr);
@@ -2783,9 +2839,7 @@ int sock_set_multicast(int fd, struct fds_data *p_data) {
             rc = sock_join_multicast_v4(fd, p_data, reinterpret_cast<sockaddr_in *>(p_addr));
             break;
         case AF_INET6:
-            //TODO; add IPv6 multicasting suport
-            log_err("IPv6 multicast is not supported");
-            rc = SOCKPERF_ERR_UNSUPPORTED;
+            rc = sock_join_multicast_v6(fd, p_data, reinterpret_cast<sockaddr_in6 *>(p_addr));
             break;
         }
     }
@@ -2802,8 +2856,17 @@ int sock_set_multicast(int fd, struct fds_data *p_data) {
             }
             break;
         case AF_INET6:
-            //TODO; add IPv6 multicasting suport
+            log_err("For IPv6 - input must be an integer");
+            rc = SOCKPERF_ERR_UNSUPPORTED;
             break;
+        }
+    }
+
+    if (!rc && s_user_params.tx_mc_if_ix_specified) {
+        uint32_t if_ix = s_user_params.tx_mc_if_ix;
+        if (setsockopt(fd, IPPROTO_IPV6, IPV6_MULTICAST_IF, &if_ix, sizeof(int)) < 0) {
+            log_err("setsockopt(IPV6_MULTICAST_IF)");
+            rc = SOCKPERF_ERR_SOCKET;
         }
     }
 
