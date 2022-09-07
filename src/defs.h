@@ -645,6 +645,10 @@ typedef enum { // must be coordinated with s_fds_handle_desc in common.cpp
 struct user_params_t {
     work_mode_t mode = MODE_SERVER; // either client or server
     measurement_mode_t measurement = TIME_BASED; // either time or number
+    int rx_mc_if_ix;
+    bool rx_mc_if_ix_specified;
+    int tx_mc_if_ix;
+    bool tx_mc_if_ix_specified;
     IPAddress rx_mc_if_addr;
     IPAddress tx_mc_if_addr;
     IPAddress mc_source_ip_addr;
