@@ -2971,6 +2971,7 @@ int prepare_socket(int fd, struct fds_data *p_data)
 #ifdef ST_TEST
     if (!stTest)
 #endif
+#ifdef USING_VMA_EXTRA_API
         if (!rc && (s_user_params.is_rxfiltercb && g_vma_api)) { // XLIO does not support callback-extra-api
             // Try to register application with VMA's special receive notification callback logic
             if (g_vma_api->register_recv_callback(fd, myapp_vma_recv_pkt_filter_callback, NULL) <
@@ -2980,7 +2981,9 @@ int prepare_socket(int fd, struct fds_data *p_data)
             } else {
                 log_dbg("vma_api->register_recv_callback successful registered");
             }
-        } else if (!rc && (s_user_params.is_zcopyread && (g_vma_api || g_xlio_api))) {
+        } else
+#endif // USING_VMA_EXTRA_API
+        if (!rc && (s_user_params.is_zcopyread && (g_vma_api || g_xlio_api))) {
             g_zeroCopyData[fd] = new ZeroCopyData();
             g_zeroCopyData[fd]->allocate();
         }
@@ -2990,6 +2993,7 @@ int prepare_socket(int fd, struct fds_data *p_data)
                 : (int)INVALID_SOCKET); // TODO: use SOCKET all over the way and avoid this cast
 }
 
+#ifdef USING_VMA_EXTRA_API
 //------------------------------------------------------------------------------
 static bool is_unspec_addr(const sockaddr_store_t &addr)
 {
@@ -3001,6 +3005,7 @@ static bool is_unspec_addr(const sockaddr_store_t &addr)
     }
     return true;
 }
+#endif // USING_VMA_EXTRA_API
 
 //------------------------------------------------------------------------------
 /* get IP:port pairs from the file and initialize the list */
@@ -3449,12 +3454,16 @@ int bringup(const int *p_daemonize) {
         }
 
         if (g_vma_api) {
+#ifdef USING_VMA_EXTRA_API
             _vma_pkts_desc_size =
                 sizeof(struct vma_packets_t) + sizeof(struct vma_packet_t) + sizeof(struct iovec) * 16;
+#endif // USING_VMA_EXTRA_API
         } else {
+#ifdef USING_XLIO_EXTRA_API
             _vma_pkts_desc_size =
                 sizeof(struct xlio_recvfrom_zcopy_packets_t) +
                 sizeof(struct xlio_recvfrom_zcopy_packet_t) + sizeof(struct iovec) * 16;
+#endif // USING_XLIO_EXTRA_API
         }
 
     }
@@ -3733,7 +3742,7 @@ with_sock_accl = %d \n\t\
 msg_size = %d \n\t\
 msg_size_range = %d \n\t\
 sec_test_duration = %d \n\t\
-number_test_target = %llu \n\t\
+number_test_target = %" PRIu64 " \n\t\
 data_integrity = %d \n\t\
 packetrate_stats_print_ratio = %d \n\t\
 burst_size = %d \n\t\
