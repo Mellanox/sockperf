@@ -2825,47 +2825,24 @@ static int sock_join_multicast_v6(int fd, struct fds_data *p_data, const sockadd
     return SOCKPERF_ERR_NONE;
 }
 
-int sock_set_multicast(int fd, struct fds_data *p_data) {
+int sock_set_multicast_v4(int fd, struct fds_data *p_data) {
     int rc = SOCKPERF_ERR_NONE;
-    struct sockaddr_store_t *p_addr = &(p_data->server_addr);
 
     /* use setsockopt() to request that the kernel join a multicast group */
     /* and specify a specific interface address on which to receive the packets of this socket */
     /* and may specify message source IP address on which to receive from */
     /* NOTE: we don't do this if case of client (sender) in stream mode */
+    struct sockaddr_in *p_addr = reinterpret_cast<sockaddr_in *>(&(p_data->server_addr));
     if (!s_user_params.b_stream || s_user_params.mode != MODE_CLIENT) {
-        switch (p_addr->ss_family) {
-        case AF_INET:
-            rc = sock_join_multicast_v4(fd, p_data, reinterpret_cast<sockaddr_in *>(p_addr));
-            break;
-        case AF_INET6:
-            rc = sock_join_multicast_v6(fd, p_data, reinterpret_cast<sockaddr_in6 *>(p_addr));
-            break;
-        }
+        rc = sock_join_multicast_v4(fd, p_data, p_addr);
     }
 
     /* specify a specific interface address on which to transmitted the multicast packets of this
      * socket */
     if (!rc && s_user_params.tx_mc_if_addr.is_specified()) {
-        switch (s_user_params.tx_mc_if_addr.family()) {
-        case AF_INET:
-            if (setsockopt(fd, IPPROTO_IP, IP_MULTICAST_IF,
-                        &s_user_params.tx_mc_if_addr.addr4(), sizeof(in_addr)) < 0) {
-                log_err("setsockopt(IP_MULTICAST_IF)");
-                rc = SOCKPERF_ERR_SOCKET;
-            }
-            break;
-        case AF_INET6:
-            log_err("For IPv6 - input must be an integer");
-            rc = SOCKPERF_ERR_UNSUPPORTED;
-            break;
-        }
-    }
-
-    if (!rc && s_user_params.tx_mc_if_ix_specified) {
-        uint32_t if_ix = s_user_params.tx_mc_if_ix;
-        if (setsockopt(fd, IPPROTO_IPV6, IPV6_MULTICAST_IF, &if_ix, sizeof(int)) < 0) {
-            log_err("setsockopt(IPV6_MULTICAST_IF)");
+        if (setsockopt(fd, IPPROTO_IP, IP_MULTICAST_IF,
+                    &s_user_params.tx_mc_if_addr.addr4(), sizeof(in_addr)) < 0) {
+            log_err("setsockopt(IP_MULTICAST_IF)");
             rc = SOCKPERF_ERR_SOCKET;
         }
     }
@@ -2888,6 +2865,60 @@ int sock_set_multicast(int fd, struct fds_data *p_data) {
         int value = s_user_params.mc_ttl;
         if (setsockopt(fd, IPPROTO_IP, IP_MULTICAST_TTL, (char *)&value, sizeof(value)) < 0) {
             log_err("setsockopt(IP_MULTICAST_TTL)");
+            rc = SOCKPERF_ERR_SOCKET;
+        }
+    }
+
+    return rc;
+}
+
+int sock_set_multicast_v6(int fd, struct fds_data *p_data) {
+    int rc = SOCKPERF_ERR_NONE;
+
+    /* specify interface index on which to transmitted the multicast packets of this socket */
+    if (!rc && s_user_params.tx_mc_if_addr.is_specified()) {
+        log_err("For IPv6 - input must be an integer");
+        rc = SOCKPERF_ERR_UNSUPPORTED;
+    }
+
+
+    /* use setsockopt() to request that the kernel join a multicast group */
+    /* and specify a specific interface address on which to receive the packets of this socket */
+    /* and may specify message source IP address on which to receive from */
+    /* NOTE: we don't do this if case of client (sender) in stream mode */
+    struct sockaddr_in6 *p_addr = reinterpret_cast<sockaddr_in6 *>(&(p_data->server_addr));
+    if (!s_user_params.b_stream || s_user_params.mode != MODE_CLIENT) {
+        rc = sock_join_multicast_v6(fd, p_data, p_addr);
+    }
+
+
+
+    if (!rc && s_user_params.tx_mc_if_ix_specified) {
+        int if_ix = s_user_params.tx_mc_if_ix;
+        if (setsockopt(fd, IPPROTO_IPV6, IPV6_MULTICAST_IF, &if_ix, sizeof(int)) < 0) {
+            log_err("setsockopt(IPV6_MULTICAST_IF)");
+            rc = SOCKPERF_ERR_SOCKET;
+        }
+    }
+
+    if (!rc && (s_user_params.mc_loop_disable)) {
+        /* Control whether the socket sees multicast packets that it has send itself */
+        int loop_disabled = 0;
+        if (setsockopt(fd, IPPROTO_IPV6, IPV6_MULTICAST_LOOP, &loop_disabled, sizeof(loop_disabled)) <
+            0) {
+            log_err("setsockopt(IPV6_MULTICAST_LOOP)");
+            rc = SOCKPERF_ERR_SOCKET;
+        }
+    }
+
+    if (!rc) {
+        /* the IPV6_MULTICAST_HOPS socket option allows the application to primarily
+         * limit the lifetime of the packet in the Internet and prevent it from
+         * circulating
+         */
+        int value = s_user_params.mc_ttl;
+        if (setsockopt(fd, IPPROTO_IPV6, IPV6_MULTICAST_HOPS, (char *)&value, sizeof(value)) < 0) {
+            log_err("setsockopt(IPV6_MULTICAST_HOPS)");
             rc = SOCKPERF_ERR_SOCKET;
         }
     }
@@ -2956,7 +2987,19 @@ int prepare_socket(int fd, struct fds_data *p_data)
     }
 
     if (!rc && (p_data->is_multicast)) {
-        rc = sock_set_multicast(fd, p_data);
+        struct sockaddr_store_t *p_addr = &(p_data->server_addr);
+        switch (p_addr->ss_family) {
+        case AF_INET:
+            rc = sock_set_multicast_v4(fd, p_data);
+            break;
+        case AF_INET6:
+            rc = sock_set_multicast_v6(fd, p_data);
+            break;
+        default:
+            log_err("multicast failed, can't fine IP version");
+            rc = SOCKPERF_ERR_UNSUPPORTED;
+            break;
+        }
     }
 
     if (!rc && (p_data->sock_type == SOCK_STREAM)) {
