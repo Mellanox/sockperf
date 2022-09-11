@@ -141,7 +141,7 @@ our $test_suite_tcp_pp =
                     failure => ['Segmentation fault', 'Assertion', 'ERROR']
                 },
                 client => {
-                    success => ['Test ended', 'Summary: Latency is', 'RunTime=10'],
+                    success => ['Test ended', 'Summary: Latency is', 'RunTime='],
                     failure => ['Segmentation fault', 'Assertion', 'ERROR', 'server down']
                 }
             },
@@ -162,7 +162,7 @@ our $test_suite_tcp_pp =
                     failure => ['Segmentation fault', 'Assertion', 'ERROR']
                 },
                 client => {
-                    success => ['Test ended', 'Summary: Latency is', 'RunTime=30'],
+                    success => ['Test ended', 'Summary: Latency is', 'RunTime='],
                     failure => ['Segmentation fault', 'Assertion', 'ERROR', 'server down']
                 }
             },
