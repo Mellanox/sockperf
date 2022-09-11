@@ -85,8 +85,9 @@ bool is_multicast_addr(const sockaddr_store_t &addr)
 //------------------------------------------------------------------------------
 void sendtoError(int fd, int nbytes, const struct sockaddr *sendto_addr) {
     if (!g_b_exit) {
-        std::string hostport = sockaddr_to_hostport(sendto_addr);
-        log_err("sendto() Failed sending on fd[%d] to %s msg size of %d bytes", fd,
+        std::string hostport = (sendto_addr ?
+            (std::string(" to ") + sockaddr_to_hostport(sendto_addr)) : std::string(""));
+        log_err("sendto() Failed sending on fd[%d]%s msg size of %d bytes", fd,
                 hostport.c_str(), nbytes);
         exit_with_log(SOCKPERF_ERR_SOCKET);
     }
