@@ -817,18 +817,16 @@ static int _connect_check_vma(int ifd) {
 #endif // USING_VMA_EXTRA_API
 
 //------------------------------------------------------------------------------
-static int _connect_check(int ifd) {
-    int rc = SOCKPERF_ERR_NONE;
+static int _connect_check(int ifd, int timeout_ms) {
+    int rc = SOCKPERF_ERR_SOCKET;
     int pollrc;
     bool avail;
-
-#define POLL_TIMEOUT_MS 1
 
 #ifdef __windows__
     fd_set rfds, wfds;
     struct timeval tv;
-    tv.tv_sec = 0;
-    tv.tv_usec = POLL_TIMEOUT_MS * 1000;
+    tv.tv_sec = timeout_ms / 1000;
+    tv.tv_usec = (timeout_ms % 1000) * 1000;
 
     FD_ZERO(&rfds);
     FD_ZERO(&wfds);
@@ -839,12 +837,12 @@ static int _connect_check(int ifd) {
     avail = pollrc > 0 && (FD_ISSET(ifd, &wfds) || FD_ISSET(ifd, &rfds));
 #else
     struct pollfd fds = { .fd = ifd, .events = POLLIN | POLLOUT, };
-    pollrc = poll(&fds, 1, POLL_TIMEOUT_MS);
+    pollrc = poll(&fds, 1, timeout_ms);
     avail = pollrc > 0 && (fds.revents & (POLLIN | POLLOUT));
 #endif /* __windows__ */
 
     if (pollrc < 0) {
-        log_err("Failed to poll for events during connection establishment");
+        log_err("Failed to poll for events during connection establishment. fd=%d", ifd);
     }
     if (avail) {
         socklen_t err_len;
@@ -852,9 +850,12 @@ static int _connect_check(int ifd) {
 
         err_len = sizeof(error);
         if (getsockopt(ifd, SOL_SOCKET, SO_ERROR, &error, &err_len) < 0 || error != 0) {
-            log_err("Can`t connect socket");
-            rc = SOCKPERF_ERR_SOCKET;
+            log_err("Can`t connect socket. fd=%d", ifd);
+        } else {
+            rc = SOCKPERF_ERR_NONE;
         }
+    } else {
+        log_err("Socket connect timeout. fd=%d, timeout_ms=%d.", ifd, timeout_ms);
     }
     return rc;
 }
@@ -931,7 +932,7 @@ int Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration,
                         } else
 #endif // USING_VMA_EXTRA_API
                         {
-                            rc = _connect_check(ifd);
+                            rc = _connect_check(ifd, s_user_params.tcp_connect_timeout_ms);
                         }
                         if (rc == SOCKPERF_ERR_SOCKET) {
                             break;

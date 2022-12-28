@@ -276,6 +276,7 @@ enum {
     OPT_CI_SIG_LVL,               // 45
     OPT_HISTOGRAM,                // 46
     OPT_LOAD_XLIO,                // 47
+    OPT_TCP_NB_CONN_TIMEOUT_MS,   // 48
 #if defined(DEFINED_TLS)
     OPT_TLS
 #endif /* DEFINED_TLS */
@@ -761,6 +762,7 @@ struct user_params_t {
     bool withsock_accl = false;
     int max_looping_over_recv = 1;
     int tos = 0x00;
+    int tcp_connect_timeout_ms = 5000;
     unsigned int lls_usecs = 0;
     bool lls_is_set = false;
     uint32_t dummy_mps = 0;                   // client side only
