@@ -328,6 +328,9 @@ static const AOPT_DESC client_opt_desc[] = {
       aopt_set_literal(0),
       aopt_set_string("increase_output_precision"),
       "Increase number of digits after decimal point of the throughput output (from 3 to 9). " },
+    { OPT_TCP_NB_CONN_TIMEOUT_MS,                            AOPT_ARG,
+      aopt_set_literal(0),                             aopt_set_string("tcp_nb_connect_timeout_ms"),
+      "Non-blocking connect timeout in milliseconds. Default: 5000." },
     { OPT_DUMMY_SEND, AOPT_OPTARG, aopt_set_literal(0), aopt_set_string("dummy-send"),
       "Use VMA's dummy send API instead of busy wait, must be higher than regular msg rate. "
       "\n\t\t\t\t optional: set dummy-send rate per second (default 10,000), usage: --dummy-send "
@@ -2305,6 +2308,28 @@ static int parse_client_opt(const AOPT_OBJECT *client_obj) {
                         s_user_params.dummy_mps = (uint32_t)value;
                     }
                 }
+            }
+        }
+        if (!rc && aopt_check(client_obj, OPT_TCP_NB_CONN_TIMEOUT_MS)) {
+             if (s_user_params.feedfile_name[0] != '\0' || s_user_params.sock_type == SOCK_STREAM) {
+                const char *optarg = aopt_value(client_obj, OPT_TCP_NB_CONN_TIMEOUT_MS);
+                if (optarg) {
+                    errno = 0;
+                    int value = strtol(optarg, NULL, 0);
+                    if (errno != 0 || value < 0) {
+                        log_msg("Invalid TCP connect timeout value %s for --tcp_nb_connect_timeout_ms",
+                                optarg);
+                        rc = SOCKPERF_ERR_BAD_ARGUMENT;
+                    } else {
+                        s_user_params.tcp_connect_timeout_ms = value;
+                    }
+                } else {
+                    log_msg("Invalid TCP connect timeout value for --tcp_nb_connect_timeout_ms");
+                    rc = SOCKPERF_ERR_BAD_ARGUMENT;
+                }
+            } else {
+                log_msg("--tcp_nb_connect_timeout_ms requires --tcp or -f");
+                rc = SOCKPERF_ERR_BAD_ARGUMENT;
             }
         }
     }
