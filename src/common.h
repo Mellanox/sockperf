@@ -170,7 +170,7 @@ int sock_set_rate_limit(int fd, uint32_t rate_limit);
  */
 static inline uint16_t sockaddr_get_portn(const sockaddr_store_t &addr)
 {
-    switch (addr.ss_family) {
+    switch (addr.addr.sa_family) {
     case AF_INET:
         return reinterpret_cast<const sockaddr_in &>(addr).sin_port;
     case AF_INET6:
@@ -182,7 +182,7 @@ static inline uint16_t sockaddr_get_portn(const sockaddr_store_t &addr)
  */
 static inline void sockaddr_set_portn(sockaddr_store_t &addr, uint16_t port)
 {
-    switch (addr.ss_family) {
+    switch (addr.addr.sa_family) {
     case AF_INET:
         reinterpret_cast<sockaddr_in &>(addr).sin_port = port;
     case AF_INET6:
@@ -192,7 +192,7 @@ static inline void sockaddr_set_portn(sockaddr_store_t &addr, uint16_t port)
 
 static inline void copy_relevant_sockaddr_params(sockaddr_store_t &dst_addr, const sockaddr_store_t &src_addr)
 {
-    switch (src_addr.ss_family) {
+    switch (src_addr.addr.sa_family) {
     case AF_INET:
         dst_addr.addr4 = src_addr.addr4;
     case AF_INET6:
