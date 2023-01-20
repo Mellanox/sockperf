@@ -377,7 +377,7 @@ private:
     int m_epfd;
     int m_max_events;
 };
-#endif
+#endif // !defined(__FreeBSD__) && !defined(__APPLE__) 
 
 #ifdef USING_VMA_EXTRA_API // VMA socketxtreme-extra-api Only
 //==============================================================================

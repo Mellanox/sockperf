@@ -421,7 +421,7 @@ void server_handler(handler_info *p_info) {
             server_handler<IoEpoll>(p_info->fd_min, p_info->fd_max, p_info->fd_num);
             break;
         }
-#endif
+#endif // !defined(__FreeBSD__) && !defined(__APPLE__)
 #ifdef USING_VMA_EXTRA_API // VMA socketxtreme-extra-api Only
         case SOCKETXTREME: {
             server_handler<IoSocketxtreme>(p_info->fd_min, p_info->fd_max, p_info->fd_num);
