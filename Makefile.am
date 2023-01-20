@@ -56,7 +56,7 @@ dist_doc_DATA = \
 	README.md \
 	authors \
 	news \
-	version \
+	sockperf-version \
 	copying
 
 EXTRA_DIST = \
