@@ -40,6 +40,9 @@
 #ifdef __FreeBSD__
 #include <netinet/in.h>
 #include <stdio.h>
+#elif __APPLE__
+#include <netinet/in.h>
+#include <stdio.h>
 #else
 #include <resolv.h>
 #include <sys/epoll.h>

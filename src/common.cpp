@@ -73,7 +73,7 @@ std::string sockaddr_to_hostport(const struct sockaddr *addr)
 //------------------------------------------------------------------------------
 bool is_multicast_addr(const sockaddr_store_t &addr)
 {
-    switch (addr.ss_family) {
+    switch (addr.addr.sa_family) {
     case AF_INET:
         return IN_MULTICAST(ntohl(reinterpret_cast<const sockaddr_in &>(addr).sin_addr.s_addr));
     case AF_INET6:

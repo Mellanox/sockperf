@@ -36,7 +36,7 @@ static void print_addresses(const fds_data *data, int &list_count)
         getnameinfo(reinterpret_cast<const sockaddr *>(&data->server_addr), data->server_addr_len,
                 hbuf, sizeof(hbuf), pbuf, sizeof(pbuf),
                 NI_NUMERICHOST | NI_NUMERICSERV);
-        switch (data->server_addr.ss_family) {
+        switch (data->server_addr.addr.sa_family) {
             case AF_UNIX:
                 printf("[%2d] ADDR = %s # %s\n", list_count++, data->server_addr.addr_un.sun_path, PRINT_PROTOCOL(data->sock_type));
                 break;
@@ -202,7 +202,7 @@ int IoPoll::prepareNetwork() {
 
     return rc;
 }
-#ifndef __FreeBSD__
+#if !defined(__FreeBSD__) && !defined(__APPLE__)
 //==============================================================================
 //------------------------------------------------------------------------------
 IoEpoll::IoEpoll(int _fd_min, int _fd_max, int _fd_num)

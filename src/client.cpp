@@ -879,14 +879,14 @@ int Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration,
             if (!(data && (data->active_fd_list))) continue;
 
             const sockaddr_store_t *p_client_bind_addr = &g_pApp->m_const_params.client_bind_info;
-            if (p_client_bind_addr->ss_family != AF_UNSPEC) {
+            if (p_client_bind_addr->addr.sa_family != AF_UNSPEC) {
                 socklen_t client_bind_addr_len = g_pApp->m_const_params.client_bind_info_len;
                 std::string hostport = sockaddr_to_hostport(p_client_bind_addr);
-#ifdef __linux__
+#if defined(__linux__) || defined(__APPLE__)
                 struct sockaddr_store_t unix_addr;
                 socklen_t unix_addr_len;
 #endif
-                if (p_client_bind_addr->ss_family == AF_UNIX && g_pApp->m_const_params.sock_type == SOCK_DGRAM) { // Need to bind localy
+                if (p_client_bind_addr->addr.sa_family == AF_UNIX && g_pApp->m_const_params.sock_type == SOCK_DGRAM) { // Need to bind localy
 #ifdef __windows__
                     log_err("AF_UNIX with DGRAM isn't supported in windows");
                     rc = SOCKPERF_ERR_SOCKET;
@@ -903,7 +903,7 @@ int Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration,
                             memset(unix_addr.addr_un.sun_path, 0, sizeof(unix_addr.addr_un.sun_path));
                             memcpy(unix_addr.addr_un.sun_path, sun_path.c_str(), sun_path.length());
                             unix_addr_len = sizeof(struct sockaddr_un);
-                            unix_addr.ss_family = AF_UNIX;
+                            unix_addr.addr.sa_family = AF_UNIX;
                             hostport = sun_path;
                         }
                         p_client_bind_addr = &unix_addr;
@@ -1266,7 +1266,7 @@ void client_handler(handler_info *p_info) {
             client_handler<IoPoll>(p_info->fd_min, p_info->fd_max, p_info->fd_num);
             break;
         }
-#ifndef __FreeBSD__
+#if !defined(__FreeBSD__) && !defined(__APPLE__)
         case EPOLL: {
             client_handler<IoEpoll>(p_info->fd_min, p_info->fd_max, p_info->fd_num);
             break;

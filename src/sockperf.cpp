@@ -76,7 +76,7 @@
  *
  */
 
-#if defined(__GNUC__) && (__GNUC__ < 4 || (__GNUC__ == 4 && __GNUC_MINOR__ < 9))
+#if !defined(__APPLE__) && (defined(__GNUC__) && (__GNUC__ < 4 || (__GNUC__ == 4 && __GNUC_MINOR__ < 9)))
 #   define NEED_REGEX_WORKAROUND
 #endif
 
@@ -1760,7 +1760,7 @@ static int resolve_sockaddr(const char *host, const char *port, int sock_type,
             addr_len = sizeof(struct sockaddr_un);
             memset(tmp->addr_un.sun_path, 0, sizeof(tmp->addr_un.sun_path));
             memcpy(tmp->addr_un.sun_path, path.c_str(), path.length());
-            tmp->ss_family = AF_UNIX;
+            tmp->addr.sa_family = AF_UNIX;
 
 #ifdef NEED_REGEX_WORKAROUND
             regfree(&regexpr_unix);
@@ -2395,7 +2395,7 @@ void cleanup() {
                 if (g_fds_array[ifd]->is_multicast) {
                     FREE(g_fds_array[ifd]->memberships_addr);
                 }
-                if (s_user_params.addr.ss_family == AF_UNIX) {
+                if (s_user_params.addr.addr.sa_family == AF_UNIX) {
                     os_unlink_unix_path(s_user_params.client_bind_info.addr_un.sun_path);
 #ifndef __windows__ // AF_UNIX with DGRAM isn't supported in __windows__
                     if (s_user_params.mode == MODE_CLIENT && s_user_params.sock_type == SOCK_DGRAM) { // unlink binded client
@@ -2496,7 +2496,7 @@ void set_defaults() {
     s_user_params.rx_mc_if_addr = IPAddress::zero();
     s_user_params.tx_mc_if_addr = IPAddress::zero();
     s_user_params.mc_source_ip_addr = IPAddress::zero();
-    s_user_params.client_bind_info.ss_family = AF_UNSPEC;
+    s_user_params.client_bind_info.addr.sa_family = AF_UNSPEC;
 
     set_select_timeout(DEFAULT_SELECT_TIMEOUT_MSEC);
     memset(s_user_params.threads_affinity, 0, sizeof(s_user_params.threads_affinity));
@@ -3013,7 +3013,7 @@ int prepare_socket(int fd, struct fds_data *p_data)
 
     if (!rc && (p_data->is_multicast)) {
         struct sockaddr_store_t *p_addr = &(p_data->server_addr);
-        switch (p_addr->ss_family) {
+        switch (p_addr->addr.sa_family) {
         case AF_INET:
             rc = sock_set_multicast_v4(fd, p_data);
             break;
@@ -3065,11 +3065,11 @@ int prepare_socket(int fd, struct fds_data *p_data)
 //------------------------------------------------------------------------------
 static bool is_unspec_addr(const sockaddr_store_t &addr)
 {
-    switch (addr.ss_family) {
+    switch (addr.addr.sa_family) {
     case AF_INET:
-        return reinterpret_cast<const sockaddr_in &>(addr).sin_addr.s_addr == INADDR_ANY;
+        return addr.addr4.sin_addr.s_addr == INADDR_ANY;
     case AF_INET6:
-        return IN6_IS_ADDR_UNSPECIFIED(&reinterpret_cast<const sockaddr_in6 &>(addr).sin6_addr);
+        return IN6_IS_ADDR_UNSPECIFIED(&addr.addr6.sin6_addr);
     }
     return true;
 }
@@ -3266,7 +3266,7 @@ static int set_sockets_from_feedfile(const char *feedfile_name) {
         /* Check if the same value exists */
         bool is_exist = false;
         in_port_t port_tmp = ntohs(sockaddr_get_portn(tmp->server_addr));
-        port_descriptor port_desc_tmp = { tmp->sock_type, tmp->server_addr.ss_family, port_tmp };
+        port_descriptor port_desc_tmp = { tmp->sock_type, tmp->server_addr.addr.sa_family, port_tmp };
         for (int i = s_fd_min; i <= s_fd_max; i++) {
             /* duplicated values are accepted in case client connection using TCP */
             /* or in case source address is set for multicast socket */
@@ -3290,11 +3290,11 @@ static int set_sockets_from_feedfile(const char *feedfile_name) {
             continue;
         }
 
-        if (tmp->server_addr.ss_family == AF_UNIX) {
+        if (tmp->server_addr.addr.sa_family == AF_UNIX) {
             s_user_params.tcp_nodelay = false;
             s_user_params.addr = tmp->server_addr;
             if (tmp->sock_type == SOCK_DGRAM) // for later binding client
-                s_user_params.client_bind_info.ss_family = AF_UNIX;
+                s_user_params.client_bind_info.addr.sa_family = AF_UNIX;
         }
         tmp->active_fd_count = 0;
         tmp->active_fd_list = (int *)MALLOC(MAX_ACTIVE_FD_NUM * sizeof(int));
@@ -3317,7 +3317,7 @@ static int set_sockets_from_feedfile(const char *feedfile_name) {
                 g_fds_array[curr_fd]->memberships_size++;
             } else {
                 /* create a socket */
-                if ((curr_fd = (int)socket(tmp->server_addr.ss_family, tmp->sock_type, 0)) <
+                if ((curr_fd = (int)socket(tmp->server_addr.addr.sa_family, tmp->sock_type, 0)) <
                     0) { // TODO: use SOCKET all over the way and avoid this cast
                     log_err("socket(AF_INET4/6, SOCK_x)");
                     rc = SOCKPERF_ERR_SOCKET;
@@ -3565,12 +3565,11 @@ int bringup(const int *p_daemonize) {
                 (int)INVALID_SOCKET; // TODO: use SOCKET all over the way and avoid this cast
 
             std::unique_ptr<fds_data> tmp{ new fds_data };
-
-            if (s_user_params.addr.ss_family == AF_UNIX) {
+            if (s_user_params.addr.addr.sa_family == AF_UNIX) {
                 log_dbg("UNIX domain socket was provided %s\n", s_user_params.addr.addr_un.sun_path);
                 s_user_params.tcp_nodelay = false;
                 if (s_user_params.sock_type == SOCK_DGRAM) { // Need to bind localy
-                    s_user_params.client_bind_info.ss_family = AF_UNIX;
+                    s_user_params.client_bind_info.addr.sa_family = AF_UNIX;
                 }
             }
             memcpy(&tmp->server_addr, &(s_user_params.addr), sizeof(s_user_params.addr));
@@ -3586,7 +3585,7 @@ int bringup(const int *p_daemonize) {
                 rc = SOCKPERF_ERR_NO_MEMORY;
             } else {
                 /* create a socket */
-                if ((curr_fd = (int)socket(tmp->server_addr.ss_family, tmp->sock_type, 0)) <
+                if ((curr_fd = (int)socket(tmp->server_addr.addr.sa_family, tmp->sock_type, 0)) <
                     0) { // TODO: use SOCKET all over the way and avoid this cast
                     log_err("socket(AF_INET4/6/AF_UNIX, SOCK_x)");
                     rc = SOCKPERF_ERR_SOCKET;

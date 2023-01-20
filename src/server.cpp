@@ -84,7 +84,7 @@ int ServerBase::initBeforeLoop() {
                 is_multicast_addr(*p_bind_addr)) {
                 // if more then one address on socket (for multiple MC join case oon same port)
                 memcpy(&bind_addr, p_bind_addr, bind_addr_len);
-                switch (bind_addr.ss_family) {
+                switch (bind_addr.addr.sa_family) {
                 case AF_INET:
                     reinterpret_cast<sockaddr_in &>(bind_addr).sin_addr.s_addr = INADDR_ANY;
                     break;
@@ -416,7 +416,7 @@ void server_handler(handler_info *p_info) {
             server_handler<IoPoll>(p_info->fd_min, p_info->fd_max, p_info->fd_num);
             break;
         }
-#ifndef __FreeBSD__
+#if !defined(__FreeBSD__) && !defined(__APPLE__)
         case EPOLL: {
             server_handler<IoEpoll>(p_info->fd_min, p_info->fd_max, p_info->fd_num);
             break;

@@ -121,6 +121,18 @@ void *win_set_timer(void *p_timer);
 #define ntohll ntohl
 
 /***********************************************************************************
+*				macOS
+***********************************************************************************/
+
+#elif __APPLE__
+
+#include <unistd.h>
+#include <mach/mach.h>
+#include <mach/thread_policy.h>
+#define __CPU_SETSIZE 1024                  // ported from Linux
+#define CPU_SETSIZE __CPU_SETSIZE
+
+/***********************************************************************************
 *				Linux
 ***********************************************************************************/
 
@@ -182,6 +194,8 @@ typedef struct os_cpuset_t {
     DWORD_PTR cpuset;
 #elif __FreeBSD__
     cpuset_t cpuset;
+#elif __APPLE__
+    thread_affinity_policy_data_t cpuset;
 #else
     cpu_set_t cpuset;
 #endif

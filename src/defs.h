@@ -196,7 +196,7 @@ const uint32_t TEST_FIRST_CONNECTION_FIRST_PACKET_TTL_THRESHOLD_MSEC = 50;
         "^[UuTt]:([A-Za-z]:[\\\\/].*)[\r\n]*"
 #define RESOLVE_ADDR_FORMAT_SOCKET                                                                 \
         "[A-Za-z]:[\\\\/].*"
-#elif __linux__
+#elif defined(__linux__) || defined(__APPLE__) 
 #define UNIX_DOMAIN_SOCKET_FORMAT_REG_EXP                                                          \
         "^[UuTt]:(/.+)[\r\n]"
 #define RESOLVE_ADDR_FORMAT_SOCKET                                                                 \
@@ -532,7 +532,7 @@ struct SocketRecvData {
 // big enough to store sockaddr_in and sockaddr_in6
 struct sockaddr_store_t {
     union {
-        sa_family_t ss_family;
+        sockaddr addr;
         sockaddr_in addr4;
         sockaddr_in6 addr6;
         sockaddr_un addr_un;
@@ -595,7 +595,7 @@ template <> struct hash<struct sockaddr_store_t> : public std::unary_function<st
     int operator()(struct sockaddr_store_t const &key) const {
         // XOR "a.b" part of "a.b.c.d" address with 16bit port; leave "c.d" part untouched for
         // maximum hashing
-        switch (key.ss_family) {
+        switch (key.addr.sa_family) {
         case AF_INET: {
             const sockaddr_in &k = reinterpret_cast<const sockaddr_in &>(key);
             return k.sin_addr.s_addr ^ (k.sin_port << 16);
@@ -616,10 +616,10 @@ struct equal_to<struct sockaddr_store_t> :
         public std::binary_function<struct sockaddr_store_t,
                 struct sockaddr_store_t, bool> {
     bool operator()(struct sockaddr_store_t const &key1, struct sockaddr_store_t const &key2) const {
-        if (key1.ss_family != key2.ss_family) {
+        if (key1.addr.sa_family != key2.addr.sa_family) {
             return false;
         }
-        switch (key1.ss_family) {
+        switch (key1.addr.sa_family) {
         case AF_INET: {
             const sockaddr_in &k1 = reinterpret_cast<const sockaddr_in &>(key1);
             const sockaddr_in &k2 = reinterpret_cast<const sockaddr_in &>(key2);

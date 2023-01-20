@@ -134,6 +134,8 @@ os_thread_t os_getthread(void) {
     mythread.hThread = GetCurrentThread();
 #elif __FreeBSD__
     mythread.tid = pthread_self();
+#elif __APPLE__
+    mythread.tid = pthread_self();
 #else
     mythread.tid = syscall(__NR_gettid);
 #endif
@@ -358,6 +360,8 @@ bool os_sock_cleanup() {
 void os_init_cpuset(os_cpuset_t *_mycpuset) {
 #ifdef __windows__
     _mycpuset->cpuset = 0;
+#elif __APPLE__
+    _mycpuset->cpuset.affinity_tag = THREAD_AFFINITY_TAG_NULL;
 #else
     CPU_ZERO(&_mycpuset->cpuset);
 #endif
@@ -368,6 +372,8 @@ void os_cpu_set(os_cpuset_t *_mycpuset, long _cpu_from, long _cpu_cur) {
     while ((_cpu_from <= _cpu_cur)) {
 #ifdef __windows__
         _mycpuset->cpuset = (int)(1 << _cpu_from);
+#elif __APPLE__
+        _mycpuset->cpuset.affinity_tag = _cpu_from + 1;
 #else
         CPU_SET(_cpu_from, &(_mycpuset->cpuset));
 #endif
@@ -378,6 +384,9 @@ void os_cpu_set(os_cpuset_t *_mycpuset, long _cpu_from, long _cpu_cur) {
 int os_set_affinity(const os_thread_t &thread, const os_cpuset_t &_mycpuset) {
 #ifdef __windows__
     if (0 == SetThreadAffinityMask(thread.hThread, _mycpuset.cpuset)) return -1;
+#elif __APPLE__
+    mach_port_t tid = pthread_mach_thread_np(thread.tid);
+    if (0 != thread_policy_set(tid, THREAD_AFFINITY_POLICY,  (thread_policy_t)&_mycpuset.cpuset, THREAD_AFFINITY_POLICY_COUNT)) return -1;
 #else
     // Can't use thread.tid since it's syscall and not pthread_t
     if (0 != pthread_setaffinity_np(pthread_self(), sizeof(os_cpuset_t), &(_mycpuset.cpuset)))
@@ -398,6 +407,9 @@ int os_get_max_active_fds_num() {
             return 1024; // try the common default
         }
         max_active_fd_num = (int)curr_limits.rlim_max;
+        if (max_active_fd_num == -1){
+            max_active_fd_num = 1024; // try the common default
+        }
     }
     return max_active_fd_num;
 #endif
