@@ -885,7 +885,7 @@ int Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration,
 #if defined(__linux__) || defined(__APPLE__)
                 struct sockaddr_store_t unix_addr;
                 socklen_t unix_addr_len;
-#endif
+#endif // defined(__linux__) || defined(__APPLE__)
                 if (p_client_bind_addr->addr.sa_family == AF_UNIX && g_pApp->m_const_params.sock_type == SOCK_DGRAM) { // Need to bind localy
 #ifdef __windows__
                     log_err("AF_UNIX with DGRAM isn't supported in windows");
@@ -1271,7 +1271,7 @@ void client_handler(handler_info *p_info) {
             client_handler<IoEpoll>(p_info->fd_min, p_info->fd_max, p_info->fd_num);
             break;
         }
-#endif // !__FreeBSD__
+#endif // !__FreeBSD__ && !defined(__APPLE__)
 #ifdef USING_VMA_EXTRA_API // For VMA socketxtreme Only
         case SOCKETXTREME: {
             client_handler<IoSocketxtreme>(p_info->fd_min, p_info->fd_max, p_info->fd_num);

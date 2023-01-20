@@ -64,6 +64,7 @@ typedef unsigned short int sa_family_t;
 #include <unistd.h>   /* getopt() and sleep()*/
 #include <poll.h>
 #include <pthread.h>
+#include <sys/ioctl.h>  /* ioctl, struct winsize */
 #include <sys/time.h>   /* timers*/
 #include <sys/socket.h> /* sockets*/
 #include <sys/select.h> /* select() According to POSIX 1003.1-2001 */
@@ -96,7 +97,7 @@ typedef unsigned short int sa_family_t;
 #include "playback.h"
 #include "ip_address.h"
 
-#if !defined(__windows__) && !defined(__FreeBSD__)
+#if !defined(__windows__) && !defined(__FreeBSD__) && !defined(__APPLE__)
 #include "vma-xlio-redirect.h"
 #ifdef USING_VMA_EXTRA_API // VMA
 #define RING_LOGIC_PER_INTERFACE VMA_RING_LOGIC_PER_INTERFACE
@@ -140,7 +141,7 @@ typedef unsigned short int sa_family_t;
 #undef RING_LOGIC_LAST
 #undef ring_logic_t
 #endif // USING_XLIO_EXTRA_API
-#endif // !WIN32 && !__FreeBSD__
+#endif // !defined(__windows__) && !defined(__FreeBSD__) && !defined(__APPLE__)
 
 #define MIN_PAYLOAD_SIZE (MsgHeader::EFFECTIVE_SIZE)
 extern int MAX_PAYLOAD_SIZE;
@@ -201,7 +202,7 @@ const uint32_t TEST_FIRST_CONNECTION_FIRST_PACKET_TTL_THRESHOLD_MSEC = 50;
         "^[UuTt]:(/.+)[\r\n]"
 #define RESOLVE_ADDR_FORMAT_SOCKET                                                                 \
         "/.+"
-#endif
+#endif // defined(__linux__) || defined(__APPLE__) 
 
 #define PRINT_PROTOCOL(type)                                                                       \
     ((type) == SOCK_DGRAM ? "UDP" : ((type) == SOCK_STREAM ? "TCP" : "<?>"))

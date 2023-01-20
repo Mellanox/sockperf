@@ -250,7 +250,7 @@ int IoEpoll::prepareNetwork() {
 
     return rc;
 }
-#endif
+#endif // !defined(__FreeBSD__) && !defined(__APPLE__)
 #ifdef USING_VMA_EXTRA_API // VMA socketxtreme-extra-api Only
 //==============================================================================
 //------------------------------------------------------------------------------

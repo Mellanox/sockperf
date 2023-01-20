@@ -30,7 +30,7 @@
 
 #if !defined(__FreeBSD__) && !defined(__APPLE__)
 #include <malloc.h>
-#endif
+#endif // !defined(__FreeBSD__) && !defined(__APPLE__)
 
 #include <string>
 #include "common.h"

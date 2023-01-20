@@ -132,9 +132,7 @@ os_thread_t os_getthread(void) {
 #ifdef __windows__
     mythread.tid = GetCurrentThreadId();
     mythread.hThread = GetCurrentThread();
-#elif __FreeBSD__
-    mythread.tid = pthread_self();
-#elif __APPLE__
+#elif defined(__FreeBSD__) || defined(__APPLE__) 
     mythread.tid = pthread_self();
 #else
     mythread.tid = syscall(__NR_gettid);
@@ -407,7 +405,7 @@ int os_get_max_active_fds_num() {
             return 1024; // try the common default
         }
         max_active_fd_num = (int)curr_limits.rlim_max;
-        if (max_active_fd_num == -1){
+        if (max_active_fd_num == -1) {
             max_active_fd_num = 1024; // try the common default
         }
     }

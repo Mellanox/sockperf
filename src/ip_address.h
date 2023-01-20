@@ -38,17 +38,12 @@
 #include <afunix.h>
 typedef unsigned short int sa_family_t;
 
-#elif __APPLE__
+#elif defined(__linux__) || defined(__APPLE__) 
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <sys/un.h>      /* definitions for UNIX domain sockets */
 
-#elif __linux__
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <sys/un.h>      /* definitions for UNIX domain sockets */
-
-#endif
+#endif // defined(__linux__) || defined(__APPLE__)
 
 #include "os_abstract.h"
 #include <functional>
