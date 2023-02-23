@@ -422,6 +422,12 @@ void server_handler(handler_info *p_info) {
             break;
         }
 #endif // !defined(__FreeBSD__) && !defined(__APPLE__)
+#if defined(__FreeBSD__) || defined(__APPLE__)
+        case KQUEUE: {
+            server_handler<IoKqueue>(p_info->fd_min, p_info->fd_max, p_info->fd_num);
+            break;
+        }
+#endif // defined(__FreeBSD__) || defined(__APPLE__)
 #ifdef USING_VMA_EXTRA_API // VMA socketxtreme-extra-api Only
         case SOCKETXTREME: {
             server_handler<IoSocketxtreme>(p_info->fd_min, p_info->fd_max, p_info->fd_num);

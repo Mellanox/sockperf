@@ -191,7 +191,7 @@ static const AOPT_DESC common_opt_desc[] = {
 #ifdef __windows__
       "Type of multiple file descriptors handle [s|select|r|recvfrom](default select)."
 #elif defined(__FreeBSD__) || defined(__APPLE__)
-      "Type of multiple file descriptors handle [s|select|p|poll|r|recvfrom](default select)."
+      "Type of multiple file descriptors handle [s|select|p|poll|r|recvfrom|k|kqueue](default kqueue)."
 #else
       "Type of multiple file descriptors handle "
       "[s|select|p|poll|e|epoll|r|recvfrom|x|socketxtreme](default epoll)."
@@ -204,7 +204,7 @@ static const AOPT_DESC common_opt_desc[] = {
 #ifdef __windows__
       "Set select timeout to <msec>, -1 for infinite (default is 10 msec)."
 #elif defined(__FreeBSD__) || defined(__APPLE__)
-      "Set select/poll timeout to <msec>, -1 for infinite (default is 10 msec)."
+      "Set select/poll/kqueue timeout to <msec>, -1 for infinite (default is 10 msec)."
 #else
       "Set select/poll/epoll timeout to <msec>, -1 for infinite (default is 10 msec)."
 #endif
@@ -1820,7 +1820,7 @@ static int parse_common_opt(const AOPT_OBJECT *common_obj) {
                     strncpy(feedfile_name, optarg, MAX_ARGV_SIZE);
                     feedfile_name[MAX_PATH_LENGTH - 1] = '\0';
 #if defined(__windows__) || defined(__FreeBSD__) || defined(__APPLE__)
-                    s_user_params.fd_handler_type = SELECT;
+                    s_user_params.fd_handler_type = KQUEUE;
 #else
                     s_user_params.fd_handler_type = EPOLL;
 #endif
@@ -1846,6 +1846,11 @@ static int parse_common_opt(const AOPT_OBJECT *common_obj) {
 #if !defined(__FreeBSD__) && !defined(__APPLE__)
                     if (!strcmp(fd_handle_type, "epoll") || !strcmp(fd_handle_type, "e")) {
                         s_user_params.fd_handler_type = EPOLL;
+                    } else
+#endif
+#if defined(__FreeBSD__) || defined(__APPLE__)
+                    if (!strcmp(fd_handle_type, "kqueue") || !strcmp(fd_handle_type, "k")) {
+                        s_user_params.fd_handler_type = KQUEUE;
                     } else
 #endif
                         if (!strcmp(fd_handle_type, "poll") || !strcmp(fd_handle_type, "p")) {
@@ -1966,7 +1971,7 @@ static int parse_common_opt(const AOPT_OBJECT *common_obj) {
 #ifdef __windows__
                     log_msg("'-%d' Invalid select timeout val: %s", OPT_SELECT_TIMEOUT, optarg);
 #elif defined(__FreeBSD__) || defined(__APPLE__)
-                    log_msg("'-%d' Invalid select/poll timeout val: %s", OPT_SELECT_TIMEOUT,
+                    log_msg("'-%d' Invalid select/poll/kqueue timeout val: %s", OPT_SELECT_TIMEOUT,
                             optarg);
 #else
                     log_msg("'-%d' Invalid select/poll/epoll timeout val: %s", OPT_SELECT_TIMEOUT,
