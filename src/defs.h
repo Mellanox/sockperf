@@ -691,6 +691,7 @@ typedef enum { // must be coordinated with s_fds_handle_desc in common.cpp
 #ifndef __windows__
     POLL,
     EPOLL,
+    KQUEUE,
 #endif
     SOCKETXTREME,
     FD_HANDLE_MAX } fd_block_handler_t;
