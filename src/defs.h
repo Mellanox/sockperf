@@ -58,6 +58,10 @@ typedef unsigned short int sa_family_t;
 #include <sys/epoll.h>
 #endif
 
+#ifdef __APPLE__
+#include <sys/event.h>
+#endif
+
 #include <stdbool.h>
 #include <stdint.h>
 #include <unordered_map>

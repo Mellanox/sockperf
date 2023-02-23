@@ -378,7 +378,80 @@ private:
     int m_max_events;
 };
 #endif // !defined(__FreeBSD__) && !defined(__APPLE__) 
+#if defined(__FreeBSD__) || defined(__APPLE__) 
+//==============================================================================
+class IoKqueue : public IoHandler {
+public:
+    IoKqueue(int _fd_min, int _fd_max, int _fd_num);
+    virtual ~IoKqueue();
 
+    //------------------------------------------------------------------------------
+    inline void update() {
+        int ifd = 0;
+        int change_num = 0;
+        int rc = 0;
+
+        m_look_start = 0;
+        m_look_end = m_fd_num;
+        m_max_events = m_fd_num;
+        for (ifd = m_fd_min; ifd <= m_fd_max; ifd++) {
+            if (g_fds_array[ifd]) {
+                int i = 0;
+                int active_fd_count = g_fds_array[ifd]->active_fd_count;
+                int *active_fd_list = g_fds_array[ifd]->active_fd_list;
+
+                assert(active_fd_list && "corrupted fds_data object");
+
+                while (active_fd_count) {
+                    /* process active sockets in case TCP (listen sockets are set in
+                     * prepareNetwork()) and
+                     * skip active socket in case UDP (it is the same with set in prepareNetwork())
+                     */
+                    if (active_fd_list[i] != (int)INVALID_SOCKET) {
+                        if (active_fd_list[i] != ifd) {
+                            EV_SET(&mp_kqueue_changes[change_num], active_fd_list[i], EVFILT_READ, EV_ADD | EV_OOBAND, 0, 0, 0);
+                            change_num++;
+                            m_max_events++;
+                        }
+                        active_fd_count--;
+                    }
+                    i++;
+
+                    assert((i < MAX_ACTIVE_FD_NUM) &&
+                           "maximum number of active connection to the single TCP addr:port");
+                    assert(m_max_events < MAX_FDS_NUM);
+                }
+            }
+        }
+        rc = kevent(m_kqfd, mp_kqueue_changes, change_num, NULL, 0, NULL);
+        assert(rc != -1);
+        /* It can be omitted */
+        m_look_end = m_max_events;
+    }
+
+    //------------------------------------------------------------------------------
+    inline int waitArrival() {
+        m_look_end = kevent(m_kqfd, NULL, 0, mp_kqueue_events, m_max_events, mp_timeout);
+        return m_look_end;
+    }
+    //------------------------------------------------------------------------------
+    inline int analyzeArrival(int ifd) const {
+        assert((ifd < MAX_FDS_NUM) && "exceeded tool limitation (MAX_FDS_NUM)");
+
+        return mp_kqueue_events[ifd].ident;
+    }
+
+    virtual int prepareNetwork();
+
+private:
+    const struct timespec m_timeout;
+    const struct timespec* mp_timeout;
+    struct kevent *mp_kqueue_events;
+    struct kevent *mp_kqueue_changes;
+    int m_kqfd;
+    int m_max_events;
+};
+#endif // defined(__FreeBSD__) || defined(__APPLE__) 
 #ifdef USING_VMA_EXTRA_API // VMA socketxtreme-extra-api Only
 //==============================================================================
 class IoSocketxtreme : public IoHandler {

@@ -251,6 +251,69 @@ int IoEpoll::prepareNetwork() {
     return rc;
 }
 #endif // !defined(__FreeBSD__) && !defined(__APPLE__)
+#if defined(__FreeBSD__) || defined(__APPLE__)
+//==============================================================================
+//------------------------------------------------------------------------------
+IoKqueue::IoKqueue(int _fd_min, int _fd_max, int _fd_num)
+    : IoHandler(_fd_min, _fd_max, _fd_num, 0, 0),
+      m_timeout({g_pApp->m_const_params.select_timeout ? g_pApp->m_const_params.select_timeout->tv_sec : 0,
+                 g_pApp->m_const_params.select_timeout ? g_pApp->m_const_params.select_timeout->tv_usec * 1000 : 0}),
+      mp_timeout(g_pApp->m_const_params.select_timeout ? &m_timeout : NULL) {
+    mp_kqueue_events = NULL;
+    mp_kqueue_changes = NULL;
+    m_max_events = 0;
+}
+
+//------------------------------------------------------------------------------
+IoKqueue::~IoKqueue() {
+    if (mp_kqueue_events) {
+        close(m_kqfd);
+        FREE(mp_kqueue_events);
+        if (mp_kqueue_changes) {
+            FREE(mp_kqueue_changes);
+        }
+    }
+
+}
+
+//------------------------------------------------------------------------------
+int IoKqueue::prepareNetwork() {
+    int rc = SOCKPERF_ERR_NONE;
+
+    int list_count = 0; 
+    mp_kqueue_events = (struct kevent *)MALLOC(MAX_FDS_NUM * sizeof(struct kevent));
+    mp_kqueue_changes = (struct kevent *)MALLOC(MAX_FDS_NUM * sizeof(struct kevent));
+    if (!mp_kqueue_events) {
+        log_err("Failed to allocate memory for kqueue event array");
+        rc = SOCKPERF_ERR_NO_MEMORY;
+    } else if (!mp_kqueue_changes) {
+        log_err("Failed to allocate memory for kqueue change array");
+        rc = SOCKPERF_ERR_NO_MEMORY;
+    } else {
+        printf("\n");
+        m_max_events = 0;
+        m_kqfd = kqueue();
+        if (m_kqfd == -1){
+            log_err("Failed to create kqueue");
+            rc = SOCKPERF_ERR_FATAL;
+        } else {
+            for (int ifd = m_fd_min; ifd <= m_fd_max; ifd++) {
+                if (g_fds_array[ifd]) {
+                    print_addresses(g_fds_array[ifd], list_count);
+                    EV_SET(&mp_kqueue_changes[m_max_events], ifd, EVFILT_READ, EV_ADD | EV_OOBAND, 0, 0, 0);
+                    m_max_events++;
+                }
+            }
+            int success = kevent(m_kqfd, mp_kqueue_changes, m_max_events, NULL, 0, NULL);
+            if (success == -1){
+                rc = SOCKPERF_ERR_FATAL;
+            }
+        } 
+    }
+
+    return rc;
+}
+#endif // defined(__FreeBSD__) || defined(__APPLE__)
 #ifdef USING_VMA_EXTRA_API // VMA socketxtreme-extra-api Only
 //==============================================================================
 //------------------------------------------------------------------------------
