@@ -696,8 +696,11 @@ typedef enum { // must be coordinated with s_fds_handle_desc in common.cpp
     SELECT,
 #ifndef __windows__
     POLL,
+#ifdef __linux__
     EPOLL,
+#elif defined(__APPLE__) || defined(__FreeBSD__)
     KQUEUE,
+#endif // defined(__APPLE__) || defined(__FreeBSD__)
 #endif
     SOCKETXTREME,
     FD_HANDLE_MAX } fd_block_handler_t;

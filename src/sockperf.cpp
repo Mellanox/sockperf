@@ -1819,7 +1819,9 @@ static int parse_common_opt(const AOPT_OBJECT *common_obj) {
                 if (optarg) {
                     strncpy(feedfile_name, optarg, MAX_ARGV_SIZE);
                     feedfile_name[MAX_PATH_LENGTH - 1] = '\0';
-#if defined(__windows__) || defined(__FreeBSD__) || defined(__APPLE__)
+#if defined(__windows__)
+                    s_user_params.fd_handler_type = SELECT;
+#elif defined(__FreeBSD__) || defined(__APPLE__)
                     s_user_params.fd_handler_type = KQUEUE;
 #else
                     s_user_params.fd_handler_type = EPOLL;

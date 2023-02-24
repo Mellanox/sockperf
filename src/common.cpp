@@ -234,7 +234,12 @@ const char *handler2str(fd_block_handler_t type) {
     static const char *s_fds_handle_desc[FD_HANDLE_MAX] = { "recvfrom", "recvfrom", "select"
 #ifndef __windows__
                                                             ,
-                                                            "poll", "epoll", "kqueue",
+                                                            "poll",
+#ifdef __linux__
+                                                            "epoll",
+#elif defined(__APPLE__) || defined(__FreeBSD__)
+                                                            "kqueue",
+#endif // defined(__APPLE__) || defined(__FreeBSD__)
 #ifdef USING_VMA_EXTRA_API // For VMA socketxtreme Only
                                                             "socketxtreme"
 #endif // USING_VMA_EXTRA_API
