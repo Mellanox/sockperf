@@ -104,6 +104,7 @@ void *win_set_timer(void *p_timer);
 #include <fcntl.h>
 #include <netinet/in.h>
 #include <netdb.h>
+#include <unistd.h>
 
 #define INVALID_SOCKET (-1)
 
@@ -126,7 +127,6 @@ void *win_set_timer(void *p_timer);
 
 #elif __APPLE__
 
-#include <unistd.h>
 #include <mach/mach.h>
 #include <mach/thread_policy.h>
 #define __CPU_SETSIZE 1024                  // ported from Linux
@@ -138,7 +138,6 @@ void *win_set_timer(void *p_timer);
 
 #else
 
-#include <unistd.h>
 #include <sys/syscall.h>
 #include <endian.h>
 

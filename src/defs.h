@@ -58,9 +58,15 @@ typedef unsigned short int sa_family_t;
 #include <sys/epoll.h>
 #endif
 
-#ifdef __APPLE__
+#if defined(__FreeBSD__) || defined(__APPLE__)
 #include <sys/event.h>
-#endif
+
+#ifdef __APPLE__
+#define EV_FLAGS (EV_ADD | EV_OOBAND)
+#else // __FreeBSD__
+#define EV_FLAGS (EV_ADD)
+#endif // __FreeBSD__
+#endif // defined(__FreeBSD__) || defined(__APPLE__)
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -201,12 +207,12 @@ const uint32_t TEST_FIRST_CONNECTION_FIRST_PACKET_TTL_THRESHOLD_MSEC = 50;
         "^[UuTt]:([A-Za-z]:[\\\\/].*)[\r\n]*"
 #define RESOLVE_ADDR_FORMAT_SOCKET                                                                 \
         "[A-Za-z]:[\\\\/].*"
-#elif defined(__linux__) || defined(__APPLE__) 
+#elif defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__)
 #define UNIX_DOMAIN_SOCKET_FORMAT_REG_EXP                                                          \
         "^[UuTt]:(/.+)[\r\n]"
 #define RESOLVE_ADDR_FORMAT_SOCKET                                                                 \
         "/.+"
-#endif // defined(__linux__) || defined(__APPLE__) 
+#endif // defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__)
 
 #define PRINT_PROTOCOL(type)                                                                       \
     ((type) == SOCK_DGRAM ? "UDP" : ((type) == SOCK_STREAM ? "TCP" : "<?>"))

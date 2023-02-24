@@ -300,7 +300,7 @@ int IoKqueue::prepareNetwork() {
             for (int ifd = m_fd_min; ifd <= m_fd_max; ifd++) {
                 if (g_fds_array[ifd]) {
                     print_addresses(g_fds_array[ifd], list_count);
-                    EV_SET(&mp_kqueue_changes[m_max_events], ifd, EVFILT_READ, EV_ADD | EV_OOBAND, 0, 0, 0);
+                    EV_SET(&mp_kqueue_changes[m_max_events], ifd, EVFILT_READ, EV_FLAGS, 0, 0, 0);
                     m_max_events++;
                 }
             }
