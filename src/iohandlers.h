@@ -409,7 +409,7 @@ public:
                      */
                     if (active_fd_list[i] != (int)INVALID_SOCKET) {
                         if (active_fd_list[i] != ifd) {
-                            EV_SET(&mp_kqueue_changes[change_num], active_fd_list[i], EVFILT_READ, EV_ADD | EV_OOBAND, 0, 0, 0);
+                            EV_SET(&mp_kqueue_changes[change_num], active_fd_list[i], EVFILT_READ, EV_FLAGS, 0, 0, 0);
                             change_num++;
                             m_max_events++;
                         }

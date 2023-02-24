@@ -882,10 +882,10 @@ int Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration,
             if (p_client_bind_addr->addr.sa_family != AF_UNSPEC) {
                 socklen_t client_bind_addr_len = g_pApp->m_const_params.client_bind_info_len;
                 std::string hostport = sockaddr_to_hostport(p_client_bind_addr);
-#if defined(__linux__) || defined(__APPLE__)
+#if defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__)
                 struct sockaddr_store_t unix_addr;
                 socklen_t unix_addr_len;
-#endif // defined(__linux__) || defined(__APPLE__)
+#endif // defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__)
                 if (p_client_bind_addr->addr.sa_family == AF_UNIX && g_pApp->m_const_params.sock_type == SOCK_DGRAM) { // Need to bind localy
 #ifdef __windows__
                     log_err("AF_UNIX with DGRAM isn't supported in windows");
