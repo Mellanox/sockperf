@@ -135,7 +135,7 @@ error_ctx_not_allocated:
 
 void tls_exit(void) {
     if (g_fds_array) {
-        for (int ifd = 0; ifd < MAX_FDS_NUM; ifd++) {
+        for (int ifd = 0; ifd < max_fds_num; ifd++) {
             if (g_fds_array[ifd]) {
                 SSL_free((SSL *)g_fds_array[ifd]->tls_handle);
             }

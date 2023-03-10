@@ -285,7 +285,7 @@ public:
 
     //------------------------------------------------------------------------------
     inline int analyzeArrival(int ifd) const {
-        assert((ifd < MAX_FDS_NUM) && "exceeded tool limitation (MAX_FDS_NUM)");
+        assert((ifd < max_fds_num) && "exceeded tool limitation (max_fds_num)");
 
         if (mp_poll_fd_arr[ifd].revents & POLLIN || mp_poll_fd_arr[ifd].revents & POLLPRI ||
             mp_poll_fd_arr[ifd].revents & POLLERR || mp_poll_fd_arr[ifd].revents & POLLHUP) {
@@ -349,7 +349,7 @@ public:
 
                     assert((i < MAX_ACTIVE_FD_NUM) &&
                            "maximum number of active connection to the single TCP addr:port");
-                    assert(m_max_events < MAX_FDS_NUM);
+                    assert(m_max_events < max_fds_num);
                 }
             }
         }
@@ -364,7 +364,7 @@ public:
     }
     //------------------------------------------------------------------------------
     inline int analyzeArrival(int ifd) const {
-        assert((ifd < MAX_FDS_NUM) && "exceeded tool limitation (MAX_FDS_NUM)");
+        assert((ifd < max_fds_num) && "exceeded tool limitation (max_fds_num)");
 
         return mp_epoll_events[ifd].data.fd;
     }
@@ -419,7 +419,7 @@ public:
 
                     assert((i < MAX_ACTIVE_FD_NUM) &&
                            "maximum number of active connection to the single TCP addr:port");
-                    assert(m_max_events < MAX_FDS_NUM);
+                    assert(m_max_events < max_fds_num);
                 }
             }
         }
@@ -436,7 +436,7 @@ public:
     }
     //------------------------------------------------------------------------------
     inline int analyzeArrival(int ifd) const {
-        assert((ifd < MAX_FDS_NUM) && "exceeded tool limitation (MAX_FDS_NUM)");
+        assert((ifd < max_fds_num) && "exceeded tool limitation (max_fds_num)");
 
         return mp_kqueue_events[ifd].ident;
     }
@@ -524,7 +524,7 @@ public:
     }
     //------------------------------------------------------------------------------
     inline int analyzeArrival(int ifd) {
-        assert((ifd < MAX_FDS_NUM) && "exceeded tool limitation (MAX_FDS_NUM)");
+        assert((ifd < max_fds_num) && "exceeded tool limitation (max_fds_num)");
         int ring_fd = 0;
         g_vma_buff = NULL;
         if (!m_current_vma_ring_comp) {

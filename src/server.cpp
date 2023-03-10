@@ -292,12 +292,12 @@ int Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_accept(int ifd) {
             if (tmp->active_fd_list) {
                 FREE(tmp->active_fd_list);
             }
-            log_dbg("Can`t accept connection\n");
+            log_dbg("Can`t accept connection");
         } else {
             /* Check if it is exceeded internal limitations
-             * MAX_FDS_NUM and MAX_ACTIVE_FD_NUM
+             * max_fds_num and MAX_ACTIVE_FD_NUM
              */
-            if ((active_ifd < MAX_FDS_NUM) &&
+            if ((active_ifd < max_fds_num) &&
                 (g_fds_array[ifd]->active_fd_count < (MAX_ACTIVE_FD_NUM - 1))) {
                 if (prepare_socket(active_ifd, tmp.get()) !=
                     (int)INVALID_SOCKET) { // TODO: use SOCKET all over the way and avoid this cast

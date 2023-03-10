@@ -63,7 +63,7 @@ PacketTimes *g_pPacketTimes = NULL;
 
 TicksTime g_lastTicks;
 
-const int MAX_FDS_NUM = os_get_max_active_fds_num();
+int max_fds_num = 0;
 fds_data **g_fds_array = NULL;
 int MAX_PAYLOAD_SIZE = 65507;
 int IGMP_MAX_MEMBERSHIPS = IP_MAX_MEMBERSHIPS;

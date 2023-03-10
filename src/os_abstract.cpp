@@ -393,7 +393,7 @@ int os_set_affinity(const os_thread_t &thread, const os_cpuset_t &_mycpuset) {
     return 0;
 }
 
-int os_get_max_active_fds_num() {
+int os_get_max_fds_num() {
 #ifdef __windows__
     return MAX_OPEN_FILES;
 #else
@@ -402,11 +402,12 @@ int os_get_max_active_fds_num() {
         struct rlimit curr_limits;
         if (getrlimit(RLIMIT_NOFILE, &curr_limits) == -1) {
             perror("getrlimit");
-            return 1024; // try the common default
-        }
-        max_active_fd_num = (int)curr_limits.rlim_max;
-        if (max_active_fd_num == -1) {
             max_active_fd_num = 1024; // try the common default
+        } else {
+            max_active_fd_num = (int)curr_limits.rlim_max;
+            if (max_active_fd_num == -1) {
+                max_active_fd_num = 1024; // try the common default
+            }
         }
     }
     return max_active_fd_num;

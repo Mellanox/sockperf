@@ -182,7 +182,7 @@ IoPoll::~IoPoll() {
 int IoPoll::prepareNetwork() {
     int rc = SOCKPERF_ERR_NONE;
 
-    mp_poll_fd_arr = (struct pollfd *)MALLOC(MAX_FDS_NUM * sizeof(struct pollfd));
+    mp_poll_fd_arr = (struct pollfd *)MALLOC(max_fds_num * sizeof(struct pollfd));
     if (!mp_poll_fd_arr) {
         log_err("Failed to allocate memory for poll fd array");
         rc = SOCKPERF_ERR_NO_MEMORY;
@@ -229,14 +229,14 @@ int IoEpoll::prepareNetwork() {
     struct epoll_event ev = { 0, { 0 } };
 
     int list_count = 0;
-    mp_epoll_events = (struct epoll_event *)MALLOC(MAX_FDS_NUM * sizeof(struct epoll_event));
+    mp_epoll_events = (struct epoll_event *)MALLOC(max_fds_num * sizeof(struct epoll_event));
     if (!mp_epoll_events) {
         log_err("Failed to allocate memory for epoll event array");
         rc = SOCKPERF_ERR_NO_MEMORY;
     } else {
         printf("\n");
         m_max_events = 0;
-        m_epfd = epoll_create(MAX_FDS_NUM);
+        m_epfd = epoll_create(max_fds_num);
         for (int ifd = m_fd_min; ifd <= m_fd_max; ifd++) {
             if (g_fds_array[ifd]) {
                 print_addresses(g_fds_array[ifd], list_count);
@@ -281,8 +281,8 @@ int IoKqueue::prepareNetwork() {
     int rc = SOCKPERF_ERR_NONE;
 
     int list_count = 0; 
-    mp_kqueue_events = (struct kevent *)MALLOC(MAX_FDS_NUM * sizeof(struct kevent));
-    mp_kqueue_changes = (struct kevent *)MALLOC(MAX_FDS_NUM * sizeof(struct kevent));
+    mp_kqueue_events = (struct kevent *)MALLOC(max_fds_num * sizeof(struct kevent));
+    mp_kqueue_changes = (struct kevent *)MALLOC(max_fds_num * sizeof(struct kevent));
     if (!mp_kqueue_events) {
         log_err("Failed to allocate memory for kqueue event array");
         rc = SOCKPERF_ERR_NO_MEMORY;

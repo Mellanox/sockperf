@@ -155,7 +155,7 @@ typedef unsigned short int sa_family_t;
 
 #define MIN_PAYLOAD_SIZE (MsgHeader::EFFECTIVE_SIZE)
 extern int MAX_PAYLOAD_SIZE;
-#define MAX_STREAM_SIZE (50 * 1024 * 1024)
+extern int max_fds_num;
 #define MAX_TCP_SIZE ((1 << 20) - 1)
 
 const uint32_t MPS_MAX_UL =
@@ -185,8 +185,7 @@ const uint32_t TEST_FIRST_CONNECTION_FIRST_PACKET_TTL_THRESHOLD_MSEC = 50;
 #define DEFAULT_CI_SIG_LEVEL 99
 #define DUMMY_PORT 57341
 #define MAX_ACTIVE_FD_NUM                                                                          \
-    1024 /* maximum number of active connection to the single TCP addr:port                        \
-            */
+    max_fds_num /* maximum number of active connection to the single TCP addr:port */
 #ifdef USING_VMA_EXTRA_API // For VMA socketxtreme Only
 #define MAX_VMA_COMPS 1024 /* maximum size for the VMA completions array for VMA Poll */
 #endif // USING_VMA_EXTRA_API
@@ -222,7 +221,6 @@ const uint32_t TEST_FIRST_CONNECTION_FIRST_PACKET_TTL_THRESHOLD_MSEC = 50;
 #define MAX_ARGV_SIZE 256
 #define MAX_DURATION 36000000
 #define MAX_PACKET_NUMBER 100000000
-extern const int MAX_FDS_NUM;
 #define SOCK_BUFF_DEFAULT_SIZE 0
 #define DEFAULT_SELECT_TIMEOUT_MSEC 10
 #define DEFAULT_DEBUG_LEVEL 0
