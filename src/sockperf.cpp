@@ -2470,6 +2470,8 @@ static void set_select_timeout(int time_out_msec) {
 
 //------------------------------------------------------------------------------
 void set_defaults() {
+    max_fds_num = os_get_max_fds_num();
+
 #if !defined(__windows__) && !defined(__FreeBSD__) && !defined(__APPLE__)
     bool success = vma_xlio_try_set_func_pointers();
     if (!success) {
@@ -2487,7 +2489,7 @@ void set_defaults() {
         sock_lib_started = 1;
     }
 #endif
-    g_fds_array = (fds_data **)MALLOC(MAX_FDS_NUM * sizeof(fds_data *));
+    g_fds_array = (fds_data **)MALLOC(max_fds_num * sizeof(fds_data *));
     if (!g_fds_array) {
         log_err("Failed to allocate memory for global pointer fds_array");
         exit_with_log(SOCKPERF_ERR_NO_MEMORY);
@@ -2495,7 +2497,7 @@ void set_defaults() {
     int igmp_max_memberships = read_int_from_sys_file("/proc/sys/net/ipv4/igmp_max_memberships");
     if (igmp_max_memberships != -1) IGMP_MAX_MEMBERSHIPS = igmp_max_memberships;
 
-    memset(g_fds_array, 0, sizeof(fds_data *) * MAX_FDS_NUM);
+    memset(g_fds_array, 0, sizeof(fds_data *) * max_fds_num);
     s_user_params.rx_mc_if_ix = 0;
     s_user_params.tx_mc_if_ix = 0;
     s_user_params.rx_mc_if_ix_specified = false;
@@ -3341,7 +3343,7 @@ static int set_sockets_from_feedfile(const char *feedfile_name) {
                 s_fd_num++;
             }
             if (curr_fd >= 0) {
-                if ((curr_fd >= MAX_FDS_NUM) ||
+                if ((curr_fd >= max_fds_num) ||
                     (prepare_socket(curr_fd, tmp.get()) == (int)
                      INVALID_SOCKET)) { // TODO: use SOCKET all over the way and avoid this cast
                     log_err("Invalid socket");
@@ -3597,7 +3599,7 @@ int bringup(const int *p_daemonize) {
                     log_err("socket(AF_INET4/6/AF_UNIX, SOCK_x)");
                     rc = SOCKPERF_ERR_SOCKET;
                 } else {
-                    if ((curr_fd >= MAX_FDS_NUM) ||
+                    if ((curr_fd >= max_fds_num) ||
                         (prepare_socket(curr_fd, tmp.get()) ==
                         (int)INVALID_SOCKET)) { // TODO: use SOCKET all over the way and avoid
                                                 // this cast

@@ -207,7 +207,7 @@ int os_set_nonblocking_socket(int fd);
 int os_daemonize();
 int os_set_duration_timer(const itimerval &timer, sig_handler handler);
 void os_set_disarm_timer(const itimerval& timer);
-int os_get_max_active_fds_num();
+int os_get_max_fds_num();
 bool os_sock_startup();
 bool os_sock_cleanup();
 const char* os_get_error(int res);
