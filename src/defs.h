@@ -737,7 +737,11 @@ struct user_params_t {
     socklen_t client_bind_info_len = 0;
     uint32_t reply_every = REPLY_EVERY_DEFAULT;    // client side only
     bool b_client_ping_pong = false; // client side only
+#if !defined(__arm__) || defined(__aarch64__)
     bool b_no_rdtsc = false;
+#else
+    bool b_no_rdtsc = true;
+#endif
     char sender_affinity[MAX_ARGV_SIZE];
     char receiver_affinity[MAX_ARGV_SIZE];
     FILE *fileFullLog = NULL;                   // client side only

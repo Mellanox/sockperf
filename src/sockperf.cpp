@@ -272,11 +272,13 @@ static const AOPT_DESC common_opt_desc[] = {
       "Use VMA's zero copy reads API (See VMA's readme)." },
     { OPT_DAEMONIZE, AOPT_NOARG, aopt_set_literal(0), aopt_set_string("daemonize"), "Run as "
                                                                                     "daemon." },
+#if !defined(__arm__) || defined(__aarch64__)
     { OPT_NO_RDTSC,
       AOPT_NOARG,
       aopt_set_literal(0),
       aopt_set_string("no-rdtsc"),
       "Don't use register when taking time; instead use monotonic clock." },
+#endif
     { OPT_LOAD_VMA,                                             AOPT_OPTARG,
       aopt_set_literal(0),                                      aopt_set_string("load-vma"),
       "Load VMA dynamically even when LD_PRELOAD was not used." },
@@ -3893,6 +3895,7 @@ packet pace limit = %d",
         log_dbg("+INFO: taking time, using the given settings, consumes %.3lf nsec",
                 (double)(end - start).toNsec() / SIZE);
 
+    if (!s_user_params.b_no_rdtsc) {
         ticks_t tstart = 0, tend = 0;
         tstart = os_gettimeoftsc();
 
@@ -3903,6 +3906,7 @@ packet pace limit = %d",
         double ticks_per_second = (double)get_tsc_rate_per_second();
         log_dbg("+INFO: taking rdtsc directly consumes %.3lf nsec",
                 tdelta / SIZE * 1000 * 1000 * 1000 / ticks_per_second);
+    }
 
         // step #5: check is user defined a specific SEED value to be used in all rand() calls
         // if no seed value is provided, the rand() function is automatically seeded with a value of

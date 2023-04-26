@@ -99,6 +99,11 @@ inline ticks_t os_gettimeoftsc() {
     asm volatile("isb" : : : "memory");
     asm volatile("mrs %0, cntvct_el0" : "=r" (ret));
     return ret;
+#elif defined(__arm__)
+    // so the compiler will not complain. for
+    // AArch32 compile, this inline is not used
+    // since rdtsc is only supported in an optional timer extension
+    upper_32 = lower_32 = 0;
 #else
     // ReaD Time Stamp Counter (RDTCS)
     __asm__ __volatile__("rdtsc" : "=a"(lower_32), "=d"(upper_32));
