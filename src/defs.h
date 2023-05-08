@@ -502,8 +502,8 @@ extern debug_level_t g_debug_level;
 
 #if defined(USING_VMA_EXTRA_API) || defined(USING_XLIO_EXTRA_API)
 #ifdef USING_VMA_EXTRA_API // VMA
-extern struct vma_buff_t *g_vma_buff;
-extern struct vma_completion_t *g_vma_comps;
+extern struct xlio_buff_t *g_vma_buff;
+extern struct xlio_socketxtreme_completion_t *g_vma_comps;
 #endif // USING_VMA_EXTRA_API
 class ZeroCopyData {
 public:
@@ -651,7 +651,7 @@ struct equal_to<struct sockaddr_store_t> :
 
 #ifdef USING_VMA_EXTRA_API // VMA socketxtreme-extra-api Only
 struct vma_ring_comps {
-    vma_completion_t vma_comp_list[MAX_VMA_COMPS];
+    xlio_socketxtreme_completion_t vma_comp_list[MAX_VMA_COMPS];
     int vma_comp_list_size;
     bool is_freed;
 };
@@ -668,7 +668,7 @@ extern int IGMP_MAX_MEMBERSHIPS;
 
 #ifdef USING_VMA_EXTRA_API // VMA
 typedef std::queue<int> vma_comps_queue;
-extern struct vma_api_t *g_vma_api;
+extern struct xlio_api_t *g_vma_api;
 #else
 extern void *g_vma_api; // Dummy variable
 #endif // USING_VMA_EXTRA_API

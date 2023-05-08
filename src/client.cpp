@@ -804,7 +804,7 @@ static int _connect_check_vma(int ifd) {
         return rc;
     }
     while (!g_b_exit && poll == 0) {
-        struct vma_completion_t vma_comps;
+        struct xlio_socketxtreme_completion_t vma_comps;
         poll = g_vma_api->socketxtreme_poll(ring_fd, &vma_comps, 1, 0);
         if (poll > 0) {
             if (vma_comps.events & EPOLLOUT) {

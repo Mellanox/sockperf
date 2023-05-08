@@ -231,7 +231,7 @@ public:
 class SocketXtremeInputHandler : public MessageParser<BufferAccumulation> {
 private:
     SocketRecvData &m_recv_data;
-    vma_buff_t *m_vma_buff;
+    xlio_buff_t *m_vma_buff;
 public:
     inline SocketXtremeInputHandler(Message *msg, SocketRecvData &recv_data):
         MessageParser<BufferAccumulation>(msg),
@@ -260,7 +260,7 @@ public:
     template <class Callback>
     inline bool iterate_over_buffers(Callback &callback)
     {
-        for (vma_buff_t *cur = m_vma_buff; cur; cur = cur->next) {
+        for (xlio_buff_t *cur = m_vma_buff; cur; cur = cur->next) {
             bool res = process_buffer(callback, m_recv_data, (uint8_t *)cur->payload, cur->len);
             if (unlikely(!res)) {
                 return false;
@@ -274,17 +274,17 @@ public:
     }
 };
 
-class VmaZCopyReadInputHandler : public ZCopyReadInputHandler<vma_packet_t, vma_packets_t, MSG_VMA_ZCOPY> {
+class VmaZCopyReadInputHandler : public ZCopyReadInputHandler<xlio_recvfrom_zcopy_packet_t, xlio_recvfrom_zcopy_packets_t, MSG_XLIO_ZCOPY> {
 public:
     inline VmaZCopyReadInputHandler(Message *msg, SocketRecvData &recv_data):
-        ZCopyReadInputHandler<vma_packet_t, vma_packets_t, MSG_VMA_ZCOPY>(msg, recv_data, g_vma_api->recvfrom_zcopy)
+        ZCopyReadInputHandler<xlio_recvfrom_zcopy_packet_t, xlio_recvfrom_zcopy_packets_t, MSG_XLIO_ZCOPY>(msg, recv_data, g_vma_api->recvfrom_zcopy)
     {}
 
     inline void cleanup()
     {
         if (likely(m_ptr && m_ptr->m_pkts)) {
-            vma_packets_t* vma_pkts = reinterpret_cast<vma_packets_t *>(m_ptr->m_pkts);
-            g_vma_api->free_packets(m_fd, vma_pkts->pkts, vma_pkts->n_packet_num);
+            xlio_recvfrom_zcopy_packets_t* vma_pkts = reinterpret_cast<xlio_recvfrom_zcopy_packets_t *>(m_ptr->m_pkts);
+            g_vma_api->recvfrom_zcopy_free_packets(m_fd, vma_pkts->pkts, vma_pkts->n_packet_num);
             m_ptr->m_pkts = nullptr;
         }
     }

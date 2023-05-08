@@ -2519,10 +2519,10 @@ void set_defaults() {
 class CallbackMessageHandler {
     int m_fd;
     fds_data *m_fds_ifd;
-    struct vma_info_t *m_vma_info;
+    struct xlio_info_t *m_vma_info;
 
 public:
-    inline CallbackMessageHandler(int fd, fds_data *l_fds_ifd, struct vma_info_t *vma_info) :
+    inline CallbackMessageHandler(int fd, fds_data *l_fds_ifd, struct xlio_info_t *vma_info) :
         m_fd(fd),
         m_fds_ifd(l_fds_ifd),
         m_vma_info(vma_info)
@@ -2531,9 +2531,9 @@ public:
     inline bool handle_message();
 };
 
-vma_recv_callback_retval_t myapp_vma_recv_pkt_filter_callback(int fd, size_t iov_sz,
+xlio_recv_callback_retval_t myapp_vma_recv_pkt_filter_callback(int fd, size_t iov_sz,
                                                               struct iovec iov[],
-                                                              struct vma_info_t *vma_info,
+                                                              struct xlio_info_t *vma_info,
                                                               void *context) {
 #ifdef ST_TEST
     if (st1) {
@@ -2545,25 +2545,25 @@ vma_recv_callback_retval_t myapp_vma_recv_pkt_filter_callback(int fd, size_t iov
 #endif
 
     // Check info structure version
-    if (vma_info->struct_sz < sizeof(struct vma_info_t)) {
+    if (vma_info->struct_sz < sizeof(struct xlio_info_t)) {
         log_msg("VMA's info struct is not something we can handle so un-register the application's "
                 "callback function");
         g_vma_api->register_recv_callback(fd, NULL, NULL);
-        return VMA_PACKET_RECV;
+        return XLIO_PACKET_RECV;
     }
 
     // If there is data in local buffer, then push new packet in TCP queue.Otherwise handle received
     // packet inside callback.
     if (g_zeroCopyData[fd] && g_zeroCopyData[fd]->m_pkts &&
-        reinterpret_cast<vma_packets_t *>(g_zeroCopyData[fd]->m_pkts)->n_packet_num > 0) {
-        return VMA_PACKET_RECV;
+        reinterpret_cast<xlio_recvfrom_zcopy_packets_t *>(g_zeroCopyData[fd]->m_pkts)->n_packet_num > 0) {
+        return XLIO_PACKET_RECV;
     }
 
     struct fds_data *l_fds_ifd;
 
     l_fds_ifd = g_fds_array[fd];
     if (unlikely(!l_fds_ifd)) {
-        return VMA_PACKET_RECV;
+        return XLIO_PACKET_RECV;
     }
     Message *msgReply = l_fds_ifd->p_msg;
     SocketRecvData &recv_data = l_fds_ifd->recv;
@@ -2574,11 +2574,11 @@ vma_recv_callback_retval_t myapp_vma_recv_pkt_filter_callback(int fd, size_t iov
         bool ok = parser.process_buffer(handler, recv_data, (uint8_t *)iov[i].iov_base,
                 (int)iov[i].iov_len);
         if (unlikely(!ok)) {
-            return VMA_PACKET_RECV;
+            return XLIO_PACKET_RECV;
         }
     }
 
-    return VMA_PACKET_DROP;
+    return XLIO_PACKET_DROP;
 }
 
 inline bool CallbackMessageHandler::handle_message()
@@ -2634,7 +2634,7 @@ inline bool CallbackMessageHandler::handle_message()
             if (m_fds_ifd->sock_type == SOCK_STREAM) {
                 close_ifd( m_fds_ifd->next_fd,ifd,m_fds_ifd);
             }
-            return VMA_PACKET_DROP;
+            return XLIO_PACKET_DROP;
         }*/
         msgReply->setHeaderToHost();
     }
@@ -3505,7 +3505,7 @@ int bringup(const int *p_daemonize) {
                 s_user_params.fd_handler_type == SOCKETXTREME)) {
         // Get VMA extended API
 #ifdef USING_VMA_EXTRA_API
-        g_vma_api = vma_get_api();
+        g_vma_api = xlio_get_api();
 #endif // USING_VMA_EXTRA_API
         if (!g_vma_api) { // Try VMA Extra API
             // Callback and Socketxtreme APIs are supported only by VMA
@@ -3531,7 +3531,7 @@ int bringup(const int *p_daemonize) {
         if (g_vma_api) {
 #ifdef USING_VMA_EXTRA_API
             _vma_pkts_desc_size =
-                sizeof(struct vma_packets_t) + sizeof(struct vma_packet_t) + sizeof(struct iovec) * 16;
+                sizeof(struct xlio_recvfrom_zcopy_packets_t) + sizeof(struct xlio_recvfrom_zcopy_packet_t) + sizeof(struct iovec) * 16;
 #endif // USING_VMA_EXTRA_API
         } else {
 #ifdef USING_XLIO_EXTRA_API

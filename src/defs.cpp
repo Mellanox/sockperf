@@ -43,8 +43,8 @@ debug_level_t g_debug_level = LOG_LVL_INFO;
 
 #if defined(USING_VMA_EXTRA_API) || defined (USING_XLIO_EXTRA_API)
 #ifdef USING_VMA_EXTRA_API // VMA
-struct vma_buff_t *g_vma_buff = NULL;
-struct vma_completion_t *g_vma_comps;
+struct xlio_buff_t *g_vma_buff = NULL;
+struct xlio_socketxtreme_completion_t *g_vma_comps;
 #endif // USING_VMA_EXTRA_API
 
 ZeroCopyData::ZeroCopyData() : m_pkt_buf(NULL), m_pkts(NULL) {}
@@ -69,7 +69,7 @@ int MAX_PAYLOAD_SIZE = 65507;
 int IGMP_MAX_MEMBERSHIPS = IP_MAX_MEMBERSHIPS;
 
 #ifdef USING_VMA_EXTRA_API // VMA
-struct vma_api_t *g_vma_api;
+struct xlio_api_t *g_vma_api;
 #else
 void *g_vma_api = nullptr; // Dummy variable
 #endif // USING_VMA_EXTRA_API

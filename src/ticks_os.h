@@ -84,7 +84,7 @@ inline ticks_t os_gettimeoftsc() {
     lp.QuadPart = (LONGLONG)((lp.QuadPart) / (PCFreq));
     return (ticks_t)(lp.QuadPart);
 #else
-    register uint32_t upper_32, lower_32;
+    uint32_t upper_32, lower_32;
 
 #if defined(__powerpc64__)
     unsigned long long ret;

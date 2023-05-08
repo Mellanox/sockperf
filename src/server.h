@@ -175,8 +175,8 @@ void close_ifd(int fd, int ifd, fds_data *l_fds_ifd) {
     if (g_vma_api) {
         ZeroCopyData *z_ptr = g_zeroCopyData[fd];
         if (z_ptr && z_ptr->m_pkts) {
-            vma_packets_t* vma_pkts = reinterpret_cast<vma_packets_t *>(z_ptr->m_pkts);
-            g_vma_api->free_packets(fd, vma_pkts->pkts, vma_pkts->n_packet_num);
+            xlio_recvfrom_zcopy_packets_t* vma_pkts = reinterpret_cast<xlio_recvfrom_zcopy_packets_t *>(z_ptr->m_pkts);
+            g_vma_api->recvfrom_zcopy_free_packets(fd, vma_pkts->pkts, vma_pkts->n_packet_num);
             z_ptr->m_pkts = NULL;
         }
 
