@@ -512,7 +512,7 @@ public:
             }
             m_rings_vma_comps_map_itr->second->vma_comp_list_size = g_vma_api->socketxtreme_poll(
                 ring_fd, (vma_completion_t *)(&m_rings_vma_comps_map_itr->second->vma_comp_list),
-                MAX_VMA_COMPS, 0);
+                MAX_SOCKETXTREME_COMPS, 0);
 
             if (m_rings_vma_comps_map_itr->second->vma_comp_list_size > 0) {
                 m_vma_comps_queue.push(ring_fd);

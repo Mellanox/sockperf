@@ -2424,7 +2424,7 @@ void cleanup() {
     if (s_user_params.select_timeout) {
         FREE(s_user_params.select_timeout);
     }
-#if defined(USING_VMA_EXTRA_API) || defined(USING_XLIO_EXTRA_API)
+#ifdef USING_EXTRA_API
     if ((g_vma_api || g_xlio_api) && s_user_params.is_zcopyread) {
         zeroCopyMap::iterator it;
         while ((it = g_zeroCopyData.begin()) != g_zeroCopyData.end()) {
@@ -2432,7 +2432,7 @@ void cleanup() {
             g_zeroCopyData.erase(it);
         }
     }
-#endif // USING_VMA_EXTRA_API || USING_XLIO_EXTRA_API
+#endif // USING_EXTRA_API
 
     if (g_fds_array) {
         FREE(g_fds_array);
@@ -3046,7 +3046,7 @@ int prepare_socket(int fd, struct fds_data *p_data)
         rc = sock_set_tos(fd);
     }
 
-#if defined(USING_VMA_EXTRA_API) || defined(USING_XLIO_EXTRA_API)
+#ifdef USING_EXTRA_API
 #ifdef ST_TEST
     if (!stTest)
 #endif
@@ -3066,7 +3066,7 @@ int prepare_socket(int fd, struct fds_data *p_data)
             g_zeroCopyData[fd] = new ZeroCopyData();
             g_zeroCopyData[fd]->allocate();
         }
-#endif // USING_VMA_EXTRA_API || USING_XLIO_EXTRA_API
+#endif // USING_EXTRA_API
 
     return (!rc ? fd
                 : (int)INVALID_SOCKET); // TODO: use SOCKET all over the way and avoid this cast
@@ -3504,7 +3504,7 @@ int bringup(const int *p_daemonize) {
     /* Setup VMA */
     int _vma_pkts_desc_size = 0;
 
-#if defined(USING_VMA_EXTRA_API) || defined(USING_XLIO_EXTRA_API)
+#ifdef USING_EXTRA_API
     if (!rc && (s_user_params.is_rxfiltercb || s_user_params.is_zcopyread ||
                 s_user_params.fd_handler_type == SOCKETXTREME)) {
         // Get VMA extended API
@@ -3552,7 +3552,7 @@ int bringup(const int *p_daemonize) {
         errno = EPERM;
         exit_with_err("Please compile with VMA or XLIO Extra API to use these options", SOCKPERF_ERR_FATAL);
     }
-#endif // USING_VMA_EXTRA_API || USING_XLIO_EXTRA_API
+#endif // USING_EXTRA_API
 
 
 #if defined(DEFINED_TLS)

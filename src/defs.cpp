@@ -41,7 +41,7 @@ TicksTime g_cycleStartTime;
 
 debug_level_t g_debug_level = LOG_LVL_INFO;
 
-#if defined(USING_VMA_EXTRA_API) || defined (USING_XLIO_EXTRA_API)
+#ifdef USING_EXTRA_API
 #ifdef USING_VMA_EXTRA_API // VMA
 struct vma_buff_t *g_vma_buff = NULL;
 struct vma_completion_t *g_vma_comps;
@@ -56,7 +56,7 @@ ZeroCopyData::~ZeroCopyData() {
 }
 
 zeroCopyMap g_zeroCopyData;
-#endif // USING_VMA_EXTRA_API || USING_XLIO_EXTRA_API
+#endif // USING_EXTRA_API
 
 uint32_t MPS_MAX = MPS_MAX_UL; // will be overwrite at runtime in case of ping-pong test
 PacketTimes *g_pPacketTimes = NULL;
