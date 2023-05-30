@@ -793,28 +793,45 @@ void Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration
 }
 
 //------------------------------------------------------------------------------
-#ifdef USING_VMA_EXTRA_API // For VMA socketxtreme Only
-static int _connect_check_vma(int ifd) {
+#ifdef USING_EXTRA_API // For socketxtreme Only
+template <class API, class C>
+static int _connect_check_socketxtreme_api(int ifd, API extra_api) {
     int rc = SOCKPERF_ERR_SOCKET;
     int ring_fd = 0;
     int poll = 0;
-    rc = g_vma_api->get_socket_rings_fds(ifd, &ring_fd, 1);
+    rc = extra_api->get_socket_rings_fds(ifd, &ring_fd, 1);
     if (rc == -1) {
         rc = SOCKPERF_ERR_SOCKET;
         return rc;
     }
     while (!g_b_exit && poll == 0) {
-        struct vma_completion_t vma_comps;
-        poll = g_vma_api->socketxtreme_poll(ring_fd, &vma_comps, 1, 0);
+        C comps;
+        poll = extra_api->socketxtreme_poll(ring_fd, &comps, 1, 0);
         if (poll > 0) {
-            if (vma_comps.events & EPOLLOUT) {
+            if (comps.events & EPOLLOUT) {
                 rc = SOCKPERF_ERR_NONE;
             }
         }
     }
     return rc;
 }
+
+static int _connect_check_socketxtreme(int ifd) {
+    if (g_vma_api) {
+#ifdef USING_VMA_EXTRA_API // For VMA socketxtreme Only
+        return _connect_check_socketxtreme_api<decltype(g_vma_api), vma_completion_t>(
+            ifd, g_vma_api);
 #endif // USING_VMA_EXTRA_API
+    } else {
+#ifdef USING_XLIO_EXTRA_API // For XLIO socketxtreme Only
+        return _connect_check_socketxtreme_api<decltype(g_xlio_api), xlio_socketxtreme_completion_t>(
+            ifd, g_xlio_api);
+#endif // USING_XLIO_EXTRA_API
+    }
+
+    return -1;
+}
+#endif // USING_EXTRA_API
 
 //------------------------------------------------------------------------------
 static int _connect_check(int ifd, int timeout_ms) {
@@ -926,11 +943,11 @@ int Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration,
                 if (connect(ifd, reinterpret_cast<const sockaddr *>(&(data->server_addr)),
                             data->server_addr_len) < 0) {
                     if (os_err_in_progress()) {
-#ifdef USING_VMA_EXTRA_API // For VMA socketxtreme Only
-                        if (g_pApp->m_const_params.fd_handler_type == SOCKETXTREME && g_vma_api) {
-                            rc = _connect_check_vma(ifd);
+#ifdef USING_EXTRA_API // For socketxtreme Only
+                        if (g_pApp->m_const_params.fd_handler_type == SOCKETXTREME) {
+                            rc = _connect_check_socketxtreme(ifd);
                         } else
-#endif // USING_VMA_EXTRA_API
+#endif // USING_EXTRA_API
                         {
                             rc = _connect_check(ifd, s_user_params.tcp_connect_timeout_ms);
                         }
@@ -1278,12 +1295,23 @@ void client_handler(handler_info *p_info) {
             break;
         }
 #endif // defined(__FreeBSD__) || defined(__APPLE__)
-#ifdef USING_VMA_EXTRA_API // For VMA socketxtreme Only
+#ifdef USING_EXTRA_API // For socketxtreme Only
         case SOCKETXTREME: {
-            client_handler<IoSocketxtreme>(p_info->fd_min, p_info->fd_max, p_info->fd_num);
+            if (g_vma_api) {
+#ifdef USING_VMA_EXTRA_API // For VMA socketxtreme Only
+                client_handler<IoSocketxtremeVMA>(
+                    p_info->fd_min, p_info->fd_max, p_info->fd_num);
+#endif // USING_VMA_EXTRA_API
+            } else if (g_xlio_api) {
+#ifdef USING_XLIO_EXTRA_API // For XLIO socketxtreme Only
+                client_handler<IoSocketxtremeXLIO>(
+                    p_info->fd_min, p_info->fd_max, p_info->fd_num);
+#endif // USING_XLIO_EXTRA_API
+            }
+
             break;
         }
-#endif // USING_VMA_EXTRA_API
+#endif // USING_EXTRA_API
 #endif // !WIN32
         default: {
             ERROR_MSG("unknown file handler");

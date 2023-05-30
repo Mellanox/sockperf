@@ -119,7 +119,66 @@ public:
     }
 };
 
+template <class InputHandler, class IoType>
+struct input_handler_helper
+{
+    inline static InputHandler create_input_handler(Message *msg, SocketRecvData &recv, IoType& ioHandler) {
+        return InputHandler(msg, recv);
+    }
+};
+
 #ifdef USING_EXTRA_API
+// T is vma_buff_t | xlio_buff_t
+template <class T>
+class SocketXtremeInputHandler : public MessageParser<BufferAccumulation> {
+private:
+    SocketRecvData &m_recv_data;
+    T *m_sockxtreme_buff;
+    void *m_src;
+protected:
+    /** Receive pending data from a socket
+     * @param [in] socket descriptor
+     * @param [out] recvfrom_addr address to save peer address into
+     * @param [inout] in - storage size, out - actual address size
+     * @param [in] sockxtreme_buff socketxtreme buffer
+     * @param [in] sockxtreme_comp socketxtreme completion
+     * @return status code
+     */
+    inline int receive_pending_data(
+        int fd, struct sockaddr *recvfrom_addr, socklen_t &size, T* sockxtreme_buff)
+    {
+        size = sizeof(sockaddr_in);
+        std::memcpy(recvfrom_addr, m_src, size);
+        m_sockxtreme_buff = sockxtreme_buff;
+        if (likely(m_sockxtreme_buff)) {
+            return m_sockxtreme_buff->len;
+        }
+
+        return 0;
+    }
+public:
+    inline SocketXtremeInputHandler(Message *msg, SocketRecvData &recv_data, void *src):
+        MessageParser<BufferAccumulation>(msg),
+        m_recv_data(recv_data), m_sockxtreme_buff(nullptr), m_src(src)
+    {}
+
+    template <class Callback>
+    inline bool iterate_over_buffers(Callback &callback)
+    {
+        for (T *cur = m_sockxtreme_buff; cur; cur = cur->next) {
+            bool res = process_buffer(callback, m_recv_data, (uint8_t *)cur->payload, cur->len);
+            if (unlikely(!res)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    inline void cleanup()
+    {
+    }
+};
+
 typedef int(* recvfrom_zcopy_func_t)(int __fd, void *__buf, size_t __nbytes, int *__flags,
                                      struct sockaddr *__from, socklen_t *__fromlen);
 
@@ -228,16 +287,13 @@ public:
 };
 
 #ifdef USING_VMA_EXTRA_API // VMA
-class SocketXtremeInputHandler : public MessageParser<BufferAccumulation> {
+class VmaSocketXtremeInputHandler : public SocketXtremeInputHandler<vma_buff_t> {
 private:
-    SocketRecvData &m_recv_data;
-    vma_buff_t *m_vma_buff;
+    vma_buff_t *m_curr_buff;
 public:
-    inline SocketXtremeInputHandler(Message *msg, SocketRecvData &recv_data):
-        MessageParser<BufferAccumulation>(msg),
-        m_recv_data(recv_data),
-        m_vma_buff(NULL)
-    {}
+    inline VmaSocketXtremeInputHandler(
+        Message *msg, SocketRecvData &recv_data, vma_buff_t *curr_buff, void *src):
+        SocketXtremeInputHandler(msg, recv_data, src), m_curr_buff(curr_buff) {}
 
     /** Receive pending data from a socket
      * @param [in] socket descriptor
@@ -247,30 +303,8 @@ public:
      */
     inline int receive_pending_data(int fd, struct sockaddr *recvfrom_addr, socklen_t &size)
     {
-        size = sizeof(sockaddr_in);
-        std::memcpy(recvfrom_addr, &g_vma_comps->src, size);
-        m_vma_buff = g_vma_buff;
-        if (likely(m_vma_buff)) {
-            return m_vma_buff->len;
-        } else {
-            return 0;
-        }
-    }
-
-    template <class Callback>
-    inline bool iterate_over_buffers(Callback &callback)
-    {
-        for (vma_buff_t *cur = m_vma_buff; cur; cur = cur->next) {
-            bool res = process_buffer(callback, m_recv_data, (uint8_t *)cur->payload, cur->len);
-            if (unlikely(!res)) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    inline void cleanup()
-    {
+        return SocketXtremeInputHandler<vma_buff_t>::receive_pending_data(
+            fd, recvfrom_addr, size, m_curr_buff);
     }
 };
 
@@ -289,9 +323,40 @@ public:
         }
     }
 };
+
+template <class IoType>
+struct input_handler_helper<VmaSocketXtremeInputHandler, IoType>
+{
+    inline static VmaSocketXtremeInputHandler create_input_handler(
+            Message *msg, SocketRecvData &recv, IoType& ioHandler) {
+        return VmaSocketXtremeInputHandler(
+            msg, recv, ioHandler.get_last_buff(), &ioHandler.get_last_comp()->src);
+    }
+};
 #endif // USING_VMA_EXTRA_API
 
 #ifdef USING_XLIO_EXTRA_API // XLIO extra-api Only
+class XlioSocketXtremeInputHandler : public SocketXtremeInputHandler<xlio_buff_t> {
+private:
+    xlio_buff_t *m_curr_buff;
+public:
+    inline XlioSocketXtremeInputHandler(
+            Message *msg, SocketRecvData &recv_data, xlio_buff_t *curr_buff, void *src):
+        SocketXtremeInputHandler(msg, recv_data, src), m_curr_buff(curr_buff) {}
+
+    /** Receive pending data from a socket
+     * @param [in] socket descriptor
+     * @param [out] recvfrom_addr address to save peer address into
+     * @param [inout] in - storage size, out - actual address size
+     * @return status code
+     */
+    inline int receive_pending_data(int fd, struct sockaddr *recvfrom_addr, socklen_t &size)
+    {
+        return SocketXtremeInputHandler<xlio_buff_t>::receive_pending_data(
+            fd, recvfrom_addr, size, m_curr_buff);
+    }
+};
+
 class XlioZCopyReadInputHandler :
     public ZCopyReadInputHandler<xlio_recvfrom_zcopy_packet_t, xlio_recvfrom_zcopy_packets_t, MSG_XLIO_ZCOPY> {
 public:
@@ -309,8 +374,16 @@ public:
         }
     }
 };
+
+template <class IoType>
+struct input_handler_helper<XlioSocketXtremeInputHandler, IoType>
+{
+    inline static XlioSocketXtremeInputHandler create_input_handler(
+            Message *msg, SocketRecvData &recv, IoType& ioHandler) {
+        return XlioSocketXtremeInputHandler(
+            msg, recv, ioHandler.get_last_buff(), &ioHandler.get_last_comp()->src);
+    }
+};
 #endif // USING_XLIO_EXTRA_API
-
 #endif // USING_EXTRA_API
-
 #endif // INPUT_HANDLERS_H_

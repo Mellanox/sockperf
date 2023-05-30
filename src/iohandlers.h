@@ -32,6 +32,8 @@
 #include "defs.h"
 #include "common.h"
 
+void print_addresses(const fds_data *data, int &list_count);
+
 //==============================================================================
 class IoHandler {
 public:
@@ -452,11 +454,37 @@ private:
     int m_max_events;
 };
 #endif // defined(__FreeBSD__) || defined(__APPLE__) 
-#ifdef USING_VMA_EXTRA_API // VMA socketxtreme-extra-api Only
+#ifdef USING_EXTRA_API // socketxtreme-extra-api Only
 //==============================================================================
+// T is vma_buff_t | xlio_buff_t
+// C is vma_completion_t | xlio_socketxtreme_completion_t
+template <class T, class C, typename API>
 class IoSocketxtreme : public IoHandler {
 public:
-    IoSocketxtreme(int _fd_min, int _fd_max, int _fd_num);
+    typedef T buff_type;
+
+#ifdef USING_VMA_EXTRA_API // VMA socketxtreme-extra-api Only
+    template <class K = T, typename std::enable_if_t<std::is_same<vma_buff_t,K>::value, bool> = true>
+    IoSocketxtreme(int _fd_min, int _fd_max, int _fd_num)
+        : IoHandler(_fd_min, _fd_max, _fd_num, 0, 0)
+        , m_extra_api(g_vma_api), m_flag_sx_packet(VMA_SOCKETXTREME_PACKET)
+        , m_flag_sx_new_conn_accepted(VMA_SOCKETXTREME_NEW_CONNECTION_ACCEPTED)
+        , m_current_ring_comp(nullptr)
+    {
+    }
+#endif // USING_VMA_EXTRA_API
+
+#ifdef USING_XLIO_EXTRA_API // XLIO socketxtreme-extra-api Only
+    template <class K = T, typename std::enable_if_t<std::is_same<xlio_buff_t,K>::value, bool> = true>
+    IoSocketxtreme(int _fd_min, int _fd_max, int _fd_num)
+        : IoHandler(_fd_min, _fd_max, _fd_num, 0, 0)
+        , m_extra_api(g_xlio_api), m_flag_sx_packet(XLIO_SOCKETXTREME_PACKET)
+        , m_flag_sx_new_conn_accepted(XLIO_SOCKETXTREME_NEW_CONNECTION_ACCEPTED)
+        , m_current_ring_comp(nullptr)
+    {
+    }
+#endif // USING_XLIO_EXTRA_API
+
     virtual ~IoSocketxtreme();
 
     //------------------------------------------------------------------------------
@@ -489,35 +517,52 @@ public:
             }
         }
     }
+
+#ifdef USING_VMA_EXTRA_API // VMA
+    template <typename K = T>
+    inline std::enable_if_t<std::is_same<K,vma_buff_t>::value, void>
+    sx_free_packets(int i) {
+        m_extra_api->socketxtreme_free_vma_packets(
+            &m_rings_comps_map_itr->second->comp_list[i].packet, 1);
+    }
+#endif
+
+#ifdef USING_XLIO_EXTRA_API // XLIO
+    template <typename K = T>
+    inline std::enable_if_t<std::is_same<K,xlio_buff_t>::value, void>
+    sx_free_packets(int i) {
+        m_extra_api->socketxtreme_free_packets(
+            &m_rings_comps_map_itr->second->comp_list[i].packet, 1);
+    }
+#endif
+
     //------------------------------------------------------------------------------
     inline int waitArrival() {
         m_look_end = 0;
-        for (m_rings_vma_comps_map_itr = m_rings_vma_comps_map.begin();
-             m_rings_vma_comps_map_itr != m_rings_vma_comps_map.end();
-             ++m_rings_vma_comps_map_itr) {
-            int ring_fd = m_rings_vma_comps_map_itr->first;
-            if (!m_rings_vma_comps_map_itr->second->is_freed) {
-                for (int i = 0; i < m_rings_vma_comps_map_itr->second->vma_comp_list_size; i++) {
-                    if (m_rings_vma_comps_map_itr->second->vma_comp_list[i].events &
-                        VMA_SOCKETXTREME_PACKET) {
-                        g_vma_api->socketxtreme_free_vma_packets(
-                            &m_rings_vma_comps_map_itr->second->vma_comp_list[i].packet, 1);
+        for (m_rings_comps_map_itr = m_rings_comps_map.begin();
+             m_rings_comps_map_itr != m_rings_comps_map.end();
+             ++m_rings_comps_map_itr) {
+            int ring_fd = m_rings_comps_map_itr->first;
+            if (!m_rings_comps_map_itr->second->is_freed) {
+                for (int i = 0; i < m_rings_comps_map_itr->second->comp_list_size; i++) {
+                    if (m_rings_comps_map_itr->second->comp_list[i].events & m_flag_sx_packet) {
+                        sx_free_packets(i);
                     }
                 }
-                memset(m_rings_vma_comps_map_itr->second->vma_comp_list, 0,
-                       m_rings_vma_comps_map_itr->second->vma_comp_list_size *
-                           sizeof(vma_completion_t));
-                m_rings_vma_comps_map_itr->second->is_freed = true;
-                m_rings_vma_comps_map_itr->second->vma_comp_list_size = 0;
+                memset(m_rings_comps_map_itr->second->comp_list, 0,
+                       m_rings_comps_map_itr->second->comp_list_size *
+                           sizeof(C));
+                m_rings_comps_map_itr->second->is_freed = true;
+                m_rings_comps_map_itr->second->comp_list_size = 0;
             }
-            m_rings_vma_comps_map_itr->second->vma_comp_list_size = g_vma_api->socketxtreme_poll(
-                ring_fd, (vma_completion_t *)(&m_rings_vma_comps_map_itr->second->vma_comp_list),
+            m_rings_comps_map_itr->second->comp_list_size = m_extra_api->socketxtreme_poll(
+                ring_fd, (C *)(&m_rings_comps_map_itr->second->comp_list),
                 MAX_SOCKETXTREME_COMPS, 0);
 
-            if (m_rings_vma_comps_map_itr->second->vma_comp_list_size > 0) {
-                m_vma_comps_queue.push(ring_fd);
-                m_rings_vma_comps_map_itr->second->is_freed = false;
-                m_look_end += m_rings_vma_comps_map_itr->second->vma_comp_list_size;
+            if (m_rings_comps_map_itr->second->comp_list_size > 0) {
+                m_comps_queue.push(ring_fd);
+                m_rings_comps_map_itr->second->is_freed = false;
+                m_look_end += m_rings_comps_map_itr->second->comp_list_size;
             }
         }
         return m_look_end;
@@ -526,46 +571,123 @@ public:
     inline int analyzeArrival(int ifd) {
         assert((ifd < max_fds_num) && "exceeded tool limitation (max_fds_num)");
         int ring_fd = 0;
-        g_vma_buff = NULL;
-        if (!m_current_vma_ring_comp) {
-            ring_fd = m_vma_comps_queue.front();
-            m_vma_comps_queue.pop();
-            m_rings_vma_comps_map_itr = m_rings_vma_comps_map.find(ring_fd);
-            if (m_rings_vma_comps_map_itr != m_rings_vma_comps_map.end()) {
-                m_current_vma_ring_comp = m_rings_vma_comps_map_itr->second;
-                m_vma_comp_index = 0;
+        m_sx_curr_buff = NULL;
+        if (!m_current_ring_comp) {
+            ring_fd = m_comps_queue.front();
+            m_comps_queue.pop();
+            m_rings_comps_map_itr = m_rings_comps_map.find(ring_fd);
+            if (m_rings_comps_map_itr != m_rings_comps_map.end()) {
+                m_current_ring_comp = m_rings_comps_map_itr->second;
+                m_comp_index = 0;
             }
         }
 
-        g_vma_comps = (vma_completion_t *)&m_current_vma_ring_comp->vma_comp_list[m_vma_comp_index];
-        if (g_vma_comps->events & VMA_SOCKETXTREME_NEW_CONNECTION_ACCEPTED) {
-            ifd = g_vma_comps->listen_fd;
-        } else if (g_vma_comps->events & VMA_SOCKETXTREME_PACKET) {
-            g_vma_buff = g_vma_comps->packet.buff_lst;
-            ifd = g_vma_comps->user_data;
-        } else if (g_vma_comps->events & (EPOLLIN | EPOLLERR | EPOLLHUP | EPOLLRDHUP)) {
-            ifd = g_vma_comps->user_data;
+        m_sx_curr_comp = (C *)&m_current_ring_comp->comp_list[m_comp_index];
+        if (m_sx_curr_comp->events & m_flag_sx_new_conn_accepted) {
+            ifd = m_sx_curr_comp->listen_fd;
+        } else if (m_sx_curr_comp->events & m_flag_sx_packet) {
+            m_sx_curr_buff = m_sx_curr_comp->packet.buff_lst;
+            ifd = m_sx_curr_comp->user_data;
+        } else if (m_sx_curr_comp->events & (EPOLLIN | EPOLLERR | EPOLLHUP | EPOLLRDHUP)) {
+            ifd = m_sx_curr_comp->user_data;
         } else {
             ifd = 0;
         }
 
-        m_vma_comp_index++;
-        if (m_vma_comp_index == m_current_vma_ring_comp->vma_comp_list_size) {
-            m_vma_comp_index = 0;
-            m_current_vma_ring_comp = NULL;
+        m_comp_index++;
+        if (m_comp_index == m_current_ring_comp->comp_list_size) {
+            m_comp_index = 0;
+            m_current_ring_comp = NULL;
         }
         return ifd;
     }
 
     virtual int prepareNetwork();
 
+    C *get_last_comp() { return m_sx_curr_comp; }
+    T *get_last_buff() { return m_sx_curr_buff; }
+
 private:
-    int m_vma_comp_index;
-    vma_ring_comps *m_current_vma_ring_comp;
-    vma_comps_queue m_vma_comps_queue;
-    rings_vma_comps_map m_rings_vma_comps_map;
-    rings_vma_comps_map::iterator m_rings_vma_comps_map_itr;
+    API m_extra_api;
+    C *m_sx_curr_comp;
+    T *m_sx_curr_buff;
+    uint64_t m_flag_sx_packet;
+    uint64_t m_flag_sx_new_conn_accepted;
+
+    int m_comp_index;
+    socketxtreme_ring_comps<C> *m_current_ring_comp;
+    socketxtreme_comps_queue m_comps_queue;
+    socketxtreme_rings_comps_map<C> m_rings_comps_map;
+    typename socketxtreme_rings_comps_map<C>::iterator m_rings_comps_map_itr;
 };
+
+template <class T, class C, typename API>
+IoSocketxtreme<T,C,API>::~IoSocketxtreme() {
+    for (m_rings_comps_map_itr = m_rings_comps_map.begin();
+         m_rings_comps_map_itr != m_rings_comps_map.end(); ++m_rings_comps_map_itr) {
+        FREE(m_rings_comps_map_itr->second);
+    }
+}
+
+template <class T, class C, typename API>
+int IoSocketxtreme<T,C,API>::prepareNetwork() {
+    int rc = SOCKPERF_ERR_NONE;
+    int list_count = 0;
+    int ring_fd = 0;
+
+    printf("\n");
+    for (int ifd = m_fd_min; ifd <= m_fd_max; ifd++) {
+        if (g_fds_array[ifd]) {
+            ring_fd = 0;
+            int rings = -1;
+            if (g_vma_api) {
+#ifdef USING_VMA_EXTRA_API // VMA Socketxtreme Only
+                rings = g_vma_api->get_socket_rings_fds(ifd, &ring_fd, 1);
 #endif // USING_VMA_EXTRA_API
+            } else {
+#ifdef USING_XLIO_EXTRA_API // XLIO Socketxtreme Only
+                rings = g_xlio_api->get_socket_rings_fds(ifd, &ring_fd, 1);
+#endif // USING_XLIO_EXTRA_API
+            }
+
+            if (rings == -1) {
+                rc = SOCKPERF_ERR_SOCKET;
+                return rc;
+            }
+            typename socketxtreme_rings_comps_map<C>::iterator itr = m_rings_comps_map.find(ring_fd);
+            if (itr == m_rings_comps_map.end()) {
+                socketxtreme_ring_comps<C> *temp = NULL;
+                temp = (struct socketxtreme_ring_comps<C> *)MALLOC(sizeof(socketxtreme_ring_comps<C>));
+                if (!temp) {
+                    log_err("Failed to allocate memory");
+                    rc = SOCKPERF_ERR_NO_MEMORY;
+                }
+                memset(temp, 0, sizeof(socketxtreme_ring_comps<C>));
+                temp->is_freed = true;
+                temp->comp_list_size = 0;
+
+                std::pair<typename socketxtreme_rings_comps_map<C>::iterator, bool> ret =
+                    m_rings_comps_map.insert(std::make_pair(ring_fd, temp));
+                if (!ret.second) {
+                    log_err("Failed to insert new ring.");
+                    rc = SOCKPERF_ERR_NO_MEMORY;
+                }
+            }
+
+            print_addresses(g_fds_array[ifd], list_count);
+        }
+    }
+    return rc;
+}
+
+#ifdef USING_VMA_EXTRA_API // VMA Socketxtreme Only
+typedef IoSocketxtreme<vma_buff_t, vma_completion_t, decltype(g_vma_api)> IoSocketxtremeVMA;
+#endif // USING_VMA_EXTRA_API
+
+#ifdef USING_XLIO_EXTRA_API // XLIO Socketxtreme Only
+typedef IoSocketxtreme<xlio_buff_t, xlio_socketxtreme_completion_t, decltype(g_xlio_api)> IoSocketxtremeXLIO;
+#endif // USING_XLIO_EXTRA_API
+
+#endif // USING_EXTRA_API
 #endif // !WIN32
 #endif // IOHANDLERS_H_

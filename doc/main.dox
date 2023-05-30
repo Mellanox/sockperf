@@ -144,8 +144,8 @@ sockperf: [tid 4805] using epoll() to block on socket(s)
          --recv_looping_num     -Set sockperf to loop over recvfrom() until EAGAIN or <N> good received packets, -1 for infinite, must be used with --nonblocked (default 1).
          --dontwarmup           -Don't send warm up messages on start.
          --pre-warmup-wait      -Time to wait before sending warm up messages (seconds).
-         --zcopyread,--vmazcopyread
-                                -Use VMA's zero copy reads API (See VMA's readme).
+         --zcopyread
+                                -Use zero copy reads API (See VMA/XLIO readme).
          --daemonize            -Run as daemon.
          --no-rdtsc             -Don't use register when taking time; instead use monotonic clock.
          --load-vma             -Load VMA dynamically even when LD_PRELOAD was not used.
@@ -161,8 +161,8 @@ sockperf: [tid 4805] using epoll() to block on socket(s)
 @code
          --threads-num          -Run <N> threads on server side (requires '-f' option).
          --cpu-affinity         -Set threads affinity to the given core ids in list format (see: cat /proc/cpuinfo).
-         --rxfiltercb,--vmarxfiltercb
-                                -Use VMA's receive path message filter callback API (See VMA's readme).
+         --rxfiltercb
+                                -Use receive path message filter callback API (See VMA/XLIO readme).
          --force-unicast-reply  -Force server to reply via unicast.
          --dont-reply           -Server won't reply to the client messages.
  -m      --msg-size             -Set maximum message size that the server can receive <size> bytes (default 65507).
