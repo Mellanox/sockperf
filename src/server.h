@@ -83,13 +83,38 @@ class Server : public ServerBase {
 private:
     IoType m_ioHandler;
 
+#ifdef USING_EXTRA_API // Socketxtreme Only
+    template <typename T = IoType>
+    inline std::enable_if_t<(is_vma_bufftype<T>{} || is_xlio_bufftype<T>{}), int>
+    get_active_ifd(int ifd, struct sockaddr *addr, socklen_t *addr_size) {
+        return m_ioHandler.get_last_comp()->user_data;
+    }
+
+    template <typename T = IoType>
+    inline std::enable_if_t<(is_vma_bufftype<T>{} || is_xlio_bufftype<T>{}), const sockaddr_in &>
+    get_last_src(const sockaddr_store_t &src) {
+        return m_ioHandler.get_last_comp()->src;
+    }
+#endif
+
+    template <typename T = IoType>
+    inline std::enable_if_t<!(is_vma_bufftype<T>{} || is_xlio_bufftype<T>{}), int>
+    get_active_ifd(int ifd, struct sockaddr *addr, socklen_t *addr_size) {
+        return accept(ifd, addr, addr_size); 
+    }
+
+    template <typename T = IoType>
+    inline std::enable_if_t<!(is_vma_bufftype<T>{} || is_xlio_bufftype<T>{}), const sockaddr_store_t &>
+    get_last_src(const sockaddr_store_t &src) {
+        return src;
+    }
+
     class ServerMessageHandlerCallback {
         Server<IoType, SwitchActivityInfo, SwitchCalcGaps> &m_server;
         int m_ifd;
         struct sockaddr_store_t &m_recvfrom_addr;
         socklen_t m_recvfrom_len;
         fds_data *m_fds_ifd;
-
     public:
         inline ServerMessageHandlerCallback(Server<IoType, SwitchActivityInfo, SwitchCalcGaps> &server,
                 int ifd, struct sockaddr_store_t &recvfrom_addr, socklen_t recvfrom_len,
@@ -109,8 +134,7 @@ private:
         }
     };
 
-    // protected:
-public:
+ public:
     //------------------------------------------------------------------------------
     Server(int _fd_min, int _fd_max, int _fd_num);
     virtual ~Server();
@@ -121,25 +145,40 @@ public:
     ** receive from and send to selected socket
     */
     template <class InputHandler>
-    /*inline*/ bool server_receive_then_send(int ifd);
+    /*inline*/ bool server_receive_then_send_impl(int ifd);
 
-    inline bool server_receive_then_send(int ifd)
-    {
 #ifdef USING_VMA_EXTRA_API // VMA
-        if (SOCKETXTREME == g_pApp->m_const_params.fd_handler_type && g_vma_api) {
-            return server_receive_then_send<SocketXtremeInputHandler>(ifd);
-        }
+    template <typename T = IoType>
+    inline std::enable_if_t<is_vma_bufftype<T>::value, bool>
+    server_receive_then_send(int ifd) {
+        return server_receive_then_send_impl<VmaSocketXtremeInputHandler>(ifd);
+    }
+#endif
 
+#ifdef USING_XLIO_EXTRA_API // XLIO
+    template <typename T = IoType>
+    inline std::enable_if_t<is_xlio_bufftype<T>::value, bool>
+    server_receive_then_send(int ifd) {
+        return server_receive_then_send_impl<XlioSocketXtremeInputHandler>(ifd);
+    }
+#endif
+
+    template <typename T = IoType>
+    inline std::enable_if_t<!(
+        is_vma_bufftype<T>{} ||
+        is_xlio_bufftype<T>{}), bool>
+    server_receive_then_send(int ifd) {
+#ifdef USING_VMA_EXTRA_API // VMA
         if (g_pApp->m_const_params.is_zcopyread && g_vma_api) {
-            return server_receive_then_send<VmaZCopyReadInputHandler>(ifd);
+            return server_receive_then_send_impl<VmaZCopyReadInputHandler>(ifd);
         }
 #endif // USING_VMA_EXTRA_API
 #ifdef USING_XLIO_EXTRA_API // XLIO
         if (g_pApp->m_const_params.is_zcopyread && g_xlio_api) {
-            return server_receive_then_send<XlioZCopyReadInputHandler>(ifd);
+            return server_receive_then_send_impl<XlioZCopyReadInputHandler>(ifd);
         }
 #endif // USING_XLIO_EXTRA_API
-        return server_receive_then_send<RecvFromInputHandler>(ifd);
+        return server_receive_then_send_impl<RecvFromInputHandler>(ifd);
     }
 
     /*inline*/ bool handle_message(int ifd, struct sockaddr_store_t &recvfrom_addr,
@@ -191,6 +230,8 @@ void close_ifd(int fd, int ifd, fds_data *l_fds_ifd) {
             g_xlio_api->recvfrom_zcopy_free_packets(fd, xlio_pkts->pkts, xlio_pkts->n_packet_num);
             z_ptr->m_pkts = NULL;
         }
+
+        g_xlio_api->register_recv_callback(fd, NULL, NULL);
     }
 #endif // USING_XLIO_EXTRA_API
 
@@ -213,13 +254,14 @@ void close_ifd(int fd, int ifd, fds_data *l_fds_ifd) {
         }
     }
 }
+
 //------------------------------------------------------------------------------
 /*
 ** receive from and send to selected socket
 */
 template <class IoType, class SwitchActivityInfo, class SwitchCalcGaps>
 template <class InputHandler>
-inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_then_send(int ifd) {
+inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_then_send_impl(int ifd) {
     struct sockaddr_store_t recvfrom_addr;
     socklen_t recvfrom_len = sizeof(recvfrom_addr);
     static const bool do_update = true;
@@ -230,7 +272,9 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_t
         return (do_update);
     }
 
-    InputHandler input_handler(m_pMsgReply, l_fds_ifd->recv);
+    InputHandler input_handler(
+        input_handler_helper<InputHandler,decltype(m_ioHandler)>::create_input_handler(
+            m_pMsgReply, l_fds_ifd->recv, m_ioHandler));
     ret = input_handler.receive_pending_data(ifd, reinterpret_cast<sockaddr *>(&recvfrom_addr), recvfrom_len);
     if (unlikely(ret <= 0)) {
         input_handler.cleanup();

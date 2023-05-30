@@ -503,10 +503,6 @@ extern TicksTime g_cycleStartTime;
 extern debug_level_t g_debug_level;
 
 #ifdef USING_EXTRA_API
-#ifdef USING_VMA_EXTRA_API // VMA
-extern struct vma_buff_t *g_vma_buff;
-extern struct vma_completion_t *g_vma_comps;
-#endif // USING_VMA_EXTRA_API
 class ZeroCopyData {
 public:
     ZeroCopyData();
@@ -569,9 +565,9 @@ struct fds_data {
     IPAddress mc_source_ip_addr;    /**< message source ip for multicast packet filtering */
     int memberships_size = 0;
     struct SocketRecvData recv;
-#ifdef USING_VMA_EXTRA_API // VMA callback-extra-api Only
-    Message *p_msg = nullptr; // For VMA callback API.
-#endif // USING_VMA_EXTRA_API
+#ifdef USING_EXTRA_API // callback-extra-api Only
+    Message *p_msg = nullptr;
+#endif // USING_EXTRA_API
 #if defined(DEFINED_TLS)
     void *tls_handle = nullptr;
 #endif /* DEFINED_TLS */
@@ -651,32 +647,50 @@ struct equal_to<struct sockaddr_store_t> :
 };
 } // namespace std
 
-#ifdef USING_VMA_EXTRA_API // VMA socketxtreme-extra-api Only
-struct vma_ring_comps {
-    vma_completion_t vma_comp_list[MAX_SOCKETXTREME_COMPS];
-    int vma_comp_list_size;
+#ifdef USING_EXTRA_API // socketxtreme-extra-api Only
+template <class T> // T is vma_completion_t | xlio_socketxtreme_completion_t
+struct socketxtreme_ring_comps {
+    T comp_list[MAX_SOCKETXTREME_COMPS];
+    int comp_list_size;
     bool is_freed;
 };
-#endif // USING_VMA_EXTRA_API
+
+template<class T> // T is vma_completion_t | xlio_socketxtreme_completion_t
+using socketxtreme_rings_comps_map = std::unordered_map<int, struct socketxtreme_ring_comps<T> *>;
+
+typedef std::queue<int> socketxtreme_comps_queue;
+#endif // USING_EXTRA_API
 
 typedef std::unordered_map<struct sockaddr_store_t, clt_session_info_t> seq_num_map;
 typedef std::unordered_map<IPAddress, size_t> addr_to_id;
-#ifdef USING_VMA_EXTRA_API // VMA socketxtreme-extra-api Only
-typedef std::unordered_map<int, struct vma_ring_comps *> rings_vma_comps_map;
-#endif // USING_VMA_EXTRA_API
 
 extern fds_data **g_fds_array;
 extern int IGMP_MAX_MEMBERSHIPS;
 
+template<typename _Tp, class Enable = void>
+struct is_vma_bufftype
+: public std::false_type {};
+
+template<typename _Tp, class Enable = void>
+struct is_xlio_bufftype
+: public std::false_type {};
+
 #ifdef USING_VMA_EXTRA_API // VMA
-typedef std::queue<int> vma_comps_queue;
 extern struct vma_api_t *g_vma_api;
+
+template<typename _Tp>
+struct is_vma_bufftype<_Tp, typename std::enable_if_t<std::is_same<typename _Tp::buff_type, vma_buff_t>::value>>
+: public std::true_type {};
 #else
 extern void *g_vma_api; // Dummy variable
 #endif // USING_VMA_EXTRA_API
 
 #ifdef USING_XLIO_EXTRA_API // XLIO
 extern struct xlio_api_t *g_xlio_api;
+
+template<typename _Tp>
+struct is_xlio_bufftype<_Tp, typename std::enable_if_t<std::is_same<typename _Tp::buff_type, xlio_buff_t>::value>>
+: public std::true_type {};
 #else
 extern void *g_xlio_api; // Dummy variable
 #endif // USING_XLIO_EXTRA_API
@@ -740,8 +754,6 @@ struct user_params_t {
     uint32_t warmup_msec = 0;
     uint64_t cooldown_num = 0;
     uint64_t warmup_num = 0;
-    bool is_vmarxfiltercb = false;
-    bool is_vmazcopyread = false;
     TicksDuration cycleDuration;
     bool mc_loop_disable = true;
     bool uc_reuseaddr = false;

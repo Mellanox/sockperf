@@ -57,10 +57,10 @@ private:
     IoType m_ioHandler;
     addr_to_id m_ServerList;
 
-    SwitchDataIntegrity m_switchDataIntegrity;
-    SwitchActivityInfo m_switchActivityInfo;
-    SwitchCycleDuration m_switchCycleDuration;
-    SwitchMsgSize m_switchMsgSize;
+    SwitchDataIntegrity m_switchDataIntegrity; // SwitchOnDataIntegrity | SwitchOff
+    SwitchActivityInfo m_switchActivityInfo; // SwitchOnActivityInfo | SwitchOff
+    SwitchCycleDuration m_switchCycleDuration; // SwitchOnDummySend | SwitchOnCycleDuration | SwitchOff
+    SwitchMsgSize m_switchMsgSize; // SwitchOnMsgSize | SwitchOff
     PongModeCare m_pongModeCare; // has msg_sendto() method and can be one of: PongModeNormal,
                                  // PongModeAlways, PongModeNever
 
@@ -173,13 +173,15 @@ private:
 
     //------------------------------------------------------------------------------
     template <class InputHandler>
-    inline unsigned int client_receive_from_selected(int ifd) {
+    inline unsigned int client_receive_from_selected_(int ifd) {
         int ret = 0;
         struct sockaddr_store_t recvfrom_addr;
         socklen_t recvfrom_len = sizeof(recvfrom_addr);
         fds_data *l_fds_ifd = g_fds_array[ifd];
 
-        InputHandler input_handler(m_pMsgReply, l_fds_ifd->recv);
+        InputHandler input_handler(
+            input_handler_helper<InputHandler,IoType>::create_input_handler(
+                m_pMsgReply, l_fds_ifd->recv, m_ioHandler));
         ret = input_handler.receive_pending_data(ifd, reinterpret_cast<sockaddr *>(&recvfrom_addr), recvfrom_len);
         if (unlikely(ret <= 0)) {
             input_handler.cleanup();
@@ -199,22 +201,38 @@ private:
         return callback.getReceiveCount();
     }
 
-    inline unsigned int client_receive_from_selected(int ifd) {
 #ifdef USING_VMA_EXTRA_API // VMA
-        if (SOCKETXTREME == g_pApp->m_const_params.fd_handler_type && g_vma_api) {
-            return client_receive_from_selected<SocketXtremeInputHandler>(ifd);
-        }
+    template <typename T = IoType>
+    inline std::enable_if_t<is_vma_bufftype<T>::value, unsigned int>
+    client_receive_from_selected(int ifd) {
+        return client_receive_from_selected_<VmaSocketXtremeInputHandler>(ifd);
+    }
+#endif
 
+#ifdef USING_XLIO_EXTRA_API // XLIO
+    template <typename T = IoType>
+    inline std::enable_if_t<is_xlio_bufftype<T>::value, unsigned int>
+    client_receive_from_selected(int ifd) {
+        return client_receive_from_selected_<XlioSocketXtremeInputHandler>(ifd);
+    }
+#endif
+
+    template <typename T = IoType>
+    inline std::enable_if_t<!(
+        is_vma_bufftype<T>{} ||
+        is_xlio_bufftype<T>{}), unsigned int>
+        client_receive_from_selected(int ifd) {
+#ifdef USING_VMA_EXTRA_API // VMA
         if (g_pApp->m_const_params.is_zcopyread && g_vma_api) {
-            return client_receive_from_selected<VmaZCopyReadInputHandler>(ifd);
+            return client_receive_from_selected_<VmaZCopyReadInputHandler>(ifd);
         }
 #endif // USING_VMA_EXTRA_API
 #ifdef USING_XLIO_EXTRA_API // XLIO
         if (g_pApp->m_const_params.is_zcopyread && g_xlio_api) {
-            return client_receive_from_selected<XlioZCopyReadInputHandler>(ifd);
+            return client_receive_from_selected_<XlioZCopyReadInputHandler>(ifd);
         }
 #endif // USING_XLIO_EXTRA_API
-        return client_receive_from_selected<RecvFromInputHandler>(ifd);
+        return client_receive_from_selected_<RecvFromInputHandler>(ifd);
     }
 
     inline bool handle_message(int ifd, struct sockaddr_store_t &recvfrom_addr, socklen_t recvfrom_addrlen, int &receiveCount)
@@ -328,12 +346,12 @@ private:
         // send
         for (unsigned i = 0; i < g_pApp->m_const_params.burst_size && !g_b_exit; i++) {
             client_send_packet(ifd);
-#ifdef USING_VMA_EXTRA_API // For VMA socketxtreme Only
+#ifdef USING_EXTRA_API // For VMA socketxtreme Only
             if (g_pApp->m_const_params.fd_handler_type == SOCKETXTREME &&
                 !g_pApp->m_const_params.b_client_ping_pong) {
                 m_ioHandler.waitArrival();
             }
-#endif // USING_VMA_EXTRA_API
+#endif // USING_EXTRA_API
         }
 
         m_switchActivityInfo.execute(m_pMsgRequest->getSequenceCounter());

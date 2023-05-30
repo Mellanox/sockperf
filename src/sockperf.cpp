@@ -268,8 +268,8 @@ static const AOPT_DESC common_opt_desc[] = {
       "Time to wait before sending warm up messages (seconds)." },
 #ifndef __windows__
     { OPT_ZCOPYREAD,                                      AOPT_NOARG,
-      aopt_set_literal(0),                                aopt_set_string("zcopyread", "vmazcopyread"),
-      "Use VMA's zero copy reads API (See VMA's readme)." },
+      aopt_set_literal(0),                                aopt_set_string("zcopyread"),
+      "Use RX zero copy API (See VMA/XLIO readme)." },
     { OPT_DAEMONIZE, AOPT_NOARG, aopt_set_literal(0), aopt_set_string("daemonize"), "Run as "
                                                                                     "daemon." },
 #if !defined(__arm__) || defined(__aarch64__)
@@ -1527,8 +1527,8 @@ static int proc_mode_server(int id, int argc, const char **argv) {
         { OPT_RXFILTERCB,
           AOPT_NOARG,
           aopt_set_literal(0),
-          aopt_set_string("rxfiltercb", "vmarxfiltercb"),
-          "Use VMA's receive path message filter callback API (See VMA's readme)." },
+          aopt_set_string("rxfiltercb"),
+          "Use extra API receive path message filter callback API (See VMA/XLIO readme)." },
 #endif
         { OPT_FORCE_UC_REPLY,                  AOPT_NOARG,
           aopt_set_literal(0),                 aopt_set_string("force-unicast-reply"),
@@ -2519,29 +2519,36 @@ void set_defaults() {
 }
 
 //------------------------------------------------------------------------------
-#ifdef USING_VMA_EXTRA_API // Only for VMA callback-extra-api
+#ifdef USING_EXTRA_API // Only for callback-extra-api
+template <class T> // T is vma_info_t | xlio_info_t
 class CallbackMessageHandler {
     int m_fd;
     fds_data *m_fds_ifd;
-    struct vma_info_t *m_vma_info;
+    T *m_extra_info;
 
 public:
-    inline CallbackMessageHandler(int fd, fds_data *l_fds_ifd, struct vma_info_t *vma_info) :
+    inline CallbackMessageHandler(int fd, fds_data *l_fds_ifd, T *extra_info) :
         m_fd(fd),
         m_fds_ifd(l_fds_ifd),
-        m_vma_info(vma_info)
+        m_extra_info(extra_info)
     {}
 
     inline bool handle_message();
 };
 
-vma_recv_callback_retval_t myapp_vma_recv_pkt_filter_callback(int fd, size_t iov_sz,
-                                                              struct iovec iov[],
-                                                              struct vma_info_t *vma_info,
-                                                              void *context) {
+// T is vma_info_t | xlio_info_t
+// RT is vma_recv_callback_retval_t | xlio_recv_callback_retval_t
+// Pkts is vma_packets_t | xlio_recvfrom_zcopy_packets_t
+// RTValRecv is VMA_PACKET_RECV | XLIO_PACKET_RECV
+// RTValDrop is VMA_PACKET_DROP | XLIO_PACKET_DROP
+template <class T, typename RT, typename Pkts, RT RTValRecv, RT RTValDrop>
+RT myapp_recv_pkt_filter_callback(int fd, size_t iov_sz,
+                                  struct iovec iov[],
+                                  T *extra_info,
+                                  void *context) {
 #ifdef ST_TEST
     if (st1) {
-        log_msg("DEBUG: ST_TEST - myapp_vma_recv_pkt_filter_callback fd=%d", fd);
+        log_msg("DEBUG: ST_TEST - myapp_recv_pkt_filter_callback fd=%d", fd);
         close(st1);
         close(st2);
         st1 = st2 = 0;
@@ -2549,43 +2556,64 @@ vma_recv_callback_retval_t myapp_vma_recv_pkt_filter_callback(int fd, size_t iov
 #endif
 
     // Check info structure version
-    if (vma_info->struct_sz < sizeof(struct vma_info_t)) {
-        log_msg("VMA's info struct is not something we can handle so un-register the application's "
+    if (extra_info->struct_sz < sizeof(T)) {
+        log_msg("Extra info struct is not something we can handle so un-register the application's "
                 "callback function");
-        g_vma_api->register_recv_callback(fd, NULL, NULL);
-        return VMA_PACKET_RECV;
+        if (g_vma_api) {
+#ifdef USING_VMA_EXTRA_API // Only for VMA callback-extra-api
+            g_vma_api->register_recv_callback(fd, NULL, NULL);
+#endif // USING_VMA_EXTRA_API
+        } else {
+#ifdef USING_XLIO_EXTRA_API // Only for XLIO callback-extra-api
+            g_xlio_api->register_recv_callback(fd, NULL, NULL);
+#endif // USING_XLIO_EXTRA_API
+        }
+        return RTValRecv;
     }
 
     // If there is data in local buffer, then push new packet in TCP queue.Otherwise handle received
     // packet inside callback.
     if (g_zeroCopyData[fd] && g_zeroCopyData[fd]->m_pkts &&
-        reinterpret_cast<vma_packets_t *>(g_zeroCopyData[fd]->m_pkts)->n_packet_num > 0) {
-        return VMA_PACKET_RECV;
+        reinterpret_cast<Pkts *>(g_zeroCopyData[fd]->m_pkts)->n_packet_num > 0) {
+        return RTValRecv;
     }
 
     struct fds_data *l_fds_ifd;
 
     l_fds_ifd = g_fds_array[fd];
     if (unlikely(!l_fds_ifd)) {
-        return VMA_PACKET_RECV;
+        return RTValRecv;
     }
     Message *msgReply = l_fds_ifd->p_msg;
     SocketRecvData &recv_data = l_fds_ifd->recv;
 
-    CallbackMessageHandler handler(fd, l_fds_ifd, vma_info);
+    CallbackMessageHandler<T> handler(fd, l_fds_ifd, extra_info);
     MessageParser<BufferAccumulation> parser(msgReply);
     for (size_t i = 0; i < iov_sz; ++i) {
         bool ok = parser.process_buffer(handler, recv_data, (uint8_t *)iov[i].iov_base,
                 (int)iov[i].iov_len);
         if (unlikely(!ok)) {
-            return VMA_PACKET_RECV;
+            return RTValRecv;
         }
     }
 
-    return VMA_PACKET_DROP;
+    return RTValDrop;
 }
 
-inline bool CallbackMessageHandler::handle_message()
+#ifdef USING_VMA_EXTRA_API // Only for VMA callback-extra-api
+#define myapp_vma_recv_pkt_filter_callback \
+    myapp_recv_pkt_filter_callback<vma_info_t, vma_recv_callback_retval_t, vma_packets_t, \
+                                   VMA_PACKET_RECV, VMA_PACKET_DROP>
+#endif // USING_VMA_EXTRA_API
+
+#ifdef USING_XLIO_EXTRA_API // Only for XLIO callback-extra-api
+#define myapp_xlio_recv_pkt_filter_callback \
+    myapp_recv_pkt_filter_callback<xlio_info_t, xlio_recv_callback_retval_t, xlio_recvfrom_zcopy_packets_t, \
+                                   XLIO_PACKET_RECV, XLIO_PACKET_DROP>
+#endif // USING_XLIO_EXTRA_API
+
+template <class T>
+inline bool CallbackMessageHandler<T>::handle_message()
 {
     struct sockaddr_store_t sendto_addr;
     socklen_t sendto_len;
@@ -2626,10 +2654,10 @@ inline bool CallbackMessageHandler::handle_message()
             /* get source addr to reply. memcpy is not used to improve performance */
             //TODO: update after IPv6 will be supported in libvma
             sendto_len = sizeof(sockaddr_in);
-            std::memcpy(&sendto_addr, m_vma_info->src, sendto_len);
+            std::memcpy(&sendto_addr, m_extra_info->src, sendto_len);
         } else if (m_fds_ifd->is_multicast) {
             /* always send to the same port recved from */
-            sockaddr_set_portn(sendto_addr, sockaddr_get_portn((sockaddr_store_t &)*m_vma_info->src));
+            sockaddr_set_portn(sendto_addr, sockaddr_get_portn((sockaddr_store_t &)*m_extra_info->src));
         }
         int length = msgReply->getLength();
         msgReply->setHeaderToNetwork();
@@ -3050,18 +3078,26 @@ int prepare_socket(int fd, struct fds_data *p_data)
 #ifdef ST_TEST
     if (!stTest)
 #endif
-#ifdef USING_VMA_EXTRA_API
-        if (!rc && (s_user_params.is_rxfiltercb && g_vma_api)) { // XLIO does not support callback-extra-api
+        if (!rc && (s_user_params.is_rxfiltercb && (g_vma_api || g_xlio_api))) {
             // Try to register application with VMA's special receive notification callback logic
-            if (g_vma_api->register_recv_callback(fd, myapp_vma_recv_pkt_filter_callback, NULL) <
-                0) {
-                log_err("vma_api->register_recv_callback failed. Try running without option "
-                        "'rxfiltercb'/'vmarxfiltercb'");
+            int rc = -1;
+            if (g_vma_api) {
+#ifdef USING_VMA_EXTRA_API // VMA callback-extra-api only
+                rc = g_vma_api->register_recv_callback(fd, myapp_vma_recv_pkt_filter_callback, NULL);
+#endif // USING_VMA_EXTRA_API
             } else {
-                log_dbg("vma_api->register_recv_callback successful registered");
+#ifdef USING_XLIO_EXTRA_API // XLIO callback-extra-api only
+                rc = g_xlio_api->register_recv_callback(fd, myapp_xlio_recv_pkt_filter_callback, NULL);
+#endif // USING_XLIO_EXTRA_API
+            }
+
+            if (rc < 0) {
+                log_err("register_recv_callback failed. Try running without option 'rxfiltercb'");
+            } else {
+                log_dbg("register_recv_callback successful registered");
             }
         } else
-#endif // USING_VMA_EXTRA_API
+
         if (!rc && (s_user_params.is_zcopyread && (g_vma_api || g_xlio_api))) {
             g_zeroCopyData[fd] = new ZeroCopyData();
             g_zeroCopyData[fd]->allocate();
@@ -3072,7 +3108,7 @@ int prepare_socket(int fd, struct fds_data *p_data)
                 : (int)INVALID_SOCKET); // TODO: use SOCKET all over the way and avoid this cast
 }
 
-#ifdef USING_VMA_EXTRA_API
+#ifdef USING_EXTRA_API
 //------------------------------------------------------------------------------
 static bool is_unspec_addr(const sockaddr_store_t &addr)
 {
@@ -3084,7 +3120,7 @@ static bool is_unspec_addr(const sockaddr_store_t &addr)
     }
     return true;
 }
-#endif // USING_VMA_EXTRA_API
+#endif // USING_EXTRA_API
 
 //------------------------------------------------------------------------------
 /* get IP:port pairs from the file and initialize the list */
@@ -3239,7 +3275,7 @@ static int set_sockets_from_feedfile(const char *feedfile_name) {
         } else {
             sock_type = SOCK_DGRAM;
         }
-#ifdef USING_VMA_EXTRA_API
+#ifdef USING_EXTRA_API
         if (sock_type == SOCK_DGRAM && s_user_params.mode == MODE_CLIENT) {
             if (s_user_params.fd_handler_type == SOCKETXTREME &&
                 is_unspec_addr(s_user_params.client_bind_info)) {
@@ -3249,7 +3285,7 @@ static int set_sockets_from_feedfile(const char *feedfile_name) {
                 break;
             }
         }
-#endif
+#endif // USING_EXTRA_API
 
         std::unique_ptr<fds_data> tmp{ new fds_data };
 
@@ -3511,16 +3547,9 @@ int bringup(const int *p_daemonize) {
 #ifdef USING_VMA_EXTRA_API
         g_vma_api = vma_get_api();
 #endif // USING_VMA_EXTRA_API
-        if (!g_vma_api) { // Try VMA Extra API
-            // Callback and Socketxtreme APIs are supported only by VMA
-            if (s_user_params.is_rxfiltercb || s_user_params.fd_handler_type == SOCKETXTREME) {
-                exit_with_err("VMA Extra API is not available", SOCKPERF_ERR_FATAL);
-            }
-        } else {
+        if (g_vma_api) { // Try VMA Extra API
             log_msg("VMA Extra API is in use");
-        }
-
-        if (!g_vma_api) { // Try XLIO
+        } else { // Try XLIO
 #ifdef USING_XLIO_EXTRA_API
             g_xlio_api = xlio_get_api();
 #endif // USING_XLIO_EXTRA_API

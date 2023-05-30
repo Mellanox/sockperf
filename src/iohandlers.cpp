@@ -28,7 +28,7 @@
 
 #include "iohandlers.h"
 
-static void print_addresses(const fds_data *data, int &list_count)
+void print_addresses(const fds_data *data, int &list_count)
 {
     {
         char hbuf[NI_MAXHOST] = "(unknown)";
@@ -314,61 +314,4 @@ int IoKqueue::prepareNetwork() {
     return rc;
 }
 #endif // defined(__FreeBSD__) || defined(__APPLE__)
-#ifdef USING_VMA_EXTRA_API // VMA socketxtreme-extra-api Only
-//==============================================================================
-//------------------------------------------------------------------------------
-IoSocketxtreme::IoSocketxtreme(int _fd_min, int _fd_max, int _fd_num)
-    : IoHandler(_fd_min, _fd_max, _fd_num, 0, 0) {
-    m_current_vma_ring_comp = NULL;
-}
-
-//------------------------------------------------------------------------------
-IoSocketxtreme::~IoSocketxtreme() {
-    for (m_rings_vma_comps_map_itr = m_rings_vma_comps_map.begin();
-         m_rings_vma_comps_map_itr != m_rings_vma_comps_map.end(); ++m_rings_vma_comps_map_itr) {
-        FREE(m_rings_vma_comps_map_itr->second);
-    }
-}
-
-//------------------------------------------------------------------------------
-int IoSocketxtreme::prepareNetwork() {
-    int rc = SOCKPERF_ERR_NONE;
-    int list_count = 0;
-    int ring_fd = 0;
-
-    printf("\n");
-    for (int ifd = m_fd_min; ifd <= m_fd_max; ifd++) {
-        if (g_fds_array[ifd]) {
-            ring_fd = 0;
-            int rings = g_vma_api->get_socket_rings_fds(ifd, &ring_fd, 1);
-            if (rings == -1) {
-                rc = SOCKPERF_ERR_SOCKET;
-                return rc;
-            }
-            rings_vma_comps_map::iterator itr = m_rings_vma_comps_map.find(ring_fd);
-            if (itr == m_rings_vma_comps_map.end()) {
-                vma_ring_comps *temp = NULL;
-                temp = (struct vma_ring_comps *)MALLOC(sizeof(vma_ring_comps));
-                if (!temp) {
-                    log_err("Failed to allocate memory");
-                    rc = SOCKPERF_ERR_NO_MEMORY;
-                }
-                memset(temp, 0, sizeof(vma_ring_comps));
-                temp->is_freed = true;
-                temp->vma_comp_list_size = 0;
-
-                std::pair<rings_vma_comps_map::iterator, bool> ret =
-                    m_rings_vma_comps_map.insert(std::make_pair(ring_fd, temp));
-                if (!ret.second) {
-                    log_err("Failed to insert new ring.");
-                    rc = SOCKPERF_ERR_NO_MEMORY;
-                }
-            }
-
-            print_addresses(g_fds_array[ifd], list_count);
-        }
-    }
-    return rc;
-}
-#endif // USING_VMA_EXTRA_API
 #endif // !WIN32
