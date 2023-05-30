@@ -107,6 +107,10 @@ typedef unsigned short int sa_family_t;
 #include "playback.h"
 #include "ip_address.h"
 
+#if defined(USING_VMA_EXTRA_API) || defined (USING_XLIO_EXTRA_API)
+#define USING_EXTRA_API
+#endif // USING_VMA_EXTRA_API || USING_XLIO_EXTRA_API
+
 #if !defined(__windows__) && !defined(__FreeBSD__) && !defined(__APPLE__)
 #include "vma-xlio-redirect.h"
 #ifdef USING_VMA_EXTRA_API // VMA
@@ -186,9 +190,9 @@ const uint32_t TEST_FIRST_CONNECTION_FIRST_PACKET_TTL_THRESHOLD_MSEC = 50;
 #define DUMMY_PORT 57341
 #define MAX_ACTIVE_FD_NUM                                                                          \
     max_fds_num /* maximum number of active connection to the single TCP addr:port */
-#ifdef USING_VMA_EXTRA_API // For VMA socketxtreme Only
-#define MAX_VMA_COMPS 1024 /* maximum size for the VMA completions array for VMA Poll */
-#endif // USING_VMA_EXTRA_API
+#ifdef USING_EXTRA_API // For VMA socketxtreme Only
+#define MAX_SOCKETXTREME_COMPS 1024 /* maximum size for socketxtreme poll completions array */
+#endif // USING_EXTRA_API
 
 #ifndef MAX_PATH_LENGTH
 #define MAX_PATH_LENGTH 1024
@@ -498,7 +502,7 @@ extern TicksTime g_cycleStartTime;
 
 extern debug_level_t g_debug_level;
 
-#if defined(USING_VMA_EXTRA_API) || defined(USING_XLIO_EXTRA_API)
+#ifdef USING_EXTRA_API
 #ifdef USING_VMA_EXTRA_API // VMA
 extern struct vma_buff_t *g_vma_buff;
 extern struct vma_completion_t *g_vma_comps;
@@ -514,7 +518,7 @@ public:
 // map from fd to zeroCopyData
 typedef std::map<int, ZeroCopyData *> zeroCopyMap;
 extern zeroCopyMap g_zeroCopyData;
-#endif // USING_VMA_EXTRA_API || USING_XLIO_EXTRA_API
+#endif // USING_EXTRA_API
 
 class Message;
 
@@ -649,7 +653,7 @@ struct equal_to<struct sockaddr_store_t> :
 
 #ifdef USING_VMA_EXTRA_API // VMA socketxtreme-extra-api Only
 struct vma_ring_comps {
-    vma_completion_t vma_comp_list[MAX_VMA_COMPS];
+    vma_completion_t vma_comp_list[MAX_SOCKETXTREME_COMPS];
     int vma_comp_list_size;
     bool is_freed;
 };

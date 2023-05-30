@@ -119,7 +119,7 @@ public:
     }
 };
 
-#if defined(USING_VMA_EXTRA_API) || defined(USING_XLIO_EXTRA_API)
+#ifdef USING_EXTRA_API
 typedef int(* recvfrom_zcopy_func_t)(int __fd, void *__buf, size_t __nbytes, int *__flags,
                                      struct sockaddr *__from, socklen_t *__fromlen);
 
@@ -311,6 +311,6 @@ public:
 };
 #endif // USING_XLIO_EXTRA_API
 
-#endif // USING_VMA_EXTRA_API || USING_XLIO_EXTRA_API
+#endif // USING_EXTRA_API
 
 #endif // INPUT_HANDLERS_H_
