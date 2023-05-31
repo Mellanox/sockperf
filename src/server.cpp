@@ -28,7 +28,6 @@
 
 #include "server.h"
 #include "iohandlers.h"
-#include "switches.h"
 #include <memory>
 
 // static members initialization
@@ -162,17 +161,17 @@ void ServerBase::cleanupAfterLoop() {
 //==============================================================================
 
 //------------------------------------------------------------------------------
-template <class IoType, class SwitchActivityInfo, class SwitchCalcGaps>
-Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::Server(int _fd_min, int _fd_max, int _fd_num)
+template <class IoType, class SwitchCalcGaps>
+Server<IoType, SwitchCalcGaps>::Server(int _fd_min, int _fd_max, int _fd_num)
     : ServerBase(m_ioHandler), m_ioHandler(_fd_min, _fd_max, _fd_num) {}
 
 //------------------------------------------------------------------------------
-template <class IoType, class SwitchActivityInfo, class SwitchCalcGaps>
-Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::~Server() {}
+template <class IoType, class SwitchCalcGaps>
+Server<IoType, SwitchCalcGaps>::~Server() {}
 
 //------------------------------------------------------------------------------
-template <class IoType, class SwitchActivityInfo, class SwitchCalcGaps>
-void Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::doLoop() {
+template <class IoType, class SwitchCalcGaps>
+void Server<IoType, SwitchCalcGaps>::doLoop() {
     int numReady = 0;
     int actual_fd = 0;
 
@@ -242,8 +241,8 @@ void Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::doLoop() {
 }
 
 //------------------------------------------------------------------------------
-template <class IoType, class SwitchActivityInfo, class SwitchCalcGaps>
-int Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_accept(int ifd) {
+template <class IoType, class SwitchCalcGaps>
+int Server<IoType, SwitchCalcGaps>::server_accept(int ifd) {
     bool do_accept = false;
     int active_ifd = ifd;
 
@@ -348,25 +347,17 @@ int Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_accept(int ifd) {
 }
 
 //------------------------------------------------------------------------------
-template <class IoType, class SwitchActivityInfo, class SwitchCheckGaps>
+template <class IoType, class SwitchCheckGaps>
 void server_handler(int _fd_min, int _fd_max, int _fd_num) {
-    Server<IoType, SwitchActivityInfo, SwitchCheckGaps> s(_fd_min, _fd_max, _fd_num);
+    Server<IoType, SwitchCheckGaps> s(_fd_min, _fd_max, _fd_num);
     s.doHandler();
 }
 
 //------------------------------------------------------------------------------
-template <class IoType, class SwitchActivityInfo>
+template <class IoType>
 void server_handler(int _fd_min, int _fd_max, int _fd_num) {
     if (g_pApp->m_const_params.b_server_detect_gaps)
-        server_handler<IoType, SwitchActivityInfo, SwitchOnCalcGaps>(_fd_min, _fd_max, _fd_num);
-    else
-        server_handler<IoType, SwitchActivityInfo, SwitchOff>(_fd_min, _fd_max, _fd_num);
-}
-
-//------------------------------------------------------------------------------
-template <class IoType> void server_handler(int _fd_min, int _fd_max, int _fd_num) {
-    if (g_pApp->m_const_params.packetrate_stats_print_ratio > 0)
-        server_handler<IoType, SwitchOnActivityInfo>(_fd_min, _fd_max, _fd_num);
+        server_handler<IoType, SwitchOnCalcGaps>(_fd_min, _fd_max, _fd_num);
     else
         server_handler<IoType, SwitchOff>(_fd_min, _fd_max, _fd_num);
 }

@@ -33,6 +33,7 @@
 #include "common.h"
 #include "input_handlers.h"
 #include "packet.h"
+#include "switches.h"
 
 //==============================================================================
 //==============================================================================
@@ -49,7 +50,7 @@ protected:
 
 //==============================================================================
 //==============================================================================
-template <class IoType, class SwitchDataIntegrity, class SwitchActivityInfo,
+template <class IoType, class SwitchDataIntegrity,
           class SwitchCycleDuration, class SwitchMsgSize, class PongModeCare>
 class Client : public ClientBase {
 private:
@@ -58,14 +59,14 @@ private:
     addr_to_id m_ServerList;
 
     SwitchDataIntegrity m_switchDataIntegrity; // SwitchOnDataIntegrity | SwitchOff
-    SwitchActivityInfo m_switchActivityInfo; // SwitchOnActivityInfo | SwitchOff
+    SwitchOnActivityInfo m_switchActivityInfo;
     SwitchCycleDuration m_switchCycleDuration; // SwitchOnDummySend | SwitchOnCycleDuration | SwitchOff
     SwitchMsgSize m_switchMsgSize; // SwitchOnMsgSize | SwitchOff
     PongModeCare m_pongModeCare; // has msg_sendto() method and can be one of: PongModeNormal,
                                  // PongModeAlways, PongModeNever
 
     class ClientMessageHandlerCallback {
-        Client<IoType, SwitchDataIntegrity, SwitchActivityInfo,
+        Client<IoType, SwitchDataIntegrity,
               SwitchCycleDuration, SwitchMsgSize, PongModeCare> &m_client;
         int m_ifd;
         struct sockaddr_store_t &m_recvfrom_addr;
@@ -73,7 +74,7 @@ private:
         int m_receiveCount;
 
     public:
-        inline ClientMessageHandlerCallback(Client<IoType, SwitchDataIntegrity, SwitchActivityInfo,
+        inline ClientMessageHandlerCallback(Client<IoType, SwitchDataIntegrity,
                 SwitchCycleDuration, SwitchMsgSize, PongModeCare> &client,
                 int ifd, struct sockaddr_store_t &recvfrom_addr,
                 socklen_t recvfrom_addrlen) :
@@ -337,6 +338,9 @@ private:
 
     //------------------------------------------------------------------------------
     inline void client_send_burst(int ifd) {
+        static const bool is_exec_activity_info =
+            (g_pApp->m_const_params.packetrate_stats_print_ratio > 0);
+
         // init
         m_switchMsgSize.execute(m_pMsgRequest);
 
@@ -354,7 +358,9 @@ private:
 #endif // USING_EXTRA_API
         }
 
-        m_switchActivityInfo.execute(m_pMsgRequest->getSequenceCounter());
+        if (unlikely(is_exec_activity_info)) {
+            m_switchActivityInfo.execute(m_pMsgRequest->getSequenceCounter());
+        }
     }
 
     //------------------------------------------------------------------------------
