@@ -32,6 +32,7 @@
 #include "defs.h"
 #include "common.h"
 #include "input_handlers.h"
+#include "switches.h"
 
 #ifdef ST_TEST
 extern int prepare_socket(int fd, struct fds_data *p_data, bool stTest = false);
@@ -78,7 +79,7 @@ protected:
 //==============================================================================
 //==============================================================================
 
-template <class IoType, class SwitchActivityInfo, class SwitchCalcGaps>
+template <class IoType, class SwitchCalcGaps>
 class Server : public ServerBase {
 private:
     IoType m_ioHandler;
@@ -110,13 +111,13 @@ private:
     }
 
     class ServerMessageHandlerCallback {
-        Server<IoType, SwitchActivityInfo, SwitchCalcGaps> &m_server;
+        Server<IoType, SwitchCalcGaps> &m_server;
         int m_ifd;
         struct sockaddr_store_t &m_recvfrom_addr;
         socklen_t m_recvfrom_len;
         fds_data *m_fds_ifd;
     public:
-        inline ServerMessageHandlerCallback(Server<IoType, SwitchActivityInfo, SwitchCalcGaps> &server,
+        inline ServerMessageHandlerCallback(Server<IoType, SwitchCalcGaps> &server,
                 int ifd, struct sockaddr_store_t &recvfrom_addr, socklen_t recvfrom_len,
                 fds_data *l_fds_ifd) :
             m_server(server),
@@ -188,7 +189,7 @@ private:
     int server_accept(int ifd);
 
 private:
-    SwitchActivityInfo m_switchActivityInfo;
+    SwitchOnActivityInfo m_switchActivityInfo;
     SwitchCalcGaps m_switchCalcGaps;
 };
 
@@ -259,9 +260,9 @@ void close_ifd(int fd, int ifd, fds_data *l_fds_ifd) {
 /*
 ** receive from and send to selected socket
 */
-template <class IoType, class SwitchActivityInfo, class SwitchCalcGaps>
+template <class IoType, class SwitchCalcGaps>
 template <class InputHandler>
-inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_then_send_impl(int ifd) {
+inline bool Server<IoType, SwitchCalcGaps>::server_receive_then_send_impl(int ifd) {
     struct sockaddr_store_t recvfrom_addr;
     socklen_t recvfrom_len = sizeof(recvfrom_addr);
     static const bool do_update = true;
@@ -303,10 +304,13 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_t
     }
 }
 
-template <class IoType, class SwitchActivityInfo, class SwitchCalcGaps>
-inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::handle_message(int ifd,
+template <class IoType, class SwitchCalcGaps>
+inline bool Server<IoType, SwitchCalcGaps>::handle_message(int ifd,
         struct sockaddr_store_t &recvfrom_addr, socklen_t recvfrom_len, fds_data *l_fds_ifd)
 {
+    static const bool is_exec_activity_info =
+        (g_pApp->m_const_params.packetrate_stats_print_ratio > 0);
+
     struct sockaddr_store_t sendto_addr;
     socklen_t sendto_addr_len = 0;
 
@@ -369,7 +373,9 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::handle_message(i
     }
 
     m_switchCalcGaps.execute(recvfrom_addr, recvfrom_len, m_pMsgReply->getSequenceCounter(), false);
-    m_switchActivityInfo.execute(g_receiveCount);
+    if (unlikely(is_exec_activity_info)) {
+        m_switchActivityInfo.execute(g_receiveCount);
+    }
 
     return true;
 }

@@ -96,7 +96,6 @@
 #include "message_parser.h"
 #include "packet.h"
 #include "port_descriptor.h"
-#include "switches.h"
 #include "aopt.h"
 #include <stdio.h>
 #include <sys/stat.h>
@@ -2670,13 +2669,6 @@ inline bool CallbackMessageHandler<T>::handle_message()
         }*/
         msgReply->setHeaderToHost();
     }
-    /*
-     * TODO
-     * To support other server functionality when using zero callback,
-     * pass the server as user_context or as we pass the replyMsg, and call the server functions
-     */
-    // m_switchCalcGaps.execute(vma_info->src, msgReply->getSequenceCounter(), false);
-    // m_switchActivityInfo.execute(g_receiveCount);
 
     return true;
 }
