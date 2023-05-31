@@ -698,25 +698,19 @@ ClientBase::~ClientBase() {
 }
 
 //------------------------------------------------------------------------------
-template <class IoType,
-          class SwitchCycleDuration, class SwitchMsgSize, class PongModeCare>
-Client<IoType, SwitchCycleDuration, SwitchMsgSize,
-       PongModeCare>::Client(int _fd_min, int _fd_max, int _fd_num)
+template <class IoType, class SwitchCycleDuration, class PongModeCare>
+Client<IoType, SwitchCycleDuration, PongModeCare>::Client(int _fd_min, int _fd_max, int _fd_num)
     : ClientBase(), m_ioHandler(_fd_min, _fd_max, _fd_num), m_pongModeCare(m_pMsgRequest) {
     os_thread_init(&m_receiverTid);
 }
 
 //------------------------------------------------------------------------------
-template <class IoType,
-          class SwitchCycleDuration, class SwitchMsgSize, class PongModeCare>
-Client<IoType, SwitchCycleDuration, SwitchMsgSize,
-       PongModeCare>::~Client() {}
+template <class IoType, class SwitchCycleDuration, class PongModeCare>
+Client<IoType, SwitchCycleDuration, PongModeCare>::~Client() {}
 
 //------------------------------------------------------------------------------
-template <class IoType,
-          class SwitchCycleDuration, class SwitchMsgSize, class PongModeCare>
-void Client<IoType, SwitchCycleDuration, SwitchMsgSize,
-            PongModeCare>::client_receiver_thread() {
+template <class IoType, class SwitchCycleDuration, class PongModeCare>
+void Client<IoType, SwitchCycleDuration, PongModeCare>::client_receiver_thread() {
     while (!g_b_exit) {
         client_receive();
     }
@@ -730,10 +724,8 @@ void *client_receiver_thread(void *arg) {
 }
 
 //------------------------------------------------------------------------------
-template <class IoType,
-          class SwitchCycleDuration, class SwitchMsgSize, class PongModeCare>
-void Client<IoType, SwitchCycleDuration, SwitchMsgSize,
-            PongModeCare>::cleanupAfterLoop() {
+template <class IoType, class SwitchCycleDuration, class PongModeCare>
+void Client<IoType, SwitchCycleDuration, PongModeCare>::cleanupAfterLoop() {
     usleep(100 * 1000); // 0.1 sec - wait for rx packets for last sends (in normal flow)
     if (m_receiverTid.tid) {
         os_thread_kill(&m_receiverTid);
@@ -879,10 +871,8 @@ static int _connect_check(int ifd, int timeout_ms) {
 #undef POLL_TIMEOUT_MS
 
 //------------------------------------------------------------------------------
-template <class IoType,
-          class SwitchCycleDuration, class SwitchMsgSize, class PongModeCare>
-int Client<IoType, SwitchCycleDuration, SwitchMsgSize,
-           PongModeCare>::initBeforeLoop() {
+template <class IoType, class SwitchCycleDuration, class PongModeCare>
+int Client<IoType, SwitchCycleDuration, PongModeCare>::initBeforeLoop() {
     int rc = SOCKPERF_ERR_NONE;
     if (g_b_exit) return rc;
 
@@ -1048,10 +1038,8 @@ int Client<IoType, SwitchCycleDuration, SwitchMsgSize,
 }
 
 //------------------------------------------------------------------------------
-template <class IoType,
-          class SwitchCycleDuration, class SwitchMsgSize, class PongModeCare>
-void Client<IoType, SwitchCycleDuration, SwitchMsgSize,
-            PongModeCare>::doSendThenReceiveLoop() {
+template <class IoType, class SwitchCycleDuration, class PongModeCare>
+void Client<IoType, SwitchCycleDuration, PongModeCare>::doSendThenReceiveLoop() {
     if (g_pApp->m_const_params.measurement == TIME_BASED) {
         // cycle through all set fds in the array (with wrap around to beginning)
         for (int curr_fds = m_ioHandler.m_fd_min; !g_b_exit; curr_fds = g_fds_array[curr_fds]->next_fd)
@@ -1115,10 +1103,8 @@ void Client<IoType, SwitchCycleDuration, SwitchMsgSize,
 }
 
 //------------------------------------------------------------------------------
-template <class IoType,
-          class SwitchCycleDuration, class SwitchMsgSize, class PongModeCare>
-void Client<IoType, SwitchCycleDuration, SwitchMsgSize,
-            PongModeCare>::doSendLoop() {
+template <class IoType, class SwitchCycleDuration, class PongModeCare>
+void Client<IoType, SwitchCycleDuration, PongModeCare>::doSendLoop() {
     // cycle through all set fds in the array (with wrap around to beginning)
     for (int curr_fds = m_ioHandler.m_fd_min; !g_b_exit; curr_fds = g_fds_array[curr_fds]->next_fd)
         client_send_burst(curr_fds);
@@ -1138,10 +1124,8 @@ static inline void playbackCycleDurationWait(const TicksDuration &i_cycleDuratio
 }
 
 //------------------------------------------------------------------------------
-template <class IoType,
-          class SwitchCycleDuration, class SwitchMsgSize, class PongModeCare>
-void Client<IoType, SwitchCycleDuration, SwitchMsgSize,
-            PongModeCare>::doPlayback() {
+template <class IoType, class SwitchCycleDuration, class PongModeCare>
+void Client<IoType, SwitchCycleDuration, PongModeCare>::doPlayback() {
     static const bool is_exec_activity_info =
         (g_pApp->m_const_params.packetrate_stats_print_ratio > 0);
 
@@ -1176,10 +1160,8 @@ void Client<IoType, SwitchCycleDuration, SwitchMsgSize,
 }
 
 //------------------------------------------------------------------------------
-template <class IoType,
-          class SwitchCycleDuration, class SwitchMsgSize, class PongModeCare>
-void Client<IoType, SwitchCycleDuration, SwitchMsgSize,
-            PongModeCare>::doHandler() {
+template <class IoType, class SwitchCycleDuration, class PongModeCare>
+void Client<IoType, SwitchCycleDuration, PongModeCare>::doHandler() {
     int rc = SOCKPERF_ERR_NONE;
 
     rc = initBeforeLoop();
@@ -1197,39 +1179,24 @@ void Client<IoType, SwitchCycleDuration, SwitchMsgSize,
 }
 
 //------------------------------------------------------------------------------
-template <class IoType,
-          class SwitchCycleDuration, class SwitchMsgSize, class PongModeCare>
+template <class IoType, class SwitchCycleDuration, class PongModeCare>
 void client_handler(int _fd_min, int _fd_max, int _fd_num) {
-    Client<IoType, SwitchCycleDuration, SwitchMsgSize,
-           PongModeCare> c(_fd_min, _fd_max, _fd_num);
+    Client<IoType, SwitchCycleDuration, PongModeCare> c(_fd_min, _fd_max, _fd_num);
     c.doHandler();
 }
 
 //------------------------------------------------------------------------------
-template <class IoType,
-          class SwitchCycleDuration, class SwitchMsgSize>
+template <class IoType, class SwitchCycleDuration>
 void client_handler(int _fd_min, int _fd_max, int _fd_num) {
     if (g_pApp->m_const_params.b_stream)
         client_handler<IoType, SwitchCycleDuration,
-                       SwitchMsgSize, PongModeNever>(_fd_min, _fd_max, _fd_num);
+                       PongModeNever>(_fd_min, _fd_max, _fd_num);
     else if (g_pApp->m_const_params.reply_every == 1)
         client_handler<IoType, SwitchCycleDuration,
-                       SwitchMsgSize, PongModeAlways>(_fd_min, _fd_max, _fd_num);
+                       PongModeAlways>(_fd_min, _fd_max, _fd_num);
     else
         client_handler<IoType, SwitchCycleDuration,
-                       SwitchMsgSize, PongModeNormal>(_fd_min, _fd_max, _fd_num);
-}
-
-//------------------------------------------------------------------------------
-template <class IoType,
-          class SwitchCycleDuration>
-void client_handler(int _fd_min, int _fd_max, int _fd_num) {
-    if (g_pApp->m_const_params.msg_size_range > 0)
-        client_handler<IoType, SwitchCycleDuration,
-                       SwitchOnMsgSize>(_fd_min, _fd_max, _fd_num);
-    else
-        client_handler<IoType, SwitchCycleDuration,
-                       SwitchOff>(_fd_min, _fd_max, _fd_num);
+                       PongModeNormal>(_fd_min, _fd_max, _fd_num);
 }
 
 //------------------------------------------------------------------------------
