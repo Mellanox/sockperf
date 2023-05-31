@@ -50,7 +50,7 @@ protected:
 
 //==============================================================================
 //==============================================================================
-template <class IoType, class SwitchDataIntegrity,
+template <class IoType,
           class SwitchCycleDuration, class SwitchMsgSize, class PongModeCare>
 class Client : public ClientBase {
 private:
@@ -58,7 +58,7 @@ private:
     IoType m_ioHandler;
     addr_to_id m_ServerList;
 
-    SwitchDataIntegrity m_switchDataIntegrity; // SwitchOnDataIntegrity | SwitchOff
+    SwitchOnDataIntegrity m_switchDataIntegrity;
     SwitchOnActivityInfo m_switchActivityInfo;
     SwitchCycleDuration m_switchCycleDuration; // SwitchOnDummySend | SwitchOnCycleDuration | SwitchOff
     SwitchMsgSize m_switchMsgSize; // SwitchOnMsgSize | SwitchOff
@@ -66,7 +66,7 @@ private:
                                  // PongModeAlways, PongModeNever
 
     class ClientMessageHandlerCallback {
-        Client<IoType, SwitchDataIntegrity,
+        Client<IoType,
               SwitchCycleDuration, SwitchMsgSize, PongModeCare> &m_client;
         int m_ifd;
         struct sockaddr_store_t &m_recvfrom_addr;
@@ -74,7 +74,7 @@ private:
         int m_receiveCount;
 
     public:
-        inline ClientMessageHandlerCallback(Client<IoType, SwitchDataIntegrity,
+        inline ClientMessageHandlerCallback(Client<IoType,
                 SwitchCycleDuration, SwitchMsgSize, PongModeCare> &client,
                 int ifd, struct sockaddr_store_t &recvfrom_addr,
                 socklen_t recvfrom_addrlen) :
@@ -238,6 +238,8 @@ private:
 
     inline bool handle_message(int ifd, struct sockaddr_store_t &recvfrom_addr, socklen_t recvfrom_addrlen, int &receiveCount)
     {
+        static const bool is_exec_data_integrity = g_pApp->m_const_params.data_integrity;
+
         int serverNo = 0;
 
 #if defined(LOG_TRACE_MSG_IN) && (LOG_TRACE_MSG_IN == TRUE)
@@ -290,7 +292,9 @@ private:
             exit_with_log("Number of servers more than expected", SOCKPERF_ERR_FATAL);
         } else {
             g_pPacketTimes->setRxTime(m_pMsgReply->getSequenceCounter(), rxTime, serverNo);
-            m_switchDataIntegrity.execute(m_pMsgRequest, m_pMsgReply);
+            if (unlikely(is_exec_data_integrity)) {
+                m_switchDataIntegrity.execute(m_pMsgRequest, m_pMsgReply);
+            }
         }
 
         return true;
