@@ -50,8 +50,7 @@ protected:
 
 //==============================================================================
 //==============================================================================
-template <class IoType,
-          class SwitchCycleDuration, class SwitchMsgSize, class PongModeCare>
+template <class IoType, class SwitchCycleDuration, class PongModeCare>
 class Client : public ClientBase {
 private:
     os_thread_t m_receiverTid;
@@ -61,21 +60,20 @@ private:
     SwitchOnDataIntegrity m_switchDataIntegrity;
     SwitchOnActivityInfo m_switchActivityInfo;
     SwitchCycleDuration m_switchCycleDuration; // SwitchOnDummySend | SwitchOnCycleDuration | SwitchOff
-    SwitchMsgSize m_switchMsgSize; // SwitchOnMsgSize | SwitchOff
+    SwitchOnMsgSize m_switchMsgSize;
     PongModeCare m_pongModeCare; // has msg_sendto() method and can be one of: PongModeNormal,
                                  // PongModeAlways, PongModeNever
 
     class ClientMessageHandlerCallback {
-        Client<IoType,
-              SwitchCycleDuration, SwitchMsgSize, PongModeCare> &m_client;
+        Client<IoType, SwitchCycleDuration, PongModeCare> &m_client;
         int m_ifd;
         struct sockaddr_store_t &m_recvfrom_addr;
         socklen_t m_recvfrom_addrlen;
         int m_receiveCount;
 
     public:
-        inline ClientMessageHandlerCallback(Client<IoType,
-                SwitchCycleDuration, SwitchMsgSize, PongModeCare> &client,
+        inline ClientMessageHandlerCallback(
+                Client<IoType, SwitchCycleDuration, PongModeCare> &client,
                 int ifd, struct sockaddr_store_t &recvfrom_addr,
                 socklen_t recvfrom_addrlen) :
             m_client(client),
@@ -345,8 +343,13 @@ private:
         static const bool is_exec_activity_info =
             (g_pApp->m_const_params.packetrate_stats_print_ratio > 0);
 
+        static const bool is_exec_msg_size =
+            (g_pApp->m_const_params.msg_size_range > 0);
+
         // init
-        m_switchMsgSize.execute(m_pMsgRequest);
+        if (unlikely(is_exec_msg_size)) {
+            m_switchMsgSize.execute(m_pMsgRequest);
+        }
 
         // idle
         m_switchCycleDuration.execute(m_pMsgRequest, ifd);
