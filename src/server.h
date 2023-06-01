@@ -101,7 +101,8 @@ private:
     template <typename T = IoType>
     inline std::enable_if_t<!(is_vma_bufftype<T>{} || is_xlio_bufftype<T>{}), int>
     get_active_ifd(int ifd, struct sockaddr *addr, socklen_t *addr_size) {
-        return accept(ifd, addr, addr_size); 
+        // Casting to int for Windows.
+        return static_cast<int>(accept(ifd, addr, addr_size));
     }
 
     template <typename T = IoType>
