@@ -285,8 +285,8 @@ static const AOPT_DESC common_opt_desc[] = {
       aopt_set_literal(0),                                      aopt_set_string("load-xlio"),
       "Load XLIO dynamically even when LD_PRELOAD was not used." },
     { OPT_RATE_LIMIT, AOPT_ARG, aopt_set_literal(0), aopt_set_string("rate-limit"),
-      "use rate limit (packet-pacing), with VMA must be run with VMA_RING_ALLOCATION_LOGIC_TX "
-      "mode." },
+      "use rate limit (packet-pacing). With VMA, the VMA_RING_ALLOCATION_LOGIC_TX "
+      "flag must be used. With XLIO, the XLIO_RING_ALLOCATION_LOGIC_TX flag must be used" },
 #endif
     { OPT_SOCK_ACCL,
       AOPT_NOARG,
@@ -1595,8 +1595,11 @@ static int proc_mode_server(int id, int argc, const char **argv) {
                     if (errno != 0 || threads_num <= 0) {
                         log_msg("'-%d' Invalid threads number: %s", OPT_THREADS_NUM, optarg);
                         rc = SOCKPERF_ERR_BAD_ARGUMENT;
-                    } else {
+                    } else if (s_user_params.fd_handler_type != RECVFROMMUX) {
                         s_user_params.threads_num = threads_num;
+                    } else {
+                        log_msg("--threads-num is incompatible with -F recvfrom");
+                        rc = SOCKPERF_ERR_BAD_ARGUMENT;
                     }
                 } else {
                     log_msg("'-%d' Invalid value", OPT_THREADS_NUM);
@@ -3545,12 +3548,14 @@ int bringup(const int *p_daemonize) {
 #ifdef USING_XLIO_EXTRA_API
             g_xlio_api = xlio_get_api();
 #endif // USING_XLIO_EXTRA_API
-            if (!g_xlio_api) {
-                errno = EPERM;
-                exit_with_err("VMA or XLIO Extra API is not available", SOCKPERF_ERR_FATAL);
+            if (g_xlio_api) {
+                log_msg("XLIO Extra API is in use");
             }
+        }
 
-            log_msg("XLIO Extra API is in use");
+        if (!g_xlio_api && !g_vma_api) {
+            errno = EPERM;
+            exit_with_err("VMA or XLIO Extra API is not available", SOCKPERF_ERR_FATAL);
         }
 
         if (g_vma_api) {
@@ -3575,8 +3580,13 @@ int bringup(const int *p_daemonize) {
     }
 #endif // USING_EXTRA_API
 
-
 #if defined(DEFINED_TLS)
+    if (s_user_params.tls && (
+        s_user_params.is_rxfiltercb || s_user_params.is_zcopyread || s_user_params.fd_handler_type == SOCKETXTREME)) {
+        errno = EPERM;
+        exit_with_err("--tls is incompatible with VMA/XLIO Extra APIs", SOCKPERF_ERR_FATAL);
+    }
+
     rc = tls_init();
 #endif /* DEFINED_TLS */
 
