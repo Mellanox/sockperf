@@ -24,7 +24,9 @@ Specifically, in addition to the standard throughput tests, **sockperf** does th
      * Clang
      * icc
 
-   `sudo apt install perl make automake autoconf m4 libtool-bin g++`
+   Linux (Debian/Ubuntu): `sudo apt install perl make automake autoconf m4 libtool-bin g++`
+   
+   FreeBSD: `sudo pkg install gmake automake libtool`
 
 ## How to install
 
