@@ -106,7 +106,7 @@ static inline int msg_sendto(int fd, uint8_t *buf, int nbytes,
         addrlen = 0;
     }
 
-    while (nbytes) {
+    while (nbytes && !g_b_exit) {
 #if defined(DEFINED_TLS)
         if (g_fds_array[fd]->tls_handle) {
             ret = tls_write(g_fds_array[fd]->tls_handle, buf, nbytes);
