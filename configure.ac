@@ -1,12 +1,16 @@
+# Indicate that we require autoconf 2.59 or later.
+#
+AC_PREREQ(2.59)
+
 define([sockperf_version], esyscmd([sh -c "head -1 ./build/current-version | tr -d '\n'"]))
 AC_INIT([SOCKPERF], [sockperf_version], [http://github.com/mellanox/sockperf/issues])
 
-AC_CONFIG_HEADER([config.h])
+AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_MACRO_DIR([config/m4])
 AC_CONFIG_AUX_DIR([config/aux])
 
 # Determine the host system
-AC_CANONICAL_SYSTEM
+AC_CANONICAL_TARGET
 
 TARGETDIR="unknown"
 case "$host" in
@@ -67,7 +71,7 @@ AM_MAINTAINER_MODE
 AC_PROG_CXX
 AC_LANG(C++)
 AM_PROG_AR
-AC_PROG_LIBTOOL
+LT_INIT
 
 AX_CXX_COMPILE_STDCXX([11], [], [mandatory])
 
@@ -80,7 +84,7 @@ SP_CHECK_CXXFLAGS_APPEND([OUR_CXXFLAGS], [\
 #
 AC_ARG_ENABLE(
     [vma-api],
-    AC_HELP_STRING([--enable-vma-api],
+    AS_HELP_STRING([--enable-vma-api],
                    [SOCKPERF: enable vma extra api support: 'yes', 'no' or library installation path (default=no)]),
     [have_vma_api=$enableval],
     [have_vma_api=no])
@@ -105,7 +109,7 @@ AC_MSG_RESULT([${have_vma_api}])
 #
 AC_ARG_ENABLE(
     [xlio-api],
-    AC_HELP_STRING([--enable-xlio-api],
+    AS_HELP_STRING([--enable-xlio-api],
                    [SOCKPERF: enable xlio extra api support: 'yes', 'no' or library installation path (default=no)]),
     [have_xlio_api=$enableval],
     [have_xlio_api=no])
@@ -130,7 +134,7 @@ AC_MSG_RESULT([${have_xlio_api}])
 #
 SP_ARG_ENABLE_BOOL(
     [doc],
-    AC_HELP_STRING([--enable-doc],
+    AS_HELP_STRING([--enable-doc],
                    [SOCKPERF: create documentation with doxygen in html and unix-man (default=no)]))
 AS_IF([test "x$have_doc" = "xyes"], [
        # Checks for doxygen
@@ -145,7 +149,7 @@ AM_CONDITIONAL(DOC, test "x$have_doc" = "xyes")
 #
 SP_ARG_ENABLE_BOOL(
     [test],
-    AC_HELP_STRING([--enable-test],
+    AS_HELP_STRING([--enable-test],
                    [SOCKPERF: compile tests (default=no)]))
 AM_CONDITIONAL(TEST, test "x$have_test" = "xyes")
 
@@ -155,7 +159,7 @@ AM_CONDITIONAL(TEST, test "x$have_test" = "xyes")
 #
 SP_ARG_ENABLE_BOOL(
     [tool],
-    AC_HELP_STRING([--enable-tool],
+    AS_HELP_STRING([--enable-tool],
                    [SOCKPERF: compile utilities (default=no)]))
 AM_CONDITIONAL(TOOL, test "x$have_tool" = "xyes")
 
@@ -165,7 +169,7 @@ AM_CONDITIONAL(TOOL, test "x$have_tool" = "xyes")
 #
 SP_ARG_ENABLE_BOOL(
     [debug],
-    AC_HELP_STRING([--enable-debug],
+    AS_HELP_STRING([--enable-debug],
                    [SOCKPERF: turn on debugging (default=no)]))
 AS_IF([test "x$have_debug" = "xyes"],
       [AC_DEFINE([DEBUG],  [], [Enable debugging])],
@@ -177,7 +181,7 @@ AS_IF([test "x$have_debug" = "xyes"],
 #
 SP_ARG_ENABLE_BOOL(
     [build32],
-    AC_HELP_STRING([--enable-build32],
+    AS_HELP_STRING([--enable-build32],
 		   [SOCKPERF: force build 32bit (default=no)]))
 AS_IF([test "x$have_build32" = "xyes"], [
       SP_CHECK_CXXFLAG_APPEND([OUR_CXXFLAGS], [-m32],
@@ -193,7 +197,6 @@ TLS_CAPABILITY_SETUP
 #####################################
 # Checks for header files.
 #
-AC_HEADER_STDC
 AC_CHECK_HEADERS(
     [arpa/inet.h fcntl.h netinet/in.h stdint.h stdlib.h \
     string.h sys/ioctl.h sys/socket.h sys/time.h syslog.h \
@@ -202,7 +205,6 @@ AC_CHECK_HEADERS(
 #####################################
 # Checks for libraries.
 #
-AC_HEADER_STDC
 AC_SEARCH_LIBS([clock_gettime], [rt], [], AC_MSG_ERROR([librt not found]))
 AC_SEARCH_LIBS([pthread_create], [pthread], [], AC_MSG_ERROR([libpthread not found]))
 AC_SEARCH_LIBS([backtrace], [execinfo], [], AC_MSG_ERROR([libexecinfo not found]))
