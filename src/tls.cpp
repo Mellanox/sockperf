@@ -55,6 +55,7 @@ const char *tls_chipher(const char *chipher) {
 
 #include <openssl/ssl.h>
 #include <openssl/err.h>
+#include <openssl/opensslv.h>
 
 static bool add_keys_and_certificates(SSL_CTX *ctx);
 static bool set_tls_version_and_ciphers(SSL_CTX *ctx);
@@ -96,6 +97,12 @@ int tls_init(void) {
     SSL_library_init();
     SSL_load_error_strings();
 
+#ifdef OPENSSL_VERSION_TEXT
+    log_dbg("OpenSSL version: %s", OPENSSL_VERSION_TEXT);
+#else
+    log_dbg("OpenSSL version: %lx", OPENSSL_VERSION_NUMBER);
+#endif
+
     if (s_user_params.mode == MODE_SERVER) {
         ctx = SSL_CTX_new(TLS_server_method());
         if (!ctx) {
@@ -122,6 +129,7 @@ int tls_init(void) {
     }
 
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
+    log_dbg("Requesting KTLS support");
     SSL_CTX_set_options(ctx, SSL_OP_ENABLE_KTLS);
 #endif
     ssl_ctx = ctx;
