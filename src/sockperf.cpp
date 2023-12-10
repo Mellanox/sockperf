@@ -303,6 +303,8 @@ static const AOPT_DESC common_opt_desc[] = {
 #if defined(USING_DOCA_COMM_CHANNEL_API)
     { OPT_DOCA,                AOPT_NOARG,                                    aopt_set_literal(0),
       aopt_set_string("doca-comm-channel"), "Use Doca communication channel" },
+    { OPT_DOCA_FAST_PATH,                AOPT_NOARG,                          aopt_set_literal(0),
+      aopt_set_string("doca-fast-path"),    "Use Doca fast data path (required doca-comm-channel option)" },
     { OPT_PCI,                  AOPT_ARG,                                     aopt_set_literal(0),
       aopt_set_string("pci-address"), "Comm Channel DOCA device PCI address"},
     { OPT_PCI_REP,                  AOPT_ARG,                                 aopt_set_literal(0),
@@ -2265,6 +2267,14 @@ static int parse_common_opt(const AOPT_OBJECT *common_obj) {
             }
             log_dbg("doca_pe_create succeeded");
         }
+        if (!rc && aopt_check(common_obj, OPT_DOCA_FAST_PATH)) {
+            if (!aopt_check(common_obj, OPT_DOCA)) {
+                log_msg("--doca-comm-channel is required for fast path option");
+                rc = SOCKPERF_ERR_BAD_ARGUMENT;
+            } else {
+                s_user_params.doca_cc_fifo = true;
+            }
+        }
 #endif /* USING_DOCA_COMM_CHANNEL_API */
     }
 
@@ -2463,6 +2473,17 @@ void cleanup() {
                     doca_dev_close(ctx->hw_dev);
                     os_mutex_close(&ctx->lock);
                     os_cond_destroy(&ctx->cond);
+                    if (s_user_params.doca_cc_fifo) {
+                        doca_cc_consumer_destroy(ctx->ctx_fifo.consumer);
+                        doca_cc_producer_destroy(ctx->ctx_fifo.producer);
+                        doca_mmap_destroy(ctx->ctx_fifo.consumer_mem.mmap);
+                        doca_mmap_destroy(ctx->ctx_fifo.producer_mem.mmap);
+                        doca_buf_inventory_destroy(ctx->ctx_fifo.consumer_mem.buf_inv);
+                        doca_buf_inventory_destroy(ctx->ctx_fifo.producer_mem.buf_inv);
+                        if (s_user_params.mode == MODE_CLIENT && ctx->ctx_fifo.underload_mode) {
+                            doca_pe_destroy(s_user_params.pe_underload);
+                        }
+                    }
                     if (s_user_params.mode == MODE_SERVER) {
                         struct cc_ctx_server *ctx_server = (struct cc_ctx_server*)ctx;
                         doca_cc_server_destroy(ctx_server->server);
@@ -3621,9 +3642,20 @@ int bringup_for_doca(std::unique_ptr<fds_data> &tmp)
     cc_ctx.recv_buffer = tmp->recv.buf;
     cc_ctx.num_connected_clients = 0;
     cc_ctx.buf_size = 0;
+    cc_ctx.recv_flag = false;
     os_mutex_init(&cc_ctx.lock);
     os_cond_init(&cc_ctx.cond);
 
+    if (s_user_params.doca_cc_fifo) {
+        cc_ctx.fast_path = true;
+        cc_ctx.ctx_fifo.fifo_connection_state = CC_FIFO_CONNECTION_IN_PROGRESS;
+        cc_ctx.ctx_fifo.pe = s_user_params.pe;
+        cc_ctx.ctx_fifo.producer_mem.msg_size = s_user_params.msg_size;
+        cc_ctx.ctx_fifo.consumer_mem.msg_size = MAX_PAYLOAD_SIZE;
+        cc_ctx.ctx_fifo.task_submitted = false;
+    } else {
+        cc_ctx.fast_path = false;
+    }
     struct priv_doca_pci_bdf dev_pcie = {0};
     doca_error_t doca_error = DOCA_SUCCESS;
 	struct doca_ctx *ctx;
@@ -3654,7 +3686,6 @@ int bringup_for_doca(std::unique_ptr<fds_data> &tmp)
 
     if (s_user_params.mode == MODE_SERVER) {
         ctx_server = (struct cc_ctx_server*)MALLOC(sizeof(struct cc_ctx_server));
-        cc_ctx.recv_flag = true;
         /* Convert the PCI addresses into the matching struct */
         struct priv_doca_pci_bdf dev_rep_pcie = {0};
         doca_error = cc_parse_pci_addr(s_user_params.cc_dev_rep_pci_addr, &dev_rep_pcie);
@@ -3681,17 +3712,13 @@ int bringup_for_doca(std::unique_ptr<fds_data> &tmp)
         }
         log_dbg("doca_cc_server_create succeeded");
         ctx = doca_cc_server_as_ctx(ctx_server->server);
+        if (s_user_params.doca_cc_fifo) {
+            cc_ctx.ctx_fifo.underload_mode = false;
+        }
 
     } else { // MODE_CLIENT
         ctx_client = (struct cc_ctx_client*)MALLOC(sizeof(struct cc_ctx_client));
-        ctx_client->state = CONNECTION_IN_PROGRESS;
-        cc_ctx.recv_flag = false;
-        if (!s_user_params.b_client_ping_pong && !s_user_params.b_stream) { // latency_under_load
-            ctx_client->underload_mode = true;
-        } else {
-            ctx_client->underload_mode = false;
-        }
-
+        cc_ctx.state = CC_CONNECTION_IN_PROGRESS;
         doca_error = doca_cc_client_create(cc_ctx.hw_dev, s_user_params.addr.addr_un.sun_path,
                                         &(ctx_client->client));
         if (doca_error != DOCA_SUCCESS) {
@@ -3700,6 +3727,21 @@ int bringup_for_doca(std::unique_ptr<fds_data> &tmp)
         }
         log_dbg("doca_cc_client_create succeeded");
         ctx = doca_cc_client_as_ctx(ctx_client->client);
+        if (!s_user_params.b_client_ping_pong && !s_user_params.b_stream) { // latency_under_load
+            cc_ctx.ctx_fifo.underload_mode = true;
+            if (s_user_params.doca_cc_fifo) {
+                // For underload mode we use different PE for consumer, 1 PE per thread
+                doca_error = doca_pe_create(&(s_user_params.pe_underload));
+                if (doca_error != DOCA_SUCCESS) {
+                    log_dbg("Fail creating pe for underload mode with error %s", doca_error_get_name(doca_error));
+                    goto destroy_cc;
+                }
+                log_dbg("doca_pe_create succeeded for underload mode");
+                cc_ctx.ctx_fifo.pe_underload = s_user_params.pe_underload;
+            }
+        } else {
+            cc_ctx.ctx_fifo.underload_mode = false;
+        }
     }
 
     doca_error = doca_pe_connect_ctx(s_user_params.pe, ctx);
@@ -3750,6 +3792,11 @@ destroy_cc:
         doca_dev_close(cc_ctx.hw_dev);
         /* Destroy PE*/
         doca_pe_destroy(s_user_params.pe);
+        if (s_user_params.doca_cc_fifo) {
+            if (s_user_params.mode == MODE_CLIENT && cc_ctx.ctx_fifo.underload_mode) {
+                doca_pe_destroy(s_user_params.pe_underload);
+            }
+        }
         os_mutex_close(&cc_ctx.lock);
         os_cond_destroy(&cc_ctx.cond);
         s_user_params.pe = NULL;

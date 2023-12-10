@@ -301,7 +301,8 @@ enum {
 #if defined(USING_DOCA_COMM_CHANNEL_API)
     OPT_DOCA,
     OPT_PCI,
-    OPT_PCI_REP
+    OPT_PCI_REP,
+    OPT_DOCA_FAST_PATH
 #endif /* USING_DOCA_COMM_CHANNEL_API */
 
 };
@@ -820,9 +821,11 @@ struct user_params_t {
 #endif /* DEFINED_TLS */
 #if defined(USING_DOCA_COMM_CHANNEL_API)
     bool doca_comm_channel = false;                         /* Flag to indicate using Com Channel*/
+    bool doca_cc_fifo = false;                            /* Flag to indicate using fast path*/
     char cc_dev_pci_addr[PCI_ADDR_LEN];                     /* Comm Channel DOCA device PCI address */
     char cc_dev_rep_pci_addr[PCI_ADDR_LEN];                 /* Comm Channel DOCA device representor PCI address */
     struct doca_pe *pe = nullptr;                           /* Progress engine for doca, one per thread*/
+    struct doca_pe *pe_underload = nullptr;                 /* Progress engine for doca, one per thread, underload mode */
 #endif /* USING_DOCA_COMM_CHANNEL_API */
 
     user_params_t() {
