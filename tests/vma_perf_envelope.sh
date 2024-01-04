@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2011-2023 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright (c) 2011-2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without modification,
