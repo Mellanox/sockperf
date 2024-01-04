@@ -2,7 +2,7 @@
 #
 # Testing script for SOCKPERF, to run from Jenkins CI
 #
-# Copyright (C) Mellanox Technologies Ltd. 2011-2023. ALL RIGHTS RESERVED.
+# Copyright (C) Mellanox Technologies Ltd. 2011-2024. ALL RIGHTS RESERVED.
 #
 # See file LICENSE for terms.
 #
