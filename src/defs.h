@@ -157,6 +157,11 @@ typedef unsigned short int sa_family_t;
 #endif // USING_XLIO_EXTRA_API
 #endif // !defined(__windows__) && !defined(__FreeBSD__) && !defined(__APPLE__)
 
+#ifdef USING_DOCA_COMM_CHANNEL_API
+#include "doca_cc_helper.h"
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#endif /* USING_DOCA_COMM_CHANNEL_API */
+
 #define MIN_PAYLOAD_SIZE (MsgHeader::EFFECTIVE_SIZE)
 extern int MAX_PAYLOAD_SIZE;
 extern int max_fds_num;
@@ -291,8 +296,15 @@ enum {
     OPT_LOAD_XLIO,                // 47
     OPT_TCP_NB_CONN_TIMEOUT_MS,   // 48
 #if defined(DEFINED_TLS)
-    OPT_TLS
+    OPT_TLS,
 #endif /* DEFINED_TLS */
+#if defined(USING_DOCA_COMM_CHANNEL_API)
+    OPT_DOCA,
+    OPT_PCI,
+    OPT_PCI_REP,
+    OPT_DOCA_FAST_PATH
+#endif /* USING_DOCA_COMM_CHANNEL_API */
+
 };
 
 static const char *const round_trip_str[] = { "latency", "rtt" };
@@ -571,6 +583,9 @@ struct fds_data {
 #if defined(DEFINED_TLS)
     void *tls_handle = nullptr;
 #endif /* DEFINED_TLS */
+#if defined(USING_DOCA_COMM_CHANNEL_API)
+    struct cc_ctx *doca_cc_ctx = nullptr;
+#endif /* USING_DOCA_COMM_CHANNEL_API */
 
     fds_data()
     {
@@ -804,6 +819,14 @@ struct user_params_t {
 #if defined(DEFINED_TLS)
     bool tls = false;
 #endif /* DEFINED_TLS */
+#if defined(USING_DOCA_COMM_CHANNEL_API)
+    bool doca_comm_channel = false;                         /* Flag to indicate using Com Channel*/
+    bool doca_cc_fifo = false;                            /* Flag to indicate using fast path*/
+    char cc_dev_pci_addr[PCI_ADDR_LEN];                     /* Comm Channel DOCA device PCI address */
+    char cc_dev_rep_pci_addr[PCI_ADDR_LEN];                 /* Comm Channel DOCA device representor PCI address */
+    struct doca_pe *pe = nullptr;                           /* Progress engine for doca, one per thread*/
+    struct doca_pe *pe_underload = nullptr;                 /* Progress engine for doca, one per thread, underload mode */
+#endif /* USING_DOCA_COMM_CHANNEL_API */
 
     user_params_t() {
         memset(&client_bind_info, 0, sizeof(client_bind_info));

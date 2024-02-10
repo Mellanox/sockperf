@@ -14,7 +14,7 @@ AC_CANONICAL_TARGET
 
 TARGETDIR="unknown"
 case "$host" in
- 
+
   i?86-*-*) TARGET=X86; TARGETDIR=x86;;
   ia64*-*-*) TARGET=IA64; TARGETDIR=ia64;;
   powerpc*-*-linux* | powerpc-*-sysv*) TARGET=POWERPC; TARGETDIR=powerpc;;
@@ -30,14 +30,14 @@ case "$host" in
   aarch64-*-*) TARGET=AARCH64; TARGETDIR=aarch64;;
   s390*-*-*) TARGET=S390; TARGETDIR=s390;;
 esac
- 
+
 AC_SUBST(AM_RUNTESTFLAGS)
 AC_SUBST(AM_LTLDFLAGS)
- 
+
 if test $TARGETDIR = unknown; then
   AC_MSG_ERROR(["it has not been ported to $host."])
 fi
- 
+
 AM_CONDITIONAL(X86, test x$TARGET = xX86)
 AM_CONDITIONAL(IA64, test x$TARGET = xIA64)
 AM_CONDITIONAL(POWERPC, test x$TARGET = xPOWERPC)
@@ -105,6 +105,34 @@ AC_MSG_CHECKING(
 AC_MSG_RESULT([${have_vma_api}])
 
 ##########################################################################
+# check DOCA communication channel API
+#
+AC_ARG_ENABLE(
+        [doca-communication-channel-api],
+        AC_HELP_STRING([--enable-doca-communication-channel-api],
+                                [SOCKPERF: enable DOCA communication channel extra api support (default=no)]),
+        [have_doca_comm_channel_api=$enableval],
+        [have_doca_comm_channel_api=no])
+AS_IF([test "x${have_doca_comm_channel_api}" == "xyes"],
+        if test "$have_doca_comm_channel_api" = "yes"
+        then
+            have_doca_comm_channel_api=/opt/mellanox/doca
+        fi
+
+        CPPFLAGS="$CPPFLAGS -I$have_doca_comm_channel_api/include -I$have_doca_comm_channel_api/lib -I$have_doca_comm_channel_api/samples"
+        LIBS="$LIBS -ldoca_comm_channel -ldoca_common"
+
+        [AC_CHECK_HEADERS([$have_doca_comm_channel_api/include/doca_comm_channel.h $have_doca_comm_channel_api/include/doca_dev.h $have_doca_comm_channel_api/samples/common.h],
+                [AC_DEFINE([USING_DOCA_COMM_CHANNEL_API],[1],[[Enable using DOCA communication channel extra API]])
+         ],
+                [AC_MSG_ERROR([doca_comm_channel.h file not found])]
+                [have_doca_comm_channel_api=no])])
+AC_MSG_CHECKING(
+        [for doca communication channel extra api])
+AC_MSG_RESULT([${have_doca_comm_channel_api}])
+
+
+##########################################################################
 # check XLIO extra API
 #
 AC_ARG_ENABLE(
@@ -145,7 +173,7 @@ AM_CONDITIONAL(DOC, test "x$have_doc" = "xyes")
 
 
 ##########################
-# Enable tests 
+# Enable tests
 #
 SP_ARG_ENABLE_BOOL(
     [test],
@@ -155,7 +183,7 @@ AM_CONDITIONAL(TEST, test "x$have_test" = "xyes")
 
 
 ##########################
-# Enable tools 
+# Enable tools
 #
 SP_ARG_ENABLE_BOOL(
     [tool],
@@ -235,6 +263,7 @@ AC_MSG_RESULT([
 	test:		${have_test}
 	tool:		${have_tool}
 	vma_api:	${have_vma_api}
+    doca_api:   ${have_doca_comm_channel_api}
 	xlio_api:	${have_xlio_api}
 	debug:		${have_debug}
 ])
