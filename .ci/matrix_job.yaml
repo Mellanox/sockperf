@@ -17,6 +17,8 @@ kubernetes:
 
 credentials:
   - {credentialsId: 'mellanox_github_credentials', usernameVariable: 'MELLANOX_GH_USER', passwordVariable: 'MELLANOX_GH_TOKEN'}
+  - {credentialsId: 'swx-jenkins2-svc-gerrit-ssh-key', keyFileVariable: 'GERRIT_SSH_KEY', type: 'sshUserPrivateKey'}
+  - {credentialsId: 'blackduck_api_token', type: 'string', variable: 'BLACKDUCK_API_TOKEN'}
 
 volumes:
   - {mountPath: /hpc/local/bin, hostPath: /hpc/local/bin}
@@ -37,7 +39,7 @@ runs_on_dockers:
   - {name: 'sl15sp2-mofed-x86_64',  url: 'harbor.mellanox.com/swx-infra/x86_64/sles15sp2/builder:mofed-5.2-2.2.0.0', category: 'base', arch: 'x86_64'}
   - {name: 'fc31-mofed-x86_64',     url: 'harbor.mellanox.com/swx-infra/x86_64/fedora31/builder:mofed-5.1-1.0.7.0', category: 'base', arch: 'x86_64'}
   - {name: 'toolbox', url: 'harbor.mellanox.com/hpcx/x86_64/rhel8.3/builder:inbox', category: 'tool', arch: 'x86_64'}
-  - {name: 'blackduck', url: 'harbor.mellanox.com/toolbox/ngci-centos:7.9.2009.2', category: 'tool', arch: 'x86_64'}
+  - {name: 'blackduck', file: '.ci/dockerfiles/Dockerfile.rhel8.6', category: 'tool', arch: 'x86_64', tag: '20250422', uri: 'sockperf/$arch/$name/bduck', build_args: '--no-cache'}
   - {name: 'header-check', url: 'harbor.mellanox.com/toolbox/header_check:0.0.51', category: 'tool', arch: 'x86_64', tag: '0.0.51'}
 
 runs_on_agents:
@@ -242,20 +244,15 @@ steps:
       - "{name: 'blackduck', category:'tool', variant:1}"
     agentSelector:
       - "{nodeLabel: 'skip-agent'}"
-    shell: action
-    module: ngci
-    run: NGCIBlackDuckScan
-    args:
-      projectName: "sockperf"
-      projectVersion: "0.1.0"
-      projectSrcPath: "src"
-      attachArtifact: true
-      reportName: "BlackDuck report"
-      scanMode: "source"
-      skipDockerDaemonCheck: true
-      credentialsId: "swx-jenkins3-svc_git-nbu_token"
-    env:
-      SPRING_APPLICATION_JSON: '{"blackduck.url":"https://blackduck.mellanox.com/","blackduck.api.token":"ODMwOWYwMzEtODA2ZC00MzBjLWI1ZDEtNmFiMjBkYzQzMzkwOjNmNjExN2M1LWE2ZmEtNDZlYS1hZjRiLTZlNDgwNjAwOTVjNw=="}'
+    run: |
+      # WA for possible CI-Demo bug: HPCINFRA-1614
+      if ${do_blackduck} ; then
+        .ci/blackduck_source.sh
+      fi
+    archiveArtifacts: 'logs/'
+    credentialsId: 
+      - "swx-jenkins2-svc-gerrit-ssh-key"
+      - "blackduck_api_token"
 
 pipeline_start:
   run: |
@@ -268,6 +265,6 @@ pipeline_stop:
 
 failFast: false
 
-timeout_minutes: 180
+timeout_minutes: 150
 
 taskName: '${flags}/${name}/${axis_index}'
