@@ -128,7 +128,7 @@ struct input_handler_helper
     }
 };
 
-#ifdef USING_EXTRA_API
+#ifdef USING_VMA_EXTRA_API
 // T is vma_buff_t
 template <class T>
 class SocketXtremeInputHandler : public MessageParser<BufferAccumulation> {
@@ -287,7 +287,6 @@ public:
     }
 };
 
-#ifdef USING_VMA_EXTRA_API // VMA
 class VmaSocketXtremeInputHandler : public SocketXtremeInputHandler<vma_buff_t> {
 private:
     vma_buff_t *m_curr_buff;
@@ -335,5 +334,4 @@ struct input_handler_helper<VmaSocketXtremeInputHandler, IoType>
     }
 };
 #endif // USING_VMA_EXTRA_API
-#endif // USING_EXTRA_API
 #endif // INPUT_HANDLERS_H_

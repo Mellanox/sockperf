@@ -343,12 +343,12 @@ private:
         // send
         for (unsigned i = 0; i < g_pApp->m_const_params.burst_size && !g_b_exit; i++) {
             client_send_packet(ifd);
-#ifdef USING_EXTRA_API // For VMA socketxtreme Only
+#ifdef USING_VMA_EXTRA_API // For VMA socketxtreme Only
             if (g_pApp->m_const_params.fd_handler_type == SOCKETXTREME &&
                 !g_pApp->m_const_params.b_client_ping_pong) {
                 m_ioHandler.waitArrival();
             }
-#endif // USING_EXTRA_API
+#endif // USING_VMA_EXTRA_API
         }
 
         if (unlikely(is_exec_activity_info)) {

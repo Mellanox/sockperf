@@ -455,7 +455,7 @@ private:
     int m_max_events;
 };
 #endif // defined(__FreeBSD__) || defined(__APPLE__) 
-#ifdef USING_EXTRA_API // socketxtreme-extra-api Only
+#ifdef USING_VMA_EXTRA_API // socketxtreme-extra-api Only
 //==============================================================================
 // T is vma_buff_t
 // C is vma_completion_t
@@ -464,7 +464,6 @@ class IoSocketxtreme : public IoHandler {
 public:
     typedef T buff_type;
 
-#ifdef USING_VMA_EXTRA_API // VMA socketxtreme-extra-api Only
     template <class K = T, typename std::enable_if_t<std::is_same<vma_buff_t,K>::value, bool> = true>
     IoSocketxtreme(int _fd_min, int _fd_max, int _fd_num)
         : IoHandler(_fd_min, _fd_max, _fd_num, 0, 0)
@@ -473,7 +472,6 @@ public:
         , m_current_ring_comp(nullptr)
     {
     }
-#endif // USING_VMA_EXTRA_API
 
     virtual ~IoSocketxtreme();
 
@@ -508,14 +506,12 @@ public:
         }
     }
 
-#ifdef USING_VMA_EXTRA_API // VMA
     template <typename K = T>
     inline std::enable_if_t<std::is_same<K,vma_buff_t>::value, void>
     sx_free_packets(int i) {
         m_extra_api->socketxtreme_free_vma_packets(
             &m_rings_comps_map_itr->second->comp_list[i].packet, 1);
     }
-#endif
 
     //------------------------------------------------------------------------------
     inline int waitArrival() {
@@ -622,9 +618,7 @@ int IoSocketxtreme<T,C,API>::prepareNetwork() {
             ring_fd = 0;
             int rings = -1;
             if (g_vma_api) {
-#ifdef USING_VMA_EXTRA_API // VMA Socketxtreme Only
                 rings = g_vma_api->get_socket_rings_fds(ifd, &ring_fd, 1);
-#endif // USING_VMA_EXTRA_API
             }
 
             if (rings == -1) {
@@ -657,10 +651,8 @@ int IoSocketxtreme<T,C,API>::prepareNetwork() {
     return rc;
 }
 
-#ifdef USING_VMA_EXTRA_API // VMA Socketxtreme Only
 typedef IoSocketxtreme<vma_buff_t, vma_completion_t, decltype(g_vma_api)> IoSocketxtremeVMA;
-#endif // USING_VMA_EXTRA_API
 
-#endif // USING_EXTRA_API
+#endif // USING_VMA_EXTRA_API
 #endif // !WIN32
 #endif // IOHANDLERS_H_

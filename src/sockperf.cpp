@@ -2427,7 +2427,7 @@ void cleanup() {
     if (s_user_params.select_timeout) {
         FREE(s_user_params.select_timeout);
     }
-#ifdef USING_EXTRA_API
+#ifdef USING_VMA_EXTRA_API
     if (g_vma_api && s_user_params.is_zcopyread) {
         zeroCopyMap::iterator it;
         while ((it = g_zeroCopyData.begin()) != g_zeroCopyData.end()) {
@@ -2435,7 +2435,7 @@ void cleanup() {
             g_zeroCopyData.erase(it);
         }
     }
-#endif // USING_EXTRA_API
+#endif // USING_VMA_EXTRA_API
 
     if (g_fds_array) {
         FREE(g_fds_array);
@@ -2522,7 +2522,7 @@ void set_defaults() {
 }
 
 //------------------------------------------------------------------------------
-#ifdef USING_EXTRA_API // Only for callback-extra-api
+#ifdef USING_VMA_EXTRA_API // Only for callback-extra-api
 template <class T> // T is vma_info_t
 class CallbackMessageHandler {
     int m_fd;
@@ -2563,9 +2563,7 @@ RT myapp_recv_pkt_filter_callback(int fd, size_t iov_sz,
         log_msg("Extra info struct is not something we can handle so un-register the application's "
                 "callback function");
         if (g_vma_api) {
-#ifdef USING_VMA_EXTRA_API // Only for VMA callback-extra-api
             g_vma_api->register_recv_callback(fd, NULL, NULL);
-#endif // USING_VMA_EXTRA_API
         }
         return RTValRecv;
     }
@@ -2599,11 +2597,9 @@ RT myapp_recv_pkt_filter_callback(int fd, size_t iov_sz,
     return RTValDrop;
 }
 
-#ifdef USING_VMA_EXTRA_API // Only for VMA callback-extra-api
 #define myapp_vma_recv_pkt_filter_callback \
     myapp_recv_pkt_filter_callback<vma_info_t, vma_recv_callback_retval_t, vma_packets_t, \
                                    VMA_PACKET_RECV, VMA_PACKET_DROP>
-#endif // USING_VMA_EXTRA_API
 
 template <class T>
 inline bool CallbackMessageHandler<T>::handle_message()
@@ -3060,7 +3056,7 @@ int prepare_socket(int fd, struct fds_data *p_data)
         rc = sock_set_tos(fd);
     }
 
-#ifdef USING_EXTRA_API
+#ifdef USING_VMA_EXTRA_API
 #ifdef ST_TEST
     if (!stTest)
 #endif
@@ -3068,9 +3064,7 @@ int prepare_socket(int fd, struct fds_data *p_data)
             // Try to register application with VMA's special receive notification callback logic
             int rc = -1;
             if (g_vma_api) {
-#ifdef USING_VMA_EXTRA_API // VMA callback-extra-api only
                 rc = g_vma_api->register_recv_callback(fd, myapp_vma_recv_pkt_filter_callback, NULL);
-#endif // USING_VMA_EXTRA_API
             }
 
             if (rc < 0) {
@@ -3084,13 +3078,13 @@ int prepare_socket(int fd, struct fds_data *p_data)
             g_zeroCopyData[fd] = new ZeroCopyData();
             g_zeroCopyData[fd]->allocate();
         }
-#endif // USING_EXTRA_API
+#endif // USING_VMA_EXTRA_API
 
     return (!rc ? fd
                 : (int)INVALID_SOCKET); // TODO: use SOCKET all over the way and avoid this cast
 }
 
-#ifdef USING_EXTRA_API
+#ifdef USING_VMA_EXTRA_API
 //------------------------------------------------------------------------------
 static bool is_unspec_addr(const sockaddr_store_t &addr)
 {
@@ -3102,7 +3096,7 @@ static bool is_unspec_addr(const sockaddr_store_t &addr)
     }
     return true;
 }
-#endif // USING_EXTRA_API
+#endif // USING_VMA_EXTRA_API
 
 //------------------------------------------------------------------------------
 /* get IP:port pairs from the file and initialize the list */
@@ -3257,7 +3251,7 @@ static int set_sockets_from_feedfile(const char *feedfile_name) {
         } else {
             sock_type = SOCK_DGRAM;
         }
-#ifdef USING_EXTRA_API
+#ifdef USING_VMA_EXTRA_API
         if (sock_type == SOCK_DGRAM && s_user_params.mode == MODE_CLIENT) {
             if (s_user_params.fd_handler_type == SOCKETXTREME &&
                 is_unspec_addr(s_user_params.client_bind_info)) {
@@ -3267,7 +3261,7 @@ static int set_sockets_from_feedfile(const char *feedfile_name) {
                 break;
             }
         }
-#endif // USING_EXTRA_API
+#endif // USING_VMA_EXTRA_API
 
         std::unique_ptr<fds_data> tmp{ new fds_data };
 
@@ -3522,13 +3516,11 @@ int bringup(const int *p_daemonize) {
     /* Setup VMA */
     int _vma_pkts_desc_size = 0;
 
-#ifdef USING_EXTRA_API
+#ifdef USING_VMA_EXTRA_API
     if (!rc && (s_user_params.is_rxfiltercb || s_user_params.is_zcopyread ||
                 s_user_params.fd_handler_type == SOCKETXTREME)) {
         // Get VMA extended API
-#ifdef USING_VMA_EXTRA_API
         g_vma_api = vma_get_api();
-#endif // USING_VMA_EXTRA_API
         if (g_vma_api) { // Try VMA Extra API
             log_msg("VMA Extra API is in use");
         }
@@ -3539,10 +3531,8 @@ int bringup(const int *p_daemonize) {
         }
 
         if (g_vma_api) {
-#ifdef USING_VMA_EXTRA_API
             _vma_pkts_desc_size =
                 sizeof(struct vma_packets_t) + sizeof(struct vma_packet_t) + sizeof(struct iovec) * 16;
-#endif // USING_VMA_EXTRA_API
         }
     }
 #else
@@ -3551,7 +3541,7 @@ int bringup(const int *p_daemonize) {
         errno = EPERM;
         exit_with_err("Please compile with VMA Extra API to use these options", SOCKPERF_ERR_FATAL);
     }
-#endif // USING_EXTRA_API
+#endif // USING_VMA_EXTRA_API
 
 #if defined(DEFINED_TLS)
     if (s_user_params.tls && (

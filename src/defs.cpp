@@ -42,7 +42,7 @@ TicksTime g_cycleStartTime;
 
 debug_level_t g_debug_level = LOG_LVL_INFO;
 
-#ifdef USING_EXTRA_API
+#ifdef USING_VMA_EXTRA_API
 ZeroCopyData::ZeroCopyData() : m_pkt_buf(NULL), m_pkts(NULL) {}
 
 void ZeroCopyData::allocate() { m_pkt_buf = (unsigned char *)MALLOC(Message::getMaxSize()); }
@@ -52,7 +52,7 @@ ZeroCopyData::~ZeroCopyData() {
 }
 
 zeroCopyMap g_zeroCopyData;
-#endif // USING_EXTRA_API
+#endif // USING_VMA_EXTRA_API
 
 uint32_t MPS_MAX = MPS_MAX_UL; // will be overwrite at runtime in case of ping-pong test
 PacketTimes *g_pPacketTimes = NULL;

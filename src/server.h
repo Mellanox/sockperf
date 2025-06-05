@@ -85,7 +85,7 @@ class Server : public ServerBase {
 private:
     IoType m_ioHandler;
 
-#ifdef USING_EXTRA_API // Socketxtreme Only
+#ifdef USING_VMA_EXTRA_API // Socketxtreme Only
     template <typename T = IoType>
     inline std::enable_if_t<(is_vma_bufftype<T>{}), int>
     get_active_ifd(int ifd, struct sockaddr *addr, socklen_t *addr_size) {

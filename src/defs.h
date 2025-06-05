@@ -108,10 +108,6 @@ typedef unsigned short int sa_family_t;
 #include "playback.h"
 #include "ip_address.h"
 
-#if defined(USING_VMA_EXTRA_API)
-#define USING_EXTRA_API
-#endif // USING_VMA_EXTRA_API
-
 #if !defined(__windows__) && !defined(__FreeBSD__) && !defined(__APPLE__)
 #include "vma-redirect.h"
 #ifdef USING_VMA_EXTRA_API // VMA
@@ -170,9 +166,9 @@ const uint32_t TEST_FIRST_CONNECTION_FIRST_PACKET_TTL_THRESHOLD_MSEC = 50;
 #define DUMMY_PORT 57341
 #define MAX_ACTIVE_FD_NUM                                                                          \
     max_fds_num /* maximum number of active connection to the single TCP addr:port */
-#ifdef USING_EXTRA_API // For VMA socketxtreme Only
+#ifdef USING_VMA_EXTRA_API // For VMA socketxtreme Only
 #define MAX_SOCKETXTREME_COMPS 1024 /* maximum size for socketxtreme poll completions array */
-#endif // USING_EXTRA_API
+#endif // USING_VMA_EXTRA_API
 
 #ifndef MAX_PATH_LENGTH
 #define MAX_PATH_LENGTH 1024
@@ -481,7 +477,7 @@ extern TicksTime g_cycleStartTime;
 
 extern debug_level_t g_debug_level;
 
-#ifdef USING_EXTRA_API
+#ifdef USING_VMA_EXTRA_API
 class ZeroCopyData {
 public:
     ZeroCopyData();
@@ -493,7 +489,7 @@ public:
 // map from fd to zeroCopyData
 typedef std::map<int, ZeroCopyData *> zeroCopyMap;
 extern zeroCopyMap g_zeroCopyData;
-#endif // USING_EXTRA_API
+#endif // USING_VMA_EXTRA_API
 
 class Message;
 
@@ -544,9 +540,9 @@ struct fds_data {
     IPAddress mc_source_ip_addr;    /**< message source ip for multicast packet filtering */
     int memberships_size = 0;
     struct SocketRecvData recv;
-#ifdef USING_EXTRA_API // callback-extra-api Only
+#ifdef USING_VMA_EXTRA_API // callback-extra-api Only
     Message *p_msg = nullptr;
-#endif // USING_EXTRA_API
+#endif // USING_VMA_EXTRA_API
 #if defined(DEFINED_TLS)
     void *tls_handle = nullptr;
 #endif /* DEFINED_TLS */
@@ -626,7 +622,7 @@ struct equal_to<struct sockaddr_store_t> :
 };
 } // namespace std
 
-#ifdef USING_EXTRA_API // socketxtreme-extra-api Only
+#ifdef USING_VMA_EXTRA_API // socketxtreme-extra-api Only
 template <class T> // T is vma_completion_t
 struct socketxtreme_ring_comps {
     T comp_list[MAX_SOCKETXTREME_COMPS];
@@ -638,7 +634,7 @@ template<class T> // T is vma_completion_t
 using socketxtreme_rings_comps_map = std::unordered_map<int, struct socketxtreme_ring_comps<T> *>;
 
 typedef std::queue<int> socketxtreme_comps_queue;
-#endif // USING_EXTRA_API
+#endif // USING_VMA_EXTRA_API
 
 typedef std::unordered_map<struct sockaddr_store_t, clt_session_info_t> seq_num_map;
 typedef std::unordered_map<IPAddress, size_t> addr_to_id;
