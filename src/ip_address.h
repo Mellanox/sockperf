@@ -117,7 +117,7 @@ public:
 // std:: string, and std::wstring. For any other type, we need to write a
 // hash/equal_to functions, by ourself.
 namespace std {
-template <> struct hash<IPAddress> : public std::unary_function<IPAddress, int> {
+template <> struct hash<IPAddress> {
     int operator()(IPAddress const &key) const
     {
         switch (key.family()) {
@@ -134,8 +134,7 @@ template <> struct hash<IPAddress> : public std::unary_function<IPAddress, int> 
 };
 
 template <>
-struct equal_to<IPAddress> : public std::binary_function<IPAddress, IPAddress,
-                                                              bool> {
+struct equal_to<IPAddress> {
     bool operator()(IPAddress const &key1, IPAddress const &key2) const {
         return key1 == key2;
     }

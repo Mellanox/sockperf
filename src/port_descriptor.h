@@ -54,15 +54,14 @@ typedef struct port_descriptor {
 namespace std {
 
 template <>
-struct hash<struct port_descriptor> : public std::unary_function<struct port_descriptor, int> {
+struct hash<struct port_descriptor> {
     int operator()(struct port_descriptor const &key) const {
         return key.sock_type ^ key.port ^ key.family;
     }
 };
 
 template <>
-struct equal_to<struct port_descriptor> : public std::binary_function<struct port_descriptor,
-                                                                    struct port_descriptor, bool> {
+struct equal_to<struct port_descriptor> {
     bool operator()(struct port_descriptor const &key1, struct port_descriptor const &key2) const {
         return key1.sock_type == key2.sock_type
             && key1.family == key2.family

@@ -575,7 +575,7 @@ typedef struct clt_session_info {
 // std:: string, and std::wstring. For any other type, we need to write a
 // hash/equal_to functions, by ourself.
 namespace std {
-template <> struct hash<struct sockaddr_store_t> : public std::unary_function<struct sockaddr_store_t, int> {
+template <> struct hash<struct sockaddr_store_t> {
     int operator()(struct sockaddr_store_t const &key) const {
         // XOR "a.b" part of "a.b.c.d" address with 16bit port; leave "c.d" part untouched for
         // maximum hashing
@@ -596,9 +596,7 @@ template <> struct hash<struct sockaddr_store_t> : public std::unary_function<st
 };
 
 template <>
-struct equal_to<struct sockaddr_store_t> :
-        public std::binary_function<struct sockaddr_store_t,
-                struct sockaddr_store_t, bool> {
+struct equal_to<struct sockaddr_store_t> {
     bool operator()(struct sockaddr_store_t const &key1, struct sockaddr_store_t const &key2) const {
         if (key1.addr.sa_family != key2.addr.sa_family) {
             return false;
