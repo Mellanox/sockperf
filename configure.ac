@@ -104,31 +104,6 @@ AC_MSG_CHECKING(
     [for vma extra api])
 AC_MSG_RESULT([${have_vma_api}])
 
-##########################################################################
-# check XLIO extra API
-#
-AC_ARG_ENABLE(
-    [xlio-api],
-    AS_HELP_STRING([--enable-xlio-api],
-                   [SOCKPERF: enable xlio extra api support: 'yes', 'no' or library installation path (default=no)]),
-    [have_xlio_api=$enableval],
-    [have_xlio_api=no])
-AS_IF([test "${have_xlio_api}" != "no"],
-    [
-    if test "$have_xlio_api" = "yes"
-    then
-        have_xlio_api=/usr
-    fi
-    CPPFLAGS="$CPPFLAGS -I$have_xlio_api/include"
-
-    AC_CHECK_HEADER([mellanox/xlio_extra.h],
-        [AC_DEFINE([USING_XLIO_EXTRA_API],[1],[[Enable using XLIO extra API]])],
-        [AC_MSG_ERROR([xlio_extra.h file not found at $have_xlio_api/include])]
-        [have_xlio_api=no])])
-AC_MSG_CHECKING(
-    [for xlio extra api])
-AC_MSG_RESULT([${have_xlio_api}])
-
 ##########################
 # Documentation
 #
@@ -235,6 +210,5 @@ AC_MSG_RESULT([
 	test:		${have_test}
 	tool:		${have_tool}
 	vma_api:	${have_vma_api}
-	xlio_api:	${have_xlio_api}
 	debug:		${have_debug}
 ])

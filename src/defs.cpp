@@ -70,10 +70,4 @@ struct vma_api_t *g_vma_api;
 void *g_vma_api = nullptr; // Dummy variable
 #endif // USING_VMA_EXTRA_API
 
-#ifdef USING_XLIO_EXTRA_API // XLIO
-struct xlio_api_t *g_xlio_api;
-#else
-void *g_xlio_api = nullptr; // Dummy variable
-#endif // USING_XLIO_EXTRA_API
-
 const App *g_pApp = NULL;

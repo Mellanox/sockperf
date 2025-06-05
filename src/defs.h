@@ -108,12 +108,12 @@ typedef unsigned short int sa_family_t;
 #include "playback.h"
 #include "ip_address.h"
 
-#if defined(USING_VMA_EXTRA_API) || defined (USING_XLIO_EXTRA_API)
+#if defined(USING_VMA_EXTRA_API)
 #define USING_EXTRA_API
-#endif // USING_VMA_EXTRA_API || USING_XLIO_EXTRA_API
+#endif // USING_VMA_EXTRA_API
 
 #if !defined(__windows__) && !defined(__FreeBSD__) && !defined(__APPLE__)
-#include "vma-xlio-redirect.h"
+#include "vma-redirect.h"
 #ifdef USING_VMA_EXTRA_API // VMA
 #define RING_LOGIC_PER_INTERFACE VMA_RING_LOGIC_PER_INTERFACE
 #define RING_LOGIC_PER_IP VMA_RING_LOGIC_PER_IP
@@ -135,27 +135,6 @@ typedef unsigned short int sa_family_t;
 #undef RING_LOGIC_LAST
 #undef ring_logic_t
 #endif // USING_VMA_EXTRA_API
-#ifdef USING_XLIO_EXTRA_API // XLIO
-#define RING_LOGIC_PER_INTERFACE XLIO_RING_LOGIC_PER_INTERFACE
-#define RING_LOGIC_PER_IP XLIO_RING_LOGIC_PER_IP
-#define RING_LOGIC_PER_SOCKET XLIO_RING_LOGIC_PER_SOCKET
-#define RING_LOGIC_PER_USER_ID XLIO_RING_LOGIC_PER_USER_ID
-#define RING_LOGIC_PER_THREAD XLIO_RING_LOGIC_PER_THREAD
-#define RING_LOGIC_PER_CORE XLIO_RING_LOGIC_PER_CORE
-#define RING_LOGIC_PER_CORE_ATTACH_THREADS XLIO_RING_LOGIC_PER_CORE_ATTACH_THREADS
-#define RING_LOGIC_LAST XLIO_RING_LOGIC_LAST
-#define ring_logic_t xlio_ring_logic_t
-#include <mellanox/xlio_extra.h>
-#undef RING_LOGIC_PER_INTERFACE
-#undef RING_LOGIC_PER_IP
-#undef RING_LOGIC_PER_SOCKET
-#undef RING_LOGIC_PER_USER_ID
-#undef RING_LOGIC_PER_THREAD
-#undef RING_LOGIC_PER_CORE
-#undef RING_LOGIC_PER_CORE_ATTACH_THREADS
-#undef RING_LOGIC_LAST
-#undef ring_logic_t
-#endif // USING_XLIO_EXTRA_API
 #endif // !defined(__windows__) && !defined(__FreeBSD__) && !defined(__APPLE__)
 
 #define MIN_PAYLOAD_SIZE (MsgHeader::EFFECTIVE_SIZE)
@@ -289,8 +268,7 @@ enum {
     OPT_FULL_RTT,                 // 44
     OPT_CI_SIG_LVL,               // 45
     OPT_HISTOGRAM,                // 46
-    OPT_LOAD_XLIO,                // 47
-    OPT_TCP_NB_CONN_TIMEOUT_MS,   // 48
+    OPT_TCP_NB_CONN_TIMEOUT_MS,   // 47
 #if defined(DEFINED_TLS)
     OPT_TLS
 #endif /* DEFINED_TLS */
@@ -649,14 +627,14 @@ struct equal_to<struct sockaddr_store_t> :
 } // namespace std
 
 #ifdef USING_EXTRA_API // socketxtreme-extra-api Only
-template <class T> // T is vma_completion_t | xlio_socketxtreme_completion_t
+template <class T> // T is vma_completion_t
 struct socketxtreme_ring_comps {
     T comp_list[MAX_SOCKETXTREME_COMPS];
     int comp_list_size;
     bool is_freed;
 };
 
-template<class T> // T is vma_completion_t | xlio_socketxtreme_completion_t
+template<class T> // T is vma_completion_t
 using socketxtreme_rings_comps_map = std::unordered_map<int, struct socketxtreme_ring_comps<T> *>;
 
 typedef std::queue<int> socketxtreme_comps_queue;
@@ -672,10 +650,6 @@ template<typename _Tp, class Enable = void>
 struct is_vma_bufftype
 : public std::false_type {};
 
-template<typename _Tp, class Enable = void>
-struct is_xlio_bufftype
-: public std::false_type {};
-
 #ifdef USING_VMA_EXTRA_API // VMA
 extern struct vma_api_t *g_vma_api;
 
@@ -685,16 +659,6 @@ struct is_vma_bufftype<_Tp, typename std::enable_if_t<std::is_same<typename _Tp:
 #else
 extern void *g_vma_api; // Dummy variable
 #endif // USING_VMA_EXTRA_API
-
-#ifdef USING_XLIO_EXTRA_API // XLIO
-extern struct xlio_api_t *g_xlio_api;
-
-template<typename _Tp>
-struct is_xlio_bufftype<_Tp, typename std::enable_if_t<std::is_same<typename _Tp::buff_type, xlio_buff_t>::value>>
-: public std::true_type {};
-#else
-extern void *g_xlio_api; // Dummy variable
-#endif // USING_XLIO_EXTRA_API
 
 typedef enum {
     MODE_CLIENT = 0,

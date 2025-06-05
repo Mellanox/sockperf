@@ -457,8 +457,8 @@ private:
 #endif // defined(__FreeBSD__) || defined(__APPLE__) 
 #ifdef USING_EXTRA_API // socketxtreme-extra-api Only
 //==============================================================================
-// T is vma_buff_t | xlio_buff_t
-// C is vma_completion_t | xlio_socketxtreme_completion_t
+// T is vma_buff_t
+// C is vma_completion_t
 template <class T, class C, typename API>
 class IoSocketxtreme : public IoHandler {
 public:
@@ -474,17 +474,6 @@ public:
     {
     }
 #endif // USING_VMA_EXTRA_API
-
-#ifdef USING_XLIO_EXTRA_API // XLIO socketxtreme-extra-api Only
-    template <class K = T, typename std::enable_if_t<std::is_same<xlio_buff_t,K>::value, bool> = true>
-    IoSocketxtreme(int _fd_min, int _fd_max, int _fd_num)
-        : IoHandler(_fd_min, _fd_max, _fd_num, 0, 0)
-        , m_extra_api(g_xlio_api), m_flag_sx_packet(XLIO_SOCKETXTREME_PACKET)
-        , m_flag_sx_new_conn_accepted(XLIO_SOCKETXTREME_NEW_CONNECTION_ACCEPTED)
-        , m_current_ring_comp(nullptr)
-    {
-    }
-#endif // USING_XLIO_EXTRA_API
 
     virtual ~IoSocketxtreme();
 
@@ -524,15 +513,6 @@ public:
     inline std::enable_if_t<std::is_same<K,vma_buff_t>::value, void>
     sx_free_packets(int i) {
         m_extra_api->socketxtreme_free_vma_packets(
-            &m_rings_comps_map_itr->second->comp_list[i].packet, 1);
-    }
-#endif
-
-#ifdef USING_XLIO_EXTRA_API // XLIO
-    template <typename K = T>
-    inline std::enable_if_t<std::is_same<K,xlio_buff_t>::value, void>
-    sx_free_packets(int i) {
-        m_extra_api->socketxtreme_free_packets(
             &m_rings_comps_map_itr->second->comp_list[i].packet, 1);
     }
 #endif
@@ -645,10 +625,6 @@ int IoSocketxtreme<T,C,API>::prepareNetwork() {
 #ifdef USING_VMA_EXTRA_API // VMA Socketxtreme Only
                 rings = g_vma_api->get_socket_rings_fds(ifd, &ring_fd, 1);
 #endif // USING_VMA_EXTRA_API
-            } else {
-#ifdef USING_XLIO_EXTRA_API // XLIO Socketxtreme Only
-                rings = g_xlio_api->get_socket_rings_fds(ifd, &ring_fd, 1);
-#endif // USING_XLIO_EXTRA_API
             }
 
             if (rings == -1) {
@@ -684,10 +660,6 @@ int IoSocketxtreme<T,C,API>::prepareNetwork() {
 #ifdef USING_VMA_EXTRA_API // VMA Socketxtreme Only
 typedef IoSocketxtreme<vma_buff_t, vma_completion_t, decltype(g_vma_api)> IoSocketxtremeVMA;
 #endif // USING_VMA_EXTRA_API
-
-#ifdef USING_XLIO_EXTRA_API // XLIO Socketxtreme Only
-typedef IoSocketxtreme<xlio_buff_t, xlio_socketxtreme_completion_t, decltype(g_xlio_api)> IoSocketxtremeXLIO;
-#endif // USING_XLIO_EXTRA_API
 
 #endif // USING_EXTRA_API
 #endif // !WIN32

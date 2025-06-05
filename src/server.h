@@ -87,27 +87,27 @@ private:
 
 #ifdef USING_EXTRA_API // Socketxtreme Only
     template <typename T = IoType>
-    inline std::enable_if_t<(is_vma_bufftype<T>{} || is_xlio_bufftype<T>{}), int>
+    inline std::enable_if_t<(is_vma_bufftype<T>{}), int>
     get_active_ifd(int ifd, struct sockaddr *addr, socklen_t *addr_size) {
         return m_ioHandler.get_last_comp()->user_data;
     }
 
     template <typename T = IoType>
-    inline std::enable_if_t<(is_vma_bufftype<T>{} || is_xlio_bufftype<T>{}), const sockaddr_in &>
+    inline std::enable_if_t<(is_vma_bufftype<T>{}), const sockaddr_in &>
     get_last_src(const sockaddr_store_t &src) {
         return m_ioHandler.get_last_comp()->src;
     }
 #endif
 
     template <typename T = IoType>
-    inline std::enable_if_t<!(is_vma_bufftype<T>{} || is_xlio_bufftype<T>{}), int>
+    inline std::enable_if_t<!(is_vma_bufftype<T>{}), int>
     get_active_ifd(int ifd, struct sockaddr *addr, socklen_t *addr_size) {
         // Casting to int for Windows.
         return static_cast<int>(accept(ifd, addr, addr_size));
     }
 
     template <typename T = IoType>
-    inline std::enable_if_t<!(is_vma_bufftype<T>{} || is_xlio_bufftype<T>{}), const sockaddr_store_t &>
+    inline std::enable_if_t<!(is_vma_bufftype<T>{}), const sockaddr_store_t &>
     get_last_src(const sockaddr_store_t &src) {
         return src;
     }
@@ -158,29 +158,14 @@ private:
     }
 #endif
 
-#ifdef USING_XLIO_EXTRA_API // XLIO
     template <typename T = IoType>
-    inline std::enable_if_t<is_xlio_bufftype<T>::value, bool>
-    server_receive_then_send(int ifd) {
-        return server_receive_then_send_impl<XlioSocketXtremeInputHandler>(ifd);
-    }
-#endif
-
-    template <typename T = IoType>
-    inline std::enable_if_t<!(
-        is_vma_bufftype<T>{} ||
-        is_xlio_bufftype<T>{}), bool>
+    inline std::enable_if_t<!(is_vma_bufftype<T>{}), bool>
     server_receive_then_send(int ifd) {
 #ifdef USING_VMA_EXTRA_API // VMA
         if (g_pApp->m_const_params.is_zcopyread && g_vma_api) {
             return server_receive_then_send_impl<VmaZCopyReadInputHandler>(ifd);
         }
 #endif // USING_VMA_EXTRA_API
-#ifdef USING_XLIO_EXTRA_API // XLIO
-        if (g_pApp->m_const_params.is_zcopyread && g_xlio_api) {
-            return server_receive_then_send_impl<XlioZCopyReadInputHandler>(ifd);
-        }
-#endif // USING_XLIO_EXTRA_API
         return server_receive_then_send_impl<RecvFromInputHandler>(ifd);
     }
 
@@ -225,18 +210,6 @@ void close_ifd(int fd, int ifd, fds_data *l_fds_ifd) {
         g_vma_api->register_recv_callback(fd, NULL, NULL);
     }
 #endif // USING_VMA_EXTRA_API
-#ifdef USING_XLIO_EXTRA_API // XLIO
-    if (g_xlio_api) {
-        ZeroCopyData *z_ptr = g_zeroCopyData[fd];
-        if (z_ptr && z_ptr->m_pkts) {
-            xlio_recvfrom_zcopy_packets_t *xlio_pkts = reinterpret_cast<xlio_recvfrom_zcopy_packets_t *>(z_ptr->m_pkts);
-            g_xlio_api->recvfrom_zcopy_free_packets(fd, xlio_pkts->pkts, xlio_pkts->n_packet_num);
-            z_ptr->m_pkts = NULL;
-        }
-
-        g_xlio_api->register_recv_callback(fd, NULL, NULL);
-    }
-#endif // USING_XLIO_EXTRA_API
 
     for (int i = 0; i < MAX_ACTIVE_FD_NUM; i++) {
         if (l_next_fd->active_fd_list[i] == ifd) {
