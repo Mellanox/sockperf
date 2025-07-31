@@ -108,12 +108,8 @@ typedef unsigned short int sa_family_t;
 #include "playback.h"
 #include "ip_address.h"
 
-#if defined(USING_VMA_EXTRA_API) || defined (USING_XLIO_EXTRA_API)
-#define USING_EXTRA_API
-#endif // USING_VMA_EXTRA_API || USING_XLIO_EXTRA_API
-
 #if !defined(__windows__) && !defined(__FreeBSD__) && !defined(__APPLE__)
-#include "vma-xlio-redirect.h"
+#include "vma-redirect.h"
 #ifdef USING_VMA_EXTRA_API // VMA
 #define RING_LOGIC_PER_INTERFACE VMA_RING_LOGIC_PER_INTERFACE
 #define RING_LOGIC_PER_IP VMA_RING_LOGIC_PER_IP
@@ -135,27 +131,6 @@ typedef unsigned short int sa_family_t;
 #undef RING_LOGIC_LAST
 #undef ring_logic_t
 #endif // USING_VMA_EXTRA_API
-#ifdef USING_XLIO_EXTRA_API // XLIO
-#define RING_LOGIC_PER_INTERFACE XLIO_RING_LOGIC_PER_INTERFACE
-#define RING_LOGIC_PER_IP XLIO_RING_LOGIC_PER_IP
-#define RING_LOGIC_PER_SOCKET XLIO_RING_LOGIC_PER_SOCKET
-#define RING_LOGIC_PER_USER_ID XLIO_RING_LOGIC_PER_USER_ID
-#define RING_LOGIC_PER_THREAD XLIO_RING_LOGIC_PER_THREAD
-#define RING_LOGIC_PER_CORE XLIO_RING_LOGIC_PER_CORE
-#define RING_LOGIC_PER_CORE_ATTACH_THREADS XLIO_RING_LOGIC_PER_CORE_ATTACH_THREADS
-#define RING_LOGIC_LAST XLIO_RING_LOGIC_LAST
-#define ring_logic_t xlio_ring_logic_t
-#include <mellanox/xlio_extra.h>
-#undef RING_LOGIC_PER_INTERFACE
-#undef RING_LOGIC_PER_IP
-#undef RING_LOGIC_PER_SOCKET
-#undef RING_LOGIC_PER_USER_ID
-#undef RING_LOGIC_PER_THREAD
-#undef RING_LOGIC_PER_CORE
-#undef RING_LOGIC_PER_CORE_ATTACH_THREADS
-#undef RING_LOGIC_LAST
-#undef ring_logic_t
-#endif // USING_XLIO_EXTRA_API
 #endif // !defined(__windows__) && !defined(__FreeBSD__) && !defined(__APPLE__)
 
 #define MIN_PAYLOAD_SIZE (MsgHeader::EFFECTIVE_SIZE)
@@ -191,9 +166,9 @@ const uint32_t TEST_FIRST_CONNECTION_FIRST_PACKET_TTL_THRESHOLD_MSEC = 50;
 #define DUMMY_PORT 57341
 #define MAX_ACTIVE_FD_NUM                                                                          \
     max_fds_num /* maximum number of active connection to the single TCP addr:port */
-#ifdef USING_EXTRA_API // For VMA socketxtreme Only
+#ifdef USING_VMA_EXTRA_API // For VMA socketxtreme Only
 #define MAX_SOCKETXTREME_COMPS 1024 /* maximum size for socketxtreme poll completions array */
-#endif // USING_EXTRA_API
+#endif // USING_VMA_EXTRA_API
 
 #ifndef MAX_PATH_LENGTH
 #define MAX_PATH_LENGTH 1024
@@ -289,8 +264,7 @@ enum {
     OPT_FULL_RTT,                 // 44
     OPT_CI_SIG_LVL,               // 45
     OPT_HISTOGRAM,                // 46
-    OPT_LOAD_XLIO,                // 47
-    OPT_TCP_NB_CONN_TIMEOUT_MS,   // 48
+    OPT_TCP_NB_CONN_TIMEOUT_MS,   // 47
 #if defined(DEFINED_TLS)
     OPT_TLS
 #endif /* DEFINED_TLS */
@@ -503,7 +477,7 @@ extern TicksTime g_cycleStartTime;
 
 extern debug_level_t g_debug_level;
 
-#ifdef USING_EXTRA_API
+#ifdef USING_VMA_EXTRA_API
 class ZeroCopyData {
 public:
     ZeroCopyData();
@@ -515,7 +489,7 @@ public:
 // map from fd to zeroCopyData
 typedef std::map<int, ZeroCopyData *> zeroCopyMap;
 extern zeroCopyMap g_zeroCopyData;
-#endif // USING_EXTRA_API
+#endif // USING_VMA_EXTRA_API
 
 class Message;
 
@@ -566,9 +540,9 @@ struct fds_data {
     IPAddress mc_source_ip_addr;    /**< message source ip for multicast packet filtering */
     int memberships_size = 0;
     struct SocketRecvData recv;
-#ifdef USING_EXTRA_API // callback-extra-api Only
+#ifdef USING_VMA_EXTRA_API // callback-extra-api Only
     Message *p_msg = nullptr;
-#endif // USING_EXTRA_API
+#endif // USING_VMA_EXTRA_API
 #if defined(DEFINED_TLS)
     void *tls_handle = nullptr;
 #endif /* DEFINED_TLS */
@@ -601,7 +575,7 @@ typedef struct clt_session_info {
 // std:: string, and std::wstring. For any other type, we need to write a
 // hash/equal_to functions, by ourself.
 namespace std {
-template <> struct hash<struct sockaddr_store_t> : public std::unary_function<struct sockaddr_store_t, int> {
+template <> struct hash<struct sockaddr_store_t> {
     int operator()(struct sockaddr_store_t const &key) const {
         // XOR "a.b" part of "a.b.c.d" address with 16bit port; leave "c.d" part untouched for
         // maximum hashing
@@ -622,9 +596,7 @@ template <> struct hash<struct sockaddr_store_t> : public std::unary_function<st
 };
 
 template <>
-struct equal_to<struct sockaddr_store_t> :
-        public std::binary_function<struct sockaddr_store_t,
-                struct sockaddr_store_t, bool> {
+struct equal_to<struct sockaddr_store_t> {
     bool operator()(struct sockaddr_store_t const &key1, struct sockaddr_store_t const &key2) const {
         if (key1.addr.sa_family != key2.addr.sa_family) {
             return false;
@@ -648,19 +620,19 @@ struct equal_to<struct sockaddr_store_t> :
 };
 } // namespace std
 
-#ifdef USING_EXTRA_API // socketxtreme-extra-api Only
-template <class T> // T is vma_completion_t | xlio_socketxtreme_completion_t
+#ifdef USING_VMA_EXTRA_API // socketxtreme-extra-api Only
+template <class T> // T is vma_completion_t
 struct socketxtreme_ring_comps {
     T comp_list[MAX_SOCKETXTREME_COMPS];
     int comp_list_size;
     bool is_freed;
 };
 
-template<class T> // T is vma_completion_t | xlio_socketxtreme_completion_t
+template<class T> // T is vma_completion_t
 using socketxtreme_rings_comps_map = std::unordered_map<int, struct socketxtreme_ring_comps<T> *>;
 
 typedef std::queue<int> socketxtreme_comps_queue;
-#endif // USING_EXTRA_API
+#endif // USING_VMA_EXTRA_API
 
 typedef std::unordered_map<struct sockaddr_store_t, clt_session_info_t> seq_num_map;
 typedef std::unordered_map<IPAddress, size_t> addr_to_id;
@@ -672,10 +644,6 @@ template<typename _Tp, class Enable = void>
 struct is_vma_bufftype
 : public std::false_type {};
 
-template<typename _Tp, class Enable = void>
-struct is_xlio_bufftype
-: public std::false_type {};
-
 #ifdef USING_VMA_EXTRA_API // VMA
 extern struct vma_api_t *g_vma_api;
 
@@ -685,16 +653,6 @@ struct is_vma_bufftype<_Tp, typename std::enable_if_t<std::is_same<typename _Tp:
 #else
 extern void *g_vma_api; // Dummy variable
 #endif // USING_VMA_EXTRA_API
-
-#ifdef USING_XLIO_EXTRA_API // XLIO
-extern struct xlio_api_t *g_xlio_api;
-
-template<typename _Tp>
-struct is_xlio_bufftype<_Tp, typename std::enable_if_t<std::is_same<typename _Tp::buff_type, xlio_buff_t>::value>>
-: public std::true_type {};
-#else
-extern void *g_xlio_api; // Dummy variable
-#endif // USING_XLIO_EXTRA_API
 
 typedef enum {
     MODE_CLIENT = 0,

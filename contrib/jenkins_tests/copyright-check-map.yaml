@@ -6,7 +6,6 @@ general:
         - "build.*"
         - "contrib/jenkins_tests.*"
         - "contrib/valgrind.*"
-        - "contrib/xlio-bench.*"
         - "contrib/.*\\.sh"
         - "debian.*"
         - "doc.*"

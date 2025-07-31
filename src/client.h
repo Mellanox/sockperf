@@ -209,29 +209,14 @@ private:
     }
 #endif
 
-#ifdef USING_XLIO_EXTRA_API // XLIO
     template <typename T = IoType>
-    inline std::enable_if_t<is_xlio_bufftype<T>::value, unsigned int>
-    client_receive_from_selected(int ifd) {
-        return client_receive_from_selected_<XlioSocketXtremeInputHandler>(ifd);
-    }
-#endif
-
-    template <typename T = IoType>
-    inline std::enable_if_t<!(
-        is_vma_bufftype<T>{} ||
-        is_xlio_bufftype<T>{}), unsigned int>
+    inline std::enable_if_t<!(is_vma_bufftype<T>{}), unsigned int>
         client_receive_from_selected(int ifd) {
 #ifdef USING_VMA_EXTRA_API // VMA
         if (g_pApp->m_const_params.is_zcopyread && g_vma_api) {
             return client_receive_from_selected_<VmaZCopyReadInputHandler>(ifd);
         }
 #endif // USING_VMA_EXTRA_API
-#ifdef USING_XLIO_EXTRA_API // XLIO
-        if (g_pApp->m_const_params.is_zcopyread && g_xlio_api) {
-            return client_receive_from_selected_<XlioZCopyReadInputHandler>(ifd);
-        }
-#endif // USING_XLIO_EXTRA_API
         return client_receive_from_selected_<RecvFromInputHandler>(ifd);
     }
 
@@ -358,12 +343,12 @@ private:
         // send
         for (unsigned i = 0; i < g_pApp->m_const_params.burst_size && !g_b_exit; i++) {
             client_send_packet(ifd);
-#ifdef USING_EXTRA_API // For VMA socketxtreme Only
+#ifdef USING_VMA_EXTRA_API // For VMA socketxtreme Only
             if (g_pApp->m_const_params.fd_handler_type == SOCKETXTREME &&
                 !g_pApp->m_const_params.b_client_ping_pong) {
                 m_ioHandler.waitArrival();
             }
-#endif // USING_EXTRA_API
+#endif // USING_VMA_EXTRA_API
         }
 
         if (unlikely(is_exec_activity_info)) {

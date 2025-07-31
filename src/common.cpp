@@ -241,9 +241,9 @@ const char *handler2str(fd_block_handler_t type) {
 #elif defined(__APPLE__) || defined(__FreeBSD__)
                                                             "kqueue",
 #endif // defined(__APPLE__) || defined(__FreeBSD__)
-#ifdef USING_EXTRA_API // For socketxtreme Only
+#ifdef USING_VMA_EXTRA_API // For socketxtreme Only
                                                             "socketxtreme"
-#endif // USING_EXTRA_API
+#endif // USING_VMA_EXTRA_API
 #endif // !WIN32
     };
 

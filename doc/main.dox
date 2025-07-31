@@ -145,11 +145,10 @@ sockperf: [tid 4805] using epoll() to block on socket(s)
          --dontwarmup           -Don't send warm up messages on start.
          --pre-warmup-wait      -Time to wait before sending warm up messages (seconds).
          --zcopyread
-                                -Use zero copy reads API (See VMA/XLIO readme).
+                                -Use zero copy reads API (See VMA readme).
          --daemonize            -Run as daemon.
          --no-rdtsc             -Don't use register when taking time; instead use monotonic clock.
          --load-vma             -Load VMA dynamically even when LD_PRELOAD was not used.
-         --load-xlio            -Load XLIO dynamically even when LD_PRELOAD was not used.
          --rate-limit           -use rate limit (packet-pacing), with VMA must be run with VMA_RING_ALLOCATION_LOGIC_TX mode.
          --set-sock-accl        -Set socket acceleration before run (available for some of Mellanox systems)
  -d      --debug                -Print extra debug information.
@@ -162,7 +161,7 @@ sockperf: [tid 4805] using epoll() to block on socket(s)
          --threads-num          -Run <N> threads on server side (requires '-f' option).
          --cpu-affinity         -Set threads affinity to the given core ids in list format (see: cat /proc/cpuinfo).
          --rxfiltercb
-                                -Use receive path message filter callback API (See VMA/XLIO readme).
+                                -Use receive path message filter callback API (See VMA readme).
          --force-unicast-reply  -Force server to reply via unicast.
          --dont-reply           -Server won't reply to the client messages.
  -m      --msg-size             -Set maximum message size that the server can receive <size> bytes (default 65507).

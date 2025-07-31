@@ -72,9 +72,9 @@ int ServerBase::initBeforeLoop() {
         for (int ifd = m_ioHandlerRef.m_fd_min; ifd <= m_ioHandlerRef.m_fd_max; ifd++) {
 
             if (!(g_fds_array[ifd] && (g_fds_array[ifd]->active_fd_list))) continue;
-#ifdef USING_EXTRA_API // callback-extra-api Only
+#ifdef USING_VMA_EXTRA_API // callback-extra-api Only
             g_fds_array[ifd]->p_msg = m_pMsgReply;
-#endif // USING_EXTRA_API
+#endif // USING_VMA_EXTRA_API
             const sockaddr_store_t *p_bind_addr = &g_fds_array[ifd]->server_addr;
             socklen_t bind_addr_len = g_fds_array[ifd]->server_addr_len;
 
@@ -396,22 +396,15 @@ void server_handler(handler_info *p_info) {
             break;
         }
 #endif // defined(__FreeBSD__) || defined(__APPLE__)
-#ifdef USING_EXTRA_API // VMA socketxtreme-extra-api Only
+#ifdef USING_VMA_EXTRA_API // VMA socketxtreme-extra-api Only
         case SOCKETXTREME: {
             if (g_vma_api) {
-#ifdef USING_VMA_EXTRA_API // VMA socketxtreme-extra-api Only
                 server_handler<IoSocketxtremeVMA>(
                     p_info->fd_min, p_info->fd_max, p_info->fd_num);
-#endif // USING_VMA_EXTRA_API
-            } else if (g_xlio_api) {
-#ifdef USING_XLIO_EXTRA_API // XLIO socketxtreme-extra-api Only
-                server_handler<IoSocketxtremeXLIO>(
-                    p_info->fd_min, p_info->fd_max, p_info->fd_num);
-#endif // USING_XLIO_EXTRA_API
             }
             break;
         }
-#endif // USING_EXTRA_API
+#endif // USING_VMA_EXTRA_API
 #endif
         default:
             ERROR_MSG("unknown file handler");

@@ -128,8 +128,8 @@ struct input_handler_helper
     }
 };
 
-#ifdef USING_EXTRA_API
-// T is vma_buff_t | xlio_buff_t
+#ifdef USING_VMA_EXTRA_API
+// T is vma_buff_t
 template <class T>
 class SocketXtremeInputHandler : public MessageParser<BufferAccumulation> {
 private:
@@ -287,7 +287,6 @@ public:
     }
 };
 
-#ifdef USING_VMA_EXTRA_API // VMA
 class VmaSocketXtremeInputHandler : public SocketXtremeInputHandler<vma_buff_t> {
 private:
     vma_buff_t *m_curr_buff;
@@ -335,56 +334,4 @@ struct input_handler_helper<VmaSocketXtremeInputHandler, IoType>
     }
 };
 #endif // USING_VMA_EXTRA_API
-
-#ifdef USING_XLIO_EXTRA_API // XLIO extra-api Only
-class XlioSocketXtremeInputHandler : public SocketXtremeInputHandler<xlio_buff_t> {
-private:
-    xlio_buff_t *m_curr_buff;
-public:
-    inline XlioSocketXtremeInputHandler(
-            Message *msg, SocketRecvData &recv_data, xlio_buff_t *curr_buff, void *src):
-        SocketXtremeInputHandler(msg, recv_data, src), m_curr_buff(curr_buff) {}
-
-    /** Receive pending data from a socket
-     * @param [in] socket descriptor
-     * @param [out] recvfrom_addr address to save peer address into
-     * @param [inout] in - storage size, out - actual address size
-     * @return status code
-     */
-    inline int receive_pending_data(int fd, struct sockaddr *recvfrom_addr, socklen_t &size)
-    {
-        return SocketXtremeInputHandler<xlio_buff_t>::receive_pending_data(
-            fd, recvfrom_addr, size, m_curr_buff);
-    }
-};
-
-class XlioZCopyReadInputHandler :
-    public ZCopyReadInputHandler<xlio_recvfrom_zcopy_packet_t, xlio_recvfrom_zcopy_packets_t, MSG_XLIO_ZCOPY> {
-public:
-    inline XlioZCopyReadInputHandler(Message *msg, SocketRecvData &recv_data):
-        ZCopyReadInputHandler<xlio_recvfrom_zcopy_packet_t, xlio_recvfrom_zcopy_packets_t, MSG_XLIO_ZCOPY>(
-            msg, recv_data, g_xlio_api->recvfrom_zcopy)
-    {}
-
-    inline void cleanup()
-    {
-        if (likely(m_ptr && m_ptr->m_pkts)) {
-            xlio_recvfrom_zcopy_packets_t *xlio_pkts = reinterpret_cast<xlio_recvfrom_zcopy_packets_t *>(m_ptr->m_pkts);
-            g_xlio_api->recvfrom_zcopy_free_packets(m_fd, xlio_pkts->pkts, xlio_pkts->n_packet_num);
-            m_ptr->m_pkts = nullptr;
-        }
-    }
-};
-
-template <class IoType>
-struct input_handler_helper<XlioSocketXtremeInputHandler, IoType>
-{
-    inline static XlioSocketXtremeInputHandler create_input_handler(
-            Message *msg, SocketRecvData &recv, IoType& ioHandler) {
-        return XlioSocketXtremeInputHandler(
-            msg, recv, ioHandler.get_last_buff(), &ioHandler.get_last_comp()->src);
-    }
-};
-#endif // USING_XLIO_EXTRA_API
-#endif // USING_EXTRA_API
 #endif // INPUT_HANDLERS_H_
