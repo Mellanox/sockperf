@@ -189,6 +189,14 @@ typedef struct os_mutex_t {
 #endif
 } os_mutex_t;
 
+typedef struct os_cond_t {
+#ifndef __windows__
+    pthread_cond_t cond;
+#else
+    CONDITION_VARIABLE cond;
+#endif
+} os_cond_t;
+
 typedef struct os_cpuset_t {
 #ifdef __windows__
     DWORD_PTR cpuset;
@@ -234,6 +242,13 @@ int os_thread_exec(os_thread_t *thr, void *(*start)(void *), void *arg);
 void os_thread_kill(os_thread_t *thr);
 void os_thread_join(os_thread_t *thr);
 os_thread_t os_getthread(void);
+
+// Cond Functions
+
+void os_cond_init(os_cond_t *cond);
+void os_cond_destroy(os_cond_t *cond);
+void os_cond_wait(os_cond_t *cond, os_mutex_t *lock);
+void os_cond_signal(os_cond_t *cond);
 
 // Mutex functions
 

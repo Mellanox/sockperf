@@ -886,7 +886,53 @@ int Client<IoType, SwitchCycleDuration, PongModeCare>::initBeforeLoop() {
             if (!(data && (data->active_fd_list))) continue;
 
             const sockaddr_store_t *p_client_bind_addr = &g_pApp->m_const_params.client_bind_info;
+#if defined(USING_DOCA_COMM_CHANNEL_API)
+            if (s_user_params.doca_comm_channel) {
+                // Waiting for connection
+                doca_error_t result;
+                while (data->doca_cc_ctx->state != CC_CONNECTED) {
+                    doca_pe_progress(s_user_params.pe);
+                }
+                log_dbg("[fd=%d] Client connected successfully", ifd);
+                if (s_user_params.doca_cc_fifo) {
+                    struct cc_local_mem_bufs *local_producer_mem = &(data->doca_cc_ctx->ctx_fifo.producer_mem);
+                    struct cc_local_mem_bufs *local_consumer_mem = &(data->doca_cc_ctx->ctx_fifo.consumer_mem);
+                    // Buf is needed for registering with memrange
+                    local_producer_mem->mem = m_pMsgRequest->getBuf();
+                    result = cc_init_local_mem_bufs(local_producer_mem, data->doca_cc_ctx);
+                    if (result != DOCA_SUCCESS) {
+                        DOCA_LOG_ERR("Failed to init producer memory with error = %s", doca_error_get_name(result));
+                        return result;
+                    }
+                    log_dbg("[fd=%d] Init producer memory succeeded", ifd);
+                    while (data->doca_cc_ctx->ctx_fifo.fifo_connection_state != CC_FIFO_CONNECTED) {
+                        doca_pe_progress(s_user_params.pe);
+                    }
+                    if (!g_pApp->m_const_params.b_client_ping_pong && !g_pApp->m_const_params.b_stream) {
+                        struct doca_ctx *ctx;
+                        enum doca_ctx_states state;
+                        ctx = doca_cc_consumer_as_ctx(data->doca_cc_ctx->ctx_fifo.consumer);
+                        doca_ctx_get_state(ctx, &state);
+                        while (state != DOCA_CTX_STATE_RUNNING) {
+                            doca_pe_progress(s_user_params.pe_underload);
+                            doca_ctx_get_state(ctx, &state);
+                        }
+                    }
+                    result = cc_init_doca_consumer_task(local_consumer_mem, &data->doca_cc_ctx->ctx_fifo);
+                    if (result != DOCA_SUCCESS) {
+                        DOCA_LOG_ERR("Failed to init doca consumer task with error = %s", doca_error_get_name(result));
+                    }
+                    result = cc_init_doca_producer_task(local_producer_mem, &data->doca_cc_ctx->ctx_fifo);
+                    if (result != DOCA_SUCCESS) {
+                        DOCA_LOG_ERR("Failed to init doca producer task with error = %s", doca_error_get_name(result));
+                    }
+                }
+            }
+            // Avoid Client binding in Com Channel mode
+            if (p_client_bind_addr->addr.sa_family != AF_UNSPEC && !s_user_params.doca_comm_channel) {
+#else
             if (p_client_bind_addr->addr.sa_family != AF_UNSPEC) {
+#endif //USING_DOCA_COMM_CHANNEL_API
                 socklen_t client_bind_addr_len = g_pApp->m_const_params.client_bind_info_len;
                 std::string hostport = sockaddr_to_hostport(p_client_bind_addr);
 #if defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__)

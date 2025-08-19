@@ -39,6 +39,11 @@ void print_addresses(const fds_data *data, int &list_count)
                 NI_NUMERICHOST | NI_NUMERICSERV);
         switch (data->server_addr.addr.sa_family) {
             case AF_UNIX:
+#if defined(USING_DOCA_COMM_CHANNEL_API)
+                if (s_user_params.doca_comm_channel)
+                    printf("[%2d] Address is %s # DOCA\n", list_count++, pbuf);
+                else
+#endif
                 printf("[%2d] ADDR = %s # %s\n", list_count++, data->server_addr.addr_un.sun_path, PRINT_PROTOCOL(data->sock_type));
                 break;
             default:

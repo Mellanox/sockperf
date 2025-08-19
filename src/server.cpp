@@ -96,8 +96,38 @@ int ServerBase::initBeforeLoop() {
             }
 
             std::string hostport = sockaddr_to_hostport(p_bind_addr);
+#if defined(USING_DOCA_COMM_CHANNEL_API)
+        if (s_user_params.doca_comm_channel && s_user_params.doca_cc_fifo) {
+            doca_error_t result;
+            struct cc_local_mem_bufs *local_producer_mem = &(g_fds_array[ifd]->doca_cc_ctx->ctx_fifo.producer_mem);
+            struct cc_local_mem_bufs *local_consumer_mem = &(g_fds_array[ifd]->doca_cc_ctx->ctx_fifo.consumer_mem);
+            // Buf is needed for registering with memrange
+            local_producer_mem->mem = local_consumer_mem->mem;
+            result = cc_init_local_mem_bufs(local_producer_mem, g_fds_array[ifd]->doca_cc_ctx);
+            if (result != DOCA_SUCCESS) {
+                DOCA_LOG_ERR("Failed to init producer memory with error = %s", doca_error_get_name(result));
+                return result;
+            }
+            log_dbg("[fd=%d] Init producer memory succeeded", ifd);
+            // Waiting for connection recv before using fast path
+            while (g_fds_array[ifd]->doca_cc_ctx->ctx_fifo.fifo_connection_state != CC_FIFO_CONNECTED) {
+                doca_pe_progress(s_user_params.pe);
+            }
+            log_dbg("[fd=%d] New client connected successfully", ifd);
+            result = cc_init_doca_consumer_task(local_consumer_mem, &g_fds_array[ifd]->doca_cc_ctx->ctx_fifo);
+            if (result != DOCA_SUCCESS) {
+                DOCA_LOG_ERR("Failed to init doca consumer task with error = %s", doca_error_get_name(result));
+            }
+            result = cc_init_doca_producer_task(local_producer_mem, &g_fds_array[ifd]->doca_cc_ctx->ctx_fifo);
+            if (result != DOCA_SUCCESS) {
+                DOCA_LOG_ERR("Failed to init doca producer task with error = %s", doca_error_get_name(result));
+            }
+
+        } else if (!s_user_params.doca_comm_channel && bind(ifd, reinterpret_cast<const sockaddr *>(p_bind_addr), bind_addr_len) < 0) {
+#else
             log_dbg("[fd=%d] Binding to: %s...", ifd, hostport.c_str());
             if (bind(ifd, reinterpret_cast<const sockaddr *>(p_bind_addr), bind_addr_len) < 0) {
+#endif //USING_DOCA_COMM_CHANNEL_API
                 log_err("[fd=%d] Can`t bind socket, IP to bind: %s\n", ifd,
                         hostport.c_str());
                 rc = SOCKPERF_ERR_SOCKET;

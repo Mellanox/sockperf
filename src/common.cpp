@@ -65,7 +65,11 @@ std::string sockaddr_to_hostport(const struct sockaddr *addr)
     if (addr->sa_family == AF_INET6) {
         return "[" + std::string(hbuf) + "]:" + std::string(pbuf);
     } else if (addr->sa_family == AF_UNIX) {
-        return std::string(addr->sa_data);
+#if defined(USING_DOCA_COMM_CHANNEL_API)
+        if (s_user_params.doca_comm_channel)
+            return std::string(pbuf) + " [DOCA]";
+#endif
+        return std::string(pbuf) + " [UNIX]";
     } else {
         return std::string(hbuf) + ":" + std::string(pbuf);
     }

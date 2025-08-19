@@ -140,6 +140,36 @@ os_thread_t os_getthread(void) {
 #endif
     return mythread;
 }
+// Conditional Functions
+
+void os_cond_init(os_cond_t *cond) {
+#ifdef __windows__
+    // <TBD>
+#else
+    pthread_cond_init(&cond->cond, NULL);
+#endif
+}
+void os_cond_destroy(os_cond_t *cond) {
+#ifdef __windows__
+    // <TBD>
+#else
+    pthread_cond_destroy(&cond->cond);
+#endif
+}
+void os_cond_wait(os_cond_t *cond, os_mutex_t *lock) {
+#ifdef __windows__
+    // <TBD>
+#else
+    pthread_cond_wait(&cond->cond, &lock->mutex);
+#endif
+}
+void os_cond_signal(os_cond_t *cond) {
+#ifdef __windows__
+    // <TBD>
+#else
+    pthread_cond_signal(&cond->cond);
+#endif
+}
 
 // Mutex functions
 

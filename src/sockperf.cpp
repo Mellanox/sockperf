@@ -104,6 +104,8 @@
 #ifndef __windows__
 #include <dlfcn.h>
 #endif
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 
 // forward declarations from Client.cpp & Server.cpp
 extern void client_sig_handler(int signum);
@@ -139,6 +141,7 @@ static int proc_mode_ping_pong(int, int, const char **);
 static int proc_mode_throughput(int, int, const char **);
 static int proc_mode_playback(int, int, const char **);
 static int proc_mode_server(int, int, const char **);
+int bringup_for_doca(std::unique_ptr<fds_data> &tmp);
 
 static const struct app_modes {
     int (*func)(int, int, const char **); /* proc function */
@@ -298,6 +301,16 @@ static const AOPT_DESC common_opt_desc[] = {
     { OPT_TLS,                AOPT_OPTARG,                                    aopt_set_literal(0),
       aopt_set_string("tls"), "Use TLSv1.2 (default " TLS_CHIPER_DEFAULT ")." },
 #endif /* DEFINED_TLS */
+#if defined(USING_DOCA_COMM_CHANNEL_API)
+    { OPT_DOCA,                AOPT_NOARG,                                    aopt_set_literal(0),
+      aopt_set_string("doca-comm-channel"), "Use Doca communication channel" },
+    { OPT_DOCA_FAST_PATH,                AOPT_NOARG,                          aopt_set_literal(0),
+      aopt_set_string("doca-fast-path"),    "Use Doca fast data path (required doca-comm-channel option)" },
+    { OPT_PCI,                  AOPT_ARG,                                     aopt_set_literal(0),
+      aopt_set_string("pci-address"), "Comm Channel DOCA device PCI address"},
+    { OPT_PCI_REP,                  AOPT_ARG,                                 aopt_set_literal(0),
+      aopt_set_string("pci-representor"), "Comm Channel DOCA device representor PCI address"},
+#endif /* USING_DOCA_COMM_CHANNEL_API */
     { 'd',                      AOPT_NOARG,                      aopt_set_literal('d'),
       aopt_set_string("debug"), "Print extra debug information." },
     { 0, AOPT_NOARG, aopt_set_literal(0), aopt_set_string(NULL), NULL }
@@ -2233,6 +2246,52 @@ static int parse_common_opt(const AOPT_OBJECT *common_obj) {
             }
         }
 #endif /* DEFINED_TLS */
+#if defined(USING_DOCA_COMM_CHANNEL_API)
+        if (!rc && aopt_check(common_obj, OPT_DOCA)) {
+            if (aopt_check(common_obj, 'tls')) {
+                log_msg("--doca-comm-channel conflicts with --tls option");
+                rc = SOCKPERF_ERR_BAD_ARGUMENT;
+            }
+            if (!aopt_check(common_obj, OPT_PCI)) {
+                log_msg("doca-comm-channel must have pci address");
+                rc = SOCKPERF_ERR_BAD_ARGUMENT;
+            } else {
+                const char *optarg = aopt_value(common_obj, OPT_PCI);
+                if (optarg) {
+                    strcpy(s_user_params.cc_dev_pci_addr, optarg);
+                }
+            }
+            if (s_user_params.mode == MODE_SERVER) {
+                if (!aopt_check(common_obj, OPT_PCI_REP)) {
+                    log_msg("doca-comm-channel server must have pci representor address");
+                    rc = SOCKPERF_ERR_BAD_ARGUMENT;
+                } else {
+                    const char *optarg = aopt_value(common_obj, OPT_PCI_REP);
+                    if (optarg) {
+                        strcpy(s_user_params.cc_dev_rep_pci_addr, optarg);
+                    }
+                }
+            }
+            s_user_params.doca_comm_channel = true;
+
+            /* Create PE */
+            doca_error_t doca_error;
+            doca_error = doca_pe_create(&(s_user_params.pe));
+            if (doca_error != DOCA_SUCCESS) {
+                log_dbg("Fail creating pe with error %s", doca_error_get_name(doca_error));
+                rc = SOCKPERF_ERR_NO_MEMORY;
+            }
+            log_dbg("doca_pe_create succeeded");
+        }
+        if (!rc && aopt_check(common_obj, OPT_DOCA_FAST_PATH)) {
+            if (!aopt_check(common_obj, OPT_DOCA)) {
+                log_msg("--doca-comm-channel is required for fast path option");
+                rc = SOCKPERF_ERR_BAD_ARGUMENT;
+            } else {
+                s_user_params.doca_cc_fifo = true;
+            }
+        }
+#endif /* USING_DOCA_COMM_CHANNEL_API */
     }
 
     // resolve address: -i, -p and --tcp options must be processed before
@@ -2423,6 +2482,36 @@ void cleanup() {
                     FREE(g_fds_array[ifd]->memberships_addr);
                 }
                 if (s_user_params.addr.addr.sa_family == AF_UNIX) {
+#if defined(USING_DOCA_COMM_CHANNEL_API)
+                if (s_user_params.doca_comm_channel) {
+                    struct cc_ctx *ctx = g_fds_array[ifd]->doca_cc_ctx;
+                    doca_pe_destroy(s_user_params.pe);
+                    doca_dev_close(ctx->hw_dev);
+                    os_mutex_close(&ctx->lock);
+                    os_cond_destroy(&ctx->cond);
+                    if (s_user_params.doca_cc_fifo) {
+                        doca_cc_consumer_destroy(ctx->ctx_fifo.consumer);
+                        doca_cc_producer_destroy(ctx->ctx_fifo.producer);
+                        doca_mmap_destroy(ctx->ctx_fifo.consumer_mem.mmap);
+                        doca_mmap_destroy(ctx->ctx_fifo.producer_mem.mmap);
+                        doca_buf_inventory_destroy(ctx->ctx_fifo.consumer_mem.buf_inv);
+                        doca_buf_inventory_destroy(ctx->ctx_fifo.producer_mem.buf_inv);
+                        if (s_user_params.mode == MODE_CLIENT && ctx->ctx_fifo.underload_mode) {
+                            doca_pe_destroy(s_user_params.pe_underload);
+                        }
+                    }
+                    if (s_user_params.mode == MODE_SERVER) {
+                        struct cc_ctx_server *ctx_server = (struct cc_ctx_server*)ctx;
+                        doca_cc_server_destroy(ctx_server->server);
+                        doca_dev_rep_close(ctx_server->rep_dev);
+                        FREE(ctx_server);
+                    } else { // MODE_CLIENT
+                        struct cc_ctx_client *ctx_client = (struct cc_ctx_client*)ctx;
+                        doca_cc_client_destroy(ctx_client->client);
+                        FREE(ctx_client);
+                    }
+                } else
+#endif /* USING_DOCA_COMM_CHANNEL_API */
                     os_unlink_unix_path(s_user_params.client_bind_info.addr_un.sun_path);
 #ifndef __windows__ // AF_UNIX with DGRAM isn't supported in __windows__
                     if (s_user_params.mode == MODE_CLIENT && s_user_params.sock_type == SOCK_DGRAM) { // unlink binded client
@@ -3299,7 +3388,7 @@ static int set_sockets_from_feedfile(const char *feedfile_name) {
 #endif // USING_EXTRA_API
 
         std::unique_ptr<fds_data> tmp{ new fds_data };
-
+        bool skip_socket = false;
         int res = resolve_sockaddr(addr.c_str(), port.c_str(), sock_type,
                 false, reinterpret_cast<sockaddr *>(&tmp->server_addr), tmp->server_addr_len);
         if (res != 0) {
@@ -3375,23 +3464,69 @@ static int set_sockets_from_feedfile(const char *feedfile_name) {
                 g_fds_array[curr_fd]->memberships_size++;
             } else {
                 /* create a socket */
-                if ((curr_fd = (int)socket(tmp->server_addr.addr.sa_family, tmp->sock_type, 0)) <
-                    0) { // TODO: use SOCKET all over the way and avoid this cast
-                    log_err("socket(AF_INET4/6, SOCK_x)");
-                    rc = SOCKPERF_ERR_SOCKET;
-                }
-                fd_socket_map[port_desc_tmp] = curr_fd;
-                if (tmp->is_multicast) {
-                    tmp->memberships_addr = reinterpret_cast<sockaddr_store_t *>(MALLOC(
-                        IGMP_MAX_MEMBERSHIPS * sizeof(struct sockaddr_store_t)));
-                } else {
-                    tmp->memberships_addr = NULL;
-                }
-                tmp->memberships_size = 0;
+                int i = 0;
 
-                s_fd_num++;
+                for (i = 0; i < MAX_ACTIVE_FD_NUM; i++) {
+                    tmp->active_fd_list[i] = (int)INVALID_SOCKET; // TODO: use SOCKET all
+                                                                    // over the way and avoid
+                                                                    // this cast
+                }
+
+                // TODO: In the following malloc we have a one time memory allocation of
+                // 128KB that are not reclaimed
+                // This O(1) leak was introduced in revision 133
+                tmp->recv.buf = (uint8_t *)MALLOC(sizeof(uint8_t) * 2 * MAX_PAYLOAD_SIZE);
+                if (!tmp->recv.buf) {
+                    log_err("Failed to allocate memory with malloc()");
+                    rc = SOCKPERF_ERR_NO_MEMORY;
+                } else {
+                    tmp->recv.cur_addr = tmp->recv.buf;
+                    tmp->recv.max_size = MAX_PAYLOAD_SIZE;
+                    tmp->recv.cur_offset = 0;
+                    tmp->recv.cur_size = tmp->recv.max_size;
+                }
+
+#if defined(USING_DOCA_COMM_CHANNEL_API)
+                if (s_user_params.doca_comm_channel) {
+                    log_dbg("starting feedfile for doca");
+                    int curr_fd = bringup_for_doca(tmp);
+                    s_fd_num++;
+                    skip_socket = true;
+                    fd_socket_map[port_desc_tmp] = curr_fd;
+                    if (new_socket_flag) {
+                        if (s_fd_num == 1) { /*it is the first fd*/
+                            s_fd_min = curr_fd;
+                            s_fd_max = curr_fd;
+                        } else {
+                            g_fds_array[last_fd]->next_fd = curr_fd;
+                            s_fd_min = _min(s_fd_min, curr_fd);
+                            s_fd_max = _max(s_fd_max, curr_fd);
+                        }
+                        last_fd = curr_fd;
+                        g_fds_array[curr_fd] = tmp.release();
+                     }
+                }
+#endif //USING_DOCA_COMM_CHANNEL_API
+                if (!skip_socket) {
+                    if ((curr_fd = (int)socket(tmp->server_addr.addr.sa_family, tmp->sock_type, 0)) <
+                        0) { // TODO: use SOCKET all over the way and avoid this cast
+                        log_err("socket(AF_INET4/6, SOCK_x)");
+                        rc = SOCKPERF_ERR_SOCKET;
+                    }
+                    fd_socket_map[port_desc_tmp] = curr_fd;
+                    log_msg("FD is %d", curr_fd);
+                    if (tmp->is_multicast) {
+                        tmp->memberships_addr = reinterpret_cast<sockaddr_store_t *>(MALLOC(
+                            IGMP_MAX_MEMBERSHIPS * sizeof(struct sockaddr_store_t)));
+                    } else {
+                        tmp->memberships_addr = NULL;
+                    }
+                    tmp->memberships_size = 0;
+
+                    s_fd_num++;
+                }
             }
-            if (curr_fd >= 0) {
+            if (!skip_socket && curr_fd >= 0) {
                 if ((curr_fd >= max_fds_num) ||
                     (prepare_socket(curr_fd, tmp.get()) == (int)
                      INVALID_SOCKET)) { // TODO: use SOCKET all over the way and avoid this cast
@@ -3399,38 +3534,17 @@ static int set_sockets_from_feedfile(const char *feedfile_name) {
                     close(curr_fd);
                     rc = SOCKPERF_ERR_SOCKET;
                 } else {
-                    int i = 0;
-
-                    for (i = 0; i < MAX_ACTIVE_FD_NUM; i++) {
-                        tmp->active_fd_list[i] = (int)INVALID_SOCKET; // TODO: use SOCKET all
-                                                                      // over the way and avoid
-                                                                      // this cast
-                    }
-                    // TODO: In the following malloc we have a one time memory allocation of
-                    // 128KB that are not reclaimed
-                    // This O(1) leak was introduced in revision 133
-                    tmp->recv.buf = (uint8_t *)MALLOC(sizeof(uint8_t) * 2 * MAX_PAYLOAD_SIZE);
-                    if (!tmp->recv.buf) {
-                        log_err("Failed to allocate memory with malloc()");
-                        rc = SOCKPERF_ERR_NO_MEMORY;
-                    } else {
-                        tmp->recv.cur_addr = tmp->recv.buf;
-                        tmp->recv.max_size = MAX_PAYLOAD_SIZE;
-                        tmp->recv.cur_offset = 0;
-                        tmp->recv.cur_size = tmp->recv.max_size;
-
-                        if (new_socket_flag) {
-                            if (s_fd_num == 1) { /*it is the first fd*/
-                                s_fd_min = curr_fd;
-                                s_fd_max = curr_fd;
-                            } else {
-                                g_fds_array[last_fd]->next_fd = curr_fd;
-                                s_fd_min = _min(s_fd_min, curr_fd);
-                                s_fd_max = _max(s_fd_max, curr_fd);
-                            }
-                            last_fd = curr_fd;
-                            g_fds_array[curr_fd] = tmp.release();
+                    if (new_socket_flag) {
+                        if (s_fd_num == 1) { /*it is the first fd*/
+                            s_fd_min = curr_fd;
+                            s_fd_max = curr_fd;
+                        } else {
+                            g_fds_array[last_fd]->next_fd = curr_fd;
+                            s_fd_min = _min(s_fd_min, curr_fd);
+                            s_fd_max = _max(s_fd_max, curr_fd);
                         }
+                        last_fd = curr_fd;
+                        g_fds_array[curr_fd] = tmp.release();
                     }
                 }
             }
@@ -3532,6 +3646,188 @@ static bool fds_array_is_valid() {
     }
     return ((fd == s_fd_max) && ((i + 1) == s_fd_num) && (g_fds_array[fd]->next_fd == s_fd_min));
 }
+
+#if defined(USING_DOCA_COMM_CHANNEL_API)
+int bringup_for_doca(std::unique_ptr<fds_data> &tmp)
+{
+    log_dbg("creating Doca with name %s", s_user_params.addr.addr_un.sun_path);
+    struct cc_ctx_server *ctx_server;
+    struct cc_ctx_client *ctx_client;
+    struct cc_ctx cc_ctx;
+
+    cc_ctx.recv_buffer = tmp->recv.buf;
+    cc_ctx.num_connected_clients = 0;
+    cc_ctx.buf_size = 0;
+    cc_ctx.recv_flag = false;
+    os_mutex_init(&cc_ctx.lock);
+    os_cond_init(&cc_ctx.cond);
+
+    if (s_user_params.doca_cc_fifo) {
+        cc_ctx.fast_path = true;
+        cc_ctx.ctx_fifo.fifo_connection_state = CC_FIFO_CONNECTION_IN_PROGRESS;
+        cc_ctx.ctx_fifo.pe = s_user_params.pe;
+        cc_ctx.ctx_fifo.producer_mem.msg_size = s_user_params.msg_size;
+        cc_ctx.ctx_fifo.consumer_mem.msg_size = MAX_PAYLOAD_SIZE;
+        cc_ctx.ctx_fifo.task_submitted = false;
+    } else {
+        cc_ctx.fast_path = false;
+    }
+    struct priv_doca_pci_bdf dev_pcie = {0};
+    doca_error_t doca_error = DOCA_SUCCESS;
+	struct doca_ctx *ctx;
+
+    int epoll_fd = epoll_create(max_fds_num);
+    doca_event_handle_t event_handle = doca_event_invalid_handle;
+    struct epoll_event ev = { 0, { 0 } };
+    ev.events = EPOLLIN | EPOLLPRI;
+
+    /* Saving fd into context */
+    cc_ctx.fd = epoll_fd;
+    /* Convert the PCI addresses into the matching struct */
+    doca_error = cc_parse_pci_addr(s_user_params.cc_dev_pci_addr, &dev_pcie);
+    if (doca_error != DOCA_SUCCESS) {
+        errno = EPERM;
+        log_dbg("doca error %s", doca_error_get_descr(doca_error));
+        exit_with_err("Failed to parse the device PCI address", SOCKPERF_ERR_FATAL);
+    }
+    log_dbg("parse_pci_addr succeeded for hw_dev");
+
+    /* Open DOCA device according to the given PCI address */
+    doca_error = cc_open_doca_device_with_pci(&dev_pcie, NULL, &(cc_ctx.hw_dev));
+    if (doca_error != DOCA_SUCCESS) {
+        log_dbg("Failed to open Comm Channel DOCA device based on PCI address %s", doca_error_get_descr(doca_error));
+        goto destroy_cc;
+    }
+    log_dbg("open_doca_device_with_pci succeeded for hw_dev");
+
+    if (s_user_params.mode == MODE_SERVER) {
+        ctx_server = (struct cc_ctx_server*)MALLOC(sizeof(struct cc_ctx_server));
+        /* Convert the PCI addresses into the matching struct */
+        struct priv_doca_pci_bdf dev_rep_pcie = {0};
+        doca_error = cc_parse_pci_addr(s_user_params.cc_dev_rep_pci_addr, &dev_rep_pcie);
+        if (doca_error != DOCA_SUCCESS) {
+            log_dbg("Failed to parse the device representor PCI address %s", doca_error_get_descr(doca_error));
+            goto destroy_cc;
+        }
+        log_dbg("parse_pci_addr succeeded for rep_dev");
+
+        /* Open DOCA device representor according to the given PCI address */
+        doca_error = cc_open_doca_device_rep_with_pci(cc_ctx.hw_dev, DOCA_DEVINFO_REP_FILTER_NET,
+                                                &dev_rep_pcie, &(ctx_server->rep_dev));
+        if (doca_error != DOCA_SUCCESS) {
+            log_dbg("Failed to open Comm Channel DOCA device representor based on PCI address %s", doca_error_get_descr(doca_error));
+            goto destroy_cc;
+        }
+        log_dbg("open_doca_device_rep_with_pci succeeded for rep_dev");
+
+        doca_error = doca_cc_server_create(cc_ctx.hw_dev, ctx_server->rep_dev,
+                                        s_user_params.addr.addr_un.sun_path, &(ctx_server->server));
+        if (doca_error != DOCA_SUCCESS) {
+            log_dbg("Failed to create server with error %s", doca_error_get_descr(doca_error));
+            goto destroy_cc;
+        }
+        log_dbg("doca_cc_server_create succeeded");
+        ctx = doca_cc_server_as_ctx(ctx_server->server);
+        if (s_user_params.doca_cc_fifo) {
+            cc_ctx.ctx_fifo.underload_mode = false;
+        }
+
+    } else { // MODE_CLIENT
+        ctx_client = (struct cc_ctx_client*)MALLOC(sizeof(struct cc_ctx_client));
+        cc_ctx.state = CC_CONNECTION_IN_PROGRESS;
+        doca_error = doca_cc_client_create(cc_ctx.hw_dev, s_user_params.addr.addr_un.sun_path,
+                                        &(ctx_client->client));
+        if (doca_error != DOCA_SUCCESS) {
+            log_dbg("Failed to create client with error %s", doca_error_get_descr(doca_error));
+            goto destroy_cc;
+        }
+        log_dbg("doca_cc_client_create succeeded");
+        ctx = doca_cc_client_as_ctx(ctx_client->client);
+        if (!s_user_params.b_client_ping_pong && !s_user_params.b_stream) { // latency_under_load
+            cc_ctx.ctx_fifo.underload_mode = true;
+            if (s_user_params.doca_cc_fifo) {
+                // For underload mode we use different PE for consumer, 1 PE per thread
+                doca_error = doca_pe_create(&(s_user_params.pe_underload));
+                if (doca_error != DOCA_SUCCESS) {
+                    log_dbg("Fail creating pe for underload mode with error %s", doca_error_get_name(doca_error));
+                    goto destroy_cc;
+                }
+                log_dbg("doca_pe_create succeeded for underload mode");
+                cc_ctx.ctx_fifo.pe_underload = s_user_params.pe_underload;
+            }
+        } else {
+            cc_ctx.ctx_fifo.underload_mode = false;
+        }
+    }
+
+    doca_error = doca_pe_connect_ctx(s_user_params.pe, ctx);
+	if (doca_error != DOCA_SUCCESS) {
+		log_dbg("Failed adding pe context to server with error = %s", doca_error_get_name(doca_error));
+		goto destroy_cc;
+	}
+    log_dbg("doca_pe_connect_ctx succeeded");
+
+/*******************************************************/
+/*Set Callback*/
+    if (s_user_params.mode == MODE_SERVER) {
+        ctx_server->ctx = cc_ctx;
+        tmp->doca_cc_ctx = &ctx_server->ctx;
+        doca_error = cc_doca_server_set_params(ctx_server);
+        if (doca_error != DOCA_SUCCESS) {
+            DOCA_LOG_ERR("Failed setting server params = %s", doca_error_get_name(doca_error));
+            goto destroy_cc;
+        }
+    } else { // MODE_CLIENT
+        ctx_client->ctx = cc_ctx;
+        tmp->doca_cc_ctx = &ctx_client->ctx;
+        doca_error = cc_doca_client_set_params(ctx_client);
+        if (doca_error != DOCA_ERROR_IN_PROGRESS) {
+            DOCA_LOG_ERR("Failed setting client params = %s", doca_error_get_name(doca_error));
+            goto destroy_cc;
+        }
+    }
+/********** Event handling fd **********/
+
+    /* DOCA_LOG_INFO("Registering PE event"); */
+    /* doca_event_handle_t is a file descriptor that can be added to an epoll. */
+    /* Currently not implemented*/
+    /* Works alongisde with doca_pe_request_notification */
+    /* doca_pe_get_notification_handle(s_user_params.pe, &event_handle);*/
+
+    epoll_ctl(epoll_fd, EPOLL_CTL_ADD, event_handle, &ev);
+    log_dbg("epoll fd is %d", epoll_fd);
+
+    // Sock type is not needed for comm channel flow
+    tmp->sock_type = -1;
+    return epoll_fd;
+
+destroy_cc:
+    if (doca_error != DOCA_SUCCESS) {
+
+        /* Destroy Comm Channel DOCA device */
+        doca_dev_close(cc_ctx.hw_dev);
+        /* Destroy PE*/
+        doca_pe_destroy(s_user_params.pe);
+        if (s_user_params.doca_cc_fifo) {
+            if (s_user_params.mode == MODE_CLIENT && cc_ctx.ctx_fifo.underload_mode) {
+                doca_pe_destroy(s_user_params.pe_underload);
+            }
+        }
+        os_mutex_close(&cc_ctx.lock);
+        os_cond_destroy(&cc_ctx.cond);
+        s_user_params.pe = NULL;
+        if (s_user_params.mode == MODE_SERVER) {
+            doca_cc_server_destroy(ctx_server->server);
+            doca_dev_rep_close(ctx_server->rep_dev);
+            FREE(ctx_server);
+        } else {
+            doca_cc_client_destroy(ctx_client->client);
+            FREE(ctx_client);
+        }
+        exit_with_err("Com channel bringup failed", SOCKPERF_ERR_FATAL);
+    }
+}
+#endif //USING_DOCA_COMM_CHANNEL_API
 
 //------------------------------------------------------------------------------
 int bringup(const int *p_daemonize) {
@@ -3643,37 +3939,46 @@ int bringup(const int *p_daemonize) {
                 rc = SOCKPERF_ERR_NO_MEMORY;
             } else {
                 /* create a socket */
-                if ((curr_fd = (int)socket(tmp->server_addr.addr.sa_family, tmp->sock_type, 0)) <
-                    0) { // TODO: use SOCKET all over the way and avoid this cast
-                    log_err("socket(AF_INET4/6/AF_UNIX, SOCK_x)");
-                    rc = SOCKPERF_ERR_SOCKET;
+                int i = 0;
+                s_fd_num = 1;
+
+                for (i = 0; i < MAX_ACTIVE_FD_NUM; i++) {
+                    tmp->active_fd_list[i] = (int)INVALID_SOCKET;
+                }
+                tmp->recv.buf =
+                    (uint8_t *)MALLOC(sizeof(uint8_t) * 2 * MAX_PAYLOAD_SIZE);
+                if (!tmp->recv.buf) {
+                    log_err("Failed to allocate memory with malloc()");
+                    rc = SOCKPERF_ERR_NO_MEMORY;
                 } else {
-                    if ((curr_fd >= max_fds_num) ||
-                        (prepare_socket(curr_fd, tmp.get()) ==
-                        (int)INVALID_SOCKET)) { // TODO: use SOCKET all over the way and avoid
-                                                // this cast
-                        log_err("Invalid socket");
-                        close(curr_fd);
+                    tmp->recv.cur_addr = tmp->recv.buf;
+                    tmp->recv.max_size = MAX_PAYLOAD_SIZE;
+                    tmp->recv.cur_offset = 0;
+                    tmp->recv.cur_size = tmp->recv.max_size;
+                }
+                bool skip_socket = false;
+#if defined(USING_DOCA_COMM_CHANNEL_API)
+                if (s_user_params.doca_comm_channel) {
+                    int epoll_fd = bringup_for_doca(tmp);
+                    skip_socket = true;
+                    s_fd_min = s_fd_max = epoll_fd;
+                    g_fds_array[s_fd_min] = tmp.release();
+                    g_fds_array[s_fd_min]->next_fd = s_fd_min;
+                }
+#endif /* USING_DOCA_COMM_CHANNEL_API */
+                if (!skip_socket) {
+                    if ((curr_fd = (int)socket(tmp->server_addr.addr.sa_family, tmp->sock_type, 0)) < 0) { // TODO: use SOCKET all over the way and avoid this cast
+                        log_err("socket(AF_INET4/6/AF_UNIX, SOCK_x)");
                         rc = SOCKPERF_ERR_SOCKET;
                     } else {
-                        int i = 0;
-
-                        s_fd_num = 1;
-
-                        for (i = 0; i < MAX_ACTIVE_FD_NUM; i++) {
-                            tmp->active_fd_list[i] = (int)INVALID_SOCKET;
-                        }
-                        tmp->recv.buf =
-                            (uint8_t *)MALLOC(sizeof(uint8_t) * 2 * MAX_PAYLOAD_SIZE);
-                        if (!tmp->recv.buf) {
-                            log_err("Failed to allocate memory with malloc()");
-                            rc = SOCKPERF_ERR_NO_MEMORY;
+                        if ((curr_fd >= max_fds_num) ||
+                            (prepare_socket(curr_fd, tmp.get()) ==
+                            (int)INVALID_SOCKET)) { // TODO: use SOCKET all over the way and avoid
+                                                    // this cast
+                            log_err("Invalid socket");
+                            close(curr_fd);
+                            rc = SOCKPERF_ERR_SOCKET;
                         } else {
-                            tmp->recv.cur_addr = tmp->recv.buf;
-                            tmp->recv.max_size = MAX_PAYLOAD_SIZE;
-                            tmp->recv.cur_offset = 0;
-                            tmp->recv.cur_size = tmp->recv.max_size;
-
                             s_fd_min = s_fd_max = curr_fd;
                             g_fds_array[s_fd_min] = tmp.release();
                             g_fds_array[s_fd_min]->next_fd = s_fd_min;
@@ -3692,12 +3997,12 @@ int bringup(const int *p_daemonize) {
                 }
             }
         }
-
+#ifndef USING_DOCA_COMM_CHANNEL_API
         if (!rc && !fds_array_is_valid()) {
             log_err("Sanity check failed for sockets list");
             rc = SOCKPERF_ERR_FATAL;
         }
-
+#endif /* USING_DOCA_COMM_CHANNEL_API */
         if (!rc && (s_user_params.threads_num > s_fd_num || s_user_params.threads_num == 0)) {
             log_msg("Number of threads should be less than sockets count");
             rc = SOCKPERF_ERR_BAD_ARGUMENT;

@@ -72,12 +72,84 @@ public:
             ret = tls_read(g_fds_array[fd]->tls_handle, buf, m_recv_data.cur_size);
         } else
 #endif /* DEFINED_TLS */
+#if defined(USING_DOCA_COMM_CHANNEL_API)
+        if (s_user_params.doca_comm_channel) {
+            struct timespec ts = {
+                .tv_sec = 0,
+                .tv_nsec = NANOS_10_X_1000,
+            };
+            struct cc_ctx *ctx = g_fds_array[fd]->doca_cc_ctx;
+            struct doca_pe *pe_local = s_user_params.pe;
+            doca_error_t result = DOCA_SUCCESS;
+            if (!s_user_params.doca_cc_fifo && s_user_params.mode == MODE_CLIENT
+                && !g_pApp->m_const_params.b_client_ping_pong && !g_pApp->m_const_params.b_stream) { // latency_under_load
+                os_mutex_lock(&ctx->lock);
+                while (!ctx->recv_flag) {
+                    // UL only-> wait for signal, once done copy buffer
+                    os_cond_wait(&ctx->cond, &ctx->lock);
+                }
+            } else { // ping pong or throughput
+                if (s_user_params.doca_cc_fifo) {
+                    if (!ctx->ctx_fifo.task_submitted) {// avoid submitting the same task again
+                        result = doca_buf_reset_data_len(ctx->ctx_fifo.doca_buf_consumer);
+                        if (result != DOCA_SUCCESS) {
+                            log_err("failed resetting doca data len with error = %s", doca_error_get_name(result));
+                        }
+                        result = doca_task_submit(ctx->ctx_fifo.consumer_task_obj);
+                        if (result != DOCA_SUCCESS) {
+                            log_err("failed submitting recv task with error = %s", doca_error_get_name(result));
+                            doca_task_free(ctx->ctx_fifo.consumer_task_obj);
+                            (void)doca_buf_dec_refcount(ctx->ctx_fifo.doca_buf_consumer, NULL);
+                            return RET_SOCKET_SHUTDOWN;
+                        }
+                        // Avoid submitting task when there is already task in queue
+                        ctx->ctx_fifo.task_submitted = true;
+                    }
+                    if (s_user_params.mode == MODE_CLIENT && !g_pApp->m_const_params.b_client_ping_pong
+                        && !g_pApp->m_const_params.b_stream) { // latency_under_load
+                        pe_local = s_user_params.pe_underload;
+                    }
+                }  // end of doca fast path
+                // Waiting for meesage receive callback - blocking mode
+                if (s_user_params.is_blocked) {
+                    while (!ctx->recv_flag) {
+                        if (doca_pe_progress(pe_local) == 0) {
+                            nanosleep(&ts, &ts);
+                        }
+                    }
+                } else { // non-blocked
+                    doca_pe_progress(pe_local);
+                    if (!ctx->recv_flag) {// Message recv
+                        errno = EAGAIN;
+                        ctx->buf_size = -1;
+                    }
+                }
+                if (s_user_params.doca_cc_fifo && ctx->recv_flag) {
+                    // another task can be submitted
+                    ctx->ctx_fifo.task_submitted = false;
+                }
+            }
+
+            m_actual_buf_size = ctx->buf_size;
+            m_actual_buf = ctx->recv_buffer;
+
+            // Done reading setting flag to send mode
+            ctx->recv_flag = false;
+
+            if (!g_pApp->m_const_params.b_client_ping_pong &&
+                !g_pApp->m_const_params.b_stream) { // latency_under_load
+                os_mutex_unlock(&ctx->lock);
+            }
+            ret = ctx->buf_size;
+
+        } else
+#endif /* USING_DOCA_COMM_CHANNEL_API */
         {
             ret = recvfrom(fd, buf, m_recv_data.cur_size,
                     flags, (struct sockaddr *)recvfrom_addr, &size);
-        }
         m_actual_buf = buf;
         m_actual_buf_size = ret;
+        }
 
 #if defined(LOG_TRACE_MSG_IN) && (LOG_TRACE_MSG_IN == TRUE)
         printf(">   ");
