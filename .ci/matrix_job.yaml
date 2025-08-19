@@ -4,7 +4,8 @@ job: sockperf
 step_allow_single_selector: false
 
 registry_host: harbor.mellanox.com
-registry_auth: swx-storage
+registry_auth: swx-infra_harbor_credentials
+registry_path: /swx-infra/media
 
 kubernetes:
   privileged: true
@@ -267,6 +268,6 @@ pipeline_stop:
 
 failFast: false
 
-timeout_minutes: 150
+timeout_minutes: 180
 
 taskName: '${flags}/${name}/${axis_index}'

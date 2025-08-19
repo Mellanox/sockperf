@@ -28,8 +28,8 @@ NPROC=8
 make_opt="-j${NPROC}"
 
 if [ $(command -v timeout >/dev/null 2>&1 && echo $?) ]; then
-    timeout_exe="timeout -s SIGKILL 20m"
-    long_timeout_exe="timeout -s SIGKILL 40m"
+    timeout_exe="timeout -s SIGKILL 40m"
+    long_timeout_exe="timeout -s SIGKILL 60m"
 fi
 
 trap "on_exit" INT TERM ILL KILL FPE SEGV ALRM
