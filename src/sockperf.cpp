@@ -294,6 +294,11 @@ static const AOPT_DESC common_opt_desc[] = {
       aopt_set_literal(0),
       aopt_set_string("set-sock-accl"),
       "Set socket acceleration before run (available for some of Mellanox systems)" },
+    { OPT_UDP_DONTFRAG,
+      AOPT_NOARG,
+      aopt_set_literal(0),
+      aopt_set_string("udp-dont-frag"),
+      "Force setting the DF bit for the outgoing UDP packets" },
 #if defined(DEFINED_TLS)
     { OPT_TLS,                AOPT_OPTARG,                                    aopt_set_literal(0),
       aopt_set_string("tls"), "Use TLSv1.2 (default " TLS_CHIPER_DEFAULT ")." },
@@ -2233,6 +2238,16 @@ static int parse_common_opt(const AOPT_OBJECT *common_obj) {
             }
         }
 #endif /* DEFINED_TLS */
+
+        if (!rc && aopt_check(common_obj, OPT_UDP_DONTFRAG)) {
+            if (!aopt_check(common_obj, OPT_TCP) && !aopt_check(common_obj, OPT_LOAD_VMA) &&
+                    !aopt_check(common_obj, OPT_LOAD_XLIO)) {
+                s_user_params.udp_dontfrag = true;
+            } else {
+                log_msg("--udp-dont-frag conflicts with --tcp/--load-vma and --load-xlio options");
+                rc = SOCKPERF_ERR_BAD_ARGUMENT;
+            }
+        }
     }
 
     // resolve address: -i, -p and --tcp options must be processed before
@@ -2805,6 +2820,17 @@ int sock_set_tos(int fd) {
     return rc;
 }
 
+int sock_set_udpdf(int fd) {
+    int rc = 0;
+    int v = IP_PMTUDISC_DO;
+    if (setsockopt(fd, IPPROTO_IP, IP_MTU_DISCOVER, &v, sizeof(v))) {
+        log_err("setsockopt(IP_MTU_DISCOVER), set  failed.  It could be that this option is not supported "
+                "in your system");
+        rc = SOCKPERF_ERR_SOCKET;
+    }
+    return rc;
+}
+
 static int sock_join_multicast_v4(int fd, struct fds_data *p_data, const sockaddr_in *p_addr)
 {
     if (s_user_params.rx_mc_if_addr.family() != AF_UNSPEC &&
@@ -3083,6 +3109,10 @@ int prepare_socket(int fd, struct fds_data *p_data)
 
     if (!rc && (s_user_params.tos)) {
         rc = sock_set_tos(fd);
+    }
+
+    if (!rc && (s_user_params.udp_dontfrag)) {
+        rc = sock_set_udpdf(fd);
     }
 
 #ifdef USING_EXTRA_API
@@ -3902,7 +3932,8 @@ b_stream = %d \n\t\
 daemonize = %d \n\t\
 feedfile_name = %s \n\t\
 tos = %d \n\t\
-packet pace limit = %d",
+packet pace limit = %d \n\t\
+udp_dontfrag = %d",
             s_user_params.mode, s_user_params.measurement, s_user_params.withsock_accl,
             s_user_params.msg_size, s_user_params.msg_size_range, s_user_params.sec_test_duration,
             s_user_params.number_test_target, s_user_params.data_integrity,
@@ -3921,7 +3952,7 @@ packet pace limit = %d",
             (strlen(s_user_params.receiver_affinity) ? s_user_params.receiver_affinity : "<empty>"),
             s_user_params.b_stream, s_user_params.daemonize,
             (strlen(s_user_params.feedfile_name) ? s_user_params.feedfile_name : "<empty>"),
-            s_user_params.tos, s_user_params.rate_limit);
+            s_user_params.tos, s_user_params.rate_limit, s_user_params.udp_dontfrag);
 
         // Display application version
         log_msg(MAGNETA "== version #%s == " ENDCOLOR, VERSION);

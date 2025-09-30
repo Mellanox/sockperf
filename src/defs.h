@@ -292,8 +292,9 @@ enum {
     OPT_LOAD_XLIO,                // 47
     OPT_TCP_NB_CONN_TIMEOUT_MS,   // 48
 #if defined(DEFINED_TLS)
-    OPT_TLS
+    OPT_TLS,                      // 49
 #endif /* DEFINED_TLS */
+    OPT_UDP_DONTFRAG              // 50
 };
 
 static const char *const round_trip_str[] = { "latency", "rtt" };
@@ -805,6 +806,7 @@ struct user_params_t {
 #if defined(DEFINED_TLS)
     bool tls = false;
 #endif /* DEFINED_TLS */
+    int udp_dontfrag = 0;
 
     user_params_t() {
         memset(&client_bind_info, 0, sizeof(client_bind_info));
