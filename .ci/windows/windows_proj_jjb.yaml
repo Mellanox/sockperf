@@ -54,8 +54,7 @@
     scm:
         - git:
             url: "{jjb_git}"
-            # swx-jenkins3 GH user/pass
-            credentials-id: 'swx-jenkins_ssh_key'
+            credentials-id: 'svc-nbu-swx-media_ssh_key'
             branches: ['$sha1']
             shallow-clone: true
             depth: 10
