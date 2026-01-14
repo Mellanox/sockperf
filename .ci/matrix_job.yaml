@@ -31,8 +31,8 @@ env:
 runs_on_dockers:
   - {name: 'ub22.04-mofed-x86_64',  url: 'harbor.mellanox.com/hpcx/x86_64/ubuntu22.04/builder:mofed-5.7-0.1.1.0', category: 'base', arch: 'x86_64'}
   - {name: 'ub21.10-inbox-x86_64',  url: 'harbor.mellanox.com/hpcx/x86_64/ubuntu21.10/builder:inbox', category: 'base', arch: 'x86_64'}
-  - {name: 'rhel8.3-inbox-x86_64',  url: 'harbor.mellanox.com/hpcx/x86_64/rhel8.3/builder:inbox', category: 'base', arch: 'x86_64'}
-  - {name: 'rhel8.3-inbox-aarch64', url: 'harbor.mellanox.com/hpcx/aarch64/rhel8.3/builder:inbox', category: 'base', arch: 'aarch64'}
+  - {name: 'rhel9.0-inbox-x86_64',  url: 'harbor.mellanox.com/hpcx/x86_64/rhel9.0/builder:inbox', category: 'base', arch: 'x86_64'}
+  - {name: 'rhel9.0-inbox-aarch64', url: 'harbor.mellanox.com/hpcx/aarch64/rhel9.0/builder:inbox', category: 'base', arch: 'aarch64'}
   - {name: 'sl15sp2-mofed-x86_64',  url: 'harbor.mellanox.com/swx-infra/x86_64/sles15sp2/builder:mofed-5.2-2.2.0.0', category: 'base', arch: 'x86_64'}
   - {name: 'fc31-mofed-x86_64',     url: 'harbor.mellanox.com/swx-infra/x86_64/fedora31/builder:mofed-5.1-1.0.7.0', category: 'base', arch: 'x86_64'}
   - {name: 'toolbox', url: 'harbor.mellanox.com/hpcx/x86_64/rhel8.3/builder:inbox', category: 'tool', arch: 'x86_64'}
@@ -95,7 +95,7 @@ steps:
       - "{category: 'base'}"
     run: |
       [ "x${do_build}" == "xtrue" ] && action=yes || action=no
-      env WORKSPACE=$PWD TARGET=${flags} jenkins_test_build=${action} ./contrib/test_jenkins.sh 
+      env WORKSPACE=$PWD TARGET=${flags} jenkins_test_build=${action} ./contrib/test_jenkins.sh
     parallel: false
     onfail: |
       ./.ci/artifacts.sh
