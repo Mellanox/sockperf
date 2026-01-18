@@ -56,17 +56,6 @@ public:
         int flags = 0;
         uint8_t *buf = m_recv_data.cur_addr + m_recv_data.cur_offset;
 
-/*
-    When writing onto a connection-oriented socket that has been shut down
-    (by the local or the remote end) SIGPIPE is sent to the writing process
-    and EPIPE is returned. The signal is not sent when the write call specified
-    the MSG_NOSIGNAL flag.
-    Note: another way is call signal (SIGPIPE,SIG_IGN);
- */
-#ifndef __windows__
-        flags = MSG_NOSIGNAL;
-#endif
-
 #if defined(DEFINED_TLS)
         if (g_fds_array[fd]->tls_handle) {
             ret = tls_read(g_fds_array[fd]->tls_handle, buf, m_recv_data.cur_size);
