@@ -360,7 +360,7 @@ inline bool Server<IoType, SwitchCalcGaps>::handle_message(int ifd,
             /* always send to the same port recved from */
             sockaddr_set_portn(sendto_addr, sockaddr_get_portn(recvfrom_addr));
         }
-        int length = m_pMsgReply->getLength();
+        int length = m_pMsgReply->getReplySize() ? m_pMsgReply->getReplySize() : m_pMsgReply->getLength();
         m_pMsgReply->setHeaderToNetwork();
 
         int ret = msg_sendto(ifd, m_pMsgReply->getBuf(), length,
