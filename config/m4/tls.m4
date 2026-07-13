@@ -32,7 +32,6 @@ AS_IF([test "x$with_tls" == xno],
         sockperf_cv_tls_lib_str="openssl"
 
         sockperf_cv_tls_save_CPPFLAGS="$CPPFLAGS"
-        sockperf_cv_tls_save_CXXFLAGS="$CXXFLAGS"
         sockperf_cv_tls_save_CFLAGS="$CFLAGS"
         sockperf_cv_tls_save_LDFLAGS="$LDFLAGS"
         sockperf_cv_tls_save_LIBS="$LIBS"
@@ -45,8 +44,7 @@ AS_IF([test "x$with_tls" == xno],
         fi
 
         CPPFLAGS="$sockperf_cv_tls_CPPFLAGS $CPPFLAGS"
-        CXXFLAGS="$sockperf_cv_dpcp_CXXFLAGS $CXXFLAGS"
-        LDFLAGS="$sockperf_cv_dpcp_LDFLAGS $LDFLAGS"
+        LDFLAGS="$sockperf_cv_tls_LDFLAGS $LDFLAGS"
         LIBS="$sockperf_cv_tls_LIBS $LIBS"
 
         AC_LANG_PUSH([C])
@@ -61,11 +59,11 @@ AS_IF([test "x$with_tls" == xno],
                   SSL_load_error_strings();
                 ]])],
                 [], [sockperf_cv_tls_lib=0])
-            ])
+            ],
+            [sockperf_cv_tls_lib=0])
         AC_LANG_POP()
 
         CPPFLAGS="$sockperf_cv_tls_save_CPPFLAGS"
-        CXXFLAGS="$sockperf_cv_tls_save_CXXFLAGS"
         CFLAGS="$sockperf_cv_tls_save_CFLAGS"
         LDFLAGS="$sockperf_cv_tls_save_LDFLAGS"
         LIBS="$sockperf_cv_tls_save_LIBS"
@@ -81,5 +79,7 @@ if test "$sockperf_cv_tls_lib" -ne 0; then
     AC_MSG_RESULT([$sockperf_cv_tls_lib_str])
 else
     AC_MSG_RESULT([no])
+    AS_IF([test "x$with_tls" != xno],
+        [AC_MSG_ERROR([TLS support was requested via --with-tls but the OpenSSL headers/libraries could not be found or failed the link test in "$with_tls"; install the OpenSSL development files or pass --with-tls=DIR with the correct prefix])])
 fi
 ])
