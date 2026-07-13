@@ -1,4 +1,5 @@
 Makefile
+Makefile.in
 aclocal.m4
 config.h
 config.h.in
