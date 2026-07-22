@@ -162,6 +162,7 @@ typedef unsigned short int sa_family_t;
 extern int MAX_PAYLOAD_SIZE;
 extern int max_fds_num;
 #define MAX_TCP_SIZE ((1 << 20) - 1)
+#define MAX_PAYLOAD_SIZE_LIMIT 65507
 
 const uint32_t MPS_MAX_UL =
     10 * 1000 * 1000; //  10 M MPS is 4 times the maximum possible under VMA today
@@ -291,6 +292,7 @@ enum {
     OPT_HISTOGRAM,                // 46
     OPT_LOAD_XLIO,                // 47
     OPT_TCP_NB_CONN_TIMEOUT_MS,   // 48
+    OPT_REPLY_SIZE,               // 49
 #if defined(DEFINED_TLS)
     OPT_TLS
 #endif /* DEFINED_TLS */
@@ -733,6 +735,7 @@ struct user_params_t {
     IPAddress tx_mc_if_addr;
     IPAddress mc_source_ip_addr;
     int msg_size = MIN_PAYLOAD_SIZE;
+    int reply_size = 0;
     int msg_size_range = 0;
     int sec_test_duration = DEFAULT_TEST_DURATION;
     uint64_t number_test_target = DEFAULT_TEST_NUMBER;

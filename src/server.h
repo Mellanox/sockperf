@@ -360,7 +360,9 @@ inline bool Server<IoType, SwitchCalcGaps>::handle_message(int ifd,
             /* always send to the same port recved from */
             sockaddr_set_portn(sendto_addr, sockaddr_get_portn(recvfrom_addr));
         }
-        int length = m_pMsgReply->getLength();
+        const int request_length = m_pMsgReply->getLength();
+        int length = m_pMsgReply->getReplySize() ? m_pMsgReply->getReplySize() : request_length;
+        m_pMsgReply->setLength(length);
         m_pMsgReply->setHeaderToNetwork();
 
         int ret = msg_sendto(ifd, m_pMsgReply->getBuf(), length,
@@ -372,6 +374,7 @@ inline bool Server<IoType, SwitchCalcGaps>::handle_message(int ifd,
             return false;
         }
         m_pMsgReply->setHeaderToHost();
+        m_pMsgReply->setLength(request_length);
     }
 
     m_switchCalcGaps.execute(recvfrom_addr, recvfrom_len, m_pMsgReply->getSequenceCounter(), false);

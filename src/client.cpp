@@ -690,6 +690,7 @@ ClientBase::ClientBase() {
     m_pMsgRequest = new Message();
     m_pMsgRequest->getHeader()->setClient();
     m_pMsgRequest->setLength(g_pApp->m_const_params.msg_size);
+    m_pMsgRequest->setReplySize(g_pApp->m_const_params.reply_size);
 }
 
 //------------------------------------------------------------------------------

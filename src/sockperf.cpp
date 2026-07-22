@@ -483,6 +483,9 @@ static int proc_mode_under_load(int id, int argc, const char **argv) {
           aopt_set_literal(0),
           aopt_set_string("histogram"),
           "Build histogram of latencies. Histogram arguments formated as binsize:lowerrange:upperrange " },
+        { OPT_REPLY_SIZE, AOPT_ARG, aopt_set_literal(0),
+          aopt_set_string("reply-size"),
+          "Set the server reply message size in bytes (default: same as -m)." },
         { 0, AOPT_NOARG, aopt_set_literal(0), aopt_set_string(NULL), NULL }
     };
 
@@ -620,6 +623,32 @@ static int proc_mode_under_load(int id, int argc, const char **argv) {
                 }
             } else {
                 log_msg("'-%c' Invalid value", 'm');
+                rc = SOCKPERF_ERR_BAD_ARGUMENT;
+            }
+        }
+
+        if (!rc && aopt_check(self_obj, OPT_REPLY_SIZE)) {
+            const char *optarg = aopt_value(self_obj, OPT_REPLY_SIZE);
+            if (optarg) {
+                errno = 0;
+                int value = strtol(optarg, NULL, 0);
+                if (errno != 0 || (value != 0 && value < MIN_PAYLOAD_SIZE)) {
+                    log_msg("'--reply-size' Invalid reply size: %s (min: %d)", optarg,
+                            MIN_PAYLOAD_SIZE);
+                    rc = SOCKPERF_ERR_BAD_ARGUMENT;
+                } else if (!aopt_check(common_obj, OPT_TCP) && value > MAX_PAYLOAD_SIZE_LIMIT) {
+                    log_msg("'--reply-size' Invalid reply size: %s (max: %d)", optarg,
+                            MAX_PAYLOAD_SIZE_LIMIT);
+                    rc = SOCKPERF_ERR_BAD_ARGUMENT;
+                } else if (aopt_check(common_obj, OPT_TCP) && value > MAX_TCP_SIZE) {
+                    log_msg("'--reply-size' Invalid reply size: %s (max: %d)", optarg, MAX_TCP_SIZE);
+                    rc = SOCKPERF_ERR_BAD_ARGUMENT;
+                } else {
+                    MAX_PAYLOAD_SIZE = _max(MAX_PAYLOAD_SIZE, value);
+                    s_user_params.reply_size = value;
+                }
+            } else {
+                log_msg("'--reply-size' Invalid value");
                 rc = SOCKPERF_ERR_BAD_ARGUMENT;
             }
         }
@@ -792,6 +821,9 @@ static int proc_mode_ping_pong(int id, int argc, const char **argv) {
           aopt_set_literal(0),
           aopt_set_string("histogram"),
           "Build histogram of latencies. Histogram arguments formated as binsize:lowerrange:upperrange " },
+        { OPT_REPLY_SIZE, AOPT_ARG, aopt_set_literal(0),
+          aopt_set_string("reply-size"),
+          "Set the server reply message size in bytes (default: same as -m)." },
         { 0, AOPT_NOARG, aopt_set_literal(0), aopt_set_string(NULL), NULL }
     };
 
@@ -943,6 +975,32 @@ static int proc_mode_ping_pong(int id, int argc, const char **argv) {
                 }
             } else {
                 log_msg("'-%c' Invalid value", 'm');
+                rc = SOCKPERF_ERR_BAD_ARGUMENT;
+            }
+        }
+
+        if (!rc && aopt_check(self_obj, OPT_REPLY_SIZE)) {
+            const char *optarg = aopt_value(self_obj, OPT_REPLY_SIZE);
+            if (optarg) {
+                errno = 0;
+                int value = strtol(optarg, NULL, 0);
+                if (errno != 0 || (value != 0 && value < MIN_PAYLOAD_SIZE)) {
+                    log_msg("'--reply-size' Invalid reply size: %s (min: %d)", optarg,
+                            MIN_PAYLOAD_SIZE);
+                    rc = SOCKPERF_ERR_BAD_ARGUMENT;
+                } else if (!aopt_check(common_obj, OPT_TCP) && value > MAX_PAYLOAD_SIZE_LIMIT) {
+                    log_msg("'--reply-size' Invalid reply size: %s (max: %d)", optarg,
+                            MAX_PAYLOAD_SIZE_LIMIT);
+                    rc = SOCKPERF_ERR_BAD_ARGUMENT;
+                } else if (aopt_check(common_obj, OPT_TCP) && value > MAX_TCP_SIZE) {
+                    log_msg("'--reply-size' Invalid reply size: %s (max: %d)", optarg, MAX_TCP_SIZE);
+                    rc = SOCKPERF_ERR_BAD_ARGUMENT;
+                } else {
+                    MAX_PAYLOAD_SIZE = _max(MAX_PAYLOAD_SIZE, value);
+                    s_user_params.reply_size = value;
+                }
+            } else {
+                log_msg("'--reply-size' Invalid value");
                 rc = SOCKPERF_ERR_BAD_ARGUMENT;
             }
         }
@@ -1113,6 +1171,9 @@ static int proc_mode_throughput(int id, int argc, const char **argv) {
           aopt_set_literal('r'),
           aopt_set_string("range"),
           "comes with -m <size>, randomly change the messages size in range: <size> +- <N>." },
+        { OPT_REPLY_SIZE, AOPT_ARG, aopt_set_literal(0),
+          aopt_set_string("reply-size"),
+          "Set the server reply message size in bytes (default: same as -m)." },
         { 0, AOPT_NOARG, aopt_set_literal(0), aopt_set_string(NULL), NULL }
     };
 
@@ -1234,6 +1295,32 @@ static int proc_mode_throughput(int id, int argc, const char **argv) {
                 }
             } else {
                 log_msg("'-%c' Invalid value", 'm');
+                rc = SOCKPERF_ERR_BAD_ARGUMENT;
+            }
+        }
+
+        if (!rc && aopt_check(self_obj, OPT_REPLY_SIZE)) {
+            const char *optarg = aopt_value(self_obj, OPT_REPLY_SIZE);
+            if (optarg) {
+                errno = 0;
+                int value = strtol(optarg, NULL, 0);
+                if (errno != 0 || (value != 0 && value < MIN_PAYLOAD_SIZE)) {
+                    log_msg("'--reply-size' Invalid reply size: %s (min: %d)", optarg,
+                            MIN_PAYLOAD_SIZE);
+                    rc = SOCKPERF_ERR_BAD_ARGUMENT;
+                } else if (!aopt_check(common_obj, OPT_TCP) && value > MAX_PAYLOAD_SIZE_LIMIT) {
+                    log_msg("'--reply-size' Invalid reply size: %s (max: %d)", optarg,
+                            MAX_PAYLOAD_SIZE_LIMIT);
+                    rc = SOCKPERF_ERR_BAD_ARGUMENT;
+                } else if (aopt_check(common_obj, OPT_TCP) && value > MAX_TCP_SIZE) {
+                    log_msg("'--reply-size' Invalid reply size: %s (max: %d)", optarg, MAX_TCP_SIZE);
+                    rc = SOCKPERF_ERR_BAD_ARGUMENT;
+                } else {
+                    MAX_PAYLOAD_SIZE = _max(MAX_PAYLOAD_SIZE, value);
+                    s_user_params.reply_size = value;
+                }
+            } else {
+                log_msg("'--reply-size' Invalid value");
                 rc = SOCKPERF_ERR_BAD_ARGUMENT;
             }
         }
@@ -2677,7 +2764,15 @@ inline bool CallbackMessageHandler<T>::handle_message()
             /* always send to the same port recved from */
             sockaddr_set_portn(sendto_addr, sockaddr_get_portn((sockaddr_store_t &)*m_extra_info->src));
         }
-        int length = msgReply->getLength();
+        const int request_length = msgReply->getLength();
+        // Validate reply_size from untrusted network header
+        uint32_t reply_size = msgReply->getReplySize();
+        int length = request_length;  // default to validated request length
+        if (reply_size > 0 && reply_size <= (uint32_t)Message::getMaxSize() && reply_size <= (uint32_t)request_length) {
+            // Use reply_size only if it's within buffer capacity and not exceeding request length
+            length = static_cast<int>(reply_size);
+        }
+        msgReply->setLength(length);
         msgReply->setHeaderToNetwork();
         msg_sendto(m_fd, msgReply->getBuf(), length, reinterpret_cast<sockaddr *>(&sendto_addr), sendto_len);
         /*if (ret == RET_SOCKET_SHUTDOWN) {
@@ -2687,6 +2782,7 @@ inline bool CallbackMessageHandler<T>::handle_message()
             return VMA_PACKET_DROP;
         }*/
         msgReply->setHeaderToHost();
+        msgReply->setLength(request_length);
     }
 
     return true;

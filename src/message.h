@@ -67,16 +67,18 @@ public:
         m_sequence_number = htonll(m_sequence_number);
         m_flags_and_length.m_flags = htons(m_flags_and_length.m_flags);
         m_flags_and_length.length = htonl(m_flags_and_length.length);
+        m_reply_size = htonl(m_reply_size);
     }
 
     void ntoh() {
         m_sequence_number = ntohll(m_sequence_number);
         m_flags_and_length.m_flags = ntohs(m_flags_and_length.m_flags);
         m_flags_and_length.length = ntohl(m_flags_and_length.length);
+        m_reply_size = ntohl(m_reply_size);
     }
     // this is different than sizeof(MsgHeader) and safe only for the current implementation of the
     // class
-    static const int EFFECTIVE_SIZE = (int)(sizeof(uint64_t) + sizeof(uint16_t) + sizeof(uint32_t));
+    static const int EFFECTIVE_SIZE = (int)(sizeof(uint64_t) + sizeof(uint16_t) + sizeof(uint32_t) + sizeof(uint32_t));
     //	static const int EFFECTIVE_SIZE = 16;
 
 private:
@@ -90,6 +92,7 @@ private:
     // pack() pragma can be added to set needed alignment
     uint64_t m_sequence_number;
     s_flags_and_length m_flags_and_length;
+    uint32_t m_reply_size = 0;
 
     static const uint32_t MASK_CLIENT = 1;
     static const uint32_t MASK_PONG = 2;
@@ -171,6 +174,9 @@ public:
         return m_header->m_flags_and_length.length;
     }
     void setLength(uint32_t _length) { m_header->m_flags_and_length.length = _length; }
+
+    uint32_t getReplySize() const { return m_header->m_reply_size; }
+    void setReplySize(uint32_t _reply_size) { m_header->m_reply_size = _reply_size; }
 
     bool isValidHeader() const
     {
