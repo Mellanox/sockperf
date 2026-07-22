@@ -162,6 +162,7 @@ typedef unsigned short int sa_family_t;
 extern int MAX_PAYLOAD_SIZE;
 extern int max_fds_num;
 #define MAX_TCP_SIZE ((1 << 20) - 1)
+#define MAX_PAYLOAD_SIZE_LIMIT 65507
 
 const uint32_t MPS_MAX_UL =
     10 * 1000 * 1000; //  10 M MPS is 4 times the maximum possible under VMA today

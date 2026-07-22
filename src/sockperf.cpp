@@ -636,9 +636,9 @@ static int proc_mode_under_load(int id, int argc, const char **argv) {
                     log_msg("'--reply-size' Invalid reply size: %s (min: %d)", optarg,
                             MIN_PAYLOAD_SIZE);
                     rc = SOCKPERF_ERR_BAD_ARGUMENT;
-                } else if (!aopt_check(common_obj, OPT_TCP) && value > MAX_PAYLOAD_SIZE) {
+                } else if (!aopt_check(common_obj, OPT_TCP) && value > MAX_PAYLOAD_SIZE_LIMIT) {
                     log_msg("'--reply-size' Invalid reply size: %s (max: %d)", optarg,
-                            MAX_PAYLOAD_SIZE);
+                            MAX_PAYLOAD_SIZE_LIMIT);
                     rc = SOCKPERF_ERR_BAD_ARGUMENT;
                 } else if (aopt_check(common_obj, OPT_TCP) && value > MAX_TCP_SIZE) {
                     log_msg("'--reply-size' Invalid reply size: %s (max: %d)", optarg, MAX_TCP_SIZE);
@@ -988,9 +988,9 @@ static int proc_mode_ping_pong(int id, int argc, const char **argv) {
                     log_msg("'--reply-size' Invalid reply size: %s (min: %d)", optarg,
                             MIN_PAYLOAD_SIZE);
                     rc = SOCKPERF_ERR_BAD_ARGUMENT;
-                } else if (!aopt_check(common_obj, OPT_TCP) && value > MAX_PAYLOAD_SIZE) {
+                } else if (!aopt_check(common_obj, OPT_TCP) && value > MAX_PAYLOAD_SIZE_LIMIT) {
                     log_msg("'--reply-size' Invalid reply size: %s (max: %d)", optarg,
-                            MAX_PAYLOAD_SIZE);
+                            MAX_PAYLOAD_SIZE_LIMIT);
                     rc = SOCKPERF_ERR_BAD_ARGUMENT;
                 } else if (aopt_check(common_obj, OPT_TCP) && value > MAX_TCP_SIZE) {
                     log_msg("'--reply-size' Invalid reply size: %s (max: %d)", optarg, MAX_TCP_SIZE);
@@ -1308,9 +1308,9 @@ static int proc_mode_throughput(int id, int argc, const char **argv) {
                     log_msg("'--reply-size' Invalid reply size: %s (min: %d)", optarg,
                             MIN_PAYLOAD_SIZE);
                     rc = SOCKPERF_ERR_BAD_ARGUMENT;
-                } else if (!aopt_check(common_obj, OPT_TCP) && value > MAX_PAYLOAD_SIZE) {
+                } else if (!aopt_check(common_obj, OPT_TCP) && value > MAX_PAYLOAD_SIZE_LIMIT) {
                     log_msg("'--reply-size' Invalid reply size: %s (max: %d)", optarg,
-                            MAX_PAYLOAD_SIZE);
+                            MAX_PAYLOAD_SIZE_LIMIT);
                     rc = SOCKPERF_ERR_BAD_ARGUMENT;
                 } else if (aopt_check(common_obj, OPT_TCP) && value > MAX_TCP_SIZE) {
                     log_msg("'--reply-size' Invalid reply size: %s (max: %d)", optarg, MAX_TCP_SIZE);
