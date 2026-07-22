@@ -644,6 +644,7 @@ static int proc_mode_under_load(int id, int argc, const char **argv) {
                     log_msg("'--reply-size' Invalid reply size: %s (max: %d)", optarg, MAX_TCP_SIZE);
                     rc = SOCKPERF_ERR_BAD_ARGUMENT;
                 } else {
+                    MAX_PAYLOAD_SIZE = _max(MAX_PAYLOAD_SIZE, value);
                     s_user_params.reply_size = value;
                 }
             } else {
@@ -995,6 +996,7 @@ static int proc_mode_ping_pong(int id, int argc, const char **argv) {
                     log_msg("'--reply-size' Invalid reply size: %s (max: %d)", optarg, MAX_TCP_SIZE);
                     rc = SOCKPERF_ERR_BAD_ARGUMENT;
                 } else {
+                    MAX_PAYLOAD_SIZE = _max(MAX_PAYLOAD_SIZE, value);
                     s_user_params.reply_size = value;
                 }
             } else {
@@ -1314,6 +1316,7 @@ static int proc_mode_throughput(int id, int argc, const char **argv) {
                     log_msg("'--reply-size' Invalid reply size: %s (max: %d)", optarg, MAX_TCP_SIZE);
                     rc = SOCKPERF_ERR_BAD_ARGUMENT;
                 } else {
+                    MAX_PAYLOAD_SIZE = _max(MAX_PAYLOAD_SIZE, value);
                     s_user_params.reply_size = value;
                 }
             } else {
@@ -2761,7 +2764,9 @@ inline bool CallbackMessageHandler<T>::handle_message()
             /* always send to the same port recved from */
             sockaddr_set_portn(sendto_addr, sockaddr_get_portn((sockaddr_store_t &)*m_extra_info->src));
         }
-        int length = msgReply->getReplySize() ? msgReply->getReplySize() : msgReply->getLength();
+        const int request_length = msgReply->getLength();
+        int length = msgReply->getReplySize() ? msgReply->getReplySize() : request_length;
+        msgReply->setLength(length);
         msgReply->setHeaderToNetwork();
         msg_sendto(m_fd, msgReply->getBuf(), length, reinterpret_cast<sockaddr *>(&sendto_addr), sendto_len);
         /*if (ret == RET_SOCKET_SHUTDOWN) {
@@ -2771,6 +2776,7 @@ inline bool CallbackMessageHandler<T>::handle_message()
             return VMA_PACKET_DROP;
         }*/
         msgReply->setHeaderToHost();
+        msgReply->setLength(request_length);
     }
 
     return true;
