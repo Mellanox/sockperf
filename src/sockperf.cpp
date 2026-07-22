@@ -2765,7 +2765,13 @@ inline bool CallbackMessageHandler<T>::handle_message()
             sockaddr_set_portn(sendto_addr, sockaddr_get_portn((sockaddr_store_t &)*m_extra_info->src));
         }
         const int request_length = msgReply->getLength();
-        int length = msgReply->getReplySize() ? msgReply->getReplySize() : request_length;
+        // Validate reply_size from untrusted network header
+        uint32_t reply_size = msgReply->getReplySize();
+        int length = request_length;  // default to validated request length
+        if (reply_size > 0 && reply_size <= (uint32_t)Message::getMaxSize() && reply_size <= (uint32_t)request_length) {
+            // Use reply_size only if it's within buffer capacity and not exceeding request length
+            length = static_cast<int>(reply_size);
+        }
         msgReply->setLength(length);
         msgReply->setHeaderToNetwork();
         msg_sendto(m_fd, msgReply->getBuf(), length, reinterpret_cast<sockaddr *>(&sendto_addr), sendto_len);
