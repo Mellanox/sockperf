@@ -206,8 +206,9 @@ void printHistogram(uint32_t binSize, std::map<uint32_t, uint32_t> &activeBins, 
     // Scale to terminal
 #ifndef __windows__
     struct winsize size;
-    ioctl(STDOUT_FILENO, TIOCGWINSZ, &size);
-    terminalWidth = size.ws_col;
+    if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &size) == 0) {
+        terminalWidth = size.ws_col;
+    }
 #else
     CONSOLE_SCREEN_BUFFER_INFO csbi;
     GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE),&csbi);
@@ -219,13 +220,16 @@ void printHistogram(uint32_t binSize, std::map<uint32_t, uint32_t> &activeBins, 
             maxFrequency = currFrequency;
         }
     }
-    if (terminalWidth == 0) {
-        // This may happen when run without terminal, but we still want the file output to contain the display
+    uint32_t reservedWidth =
+        static_cast<uint32_t>(prefixToHistogramDisplay.length() + maxBinMessage +
+                              whitespaceAfterFrequencies + whitespaceBeforeFrequencies);
+    if (terminalWidth <= reservedWidth) {
+        // This may happen when run without terminal (or with a terminal too narrow for the bars),
+        // but we still want the file output to contain the display
         uint32_t standardTerminalLength = 80;
         scalingUnit = (maxFrequency + standardTerminalLength - 1)/standardTerminalLength;
     } else {
-        maxDisplayWidth = static_cast<uint32_t>(terminalWidth - prefixToHistogramDisplay.length() - maxBinMessage - whitespaceAfterFrequencies
-            - whitespaceBeforeFrequencies);
+        maxDisplayWidth = terminalWidth - reservedWidth;
         scalingUnit = (maxFrequency + maxDisplayWidth - 1)/maxDisplayWidth; // round up
     }
 
