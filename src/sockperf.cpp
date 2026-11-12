@@ -634,6 +634,11 @@ static int proc_mode_under_load(int id, int argc, const char **argv) {
                     rc = SOCKPERF_ERR_BAD_ARGUMENT;
                 } else {
                     s_user_params.msg_size_range = value;
+                    /* '-m' set MAX_PAYLOAD_SIZE to <size>, make room for <size> + <N> */
+                    int max_size = aopt_check(common_obj, OPT_TCP) ? MAX_TCP_SIZE : MAX_UDP_SIZE;
+                    int room = max_size - s_user_params.msg_size;
+                    MAX_PAYLOAD_SIZE =
+                        _max(MAX_PAYLOAD_SIZE, s_user_params.msg_size + _min(value, room));
                 }
             } else {
                 log_msg("'-%c' Invalid value", 'r');
@@ -957,6 +962,11 @@ static int proc_mode_ping_pong(int id, int argc, const char **argv) {
                     rc = SOCKPERF_ERR_BAD_ARGUMENT;
                 } else {
                     s_user_params.msg_size_range = value;
+                    /* '-m' set MAX_PAYLOAD_SIZE to <size>, make room for <size> + <N> */
+                    int max_size = aopt_check(common_obj, OPT_TCP) ? MAX_TCP_SIZE : MAX_UDP_SIZE;
+                    int room = max_size - s_user_params.msg_size;
+                    MAX_PAYLOAD_SIZE =
+                        _max(MAX_PAYLOAD_SIZE, s_user_params.msg_size + _min(value, room));
                 }
             } else {
                 log_msg("'-%c' Invalid value", 'r');
@@ -1248,6 +1258,11 @@ static int proc_mode_throughput(int id, int argc, const char **argv) {
                     rc = SOCKPERF_ERR_BAD_ARGUMENT;
                 } else {
                     s_user_params.msg_size_range = value;
+                    /* '-m' set MAX_PAYLOAD_SIZE to <size>, make room for <size> + <N> */
+                    int max_size = aopt_check(common_obj, OPT_TCP) ? MAX_TCP_SIZE : MAX_UDP_SIZE;
+                    int room = max_size - s_user_params.msg_size;
+                    MAX_PAYLOAD_SIZE =
+                        _max(MAX_PAYLOAD_SIZE, s_user_params.msg_size + _min(value, room));
                 }
             } else {
                 log_msg("'-%c' Invalid value", 'r');
