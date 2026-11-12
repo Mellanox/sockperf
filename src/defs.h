@@ -161,6 +161,7 @@ typedef unsigned short int sa_family_t;
 #define MIN_PAYLOAD_SIZE (MsgHeader::EFFECTIVE_SIZE)
 extern int MAX_PAYLOAD_SIZE;
 extern int max_fds_num;
+#define MAX_UDP_SIZE 65507
 #define MAX_TCP_SIZE ((1 << 20) - 1)
 
 const uint32_t MPS_MAX_UL =
